@@ -1,0 +1,14 @@
+title = "Default config file for testing."
+
+[db]
+    dialect               = "mysql"
+    protocol              = "tcp"
+    host                  = "localhost"
+    port                  = 3306
+    username              = "metro"
+    password              = "metro"
+    sslMode               = "require"
+    name                  = "metro"
+    maxOpenConnections    = 5
+    maxIdleConnections    = 5
+    connectionMaxLifetime = 0

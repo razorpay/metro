@@ -1,0 +1,16 @@
+# prototool.yaml file - required - do not remove
+prototool.yaml
+
+
+# List of protobuf modules that you want to include in your application
+#
+# You can choose to import an entire module, or any individual service/version
+# under a module
+#
+# For example:
+# common        - for the full module
+# stork/sms     - for all of SMS
+# stork/sms/v1  - for a specific version
+
+common/health/v1
+example/user/v1

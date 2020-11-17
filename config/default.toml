@@ -1,0 +1,54 @@
+[app]
+    appEnv                = "default"
+    serviceName           = "metro"
+    hostname              = "metro.razorpay.com"
+    port                  = "127.0.0.1:8080"
+    shutdownTimeout       = 2
+    shutdownDelay         = 2
+    gitCommitHash         = "nil"
+
+[db]
+    dialect               = "mysql"
+    protocol              = "tcp"
+    url                   = "127.0.0.1"
+    port                  = "3306"
+    username              = "metro"
+    password              = "metro"
+    sslMode               = "require"
+    name                  = "metro"
+    maxOpenConnections    = 5
+    maxIdleConnections    = 5
+    connectionMaxLifetime = 0
+
+[tracing]
+    serviceName           = "metro"
+    logSpans              = false
+    localAgentHostPort    = "localhost:6831"
+    disabled              = true
+
+[queue]
+    driver                = "redis"
+    [queue.redis]
+        driver            = "redis"
+        host              = "127.0.0.1"
+        port              = 6379
+        database          = 0
+        password          = ""
+
+[job]
+    user_approve          = "user_approve"
+
+[worker]
+    name                  = "user_approve"
+    max_concurrency       = 1
+    wait_time             = "10s"
+    retry_delay           = "30s"
+
+[auth]
+    username              = "key"
+    password              = "secret"
+
+[sentry]
+    dsn                   = "dummy"
+    enabled               = false
+    logLevel              = "Error"

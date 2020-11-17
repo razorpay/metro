@@ -1,0 +1,56 @@
+## Multi-stage build for maanaging dev dependencies
+
+######################################
+#
+# Proto gen stage
+#
+######################################
+FROM uber/prototool:latest as proto-builder
+
+RUN mkdir /src
+WORKDIR /src
+
+ADD . /src
+
+ARG GIT_TOKEN
+
+RUN apk add --update --no-cache --repository http://dl-4.alpinelinux.org/alpine/latest-stable/community/ make openssh ca-certificates git
+
+RUN make proto-gen
+
+######################################
+#
+# Unit tests execution stage
+#
+######################################
+FROM golang:1.14-alpine3.12 as builder
+
+ARG GIT_TOKEN
+ENV CGO_ENABLED 0
+
+RUN mkdir /src
+WORKDIR /src
+
+RUN apk add --update --no-cache --repository http://dl-4.alpinelinux.org/alpine/latest-stable/community/ make openssh ca-certificates git make && update-ca-certificates 2>/dev/null || true
+
+# Fetch proto from previous step
+COPY --from=proto-builder /src/rpc /src/rpc
+
+# Avoid copying source first since that will invalidate cache for all further layers
+COPY go.mod .
+COPY go.sum .
+
+# Get dependencies using go.mod and go.sum
+# This should be cached unless we modify go.mod/go.sum
+RUN set -eux && \
+    echo 'exec echo ${GIT_TOKEN}' > /tmp/askpass.sh && \
+    chmod +x /tmp/askpass.sh && \
+    export GIT_ASKPASS=/tmp/askpass.sh && \
+    go mod vendor
+
+# Copy rest of the source code
+ADD . /src/
+RUN go list ./... | tee $app_name.packages
+RUN make deps
+RUN make test-unit-drone
+RUN go tool cover -func=$app_name.cov

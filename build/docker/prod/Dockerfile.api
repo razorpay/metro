@@ -12,6 +12,8 @@ WORKDIR /src
 # App source code is not required for this stage, only add what's needed
 ADD Makefile /src
 ADD scripts/proto_modules /src/scripts
+ADD grpc_api_configuration.yaml /src/
+ADD prototool.yaml /src/
 
 RUN make proto-refresh
 

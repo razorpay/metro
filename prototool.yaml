@@ -1,0 +1,73 @@
+# Protoc directives.
+protoc:
+  # The Protobuf version to use from https://github.com/protocolbuffers/protobuf/releases.
+  # By default use 3.7.0.
+  # You probably want to set this to make your builds completely reproducible.
+  version: 3.7.0
+
+# Create directives.
+create:
+  # List of mappings from relative directory to base package.
+  # This affects how packages are generated with create.
+  packages:
+    # A file created "common/error/v1/error.proto" will have package "rzp.common.error.v1".
+    - directory: .
+      name: rzp
+
+# Lint directives.
+lint:
+  # The lint group to use.
+  # Available groups: "uber1", "uber2", "google", "empty".
+  # The default group is the "uber1" lint group for backwards compatibility reasons,
+  # however we recommend using the "uber2" lint group.
+  # The special group "empty" has no linters, allowing you to manually specify all
+  # lint rules in lint.rules.add.
+  # Run prototool lint --list-all-lint-groups to see all available lint groups.
+  # Run prototool lint --list-lint-group GROUP to list the linters in the given lint group.
+  group: uber2
+  rules:
+    remove:
+      - REQUEST_RESPONSE_NAMES_MATCH_RPC
+      - REQUEST_RESPONSE_TYPES_UNIQUE
+      - FILE_OPTIONS_REQUIRE_CSHARP_NAMESPACE
+      - FILE_OPTIONS_REQUIRE_JAVA_MULTIPLE_FILES
+      - FILE_OPTIONS_REQUIRE_JAVA_OUTER_CLASSNAME
+      - FILE_OPTIONS_REQUIRE_OBJC_CLASS_PREFIX
+      - FILE_OPTIONS_REQUIRE_JAVA_PACKAGE
+      - ENUM_ZERO_VALUES_INVALID_EXCEPT_MESSAGE
+      - WKT_TIMESTAMP_SUFFIX
+      - FILE_HEADER
+      - FIELDS_NOT_RESERVED
+      - NAMES_NO_COMMON
+
+  # The path to the file header or the file header content for all Protobuf files.
+  # If either path or content is set and the FILE_HEADER linter is turned on,
+  # files will be checked to begin with the given header, and format --fix
+  # will place this header before the syntax declaration. Note that
+  # format --fix will delete anything before the syntax declaration
+  # if this is set.
+  #
+  # If is_commented is set, this file is assumed to already have comments
+  # and will be added directly. If is_commented is not set, "// " will be
+  # added before every line.
+  file_header:
+    content: |
+      // Protocol Buffers, (c) Razorpay 2020
+    is_commented: true
+
+generate:
+  go_options:
+    import_path: github.com/razorpay/metro-proto
+
+  plugins:
+    # Generate plain old .pb.go files
+    # Not all proto definitions will have a service defined.
+    # We build .pb.go files for those files.
+    - name: go
+      type: go
+      flags: plugins=grpc
+      output: rpc/
+    - name: grpc-gateway
+      type: go
+      flags: grpc_api_configuration=grpc_api_configuration.yaml
+      output: rpc/

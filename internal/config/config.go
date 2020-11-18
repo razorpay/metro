@@ -27,6 +27,15 @@ type App struct {
 	ShutdownTimeout int
 	ShutdownDelay   int
 	GitCommitHash   string
+	Interfaces      struct {
+		Api NetworkInterfaces
+	}
+}
+
+type NetworkInterfaces struct {
+	GrpcServerAddress     string
+	HttpServerAddress     string
+	InternalServerAddress string
 }
 
 type Sentry struct {

@@ -19,14 +19,14 @@ MODULE   = $(shell $(GO) list -m)
 SERVICE  = $(shell basename $(MODULE))
 
 # Proto repo info
-PROTO_GIT_URL := "https://github.com/razorpay/proto"
-DRONE_PROTO_GIT_URL := "https://$(GIT_TOKEN)@github.com/razorpay/proto"
+PROTO_GIT_URL := "https://github.com/razorpay/metro-proto"
+DRONE_PROTO_GIT_URL := "https://$(GIT_TOKEN)@github.com/razorpay/metro-proto"
 ifneq ($(GIT_TOKEN),)
 PROTO_GIT_URL = $(DRONE_PROTO_GIT_URL)
 endif
 
 # Accept a branch from which we need to checkout proto files. Useful for dev testing.
-PROTO_BRANCH ?= master
+PROTO_BRANCH ?= initial_setup
 
 # Proto gen info
 PROTO_ROOT := proto/
@@ -43,7 +43,6 @@ UNAME_ARCH=$(shell go env GOARCH)
 # .tmp/$(uname -s)/(uname -m)/bin/prototool
 PROTOTOOL_VERSION := v1.9.0
 PROTOC_GEN_GO_VERSION := v1.3.2
-PROTOC_GEN_TWIRP_VERSION := v5.10.1
 
 VERBOSE = 0
 Q 		= $(if $(filter 1,$VERBOSE),,@)
@@ -97,12 +96,11 @@ deps:
 	@go get google.golang.org/grpc
 	@go get github.com/uber/prototool/cmd/prototool@$(PROTOTOOL_VERSION)
 	@go get github.com/golang/protobuf/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
-	@go get github.com/twitchtv/twirp/protoc-gen-twirp@$(PROTOC_GEN_TWIRP_VERSION)
 	@go get golang.org/x/lint/golint
 	@go get github.com/bykof/go-plantuml
 	@go get github.com/golang/mock/mockgen
 
-.PHONY: proto-generate ## Compile protobuf to pb and twirp files
+.PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:
 	@echo "\n + Generating pb language bindings\n"
 	@prototool files $(PROTO_ROOT)

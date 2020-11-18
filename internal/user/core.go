@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	goerr "errors"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/razorpay/metro/internal/job"

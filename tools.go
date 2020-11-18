@@ -8,9 +8,8 @@ import (
 	_ "github.com/golang/mock/mockgen"
 	_ "golang.org/x/lint/golint"
 
-	// protobuf/twirp tools
+	// protobuf tools
 	_ "github.com/golang/protobuf/protoc-gen-go"
-	_ "github.com/twitchtv/twirp/protoc-gen-twirp"
 	_ "github.com/uber/prototool/cmd/prototool"
 	_ "google.golang.org/grpc"
 )

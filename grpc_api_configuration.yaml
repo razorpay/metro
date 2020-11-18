@@ -1,0 +1,7 @@
+type: google.api.Service
+config_version: 3
+
+http:
+  rules:
+    - selector: rzp.common.health.v1.HealthCheckAPI.Check
+      get: "/v1/healthcheck"

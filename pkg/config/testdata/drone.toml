@@ -1,0 +1,14 @@
+title = "Config file for testing, should be merged with default on load."
+
+[db]
+    dialect               = "mysql"
+    protocol              = "tcp"
+    host                  = "localhost"
+    port                  = 3306
+    username              = "metro"
+    password              = "metro"
+    sslMode               = "require"
+    name                  = "metro"
+    maxOpenConnections    = 10
+    maxIdleConnections    = 10
+    connectionMaxLifetime = 0

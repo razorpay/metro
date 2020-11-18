@@ -11,18 +11,19 @@ require (
 	github.com/bykof/go-plantuml v0.0.0-20200125152403-0ce50616dc25 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dlmiddlecote/sqlstats v1.0.1 // indirect
+	github.com/envoyproxy/go-control-plane v0.9.4 // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.2.1
 	github.com/go-redis/redis v6.15.8+incompatible
 	github.com/gobuffalo/nulls v0.4.0
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/mock v1.4.4
-	github.com/golang/protobuf v1.4.1
+	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-gateway v1.15.0
+	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/jinzhu/gorm v1.9.14
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5 // indirect
 	github.com/lib/pq v1.7.0
@@ -48,11 +49,12 @@ require (
 	go.uber.org/zap v1.10.0
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/net v0.0.0-20200822124328-c89045814202
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.0.0-20200803210538-64077c9b5642 // indirect
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
-	google.golang.org/grpc v1.33.2
+	google.golang.org/grpc v1.28.0-pre
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect

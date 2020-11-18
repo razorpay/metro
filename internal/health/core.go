@@ -36,6 +36,10 @@ func (c *Core) IsHealthy() bool {
 		return false
 	}
 
+	if c.checkers == nil {
+		return true
+	}
+
 	for _, checker := range c.checkers {
 		isHealthy, err := checker.CheckHealth()
 		if !isHealthy {

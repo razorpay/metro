@@ -36,6 +36,7 @@ func main() {
 	defer traceCloser.Close()
 
 	// Define server handlers
+
 	healthCore, err := health.NewCore(nil)
 	if err != nil {
 		panic(err)

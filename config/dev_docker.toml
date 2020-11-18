@@ -6,6 +6,11 @@
     shutdownTimeout       = 2
     shutdownDelay         = 2
     gitCommitHash         = "nil"
+    [app.interfaces]
+       [app.interfaces.api]
+          GrpcServerAddress     = "0.0.0.0:8081"
+          HttpServerAddress     = "0.0.0.0:8082"
+          InternalServerAddress = "0.0.0.0:8083"
 
 [db]
     dialect               = "mysql"

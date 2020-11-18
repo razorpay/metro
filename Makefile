@@ -26,7 +26,7 @@ PROTO_GIT_URL = $(DRONE_PROTO_GIT_URL)
 endif
 
 # Accept a branch from which we need to checkout proto files. Useful for dev testing.
-PROTO_BRANCH ?= initial_setup
+PROTO_BRANCH ?= master
 
 # Proto gen info
 PROTO_ROOT := proto/

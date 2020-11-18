@@ -6,9 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/dlmiddlecote/sqlstats"
 	"github.com/opentracing/opentracing-go"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/internal/constants/contextkeys"
 	config_reader "github.com/razorpay/metro/pkg/config"
@@ -18,7 +16,6 @@ import (
 	"github.com/razorpay/metro/pkg/worker"
 	"github.com/razorpay/metro/pkg/worker/queue"
 	"github.com/rs/xid"
-	otgorm "github.com/smacker/opentracing-gorm"
 )
 
 const (
@@ -101,11 +98,11 @@ func initialize(ctx context.Context, env string) error {
 	// This is not read automatically because env variable is not in expected format.
 	Config.App.GitCommitHash = os.Getenv("GIT_COMMIT_HASH")
 
-	otgorm.AddGormCallbacks(DB.Instance(ctx))
+	//otgorm.AddGormCallbacks(DB.Instance(ctx))
 
 	// Register DB stats prometheus collector
-	collector := sqlstats.NewStatsCollector(Config.Db.URL+"-"+Config.Db.Name, DB.Instance(ctx).DB())
-	prometheus.MustRegister(collector)
+	//collector := sqlstats.NewStatsCollector(Config.Db.URL+"-"+Config.Db.Name, DB.Instance(ctx).DB())
+	//prometheus.MustRegister(collector)
 
 	return nil
 }

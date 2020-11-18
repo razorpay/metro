@@ -13,4 +13,3 @@ prototool.yaml
 # stork/sms/v1  - for a specific version
 
 common/health/v1
-example/user/v1

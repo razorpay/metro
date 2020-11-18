@@ -19,7 +19,7 @@ require (
 	github.com/gobuffalo/nulls v0.4.0
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/mock v1.4.4
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.4.1
 	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/google/martian/v3 v3.0.0 // indirect
 	github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99 // indirect
@@ -27,7 +27,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.9.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.0-alpha.2 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.0-alpha.2
 	github.com/jinzhu/gorm v1.9.14
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5 // indirect
 	github.com/lib/pq v1.7.0
@@ -64,6 +64,7 @@ require (
 	google.golang.org/api v0.22.0 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/grpc v1.28.0-pre
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect

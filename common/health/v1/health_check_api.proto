@@ -1,0 +1,28 @@
+// Proto, (c) Razorpay 2019
+syntax = "proto3";
+
+package rzp.common.health.v1;
+
+option go_package = "common/health/v1;healthv1";
+option php_namespace = "Rzp\\Common\\Health\\V1";
+
+// HealthCheckAPI defines the health check service.
+service HealthCheckAPI {
+  // Check returns HealthCheckResponse for the requested service.
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  // ServingStatus denotes the status of the service.
+  enum ServingStatus {
+    SERVING_STATUS_INVALID = 0;
+    SERVING_STATUS_UNKNOWN = 1;
+    SERVING_STATUS_SERVING = 2;
+    SERVING_STATUS_NOT_SERVING = 3;
+  }
+  ServingStatus serving_status = 1;
+}

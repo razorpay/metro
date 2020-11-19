@@ -1,8 +1,6 @@
 [app]
     appEnv                = "default"
     serviceName           = "metro"
-    hostname              = "metro.razorpay.com"
-    port                  = "127.0.0.1:8080"
     shutdownTimeout       = 2
     shutdownDelay         = 2
     gitCommitHash         = "nil"

@@ -20,7 +20,7 @@ RUN make proto-refresh
 
 # Stage 2 - Compilation build stage
 ######################################
-FROM golang:1.14-alpine3.12 as builder
+FROM golang:1.15.5-alpine3.12 as builder
 
 ARG GIT_TOKEN
 ENV CGO_ENABLED 0
@@ -38,27 +38,20 @@ COPY --from=proto-builder /src/rpc /src/rpc
 COPY go.mod .
 COPY go.sum .
 
-# Get dependencies using go.mod and go.sum
-# This step should be cached unless we modify go.mod/go.sum
-RUN set -eux && \
-    echo 'exec echo ${GIT_TOKEN}' > /tmp/askpass.sh && \
-    chmod +x /tmp/askpass.sh && \
-    export GIT_ASKPASS=/tmp/askpass.sh && \
-    go mod vendor
-
 # Copy rest of the source code
 ADD . /src/
 
-RUN make go-build-api
-
-
+RUN make deps
+RUN make mock-gen
+RUN go mod vendor
+RUN make go-build-metro
 
 # Stage 3 - Binary build stage
 ######################################
 FROM alpine:3.12
 ARG GIT_COMMIT_HASH
 
-COPY --from=builder /src/bin/api /app/
+COPY --from=builder /src/bin/metro /app/
 COPY --from=builder /src/config/ /app/config/
 COPY build/docker/probe.sh /app/
 COPY build/docker/entrypoint.sh /app/
@@ -72,7 +65,7 @@ ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
 RUN mkdir -p /app/public && \
     echo "$GIT_COMMIT_HASH" > /app/public/commit.txt
 
-EXPOSE 8080
+EXPOSE 8081
 
 RUN chmod +x entrypoint.sh probe.sh
-ENTRYPOINT ["/app/entrypoint.sh", "api"]
+ENTRYPOINT ["/app/entrypoint.sh", "metro"]

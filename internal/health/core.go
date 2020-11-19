@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/razorpay/metro/internal/boot"
-	"github.com/razorpay/metro/pkg/spine/db"
 )
 
 type Checker interface {
@@ -59,19 +58,12 @@ func (c *Core) MarkUnhealthy() {
 	c.isMarkedUnhealthy = true
 }
 
-type DBHealthChecker struct {
-	db *db.DB
-}
+type DBHealthChecker struct {}
 
 func (d *DBHealthChecker) CheckHealth() (bool, error) {
-	err := d.db.Alive()
-	if err != nil {
-		return false, err
-	}
-
-	return true, err
+	return true, nil
 }
 
-func NewDBHealthChecker(db *db.DB) Checker {
-	return &DBHealthChecker{db: db}
+func NewDBHealthChecker() Checker {
+	return &DBHealthChecker{}
 }

@@ -1,14 +1,14 @@
 version: '3.8'
 services:
 
-  api:
+  metro-producer:
     build:
       context: ../..
-      dockerfile: build/docker/prod/Dockerfile.api
+      dockerfile: ../../build/docker/Dockerfile
       args:
         - GIT_TOKEN
-    container_name: metro-api
-    image: metro-api
+    container_name: metro-producer
+    image: razorpay/metro
     networks:
       - app-network
       - monitoring_rzp-dev-monitoring
@@ -17,56 +17,6 @@ services:
     environment:
       - APP_ENV=dev_docker
     restart: on-failure
-    depends_on:
-      - "db"
-      - "redis"
-      - "migration"
-
-  migration:
-    build:
-      context: ../..
-      dockerfile: build/docker/prod/Dockerfile.migration
-      args:
-        - GIT_TOKEN
-    container_name: metro-migration
-    image: metro-migration
-    entrypoint: ["/bin/sh", "-c", "apk add mariadb-client mariadb-connector-c; until mysqladmin ping -hdb --silent; do
-    echo \"waiting for db to start\";sleep 1;done; /app/migration-entrypoint.sh"]
-    environment:
-      - APP_ENV=dev_docker
-      - MIGRATION_CMD=up
-    restart: "no"
-    networks:
-      - app-network
-      - monitoring_rzp-dev-monitoring
-    depends_on:
-      - "db"
-      - "redis"
-
-  redis:
-    image: redis:3-alpine
-    ports:
-      - 26379:26379
-    networks:
-      - app-network
-
-  db:
-    image: mysql
-    container_name: app-db
-    networks:
-      - app-network
-    environment:
-      MYSQL_DATABASE: "metro"
-      MYSQL_USER: "metro"
-      MYSQL_PASSWORD: "metro"
-      MYSQL_ROOT_PASSWORD: "password"
-    ports:
-      - "33306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
 networks:
   app-network:

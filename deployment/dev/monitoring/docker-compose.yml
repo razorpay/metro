@@ -29,7 +29,7 @@ services:
     networks:
       - rzp-dev-monitoring
     external_links:
-      - payouts-api
+      - metro-producer
     labels:
       org.label-schema.group: "monitoring"
 

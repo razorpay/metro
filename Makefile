@@ -1,14 +1,8 @@
 # Dir where build binaries are generated. The dir should be gitignored
 BUILD_OUT_DIR := "bin/"
 
-API_OUT       := "bin/api"
-API_MAIN_FILE := "cmd/api/main.go"
-
-WORKER_OUT       := "bin/worker"
-WORKER_MAIN_FILE := "cmd/worker/main.go"
-
-MIGRATION_OUT       := "bin/migration"
-MIGRATION_MAIN_FILE := "cmd/migration/main.go"
+METRO_OUT       := "bin/metro"
+METRO_MAIN_FILE := "cmd/metro/main.go"
 
 GIT_HOOKS_DIR := "scripts/git_hooks"
 
@@ -41,8 +35,8 @@ UNAME_ARCH=$(shell go env GOARCH)
 # This can be a branch, tag, or commit.
 # When changed, the given version of Prototool will be installed to
 # .tmp/$(uname -s)/(uname -m)/bin/prototool
-PROTOTOOL_VERSION := v1.9.0
-PROTOC_GEN_GO_VERSION := v1.3.2
+PROTOTOOL_VERSION := v1.10.0
+PROTOC_GEN_GO_VERSION := v1.4.3
 
 VERBOSE = 0
 Q 		= $(if $(filter 1,$VERBOSE),,@)
@@ -123,29 +117,21 @@ build-info:
 	@echo "\t\033[33mGo Version\033[0m: $(GOVERSION)\n"
 
 .PHONY: go-build-api ## Build the binary file for API server
-go-build-api:
-	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -i -v -o $(API_OUT) $(API_MAIN_FILE)
-
-.PHONY: go-build-worker ## Build the binary file for the worker
-go-build-worker:
-	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -i -v -o $(WORKER_OUT) $(WORKER_MAIN_FILE)
-
-.PHONY: go-build-migration ## Build the binary file for database migrations
-go-build-migration:
-	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -i -v -o $(MIGRATION_OUT) $(MIGRATION_MAIN_FILE)
+go-build-metro:
+	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -i -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
 .PHONY: clean ## Remove previous builds, protobuf files, and proto compiled code
 clean:
 	@echo " + Removing cloned and generated files\n"
 	##- todo: use go clean here
-	@rm -rf $(API_OUT) $(MIGRATION_OUT) $(WORKER_OUT) $(PROTO_ROOT) $(RPC_ROOT)
+	@rm -rf $(METRO_OUT) $(PROTO_ROOT) $(RPC_ROOT)
 
 .PHONY: docker-build
-docker-build: docker-build-api docker-build-worker docker-build-migration
+docker-build: docker-build-metro
 
 .PHONY: dev-docker-up ## Bring up docker-compose for local dev-setup
 dev-docker-up:
-	docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
+	#docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
 	docker-compose -f deployment/dev/docker-compose.yml up -d --build
 
 .PHONY: dev-docker-rebuild ## Rebuild
@@ -159,21 +145,12 @@ dev-docker-down:
 	docker-compose -f deployment/dev/monitoring/docker-compose.yml down --remove-orphans
 
 .PHONY: docker-build-api
-docker-build-api:
-	@docker build . -f build/docker/prod/Dockerfile.api --build-arg GIT_TOKEN=${GIT_TOKEN} -t razorpay/app_name:latest
-
-.PHONY: docker-build-worker
-docker-build-worker:
-	@docker build . -f build/docker/prod/Dockerfile.webhook.worker --build-arg GIT_TOKEN=${GIT_TOKEN} -t razorpay/app_name-worker:latest
-
-.PHONY: docker-build-migration
-docker-build-migration:
-	@docker build . -f build/docker/prod/Dockerfile.migration --build-arg GIT_TOKEN=${GIT_TOKEN} -t razorpay/app_name-migration:latest
+docker-build-metro:
+	@docker build . -f build/docker/Dockerfile --build-arg GIT_TOKEN=${GIT_TOKEN} -t razorpay/metro:latest
 
 .PHONY: mock-gen ## Generates mocks
 mock-gen:
 	@mkdir -p pkg/queue/mocks
-
 	@mockgen -destination=pkg/worker/mock/manager.go -package=api github.com/razorpay/metro/pkg/worker IManager
 	@mockgen -destination=pkg/worker/mock/queue/queue.go -package=queue github.com/razorpay/metro/pkg/worker/queue IQueue
 	@mockgen -destination=pkg/worker/mock/logger/logger.go -package=logger github.com/razorpay/metro/pkg/worker ILogger

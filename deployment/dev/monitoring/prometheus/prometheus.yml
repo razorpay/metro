@@ -1,6 +1,6 @@
 scrape_configs:
-  - job_name: 'metro-api'
+  - job_name: 'metro-producer'
     scrape_interval: 5s
     static_configs:
       - targets:
-          - metro-api:8080
+          - metro-producer:8080

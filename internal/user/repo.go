@@ -5,12 +5,9 @@ import (
 
 	"github.com/razorpay/metro/pkg/errors"
 	"github.com/razorpay/metro/pkg/spine"
-	"github.com/razorpay/metro/pkg/spine/db"
 )
 
-type Repo struct {
-	spine.Repo
-}
+
 
 type IRepo interface {
 	Create(ctx context.Context, receiver spine.IModel) errors.IError
@@ -20,6 +17,10 @@ type IRepo interface {
 	Update(ctx context.Context, receiver spine.IModel, attrList ...string) errors.IError
 }
 
+/*
+type Repo struct {
+	spine.Repo
+}
 func NewRepo(ctx context.Context, db *db.DB) IRepo {
 	_ = ctx
 
@@ -29,3 +30,5 @@ func NewRepo(ctx context.Context, db *db.DB) IRepo {
 		},
 	}
 }
+*/
+

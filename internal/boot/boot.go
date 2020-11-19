@@ -11,10 +11,8 @@ import (
 	"github.com/razorpay/metro/internal/constants/contextkeys"
 	config_reader "github.com/razorpay/metro/pkg/config"
 	"github.com/razorpay/metro/pkg/logger"
-	"github.com/razorpay/metro/pkg/spine/db"
 	"github.com/razorpay/metro/pkg/tracing"
 	"github.com/razorpay/metro/pkg/worker"
-	"github.com/razorpay/metro/pkg/worker/queue"
 	"github.com/rs/xid"
 )
 
@@ -26,9 +24,6 @@ const (
 var (
 	// Config contains application configuration values.
 	Config config.Config
-
-	// DB holds the application db connection.
-	DB *db.DB
 
 	Tracer opentracing.Tracer
 	Worker worker.IManager
@@ -43,18 +38,14 @@ func init() {
 
 	InitLogger(context.Background())
 
-	// Init Db
-	DB, err = db.NewDb(&Config.Db)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
+	/*
 	queues, err := queue.New(&Config.Queue)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	*/
 
-	Worker = worker.NewManager(&Config.Worker, queues, Logger(context.Background()))
+	//Worker = worker.NewManager(&Config.Worker, queues, Logger(context.Background()))
 }
 
 func GetEnv() string {
@@ -107,16 +98,7 @@ func initialize(ctx context.Context, env string) error {
 	return nil
 }
 
-func InitApi(ctx context.Context, env string) error {
-	err := initialize(ctx, env)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func InitMigration(ctx context.Context, env string) error {
+func InitProducer(ctx context.Context, env string) error {
 	err := initialize(ctx, env)
 	if err != nil {
 		return err
@@ -132,10 +114,6 @@ func InitTracing(ctx context.Context) (io.Closer, error) {
 	Tracer = t
 
 	return closer, err
-}
-
-func InitWorker(ctx context.Context) error {
-	return Worker.Start(ctx)
 }
 
 // NewContext adds core key-value e.g. service name, git hash etc to

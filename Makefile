@@ -124,13 +124,13 @@ dev-docker-up:
 
 .PHONY: dev-docker-rebuild ## Rebuild
 dev-docker-rebuild:
-	#docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
+	docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
 	docker-compose -f deployment/dev/docker-compose.yml up -d --build
 
 .PHONY: dev-docker-down ## Shutdown docker-compose for local dev-setup
 dev-docker-down:
 	docker-compose -f deployment/dev/docker-compose.yml down --remove-orphans
-	#docker-compose -f deployment/dev/monitoring/docker-compose.yml down --remove-orphans
+	docker-compose -f deployment/dev/monitoring/docker-compose.yml down --remove-orphans
 
 .PHONY: docker-build-api
 docker-build-metro:

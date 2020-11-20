@@ -3,6 +3,8 @@ package producer
 import (
 	"context"
 
+	"github.com/razorpay/metro/internal/config"
+
 	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -17,6 +19,7 @@ type Service struct {
 	ctx    context.Context
 	srv    *server.Server
 	health *health.Core
+	config config.Config
 }
 
 func NewService(ctx context.Context) *Service {
@@ -30,7 +33,12 @@ func (svc *Service) Start() {
 		panic(err)
 	}
 
-	producerCore, err := NewCore()
+	producer := NewProducer(boot.Config.Producer)
+	producerCore, err := NewCore(producer)
+	if err != nil {
+		panic(err)
+	}
+
 	s, err := server.NewServer(boot.Config.App.Interfaces.Api, func(server *grpc.Server) error {
 		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 		producerv1.RegisterProducerApiServer(server, NewServer(producerCore))

@@ -7,13 +7,14 @@ import (
 )
 
 type Config struct {
-	App     App
-	Sentry  Sentry
-	Auth    Auth
-	Tracing tracing.Config
-	Job     Job
-	Queue   queue.Config
-	Worker  worker.Config
+	App      App
+	Sentry   Sentry
+	Auth     Auth
+	Tracing  tracing.Config
+	Job      Job
+	Queue    queue.Config
+	Worker   worker.Config
+	Producer Producer
 }
 
 // App contains application-specific config values
@@ -47,4 +48,23 @@ type Auth struct {
 
 type Job struct {
 	UserApprove string `mapstructure:"user_approve"`
+}
+
+type Producer struct {
+	Variant string // kafka or pulsar
+	Kafka   ConnectionParams
+	Pulsar  ConnectionParams
+}
+
+type ConnectionParams struct {
+	HostWithPort string
+	Credentials  Credentials
+}
+
+type Credentials struct {
+	authScheme      string
+	key             string
+	password        string
+	userKeyFilePath string
+	certFilePath    string
 }

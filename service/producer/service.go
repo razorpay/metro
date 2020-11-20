@@ -3,6 +3,8 @@ package producer
 import (
 	"context"
 
+	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
+
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/health"
@@ -22,15 +24,16 @@ func NewService(ctx context.Context) *Service {
 }
 
 func (svc *Service) Start() {
-	// Define server handlers
 
 	healthCore, err := health.NewCore(nil)
 	if err != nil {
 		panic(err)
 	}
 
+	producerCore, err := NewCore()
 	s, err := server.NewServer(boot.Config.App.Interfaces.Api, func(server *grpc.Server) error {
 		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
+		producerv1.RegisterProducerApiServer(server, NewServer(producerCore))
 		return nil
 	}, func(mux *runtime.ServeMux) error {
 		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, boot.Config.App.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
@@ -38,6 +41,10 @@ func (svc *Service) Start() {
 			return err
 		}
 
+		err = producerv1.RegisterProducerApiHandlerFromEndpoint(svc.ctx, mux, boot.Config.App.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		if err != nil {
+			return err
+		}
 		return nil
 	},
 		getInterceptors()...,

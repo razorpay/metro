@@ -11,3 +11,4 @@ prototool.yaml
 # common        - for the full module
 
 common/health/v1
+metro/producer/v1

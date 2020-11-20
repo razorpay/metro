@@ -5,3 +5,6 @@ http:
   rules:
     - selector: rzp.common.health.v1.HealthCheckAPI.Check
       get: "/v1/healthcheck"
+    - selector: rzp.metro.producer.v1.ProducerApi.Produce
+      post: "/v1/produce"
+      body: "*"

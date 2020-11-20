@@ -40,6 +40,9 @@ func (c *Core) IsHealthy() bool {
 	}
 
 	for _, checker := range c.checkers {
+		if checker == nil {
+			continue
+		}
 		isHealthy, err := checker.CheckHealth()
 		if !isHealthy {
 			boot.Logger(context.TODO()).WithError(err).Error("health check failed")
@@ -58,7 +61,7 @@ func (c *Core) MarkUnhealthy() {
 	c.isMarkedUnhealthy = true
 }
 
-type DBHealthChecker struct {}
+type DBHealthChecker struct{}
 
 func (d *DBHealthChecker) CheckHealth() (bool, error) {
 	return true, nil

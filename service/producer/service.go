@@ -2,6 +2,7 @@ package producer
 
 import (
 	"context"
+
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/health"
@@ -10,9 +11,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-type Service struct{
-	ctx context.Context
-	srv *server.Server
+type Service struct {
+	ctx    context.Context
+	srv    *server.Server
 	health *health.Core
 }
 
@@ -57,7 +58,6 @@ func (svc *Service) Start() {
 func (svc *Service) Stop() error {
 	return svc.srv.Stop(svc.ctx, svc.health)
 }
-
 
 func getInterceptors() []grpc.UnaryServerInterceptor {
 	return []grpc.UnaryServerInterceptor{}

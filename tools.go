@@ -13,5 +13,4 @@ import (
 	_ "github.com/golang/protobuf/protoc-gen-go"
 	_ "github.com/uber/prototool/cmd/prototool"
 	_ "google.golang.org/grpc"
-
 )

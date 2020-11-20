@@ -25,9 +25,6 @@ mock/
 
 .tmp
 
-# This needs to be sourced from the proto3 repo.
-proto
-
 # Generated protobuf files.
 rpc
 

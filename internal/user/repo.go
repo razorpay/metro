@@ -7,8 +7,6 @@ import (
 	"github.com/razorpay/metro/pkg/spine"
 )
 
-
-
 type IRepo interface {
 	Create(ctx context.Context, receiver spine.IModel) errors.IError
 	FindByID(ctx context.Context, receiver spine.IModel, id string) errors.IError
@@ -31,4 +29,3 @@ func NewRepo(ctx context.Context, db *db.DB) IRepo {
 	}
 }
 */
-

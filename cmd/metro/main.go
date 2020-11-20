@@ -17,6 +17,8 @@ func main() {
 	ctx, cancel := context.WithCancel(boot.NewContext(context.Background()))
 	defer cancel()
 
+	boot.Logger(ctx).Info("starting metro")
+
 	// Init app dependencies
 	env := boot.GetEnv()
 	err := boot.InitProducer(ctx, env)
@@ -40,11 +42,15 @@ func main() {
 
 	// Block until signal is received.
 	<-c
+
+	boot.Logger(ctx).Info("stopping metro")
 	// stop producer service
 	err = producerService.Stop()
 	if err != nil {
 		panic(err)
 	}
+
+	boot.Logger(ctx).Info("stopped metro")
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {

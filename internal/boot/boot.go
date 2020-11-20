@@ -39,10 +39,10 @@ func init() {
 	InitLogger(context.Background())
 
 	/*
-	queues, err := queue.New(&Config.Queue)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+		queues, err := queue.New(&Config.Queue)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
 	*/
 
 	//Worker = worker.NewManager(&Config.Worker, queues, Logger(context.Background()))

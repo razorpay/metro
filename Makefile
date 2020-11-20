@@ -23,7 +23,7 @@ endif
 PROTO_BRANCH ?= master
 
 # Proto gen info
-PROTO_ROOT := proto/
+PROTO_ROOT := metro-proto/
 RPC_ROOT := rpc/
 
 # Fetch OS info
@@ -69,18 +69,6 @@ setup-git-hooks:
 	@chmod +x $(GIT_HOOKS_DIR)/*
 	@git config core.hooksPath $(GIT_HOOKS_DIR)
 
-.PHONY: proto-fetch ## Fetch proto files frrm remote repo
-proto-fetch: ## Fetch proto files frrm remote repo
-	@echo "\n + Fetching proto files from branch: $(PROTO_BRANCH) \n"
-	@mkdir $(PROTO_ROOT) && \
-	cd $(PROTO_ROOT) && \
-	git init --quiet && \
-	git config core.sparseCheckout true && \
-	cp $(CURDIR)/scripts/proto_modules .git/info/sparse-checkout && \
-	git remote add origin $(PROTO_GIT_URL)  && \
-	git fetch origin $(PROTO_BRANCH) --quiet && \
-	git checkout origin/$(PROTO_BRANCH) --quiet
-
 .PHONY: all
 all: build
 
@@ -124,14 +112,14 @@ go-build-metro:
 clean:
 	@echo " + Removing cloned and generated files\n"
 	##- todo: use go clean here
-	@rm -rf $(METRO_OUT) $(PROTO_ROOT) $(RPC_ROOT)
+	@rm -rf $(METRO_OUT) $(RPC_ROOT)
 
 .PHONY: docker-build
 docker-build: docker-build-metro
 
 .PHONY: dev-docker-up ## Bring up docker-compose for local dev-setup
 dev-docker-up:
-	#docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
+	docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
 	docker-compose -f deployment/dev/docker-compose.yml up -d --build
 
 .PHONY: dev-docker-rebuild ## Rebuild

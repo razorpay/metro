@@ -1,0 +1,3 @@
+[submodule "metro-proto"]
+	path = metro-proto
+	url = https://github.com/razorpay/metro-proto

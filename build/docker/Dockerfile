@@ -14,8 +14,9 @@ ADD Makefile /src
 ADD scripts/proto_modules /src/scripts
 ADD grpc_api_configuration.yaml /src/
 ADD prototool.yaml /src/
+ADD metro-proto /src/metro-proto
 
-RUN make proto-refresh
+RUN make proto-generate
 
 
 # Stage 2 - Compilation build stage

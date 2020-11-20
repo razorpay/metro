@@ -1,10 +1,10 @@
-version: '3.8'
+version: '3.3'
 services:
 
   metro-producer:
     build:
       context: ../..
-      dockerfile: ../../build/docker/Dockerfile
+      dockerfile: build/docker/Dockerfile
       args:
         - GIT_TOKEN
     container_name: metro-producer
@@ -13,7 +13,7 @@ services:
       - app-network
       - monitoring_rzp-dev-monitoring
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
       - APP_ENV=dev_docker
     restart: on-failure

@@ -19,9 +19,6 @@ ifneq ($(GIT_TOKEN),)
 PROTO_GIT_URL = $(DRONE_PROTO_GIT_URL)
 endif
 
-# Accept a branch from which we need to checkout proto files. Useful for dev testing.
-PROTO_BRANCH ?= producer_base
-
 # Proto gen info
 PROTO_ROOT := metro-proto/
 RPC_ROOT := rpc/

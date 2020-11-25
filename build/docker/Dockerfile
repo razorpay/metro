@@ -37,6 +37,8 @@ RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine
 
 # Fetch proto from previous stage
 COPY --from=proto-builder /src/rpc /src/rpc
+COPY --from=proto-builder /src/statik /src/statik
+
 
 # Avoid copying the whole source code first since that will invalidate
 # cache for all further layers

@@ -10,7 +10,10 @@ import (
 	_ "golang.org/x/lint/golint"
 
 	// protobuf tools
-	_ "github.com/golang/protobuf/protoc-gen-go"
-	_ "github.com/uber/prototool/cmd/prototool"
-	_ "google.golang.org/grpc"
+	_ "github.com/bufbuild/buf/cmd/buf"
+	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway"
+	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2"
+	_ "github.com/rakyll/statik"
+	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
 )

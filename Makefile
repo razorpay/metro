@@ -1,4 +1,14 @@
 # Dir where build binaries are generated. The dir should be gitignored
+
+## Set defaults
+export GO111MODULE := on
+export PATH := $(GOBIN):$(PATH)
+
+# Fetch OS info
+GOVERSION=$(shell go version)
+UNAME_OS=$(shell go env GOOS)
+UNAME_ARCH=$(shell go env GOARCH)
+
 BUILD_OUT_DIR := "bin/"
 
 METRO_OUT       := "bin/metro"
@@ -30,13 +40,6 @@ RPC_ROOT := rpc/
 GOVERSION=$(shell go version)
 UNAME_OS=$(shell go env GOOS)
 UNAME_ARCH=$(shell go env GOARCH)
-
-# This is the only variable that ever should change.
-# This can be a branch, tag, or commit.
-# When changed, the given version of Prototool will be installed to
-# .tmp/$(uname -s)/(uname -m)/bin/prototool
-PROTOTOOL_VERSION := v1.10.0
-PROTOC_GEN_GO_VERSION := v1.4.3
 
 VERBOSE = 0
 Q 		= $(if $(filter 1,$VERBOSE),,@)
@@ -74,19 +77,26 @@ all: build
 
 .PHONY: deps
 deps:
-	@echo "\n + Fetching dependencies \n"
-	@go get google.golang.org/grpc
-	@go get github.com/uber/prototool/cmd/prototool@$(PROTOTOOL_VERSION)
-	@go get github.com/golang/protobuf/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
-	@go get golang.org/x/lint/golint
-	@go get github.com/bykof/go-plantuml
-	@go get github.com/golang/mock/mockgen
+	@echo "\n + Fetching buf dependencies \n"
+	# https://github.com/johanbrandhorst/grpc-gateway-boilerplate/blob/master/Makefile
+	go install \
+		google.golang.org/protobuf/cmd/protoc-gen-go \
+		google.golang.org/grpc/cmd/protoc-gen-go-grpc \
+		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
+		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
+		github.com/rakyll/statik \
+		github.com/bufbuild/buf/cmd/buf
+	go install golang.org/x/lint/golint
+	go install github.com/bykof/go-plantuml
+	go install github.com/golang/mock/mockgen
 
 .PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:
 	@echo "\n + Generating pb language bindings\n"
-	@prototool files $(PROTO_ROOT)
-	@prototool generate $(PROTO_ROOT)
+	buf generate --path ./metro-proto/common
+	buf generate --path ./metro-proto/example
+	# Generate static assets for OpenAPI UI
+	statik -m -f -src third_party/OpenAPI/
 
 .PHONY: proto-refresh ## Download and re-compile protobuf
 proto-refresh: clean proto-fetch proto-generate ## Fetch proto files frrm remote repo

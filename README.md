@@ -45,5 +45,9 @@ To bring the setup down
  make dev-docker-rebuild
  ```
  ## Accessing the APIs
- `metro` exposes a gRPC endpoint on port 8081. More details to follow.
+ `metro` exposes a 
+* gRPC endpoint on port 8081.
+* HTTP endpoint on port 8082
+* Swagger docs on port 3000
+
 

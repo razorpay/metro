@@ -7,6 +7,8 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/alicebob/miniredis/v2 v2.13.0
 	github.com/aws/aws-sdk-go v1.32.8
+	github.com/bufbuild/buf v0.32.0 // indirect
+	github.com/bykof/go-plantuml v0.0.0-20200125152403-0ce50616dc25 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.2.1
@@ -14,11 +16,15 @@ require (
 	github.com/gobuffalo/nulls v0.4.0
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/golang/mock v1.4.4
+	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.3 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+	github.com/grpc-ecosystem/grpc-gateway v1.9.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.1
+	github.com/hashicorp/consul/api v1.1.0
+	github.com/hashicorp/serf v0.8.2 // indirect
 	github.com/jinzhu/gorm v1.9.14
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5 // indirect
 	github.com/lib/pq v1.7.0

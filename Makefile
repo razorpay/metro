@@ -79,24 +79,24 @@ all: build
 deps:
 	@echo "\n + Fetching buf dependencies \n"
 	# https://github.com/johanbrandhorst/grpc-gateway-boilerplate/blob/master/Makefile
-	go install \
+	@go install \
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
 		github.com/rakyll/statik \
 		github.com/bufbuild/buf/cmd/buf
-	go install golang.org/x/lint/golint
-	go install github.com/bykof/go-plantuml
-	go install github.com/golang/mock/mockgen
+	@go install golang.org/x/lint/golint
+	@go install github.com/bykof/go-plantuml
+	@go install github.com/golang/mock/mockgen
 
 .PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:
 	@echo "\n + Generating pb language bindings\n"
-	buf generate --path ./metro-proto/common
-	buf generate --path ./metro-proto/example
+	@buf generate --path ./metro-proto/common
+	@buf generate --path ./metro-proto/example
 	# Generate static assets for OpenAPI UI
-	statik -m -f -src third_party/OpenAPI/
+	@statik -m -f -src third_party/OpenAPI/
 
 .PHONY: proto-refresh ## Download and re-compile protobuf
 proto-refresh: clean proto-fetch proto-generate ## Fetch proto files frrm remote repo

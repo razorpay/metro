@@ -3,13 +3,38 @@ syntax = "proto3";
 
 package rzp.common.health.v1;
 
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
 option go_package = "common/health/v1;healthv1";
 option php_namespace = "Rzp\\Common\\Health\\V1";
+
+// These annotations are used when generating the OpenAPI file.
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    version: "1.0";
+  };
+  external_docs: {
+    url: "https://github.com/razorpay/metro-proto";
+    description: "protobuf definitions for metro";
+  }
+  schemes: HTTPS;
+};
 
 // HealthCheckAPI defines the health check service.
 service HealthCheckAPI {
   // Check returns HealthCheckResponse for the requested service.
-  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {
+    option (google.api.http) = {
+      // Route to this method from GET requests to /v1/healthcheck
+      get: "/v1/healthcheck"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Do a healthcheck"
+      description: "Do a healthcheck on the server."
+      tags: "Healthcheck"
+    };
+  }
 }
 
 message HealthCheckRequest {

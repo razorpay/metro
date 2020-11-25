@@ -5,12 +5,27 @@ syntax = "proto3";
 package rzp.example.user.v1;
 
 option csharp_namespace = "Rzp.Example.User.V1";
-option go_package = "common/user/v1;userv1";
+option go_package = "example/user/v1;userv1";
 option java_multiple_files = true;
 option java_outer_classname = "UserApiProto";
 option java_package = "com.rzp.example.user.v1";
 option objc_class_prefix = "REU";
 option php_namespace = "Rzp\\Example\\User\\V1";
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+// These annotations are used when generating the OpenAPI file.
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        version: "1.0";
+    };
+    external_docs: {
+        url: "https://github.com/razorpay/metro-proto";
+        description: "protobuf definitions for metro";
+    }
+    schemes: HTTPS;
+};
 
 // UserAPI demo service.
 //
@@ -18,7 +33,18 @@ option php_namespace = "Rzp\\Example\\User\\V1";
 // client and server examples
 service UserAPI {
     // Create a new user.
-    rpc Create (UserCreateRequest) returns (UserResponse);
+    rpc Create (UserCreateRequest) returns (UserResponse) {
+        option (google.api.http) = {
+            // Route to this method from GET requests to /v1/user
+            post: "/v1/user"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Create a user"
+            description: "Create a user on the server."
+            tags: "User"
+        };
+    }
 
     // Get a user by id.
     rpc Get (UserGetRequest) returns (UserResponse);

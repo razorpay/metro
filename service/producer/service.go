@@ -2,12 +2,17 @@ package producer
 
 import (
 	"context"
+	"log"
+	"mime"
+	"net/http"
 
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/rakyll/statik/fs"
 	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/server"
 	healthv1 "github.com/razorpay/metro/rpc/common/health/v1"
+	_ "github.com/razorpay/metro/statik"
 	"google.golang.org/grpc"
 )
 
@@ -53,6 +58,11 @@ func (svc *Service) Start() {
 	}
 	svc.srv = s
 	svc.health = healthCore
+
+	err = runOpenAPIHandler()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (svc *Service) Stop() error {
@@ -61,4 +71,23 @@ func (svc *Service) Stop() error {
 
 func getInterceptors() []grpc.UnaryServerInterceptor {
 	return []grpc.UnaryServerInterceptor{}
+}
+
+// runOpenAPIHandler serves an OpenAPI UI.
+// Adapted from https://github.com/philips/grpc-gateway-example/blob/a269bcb5931ca92be0ceae6130ac27ae89582ecc/cmd/serve.go#L63
+func runOpenAPIHandler() error {
+	mime.AddExtensionType(".svg", "image/svg+xml")
+
+	statikFS, err := fs.New()
+	if err != nil {
+		// Panic since this is a permanent error.
+		panic("creating OpenAPI filesystem: " + err.Error())
+	}
+	http.Handle("/", http.FileServer(statikFS))
+	log.Println("Listening on :3000...")
+	err = http.ListenAndServe(":3000", nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }

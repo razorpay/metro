@@ -33,3 +33,9 @@ config/dev.*
 
 # docker-compose .dev file in deployments.
 # deployments/docker-compose.dev.yml
+
+# statik which contains the generated openAPI docs
+statik/*
+
+# ignore any *.swagger.json as it is auto generated
+/third_party/OpenAPI/**/*.swagger.json

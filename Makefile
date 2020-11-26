@@ -116,7 +116,7 @@ build-info:
 
 .PHONY: go-build-api ## Build the binary file for API server
 go-build-metro:
-	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -i -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
+	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
 .PHONY: clean ## Remove previous builds, protobuf files, and proto compiled code
 clean:

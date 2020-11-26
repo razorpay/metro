@@ -1,8 +1,9 @@
 # Stage 1 - Generate proto
 ###########################
-FROM uber/prototool:latest as proto-builder
+FROM golang:1.15.5-alpine3.12 as proto-builder
 
 ARG GIT_TOKEN
+ENV CGO_ENABLED 0
 
 RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ make git
 
@@ -11,11 +12,14 @@ WORKDIR /src
 
 # App source code is not required for this stage, only add what's needed
 ADD Makefile /src
-ADD scripts/proto_modules /src/scripts
-ADD grpc_api_configuration.yaml /src/
-ADD prototool.yaml /src/
 ADD metro-proto /src/metro-proto
+ADD buf.gen.yaml /src/
+ADD buf.yaml /src/
+ADD third_party /src/third_party
+ADD go.mod /src/
+ADD go.sum /src/
 
+RUN make deps
 RUN make proto-generate
 
 
@@ -33,6 +37,8 @@ RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine
 
 # Fetch proto from previous stage
 COPY --from=proto-builder /src/rpc /src/rpc
+COPY --from=proto-builder /src/statik /src/statik
+
 
 # Avoid copying the whole source code first since that will invalidate
 # cache for all further layers

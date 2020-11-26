@@ -8,6 +8,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.13.0
 	github.com/aws/aws-sdk-go v1.32.8
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/confluentinc/confluent-kafka-go v1.5.2 // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.2.1
 	github.com/go-redis/redis v6.15.8+incompatible
@@ -52,6 +53,7 @@ require (
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	gopkg.in/confluentinc/confluent-kafka-go.v1 v1.5.2
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

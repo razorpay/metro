@@ -52,19 +52,14 @@ type Job struct {
 
 type Producer struct {
 	Variant string // kafka or pulsar
-	Kafka   ConnectionParams
-	Pulsar  ConnectionParams
+	Kafka   struct {
+		ConnectionParams ConnectionParams
+	}
+	Pulsar struct {
+		ConnectionParams ConnectionParams
+	}
 }
 
 type ConnectionParams struct {
-	HostWithPort string
-	Credentials  Credentials
-}
-
-type Credentials struct {
-	authScheme      string
-	key             string
-	password        string
-	userKeyFilePath string
-	certFilePath    string
+	Brokers []string
 }

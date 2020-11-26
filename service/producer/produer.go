@@ -4,8 +4,13 @@ import (
 	"github.com/razorpay/metro/internal/config"
 )
 
+type Message struct {
+	topic   string
+	message []byte
+}
+
 type IProducer interface {
-	PublishMessage(topic string, message []byte) (string, error)
+	PublishMessage(message *Message) (string, error)
 }
 
 const (
@@ -16,12 +21,11 @@ const (
 func NewProducer(config config.Producer) IProducer {
 	switch config.Variant {
 	case string(VariantKafka):
-		return NewKakfaProducer(&config.Kafka)
+		return newKakfaProducer(&config.Kafka.ConnectionParams)
 	case string(VariantPulsar):
-		return NewKPulsarProducer(&config.Pulsar)
+		return newKPulsarProducer(&config.Pulsar.ConnectionParams)
 
 	default:
-		//panic("invalid producer variant configured")
-		return NewKPulsarProducer(&config.Pulsar)
+		panic("invalid producer variant configured")
 	}
 }

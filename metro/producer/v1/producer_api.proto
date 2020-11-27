@@ -1,0 +1,68 @@
+// Protocol Buffers, (c) Razorpay 2020
+
+syntax = "proto3";
+
+package metro.producer.v1;
+
+option csharp_namespace = "Metro.Producer.V1";
+option go_package = "metro/producer/v1;producerv1";
+option java_multiple_files = true;
+option java_outer_classname = "ProducerApiProto";
+option java_package = "com.metro.producer.v1";
+option objc_class_prefix = "MP";
+option php_namespace = "Metro\\Producer\\V1";
+
+
+service Producer {
+
+    rpc Produce(ProduceRequest) returns (ProduceResponse);
+
+}
+
+message ProduceRequest {
+
+  string topic = 1;
+
+  repeated Message messages = 2;
+}
+
+
+message ProduceResponse {
+  // The server-assigned ID of each Produceed message, in the same order as
+  // the messages in the request. IDs are guaranteed to be unique within
+  // the topic.
+  repeated string message_ids = 1;
+}
+
+message Message {
+  // The message data field. If this field is empty, the message must contain
+  // at least one attribute.
+  bytes data = 1;
+
+  // Attributes for this message. If this field is empty, the message must
+  // contain non-empty data. This can be used to filter messages on the
+  // subscription.
+  map<string, string> attributes = 2;
+
+  // ID of this message, assigned by the server when the message is Produceed.
+  // Guaranteed to be unique within the topic. This value may be read by a
+  // subscriber that receives a `Message` via a `Pull` call or a push
+  // delivery. It must not be populated by the Producer in a `Produce` call.
+  string message_id = 3;
+
+  // The time at which the message was Produceed, populated by the server when
+  // it receives the `Produce` call. It must not be populated by the
+  // Produceer in a `Produce` call.
+  int32 produced_at = 4;
+
+  // If non-empty, identifies related messages for which Produce order should be
+  // respected. If a `Subscription` has `enable_message_ordering` set to `true`,
+  // messages Produceed with the same non-empty `ordering_key` value will be
+  // delivered to subscribers in the order in which they are received by the
+  // Pub/Sub system. All `PubsubMessage`s Produceed in a given `ProduceRequest`
+  // must specify the same `ordering_key` value.
+  string ordering_key = 5;
+
+  // Would be used along with ordering_key to implement message ordering
+  string sequence_id = 6;
+}

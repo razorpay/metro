@@ -12,7 +12,7 @@ UNAME_ARCH=$(shell go env GOARCH)
 BUILD_OUT_DIR := "bin/"
 
 METRO_OUT       := "bin/metro"
-METRO_MAIN_FILE := "cmd/metro/main.go"
+METRO_MAIN_FILE := "cmd/service/main.go"
 
 GIT_HOOKS_DIR := "scripts/git_hooks"
 

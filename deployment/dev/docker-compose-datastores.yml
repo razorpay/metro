@@ -1,0 +1,19 @@
+version: '3.3'
+services:
+  pulsar:
+    image: apachepulsar/pulsar:2.6.2
+    container_name: metro-pulsar
+    entrypoint: ["bin/pulsar","standalone"]
+    networks:
+      - app-network
+    ports:
+      - "6650:6650"
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD","bin/pulsar-admin","brokers","healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+networks:
+  app-network:
+    external: false

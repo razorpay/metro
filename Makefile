@@ -113,7 +113,7 @@ build-info:
 
 .PHONY: go-build-api ## Build the binary file for API server
 go-build-metro:
-	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -i -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
+	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
 .PHONY: clean ## Remove previous builds, protobuf files, and proto compiled code
 clean:
@@ -129,17 +129,20 @@ dev-docker-up:
 	docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
 	docker-compose -f deployment/dev/docker-compose.yml up -d --build
 
-.PHONY: dev-docker-rebuild ## Rebuild
-dev-docker-rebuild:
-	docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
-	docker-compose -f deployment/dev/docker-compose.yml up -d --build
+.PHONY: dev-docker-datastores-up ## Bring up datastore containers
+dev-docker-datastores-up:
+	docker-compose -f deployment/dev/docker-compose-datastores.yml up -d
+
+.PHONY: dev-docker-datastores-down ## Shut down datastore containers
+dev-docker-datastores-down:
+	docker-compose -f deployment/dev/docker-compose-datastores.yml down --remove-orphans
 
 .PHONY: dev-docker-down ## Shutdown docker-compose for local dev-setup
 dev-docker-down:
 	docker-compose -f deployment/dev/docker-compose.yml down --remove-orphans
 	docker-compose -f deployment/dev/monitoring/docker-compose.yml down --remove-orphans
 
-.PHONY: docker-build-api
+.PHONY: docker-build-metro
 docker-build-metro:
 	@docker build . -f build/docker/Dockerfile --build-arg GIT_TOKEN=${GIT_TOKEN} -t razorpay/metro:latest
 

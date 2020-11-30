@@ -6,9 +6,10 @@ import (
 	"mime"
 	"net/http"
 
+	"github.com/razorpay/metro/internal/config"
+
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rakyll/statik/fs"
-	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/server"
 	healthv1 "github.com/razorpay/metro/rpc/common/health/v1"
@@ -20,25 +21,28 @@ type Service struct {
 	ctx    context.Context
 	srv    *server.Server
 	health *health.Core
+	config *config.Service
 }
 
-func NewService(ctx context.Context) *Service {
-	return &Service{ctx: ctx}
+func NewService(ctx context.Context, config *config.Service) *Service {
+	return &Service{
+		ctx:    ctx,
+		config: config,
+	}
 }
 
 func (svc *Service) Start() {
 	// Define server handlers
-
 	healthCore, err := health.NewCore(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	s, err := server.NewServer(boot.Config.App.Interfaces.Api, func(server *grpc.Server) error {
+	s, err := server.NewServer(svc.config.Interfaces.Api, func(server *grpc.Server) error {
 		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 		return nil
 	}, func(mux *runtime.ServeMux) error {
-		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, boot.Config.App.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
 		}

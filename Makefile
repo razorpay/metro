@@ -86,7 +86,6 @@ deps:
 	@go install golang.org/x/lint/golint
 	@go install github.com/bykof/go-plantuml
 	@go install github.com/golang/mock/mockgen
-	@go install gopkg.in/confluentinc/confluent-kafka-go.v1/kafka
 
 .PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:

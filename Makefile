@@ -82,10 +82,11 @@ deps:
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
 		github.com/rakyll/statik \
-		github.com/bufbuild/buf/cmd/buf
+		github.com/bufbuild/buf/cmd/buf \
 	@go install golang.org/x/lint/golint
 	@go install github.com/bykof/go-plantuml
 	@go install github.com/golang/mock/mockgen
+	@go install gopkg.in/confluentinc/confluent-kafka-go.v1/kafka
 
 .PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:

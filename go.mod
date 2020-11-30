@@ -22,7 +22,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-gateway v1.9.0
+	github.com/grpc-ecosystem/grpc-gateway v1.9.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.1
 	github.com/hashicorp/consul/api v1.1.0
 	github.com/hashicorp/serf v0.8.2 // indirect

@@ -9,6 +9,10 @@ type PulsarProducer struct {
 
 }
 
+func (p PulsarProducer) PublishMessage(message *Message) (string, error) {
+	panic("implement me")
+}
+
 func newKPulsarProducer(config *config.ConnectionParams) IProducer {
 	// init and return new instance
 	return &PulsarProducer{}

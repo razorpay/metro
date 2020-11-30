@@ -50,7 +50,6 @@ ADD . /src/
 
 RUN make deps
 RUN make mock-gen
-RUN make proto-generate
 RUN go mod vendor
 RUN make go-build-metro
 

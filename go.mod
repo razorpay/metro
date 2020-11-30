@@ -17,7 +17,7 @@ require (
 	github.com/gobuffalo/nulls v0.4.0
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/golang/mock v1.4.4
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.3 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0

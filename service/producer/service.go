@@ -8,16 +8,9 @@ import (
 
 	"github.com/razorpay/metro/internal/config"
 
-	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
-
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rakyll/statik/fs"
-	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/server"
-	healthv1 "github.com/razorpay/metro/rpc/common/health/v1"
-	_ "github.com/razorpay/metro/statik"
 	"google.golang.org/grpc"
 )
 
@@ -40,40 +33,40 @@ func (svc *Service) Start() {
 		panic(err)
 	}
 
-	producer := NewProducer(boot.Config.Producer)
-	producerCore, err := NewCore(producer)
+	//producer := NewProducer(boot.Config.Producer)
+	//producerCore, err := NewCore(producer)
 	if err != nil {
 		panic(err)
 	}
 
-	s, err := server.NewServer(boot.Config.App.Interfaces.Api, func(server *grpc.Server) error {
-		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-		producerv1.RegisterProducerApiServer(server, NewServer(producerCore))
-		return nil
-	}, func(mux *runtime.ServeMux) error {
-		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, boot.Config.App.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
-		if err != nil {
-			return err
-		}
-
-		err = producerv1.RegisterProducerApiHandlerFromEndpoint(svc.ctx, mux, boot.Config.App.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
-		if err != nil {
-			return err
-		}
-		return nil
-	},
-		getInterceptors()...,
-	)
+	//s, err := server.NewServer(boot.Config.App.Interfaces.Api, func(server *grpc.Server) error {
+	//	//healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
+	//	//producerv1.RegisterProducerApiServer(server, NewServer(producerCore))
+	//	return nil
+	//}, func(mux *runtime.ServeMux) error {
+	//	err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, boot.Config.App.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	err = producerv1.RegisterProducerApiHandlerFromEndpoint(svc.ctx, mux, boot.Config.App.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+	//	if err != nil {
+	//		return err
+	//	}
+	//	return nil
+	//},
+	//	getInterceptors()...,
+	//)
 
 	if err != nil {
 		panic(err)
 	}
 
-	err = s.Start()
+	//err = s.Start()
 	if err != nil {
 		panic(err)
 	}
-	svc.srv = s
+	//svc.srv = s
 	svc.health = healthCore
 
 	err = runOpenAPIHandler()

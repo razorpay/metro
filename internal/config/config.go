@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/tracing"
 	"github.com/razorpay/metro/pkg/worker"
 	"github.com/razorpay/metro/pkg/worker/queue"
@@ -8,7 +9,7 @@ import (
 
 type Config struct {
 	App     App
-	Sentry  Sentry
+	Sentry  *sentry.Config
 	Auth    Auth
 	Tracing tracing.Config
 	Job     Job
@@ -32,12 +33,6 @@ type NetworkInterfaces struct {
 	GrpcServerAddress     string
 	HttpServerAddress     string
 	InternalServerAddress string
-}
-
-type Sentry struct {
-	DNS      string
-	Enabled  bool
-	LogLevel string
 }
 
 type Auth struct {

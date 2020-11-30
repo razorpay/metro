@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/razorpay/metro/internal/boot"
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 type Checker interface {
@@ -45,7 +45,7 @@ func (c *Core) IsHealthy() bool {
 		}
 		isHealthy, err := checker.CheckHealth()
 		if !isHealthy {
-			boot.Logger(context.TODO()).WithError(err).Error("health check failed")
+			logger.Ctx(context.TODO()).Errorw("health check failed", "msg", err)
 			return false
 		}
 	}

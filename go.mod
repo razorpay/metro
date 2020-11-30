@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.32.8
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/fatih/structs v1.1.0
+	github.com/getsentry/sentry-go v0.8.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.2.1
 	github.com/go-redis/redis v6.15.8+incompatible
 	github.com/gobuffalo/nulls v0.4.0
@@ -50,7 +51,6 @@ require (
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.1-0.20201020201750-d3470999428b
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
-	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )

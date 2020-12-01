@@ -22,6 +22,7 @@ GO       = go
 MODULE   = $(shell $(GO) list -m)
 SERVICE  = $(shell basename $(MODULE))
 
+
 # Proto repo info
 PROTO_GIT_URL := "https://github.com/razorpay/metro-proto"
 DRONE_PROTO_GIT_URL := "https://$(GIT_TOKEN)@github.com/razorpay/metro-proto"

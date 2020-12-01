@@ -30,26 +30,25 @@ func isValidService(service string) bool {
 	return false
 }
 
-type Server struct {
+type Service struct {
 	name    string
 	cfg     *config.Config
 	service common.IService
 }
 
-// newServer returns a new instance of a daemon
-// that represents a cadence service
-func NewServer(service string, cfg *config.Config) (*Server, error) {
+// newServer returns a new instance of a metro service component
+func NewServer(service string, cfg *config.Config) (*Service, error) {
 	if isValidService(service) == false {
 		return nil, errors.New(fmt.Sprintf("invalid service name input : %v", service))
 	}
 
-	return &Server{
+	return &Service{
 		cfg:  cfg,
 		name: service,
 	}, nil
 }
 
-func (s *Server) Start(ctx context.Context) {
+func (s *Service) Start(ctx context.Context) {
 	serviceConfig, ok := s.cfg.Services[s.name]
 
 	if !ok {
@@ -59,11 +58,11 @@ func (s *Server) Start(ctx context.Context) {
 	s.service = s.startService(ctx, &serviceConfig)
 }
 
-func (s *Server) Stop() error {
+func (s *Service) Stop() error {
 	return s.service.Stop()
 }
 
-func (s *Server) startService(ctx context.Context, config *config.Service) common.IService {
+func (s *Service) startService(ctx context.Context, config *config.Service) common.IService {
 	var service common.IService
 
 	switch s.name {

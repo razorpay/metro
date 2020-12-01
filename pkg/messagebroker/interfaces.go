@@ -1,4 +1,4 @@
-package consumer
+package messagebroker
 
 import "time"
 
@@ -9,15 +9,8 @@ type QueueConsumer interface {
 	// how many ever messages are availble
 	GetMessages(numOfMessages int, timeout time.Duration) ([]string, error)
 
-	//GetUnCommitedMessages returns the messages read in the previous call
-	//to GetMessages - if they are not yet committed.
-	// This is especially usefull in the cases where a client
-	//consuming the messsages crashes and when a new instance comes back
-	//it first needs to call this.
-	GetUnCommitedMessages(numOfMessages int) []string
-
 	//Commits messages if any
 	//This func will commit the message consumed
-	//by the previous call to GetMessages
+	//by all the previous calls to GetMessages
 	Commit()
 }

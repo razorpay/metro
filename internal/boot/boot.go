@@ -106,7 +106,7 @@ func initialize(ctx context.Context, env string) error {
 	return nil
 }
 
-func InitProducer(ctx context.Context, env string) error {
+func InitMetro(ctx context.Context, env string) error {
 	err := initialize(ctx, env)
 	if err != nil {
 		return err

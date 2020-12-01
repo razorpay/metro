@@ -15,6 +15,8 @@ type Config struct {
 	Job     Job
 	Queue   queue.Config
 	Worker  worker.Config
+	// Services is a map of service name to service config items
+	Services map[string]Service
 }
 
 // App contains application-specific config values
@@ -24,7 +26,10 @@ type App struct {
 	ShutdownTimeout int
 	ShutdownDelay   int
 	GitCommitHash   string
-	Interfaces      struct {
+}
+
+type Service struct {
+	Interfaces struct {
 		Api NetworkInterfaces
 	}
 }

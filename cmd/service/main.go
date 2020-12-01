@@ -2,35 +2,56 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/razorpay/metro/cmd/service/metro"
 	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/pkg/logger"
-	"github.com/razorpay/metro/service/producer"
-	"google.golang.org/grpc"
 )
+
+var (
+	serviceName *string
+)
+
+func init() {
+	serviceName = flag.String("service", metro.Producer, "service to start")
+}
 
 func main() {
 	// Initialize context
 	ctx, cancel := context.WithCancel(boot.NewContext(context.Background()))
 	defer cancel()
 
+	// parse the cmd input
+	flag.Parse()
+
 	// Init app dependencies
 	env := boot.GetEnv()
-	err := boot.InitProducer(ctx, env)
+	err := boot.InitMetro(ctx, env)
 	if err != nil {
 		log.Fatalf("failed to init metro: %v", err)
 	}
 
 	// Shutdown tracer
-	defer boot.Closer.Close()
+	defer func() {
+		err := boot.Closer.Close()
+		if err != nil {
+			log.Fatalf("error closing tracer: %v", err)
+		}
+	}()
 
-	// initialize producer service and start it
-	producerService := producer.NewService(ctx)
-	producerService.Start()
+	// start the requested service
+	var service *metro.Service
+	service, err = metro.NewService(*serviceName, &boot.Config)
+	if err != nil {
+		log.Fatalf("error creating metro server: %v", err)
+	}
+
+	service.Start(ctx)
 
 	// Handle SIGINT & SIGTERM - Shutdown gracefully
 	c := make(chan os.Signal, 1)
@@ -40,15 +61,12 @@ func main() {
 	<-c
 
 	logger.Ctx(ctx).Infow("stopping metro")
-	// stop producer service
-	err = producerService.Stop()
+
+	// stop service
+	err = service.Stop()
 	if err != nil {
 		panic(err)
 	}
 
 	logger.Ctx(ctx).Infow("stopped metro")
-}
-
-func getInterceptors() []grpc.UnaryServerInterceptor {
-	return []grpc.UnaryServerInterceptor{}
 }

@@ -93,6 +93,7 @@ proto-generate:
 	@echo "\n + Generating pb language bindings\n"
 	@buf generate --path ./metro-proto/common
 	@buf generate --path ./metro-proto/example
+	@buf generate --path ./metro-proto/metro
 	# Generate static assets for OpenAPI UI
 	@statik -m -f -src third_party/OpenAPI/
 

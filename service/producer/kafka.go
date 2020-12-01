@@ -3,9 +3,9 @@ package producer
 import (
 	"fmt"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/razorpay/metro/internal/config"
 	kafkabroker "github.com/razorpay/metro/pkg/messagebroker/kafka"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 type KafkaProducer struct {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	kakfapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 type ProducerConfig struct {
@@ -37,11 +37,11 @@ type BrokerConfig struct {
 }
 
 type KafkaBroker struct {
-	Producer *kafka.Producer
-	Consumer *kafka.Consumer
-	Admin    *kafka.AdminClient
-	ctx      context.Context
-	bConfig  *BrokerConfig
+	Producer *kakfapkg.Producer
+	Consumer *kakfapkg.Consumer
+	//Admin    *kakfapkg.AdminClient
+	ctx     context.Context
+	bConfig *BrokerConfig
 }
 
 func NewKafkaBroker(ctx context.Context, bConfig *BrokerConfig) (*KafkaBroker, error) {
@@ -50,7 +50,7 @@ func NewKafkaBroker(ctx context.Context, bConfig *BrokerConfig) (*KafkaBroker, e
 		return nil, errors.New("Empty Context in constructor")
 	}
 
-	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": strings.Join(bConfig.Producer.Brokers, ",")})
+	producer, err := kakfapkg.NewProducer(&kakfapkg.ConfigMap{"bootstrap.servers": strings.Join(bConfig.Producer.Brokers, ",")})
 	if err != nil {
 		panic(err)
 	}

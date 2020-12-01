@@ -37,7 +37,7 @@ type Service struct {
 }
 
 // newServer returns a new instance of a metro service component
-func NewServer(service string, cfg *config.Config) (*Service, error) {
+func NewService(service string, cfg *config.Config) (*Service, error) {
 	if isValidService(service) == false {
 		return nil, errors.New(fmt.Sprintf("invalid service name input : %v", service))
 	}

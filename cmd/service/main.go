@@ -37,34 +37,21 @@ func main() {
 	}
 
 	// Shutdown tracer
-	defer boot.Closer.Close()
-
-	isValid := isValidService(*serviceName)
-	if isValid == false {
-		log.Fatalf("invalid service `%v` in input", *serviceName)
-	}
-
-	// Init Tracer
-	traceCloser, err := boot.InitTracing(ctx)
-	if err != nil {
-		log.Fatalf("error initializing tracer: %v", err)
-	}
-
 	defer func() {
-		err := traceCloser.Close()
+		err := boot.Closer.Close()
 		if err != nil {
 			log.Fatalf("error closing tracer: %v", err)
 		}
 	}()
 
 	// start the requested service
-	var server *metro.Server
-	server, err = metro.NewServer(*serviceName, &boot.Config)
+	var service *metro.Service
+	service, err = metro.NewService(*serviceName, &boot.Config)
 	if err != nil {
 		log.Fatalf("error creating metro server: %v", err)
 	}
 
-	server.Start(ctx)
+	service.Start(ctx)
 
 	// Handle SIGINT & SIGTERM - Shutdown gracefully
 	c := make(chan os.Signal, 1)
@@ -76,8 +63,7 @@ func main() {
 	logger.Ctx(ctx).Infow("stopping metro")
 
 	// stop service
-	boot.Logger(ctx).Info("stopping metro")
-	err = server.Stop()
+	err = service.Stop()
 	if err != nil {
 		panic(err)
 	}

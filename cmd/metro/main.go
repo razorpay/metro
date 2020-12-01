@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/razorpay/metro/internal/boot"
+	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/service/producer"
 	"google.golang.org/grpc"
 )
@@ -17,8 +18,6 @@ func main() {
 	ctx, cancel := context.WithCancel(boot.NewContext(context.Background()))
 	defer cancel()
 
-	boot.Logger(ctx).Info("starting metro")
-
 	// Init app dependencies
 	env := boot.GetEnv()
 	err := boot.InitProducer(ctx, env)
@@ -26,11 +25,8 @@ func main() {
 		log.Fatalf("failed to init metro: %v", err)
 	}
 
-	traceCloser, err := boot.InitTracing(ctx)
-	if err != nil {
-		log.Fatalf("error initializing tracer: %v", err)
-	}
-	defer traceCloser.Close()
+	// Shutdown tracer
+	defer boot.Closer.Close()
 
 	// initialize producer service and start it
 	producerService := producer.NewService(ctx)
@@ -43,14 +39,14 @@ func main() {
 	// Block until signal is received.
 	<-c
 
-	boot.Logger(ctx).Info("stopping metro")
+	logger.Ctx(ctx).Infow("stopping metro")
 	// stop producer service
 	err = producerService.Stop()
 	if err != nil {
 		panic(err)
 	}
 
-	boot.Logger(ctx).Info("stopped metro")
+	logger.Ctx(ctx).Infow("stopped metro")
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {

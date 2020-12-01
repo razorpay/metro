@@ -52,6 +52,7 @@
     password              = "secret"
 
 [sentry]
+    appName               = "metro"
     dsn                   = "dummy"
-    enabled               = false
-    logLevel              = "Error"
+    mock                  = true
+    errorLevel            = 1

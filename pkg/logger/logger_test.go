@@ -1,47 +1,125 @@
-package logger_test
+package logger
 
 import (
+	"context"
+	"reflect"
 	"testing"
 
-	"github.com/razorpay/metro/pkg/logger"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-func BenchmarkNewLogger(b *testing.B) {
-	config := logger.Config{
-		LogLevel:       logger.Debug,
-		SentryDSN:      "",
-		SentryEnabled:  false,
-		SentryLogLevel: "",
+func TestNewLogger(t *testing.T) {
+	sugar, _ := NewLogger("", nil, zapcore.NewNopCore())
+	type args struct {
+		env       string
+		serviceKV map[string]interface{}
+		hookCore  zapcore.Core
 	}
-	lgr, err := logger.NewLogger(config)
-	if err != nil {
-		b.Errorf("NewLogger :%v", err)
+	tests := []struct {
+		name    string
+		args    args
+		want    *zap.SugaredLogger
+		wantErr bool
+	}{
+		{
+			name: "Init test",
+			args: args{
+				env:      "",
+				hookCore: zapcore.NewNopCore(),
+			},
+			wantErr: false,
+			want:    sugar,
+		},
 	}
-	/*zt := reflect.TypeOf(&(logger.ZapLogger{}))
-	if !reflect.DeepEqual(lg, zt) {
-		t.Errorf("NewLogger() = %v, want %v", lg, zt)
-	}*/
-	defaultLogger := lgr.WithFields(map[string]interface{}{"key1": "value1"})
-	for n := 0; n < 1000; n++ {
-		b.Run("defaultlogger", func(b *testing.B) {
-			defaultLogger.Debug("I have the default values for Key1 and Value1")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewLogger(tt.args.env, tt.args.serviceKV, tt.args.hookCore)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewLogger() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewLogger() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
 
-func LogTest(b *testing.B) {
-	config := logger.Config{
-		LogLevel:       logger.Debug,
-		SentryDSN:      "",
-		SentryEnabled:  false,
-		SentryLogLevel: "",
+func TestWithContext(t *testing.T) {
+	baseLogger, _ := NewLogger("", nil, zapcore.NewNopCore())
+	wantLogger := baseLogger.With(
+		"context1", "item1",
+		"context2", 123,
+	)
+	baseCtx := context.WithValue(context.Background(), "context1", "item1")
+	finalCtx := context.WithValue(baseCtx, "context2", 123)
+	type args struct {
+		ctx       context.Context
+		ctxFields []string
 	}
-	lgr, err := logger.NewLogger(config)
-	if err != nil {
-		b.Errorf("NewLogger :%v", err)
+	tests := []struct {
+		name string
+		args args
+		want *zap.SugaredLogger
+	}{
+		{
+			name: "Verify context fields",
+			args: args{
+				ctx: finalCtx,
+				ctxFields: []string{
+					"context1",
+					"context2",
+				},
+			},
+			want: wantLogger,
+		},
 	}
-	defaultLogger := lgr.WithFields(map[string]interface{}{"key1": "value1"})
-	for n := 0; n < b.N; n++ {
-		defaultLogger.Debug("I have the default values for Key1 and Value1")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := WithContext(tt.args.ctx, tt.args.ctxFields); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("WithContext() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCtx(t *testing.T) {
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name string
+		args args
+		want *zap.SugaredLogger
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Ctx(tt.args.ctx); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Ctx() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_MapToSliceOfKV(t *testing.T) {
+	type args struct {
+		m map[string]interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+		want []interface{}
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MapToSliceOfKV(tt.args.m); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MapToSliceOfKV() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

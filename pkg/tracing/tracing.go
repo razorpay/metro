@@ -5,11 +5,11 @@ import (
 	"io"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/razorpay/metro/pkg/logger"
 	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-lib/metrics/prometheus"
-
 	jaegerconfig "github.com/uber/jaeger-client-go/config"
+	jaegerzap "github.com/uber/jaeger-client-go/log/zap"
+	"github.com/uber/jaeger-lib/metrics/prometheus"
+	"go.uber.org/zap"
 )
 
 // Config ... struct expected by Init func to initialize jaeger tracing client.
@@ -22,7 +22,7 @@ type Config struct {
 
 // Init initialises opentracing tracer. Returns tracer for tracing spans &
 // closer for flushing in-memory spans before app shutdown.
-func Init(cnf Config, logEntry *logger.Entry) (opentracing.Tracer, io.Closer, error) {
+func Init(cnf Config, zlog *zap.Logger) (opentracing.Tracer, io.Closer, error) {
 
 	config := &jaegerconfig.Configuration{
 		ServiceName: cnf.ServiceName,
@@ -38,7 +38,7 @@ func Init(cnf Config, logEntry *logger.Entry) (opentracing.Tracer, io.Closer, er
 	}
 
 	tracer, closer, err := config.NewTracer(
-		jaegerconfig.Logger(&log{logEntry}),
+		jaegerconfig.Logger(jaegerzap.NewLogger(zlog)),
 		jaegerconfig.Metrics(prometheus.New()),
 	)
 	if err != nil {

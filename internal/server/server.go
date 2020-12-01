@@ -13,12 +13,12 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-
 	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/internal/health"
 	grpcinterceptor "github.com/razorpay/metro/internal/interceptors"
+	"github.com/razorpay/metro/pkg/logger"
+	"google.golang.org/grpc"
 )
 
 type Server struct {
@@ -100,7 +100,7 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop(ctx context.Context, healthCore *health.Core) error {
-	boot.Logger(ctx).Info("marking server unhealthy")
+	logger.Ctx(ctx).Info("marking server unhealthy")
 	healthCore.MarkUnhealthy()
 	time.Sleep(time.Duration(boot.Config.App.ShutdownDelay) * time.Second)
 	s.grpcServer.GracefulStop()

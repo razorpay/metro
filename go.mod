@@ -10,6 +10,7 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.5.2
 	github.com/fatih/structs v1.1.0
+	github.com/getsentry/sentry-go v0.8.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.2.1
 	github.com/go-redis/redis v6.15.8+incompatible
 	github.com/gobuffalo/nulls v0.4.0
@@ -49,11 +50,10 @@ require (
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 // indirect
 	golang.org/x/net v0.0.0-20200822124328-c89045814202
 	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68 // indirect
-	google.golang.org/genproto v0.0.0-20201119123407-9b1e624d6bc4 // indirect
+	google.golang.org/genproto v0.0.0-20201119123407-9b1e624d6bc4
 	google.golang.org/grpc v1.33.2
-	google.golang.org/protobuf v1.25.1-0.20201020201750-d3470999428b // indirect
+	google.golang.org/protobuf v1.25.1-0.20201020201750-d3470999428b
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
-	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )

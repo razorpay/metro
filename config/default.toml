@@ -4,11 +4,6 @@
     shutdownTimeout       = 2
     shutdownDelay         = 2
     gitCommitHash         = "nil"
-    [app.interfaces]
-       [app.interfaces.api]
-          GrpcServerAddress     = "0.0.0.0:8081"
-          HttpServerAddress     = "0.0.0.0:8082"
-          InternalServerAddress = "0.0.0.0:8083"
 
 [db]
     dialect               = "mysql"
@@ -52,6 +47,18 @@
     password              = "secret"
 
 [sentry]
+    appName               = "metro"
     dsn                   = "dummy"
-    enabled               = false
-    logLevel              = "Error"
+    mock                  = true
+    errorLevel            = 1
+
+[services]
+    [services.producer]
+        [services.producer.interfaces]
+            [services.producer.interfaces.api]
+                GrpcServerAddress     = "0.0.0.0:8081"
+                HttpServerAddress     = "0.0.0.0:8082"
+                InternalServerAddress = "0.0.0.0:8083"
+
+    [services.push_consumer]
+    [services.pull_consumer]

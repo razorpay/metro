@@ -10,9 +10,11 @@ import (
 	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/internal/constants/contextkeys"
 	config_reader "github.com/razorpay/metro/pkg/config"
-	"github.com/razorpay/metro/pkg/logger"
+	logpkg "github.com/razorpay/metro/pkg/logger"
+	sentrypkg "github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/tracing"
 	"github.com/razorpay/metro/pkg/worker"
+
 	"github.com/rs/xid"
 )
 
@@ -27,6 +29,8 @@ var (
 
 	Tracer opentracing.Tracer
 	Worker worker.IManager
+	// Closer holds an instance to the RequestTracing object's Closer.
+	Closer io.Closer
 )
 
 func init() {
@@ -35,8 +39,6 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	InitLogger(context.Background())
 
 	/*
 		queues, err := queue.New(&Config.Queue)
@@ -81,25 +83,22 @@ func WithRequestID(ctx context.Context, requestID string) context.Context {
 
 // initialize all core dependencies for the application
 func initialize(ctx context.Context, env string) error {
-	log := InitLogger(ctx)
-
-	context.WithValue(ctx, logger.LoggerCtxKey, log)
-
-	// Puts git commit hash into config.
-	// This is not read automatically because env variable is not in expected format.
-	Config.App.GitCommitHash = os.Getenv("GIT_COMMIT_HASH")
-
-	//otgorm.AddGormCallbacks(DB.Instance(ctx))
-
-	// Register DB stats prometheus collector
-	//collector := sqlstats.NewStatsCollector(Config.Db.URL+"-"+Config.Db.Name, DB.Instance(ctx).DB())
-	//prometheus.MustRegister(collector)
-
-	return nil
-}
-
-func InitProducer(ctx context.Context, env string) error {
-	err := initialize(ctx, env)
+	// Initializes Sentry monitoring client.
+	sentry, err := sentrypkg.InitSentry(Config.Sentry, env)
+	if err != nil {
+		return err
+	}
+	// Initializes logging driver.
+	servicekv := map[string]interface{}{
+		"appEnv":        Config.App.Env,
+		"serviceName":   Config.App.ServiceName,
+		"gitCommitHash": Config.App.GitCommitHash,
+	}
+	logger, err := logpkg.NewLogger(env, servicekv, sentry)
+	if err != nil {
+		return err
+	}
+	Tracer, Closer, err = tracing.Init(Config.Tracing, logger.Desugar())
 	if err != nil {
 		return err
 	}
@@ -107,13 +106,13 @@ func InitProducer(ctx context.Context, env string) error {
 	return nil
 }
 
-// InitTracing initialises opentracing exporter
-func InitTracing(ctx context.Context) (io.Closer, error) {
-	t, closer, err := tracing.Init(Config.Tracing, Logger(ctx))
+func InitMetro(ctx context.Context, env string) error {
+	err := initialize(ctx, env)
+	if err != nil {
+		return err
+	}
 
-	Tracer = t
-
-	return closer, err
+	return nil
 }
 
 // NewContext adds core key-value e.g. service name, git hash etc to
@@ -127,32 +126,4 @@ func NewContext(ctx context.Context) context.Context {
 	//	ctx = context.WithValue(ctx, key, v)
 	//}
 	return ctx
-}
-
-func Logger(ctx context.Context) *logger.Entry {
-	ctxLogger, err := logger.Ctx(ctx)
-
-	if err == nil {
-		return ctxLogger
-	}
-
-	return nil
-}
-
-func InitLogger(ctx context.Context) *logger.ZapLogger {
-	lgrConfig := logger.Config{
-		LogLevel:       logger.Debug,
-		SentryDSN:      Config.Sentry.DNS,
-		SentryEnabled:  Config.Sentry.Enabled,
-		SentryLogLevel: Config.Sentry.LogLevel,
-		ContextString:  "metro",
-	}
-
-	Logger, err := logger.NewLogger(lgrConfig)
-
-	if err != nil {
-		panic("failed to initialize logger")
-	}
-
-	return Logger
 }

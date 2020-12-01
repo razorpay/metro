@@ -1,20 +1,22 @@
 package config
 
 import (
+	"github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/tracing"
 	"github.com/razorpay/metro/pkg/worker"
 	"github.com/razorpay/metro/pkg/worker/queue"
 )
 
 type Config struct {
-	App      App
-	Sentry   Sentry
-	Auth     Auth
-	Tracing  tracing.Config
-	Job      Job
-	Queue    queue.Config
-	Worker   worker.Config
-	Producer Producer
+	App     App
+	Sentry  *sentry.Config
+	Auth    Auth
+	Tracing tracing.Config
+	Job     Job
+	Queue   queue.Config
+	Worker  worker.Config
+	// Services is a map of service name to service config items
+	Services map[string]Service
 }
 
 // App contains application-specific config values
@@ -24,7 +26,10 @@ type App struct {
 	ShutdownTimeout int
 	ShutdownDelay   int
 	GitCommitHash   string
-	Interfaces      struct {
+}
+
+type Service struct {
+	Interfaces struct {
 		Api NetworkInterfaces
 	}
 }
@@ -33,12 +38,6 @@ type NetworkInterfaces struct {
 	GrpcServerAddress     string
 	HttpServerAddress     string
 	InternalServerAddress string
-}
-
-type Sentry struct {
-	DNS      string
-	Enabled  bool
-	LogLevel string
 }
 
 type Auth struct {

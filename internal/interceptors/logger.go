@@ -6,18 +6,16 @@ import (
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/razorpay/metro/pkg/logger"
 	"google.golang.org/grpc"
-
-	"github.com/razorpay/metro/internal/boot"
 )
 
 func UnaryServerLoggerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		t := grpc_ctxtags.Extract(ctx)
-		ctx = context.WithValue(ctx, logger.LoggerCtxKey, boot.Logger(ctx).WithFields(t.Values()))
-
+		l := logger.Ctx(ctx).With(logger.MapToSliceOfKV(t.Values())...)
+		ctx = context.WithValue(ctx, logger.LoggerCtxKey, l)
 		resp, err := handler(ctx, req)
 		if err != nil {
-			boot.Logger(ctx).WithError(err).Error(err.Error())
+			logger.Ctx(ctx).Errorw("error in grpc handler", "msg", err.Error())
 		}
 
 		return resp, err

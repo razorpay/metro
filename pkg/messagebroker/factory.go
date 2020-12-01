@@ -1,7 +1,7 @@
 package messagebroker
 
 import (
-	"github.com/razorpay/metro/pkg/messagebroker/consumers/kafka"
+	"github.com/razorpay/metro/pkg/messagebroker/kafka"
 )
 
 func GetConsumer(identifier string, config interface{}) QueueConsumer {

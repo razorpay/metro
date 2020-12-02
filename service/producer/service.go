@@ -6,6 +6,9 @@ import (
 	"mime"
 	"net/http"
 
+	"github.com/razorpay/metro/pkg/messagebroker"
+	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
+
 	"github.com/razorpay/metro/internal/config"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -39,8 +42,14 @@ func (svc *Service) Start() {
 		panic(err)
 	}
 
+	brokerCore, err := NewCore(messagebroker.NewBroker("kafka"))
+	if err != nil {
+		panic(err)
+	}
+
 	s, err := server.NewServer(svc.config.Interfaces.Api, func(server *grpc.Server) error {
 		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
+		producerv1.RegisterProducerServer(server, NewServer(brokerCore))
 		return nil
 	}, func(mux *runtime.ServeMux) error {
 		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})

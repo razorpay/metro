@@ -18,7 +18,7 @@ type Admin interface {
 
 // for produce operations
 type Producer interface {
-	Produce(topic string, message []byte) ([]string, error)
+	Produce(topic string, message []byte) (string, error)
 }
 
 type Consumer interface {

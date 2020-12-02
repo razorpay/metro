@@ -1,10 +1,15 @@
 package messagebroker
 
+const (
+	Kafka = iota
+	Pulsar
+)
+
 func NewBroker(identifier string) Broker {
 	switch identifier {
-	case "kafka":
+	case string(Kafka):
 		return NewKafkaBroker(nil, nil)
-	case "pulsar":
+	case string(Pulsar):
 		return NewPulsarBroker(nil, nil)
 	}
 

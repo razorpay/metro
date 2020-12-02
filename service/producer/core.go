@@ -1,16 +1,11 @@
 package producer
 
+import "github.com/razorpay/metro/pkg/messagebroker"
+
 type Core struct {
-	producer IProducer
+	Broker messagebroker.Broker
 }
 
-func NewCore(producer IProducer) (*Core, error) {
-	return &Core{producer: producer}, nil
-}
-
-func (c *Core) PublishMessage(topic string, body []byte) (string, error) {
-	return c.producer.PublishMessage(&Message{
-		topic:   topic,
-		message: body,
-	})
+func NewCore(broker messagebroker.Broker) (*Core, error) {
+	return &Core{Broker: broker}, nil
 }

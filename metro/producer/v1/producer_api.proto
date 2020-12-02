@@ -12,11 +12,35 @@ option java_package = "com.metro.producer.v1";
 option objc_class_prefix = "MP";
 option php_namespace = "Metro\\Producer\\V1";
 
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+// These annotations are used when generating the OpenAPI file.
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        version: "1.0";
+    };
+    external_docs: {
+        url: "https://github.com/razorpay/metro-proto";
+        description: "protobuf definitions for metro";
+    }
+    schemes: HTTPS;
+};
 
 service Producer {
 
-    rpc Produce(ProduceRequest) returns (ProduceResponse);
-
+    rpc Produce(ProduceRequest) returns (ProduceResponse){
+        option (google.api.http) = {
+            // Route to this method from POST requests to /v1/produce
+            post: "/v1/produce"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Produce a message"
+            description: "Produce a new message"
+            tags: "Message"
+        };
+    }
 }
 
 message ProduceRequest {

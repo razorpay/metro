@@ -4,11 +4,11 @@ import (
 	"github.com/razorpay/metro/pkg/messagebroker/kafka"
 )
 
-func GetConsumer(identifier string, config interface{}) QueueConsumer {
+func GetConsumer(identifier string, topic string, config interface{}) MessageConsumer {
 	switch identifier {
 	case "kafka":
-		return kafka.NewConsumer(config)
+		return kafka.NewConsumer(topic, config)
 	}
 
-	return kafka.NewConsumer(config)
+	return kafka.NewConsumer(topic, config)
 }

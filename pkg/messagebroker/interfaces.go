@@ -2,7 +2,7 @@ package messagebroker
 
 import "time"
 
-type QueueConsumer interface {
+type MessageConsumer interface {
 
 	//GetMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
 	//from the previous committed offset. If the available messages in the queue are less, returns

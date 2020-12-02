@@ -19,15 +19,15 @@ type ConsumerConfig struct {
 	PollInterval time.Duration
 }
 
-func NewConsumer(config interface{}) *Consumer {
+func NewConsumer(topic string, config interface{}) *Consumer {
 	consumer := &Consumer{}
 
-	consumer.intialise(config.(ConsumerConfig))
+	consumer.intialise(topic, config.(ConsumerConfig))
 
 	return consumer
 }
 
-func (consumer *Consumer) intialise(config ConsumerConfig) error{
+func (consumer *Consumer) intialise(topic string, config ConsumerConfig) error {
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers":  config.BrokerList,
 		"group.id":           config.GroupID,
@@ -39,7 +39,7 @@ func (consumer *Consumer) intialise(config ConsumerConfig) error{
 		return err
 	}
 
-	c.SubscribeTopics([]string{config.Topic}, nil)
+	c.SubscribeTopics([]string{topic}, nil)
 	consumer.consumer = c
 
 	return nil

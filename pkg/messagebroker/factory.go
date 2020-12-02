@@ -1,14 +1,12 @@
 package messagebroker
 
-import (
-	"github.com/razorpay/metro/pkg/messagebroker/kafka"
-)
-
-func GetConsumer(identifier string, topic string, config interface{}) MessageConsumer {
+func NewBroker(identifier string) Broker {
 	switch identifier {
 	case "kafka":
-		return kafka.NewConsumer(topic, config)
+		return NewKafkaBroker(nil, nil)
+	case "pulsar":
+		return NewPulsarBroker(nil, nil)
 	}
 
-	return kafka.NewConsumer(topic, config)
+	panic("invalid identifier")
 }

@@ -3,9 +3,11 @@ package producer
 import (
 	"fmt"
 
+	"github.com/razorpay/metro/pkg/messagebroker"
+	kafka2 "github.com/razorpay/metro/pkg/messagebroker/kafka"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/razorpay/metro/internal/config"
-	kafkabroker "github.com/razorpay/metro/pkg/messagebroker/kafka"
 )
 
 type KafkaProducer struct {
@@ -13,12 +15,12 @@ type KafkaProducer struct {
 }
 
 func newKakfaProducer(config *config.ConnectionParams) IProducer {
-	bConfig := &kafkabroker.BrokerConfig{
-		Producer: kafkabroker.ProducerConfig{
+	bConfig := &kafka2.BrokerConfig{
+		Producer: kafka2.ProducerConfig{
 			Brokers: config.Brokers,
 		},
 	}
-	broker, err := kafkabroker.NewKafkaBroker(nil, bConfig)
+	broker, err := messagebroker.NewKafkaBroker(nil, bConfig)
 	if err != nil {
 		panic(err)
 	}

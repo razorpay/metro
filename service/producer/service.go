@@ -57,6 +57,11 @@ func (svc *Service) Start() {
 			return err
 		}
 
+		err = producerv1.RegisterProducerHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		if err != nil {
+			return err
+		}
+
 		return nil
 	},
 		getInterceptors()...,

@@ -66,7 +66,7 @@ func (k KafkaBroker) DeleteTopic(topic string) error {
 	panic("implement me")
 }
 
-func (k KafkaBroker) Produce(topic string, message []byte) ([]string, error) {
+func (k KafkaBroker) Produce(topic string, message []byte) (string, error) {
 	panic("implement me")
 }
 

@@ -18,7 +18,7 @@ func (p PulsarBroker) DeleteTopic(topic string) error {
 	panic("implement me")
 }
 
-func (p PulsarBroker) Produce(topic string, message []byte) ([]string, error) {
+func (p PulsarBroker) Produce(topic string, message []byte) (string, error) {
 	panic("implement me")
 }
 

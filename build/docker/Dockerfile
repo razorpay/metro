@@ -3,9 +3,9 @@
 FROM golang:1.15.5-alpine3.12 as proto-builder
 
 ARG GIT_TOKEN
-ENV CGO_ENABLED 0
+ENV CGO_ENABLED 1
 
-RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ make git
+RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
 
 RUN mkdir -p /src/scripts
 WORKDIR /src
@@ -28,12 +28,12 @@ RUN make proto-generate
 FROM golang:1.15.5-alpine3.12 as builder
 
 ARG GIT_TOKEN
-ENV CGO_ENABLED 0
+ENV CGO_ENABLED 1
 
 RUN mkdir /src
 WORKDIR /src
 
-RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ make git
+RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
 
 # Fetch proto from previous stage
 COPY --from=proto-builder /src/rpc /src/rpc

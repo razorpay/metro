@@ -1,9 +1,10 @@
 package registry
 
 import (
+	"sync"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
-	"sync"
 )
 
 type ConsulClient struct {
@@ -38,15 +39,15 @@ func NewClient(config ConsulConfig) (*ConsulClient, error) {
 	return c, err
 }
 
-func (c *ConsulClient) CreateSession(name string) string {
+func (c *ConsulClient) CreateSession(name string) (string, error) {
 	sessionId, _, err := c.client.Session().Create(&api.SessionEntry{
 		Name: name,
 	}, nil)
 
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return sessionId
+	return sessionId, nil
 }
 
 func (c *ConsulClient) RenewPeriodic(sessionId string, doneChan chan struct{}) error {

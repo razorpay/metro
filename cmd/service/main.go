@@ -51,21 +51,27 @@ func main() {
 		log.Fatalf("error creating metro server: %v", err)
 	}
 
-	service.Start(ctx)
+	errChan := service.Start(ctx)
 
 	// Handle SIGINT & SIGTERM - Shutdown gracefully
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 
-	// Block until signal is received.
-	<-c
+	// Block until signal is received or error is received in starting the service.
+	select {
+	case <-c:
+		logger.Ctx(ctx).Infow("received signal")
+	case err := <-errChan:
+		logger.Ctx(ctx).Fatalw("error in starting service", "msg", err.Error())
+	}
 
 	logger.Ctx(ctx).Infow("stopping metro")
 
 	// stop service
 	err = service.Stop()
 	if err != nil {
-		panic(err)
+		logger.Ctx(ctx).Fatalw("error in stopping metro")
+
 	}
 
 	logger.Ctx(ctx).Infow("stopped metro")

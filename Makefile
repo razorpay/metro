@@ -22,15 +22,13 @@ GO       = go
 MODULE   = $(shell $(GO) list -m)
 SERVICE  = $(shell basename $(MODULE))
 
+
 # Proto repo info
 PROTO_GIT_URL := "https://github.com/razorpay/metro-proto"
 DRONE_PROTO_GIT_URL := "https://$(GIT_TOKEN)@github.com/razorpay/metro-proto"
 ifneq ($(GIT_TOKEN),)
 PROTO_GIT_URL = $(DRONE_PROTO_GIT_URL)
 endif
-
-# Accept a branch from which we need to checkout proto files. Useful for dev testing.
-PROTO_BRANCH ?= master
 
 # Proto gen info
 PROTO_ROOT := metro-proto/
@@ -95,6 +93,7 @@ proto-generate:
 	@echo "\n + Generating pb language bindings\n"
 	@buf generate --path ./metro-proto/common
 	@buf generate --path ./metro-proto/example
+	@buf generate --path ./metro-proto/metro
 	# Generate static assets for OpenAPI UI
 	@statik -m -f -src third_party/OpenAPI/
 
@@ -116,7 +115,7 @@ build-info:
 
 .PHONY: go-build-api ## Build the binary file for API server
 go-build-metro:
-	@CGO_ENABLED=0 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
+	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
 .PHONY: clean ## Remove previous builds, protobuf files, and proto compiled code
 clean:

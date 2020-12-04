@@ -8,6 +8,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.13.0
 	github.com/aws/aws-sdk-go v1.32.8
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/confluentinc/confluent-kafka-go v1.5.2
 	github.com/fatih/structs v1.1.0
 	github.com/getsentry/sentry-go v0.8.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.2.1
@@ -25,6 +26,7 @@ require (
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5 // indirect
 	github.com/lib/pq v1.7.0
 	github.com/magiconair/properties v1.8.1
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/onsi/ginkgo v1.12.1 // indirect
 	github.com/onsi/gomega v1.10.0 // indirect
 	github.com/opentracing-contrib/goredis v0.0.0-20190807091203-90a2649c5f87

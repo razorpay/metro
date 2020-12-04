@@ -6,6 +6,9 @@ import (
 	"mime"
 	"net/http"
 
+	"github.com/razorpay/metro/pkg/messagebroker"
+	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
+
 	"github.com/razorpay/metro/internal/config"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -31,18 +34,34 @@ func NewService(ctx context.Context, config *config.Service) *Service {
 	}
 }
 
-func (svc *Service) Start() {
+func (svc *Service) Start(errChan chan<- error) {
 	// Define server handlers
+
 	healthCore, err := health.NewCore(nil)
 	if err != nil {
-		panic(err)
+		errChan <- err
+	}
+
+	mb, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.BrokerConfig)
+	if err != nil {
+		errChan <- err
+	}
+	brokerCore, err := NewCore(mb)
+	if err != nil {
+		errChan <- err
 	}
 
 	s, err := server.NewServer(svc.config.Interfaces.Api, func(server *grpc.Server) error {
 		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
+		producerv1.RegisterProducerServer(server, NewServer(brokerCore))
 		return nil
 	}, func(mux *runtime.ServeMux) error {
 		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		if err != nil {
+			return err
+		}
+
+		err = producerv1.RegisterProducerHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
 		}
@@ -53,19 +72,17 @@ func (svc *Service) Start() {
 	)
 
 	if err != nil {
-		panic(err)
+		errChan <- err
 	}
 
-	err = s.Start()
-	if err != nil {
-		panic(err)
-	}
+	s.Start(errChan)
+
 	svc.srv = s
 	svc.health = healthCore
 
 	err = runOpenAPIHandler()
 	if err != nil {
-		panic(err)
+		errChan <- err
 	}
 }
 
@@ -84,8 +101,7 @@ func runOpenAPIHandler() error {
 
 	statikFS, err := fs.New()
 	if err != nil {
-		// Panic since this is a permanent error.
-		panic("creating OpenAPI filesystem: " + err.Error())
+		return err
 	}
 	http.Handle("/", http.FileServer(statikFS))
 	log.Println("Listening on :3000...")

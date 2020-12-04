@@ -1,14 +1,22 @@
 package messagebroker
 
 import (
-	"github.com/razorpay/metro/pkg/messagebroker/kafka"
+	"fmt"
 )
 
-func GetConsumer(identifier string, topic string, config interface{}) MessageConsumer {
+const (
+	Kafka  = "kafka"
+	Pulsar = "pulsar"
+)
+
+func NewBroker(identifier string, bConfig *BrokerConfig) (Broker, error) {
+	fmt.Printf("id : %s", identifier)
 	switch identifier {
-	case "kafka":
-		return kafka.NewConsumer(topic, config)
+	case Kafka:
+		return NewKafkaBroker(nil, bConfig)
+	case Pulsar:
+		return NewPulsarBroker(nil, bConfig)
 	}
 
-	return kafka.NewConsumer(topic, config)
+	return nil, fmt.Errorf("Unknown Broker identifier, %s", identifier)
 }

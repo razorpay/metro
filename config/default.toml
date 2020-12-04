@@ -54,11 +54,14 @@
 
 [services]
     [services.producer]
+        variant = "kafka"
         [services.producer.interfaces]
             [services.producer.interfaces.api]
                 GrpcServerAddress     = "0.0.0.0:8081"
                 HttpServerAddress     = "0.0.0.0:8082"
                 InternalServerAddress = "0.0.0.0:8083"
-
+        [services.producer.BrokerConfig]
+            [services.producer.BrokerConfig.Producer]
+                Brokers = ["localhost:9021"]
     [services.push_consumer]
     [services.pull_consumer]

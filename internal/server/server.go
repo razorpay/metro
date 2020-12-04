@@ -56,47 +56,45 @@ func NewServer(config config.NetworkInterfaces, registerGrpcHandlers RegisterGrp
 	}, nil
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(errChan chan<- error) {
 	// Start gRPC server.
-	go func() {
+	go func(chan<- error) {
 		listener, err := net.Listen("tcp", s.config.GrpcServerAddress)
 		if err != nil {
-			panic(err)
+			errChan <- err
 		}
 
 		err = s.grpcServer.Serve(listener)
 		if err != nil {
-			panic(err)
+			errChan <- err
 		}
-	}()
+	}(errChan)
 
 	// Start internal HTTP server. Used for exposing prometheus metrics.
-	go func() {
+	go func(chan<- error) {
 		listener, err := net.Listen("tcp", s.config.InternalServerAddress)
 		if err != nil {
-			panic(err)
+			errChan <- err
 		}
 
 		err = s.internalServer.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
-			panic(err)
+			errChan <- err
 		}
-	}()
+	}(errChan)
 
 	// Start HTTP server for gRPC gateway.
-	go func() {
+	go func(chan<- error) {
 		listener, err := net.Listen("tcp", s.config.HttpServerAddress)
 		if err != nil {
-			panic(err)
+			errChan <- err
 		}
 
 		err = s.httpServer.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
-			panic(err)
+			errChan <- err
 		}
-	}()
-
-	return nil
+	}(errChan)
 }
 
 func (s *Server) Stop(ctx context.Context, healthCore *health.Core) error {

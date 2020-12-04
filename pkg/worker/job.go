@@ -89,7 +89,8 @@ func (j *Job) GetAttempt() int {
 
 // Handle handler function definition
 func (j *Job) Handle(context.Context) error {
-	panic("handle method is not implemented")
+	//TODO: implement me
+	return nil
 }
 
 // IncrementAttempt will increment the attempt count

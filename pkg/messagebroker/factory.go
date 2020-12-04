@@ -1,17 +1,22 @@
 package messagebroker
 
-const (
-	Kafka = iota
-	Pulsar
+import (
+	"fmt"
 )
 
-func NewBroker(identifier string) Broker {
+const (
+	Kafka  = "kafka"
+	Pulsar = "pulsar"
+)
+
+func NewBroker(identifier string, bConfig *BrokerConfig) (Broker, error) {
+	fmt.Printf("id : %s", identifier)
 	switch identifier {
-	case string(Kafka):
-		return NewKafkaBroker(nil, nil)
-	case string(Pulsar):
-		return NewPulsarBroker(nil, nil)
+	case Kafka:
+		return NewKafkaBroker(nil, bConfig)
+	case Pulsar:
+		return NewPulsarBroker(nil, bConfig)
 	}
 
-	panic("invalid identifier")
+	return nil, fmt.Errorf("Unknown Broker identifier, %s", identifier)
 }

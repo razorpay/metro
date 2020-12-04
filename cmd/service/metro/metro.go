@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
-	"github.com/razorpay/metro/common"
 	"github.com/razorpay/metro/internal/config"
+	"github.com/razorpay/metro/service"
 	"github.com/razorpay/metro/service/producer"
 	pull_consumer "github.com/razorpay/metro/service/pull-consumer"
 	push_consumer "github.com/razorpay/metro/service/push-consumer"
@@ -33,7 +32,7 @@ func isValidService(service string) bool {
 type Service struct {
 	name    string
 	cfg     *config.Config
-	service common.IService
+	service service.IService
 }
 
 // newServer returns a new instance of a metro service component
@@ -48,33 +47,36 @@ func NewService(service string, cfg *config.Config) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) Start(ctx context.Context) {
+func (s *Service) Start(ctx context.Context) <-chan error {
+	errChan := make(chan error)
+
 	serviceConfig, ok := s.cfg.Services[s.name]
 
 	if !ok {
-		log.Fatalf("`%v` service missing config", s.name)
+		errChan <- fmt.Errorf("`%v` service missing config", s.name)
 	}
 
-	s.service = s.startService(ctx, &serviceConfig)
+	s.service = s.startService(ctx, &serviceConfig, errChan)
+	return errChan
 }
 
 func (s *Service) Stop() error {
 	return s.service.Stop()
 }
 
-func (s *Service) startService(ctx context.Context, config *config.Service) common.IService {
-	var service common.IService
+func (s *Service) startService(ctx context.Context, config *config.Service, errChan chan<- error) service.IService {
+	var svc service.IService
 
 	switch s.name {
 	case Producer:
-		service = producer.NewService(ctx, config)
+		svc = producer.NewService(ctx, config)
 	case PushConsumer:
-		service = push_consumer.NewService(ctx, config)
+		svc = push_consumer.NewService(ctx, config)
 	case PullConsumer:
-		service = pull_consumer.NewService(ctx, config)
+		svc = pull_consumer.NewService(ctx, config)
 	}
 
-	go service.Start()
+	go svc.Start(errChan)
 
-	return service
+	return svc
 }

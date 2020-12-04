@@ -11,25 +11,29 @@ type PulsarBroker struct {
 }
 
 func (p PulsarBroker) CreateTopic(topic string) error {
-	panic("implement me")
+	//TODO: Implement me
+	return nil
 }
 
 func (p PulsarBroker) DeleteTopic(topic string) error {
-	panic("implement me")
+	//TODO: Implement me
+	return nil
 }
 
 func (p PulsarBroker) Produce(topic string, message []byte) (string, error) {
-	panic("implement me")
+	//TODO: Implement me
+	return "", nil
 }
 
 func (p PulsarBroker) GetMessages(numOfMessages int, timeout time.Duration) ([]string, error) {
-	panic("implement me")
+	//TODO: Implement me
+	return nil, nil
 }
 
 func (p PulsarBroker) Commit() {
-	panic("implement me")
+	//TODO: Implement me
 }
 
-func NewPulsarBroker(ctx context.Context, bConfig *BrokerConfig) Broker {
-	return &PulsarBroker{}
+func NewPulsarBroker(ctx context.Context, bConfig *BrokerConfig) (Broker, error) {
+	return &PulsarBroker{}, nil
 }

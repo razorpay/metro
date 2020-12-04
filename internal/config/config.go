@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/tracing"
 	"github.com/razorpay/metro/pkg/worker"
@@ -32,6 +33,8 @@ type Service struct {
 	Interfaces struct {
 		Api NetworkInterfaces
 	}
+	Variant      string // kafka or pulsar
+	BrokerConfig messagebroker.BrokerConfig
 }
 
 type NetworkInterfaces struct {
@@ -47,18 +50,4 @@ type Auth struct {
 
 type Job struct {
 	UserApprove string `mapstructure:"user_approve"`
-}
-
-type Producer struct {
-	Variant string // kafka or pulsar
-	Kafka   struct {
-		ConnectionParams ConnectionParams
-	}
-	Pulsar struct {
-		ConnectionParams ConnectionParams
-	}
-}
-
-type ConnectionParams struct {
-	Brokers []string
 }

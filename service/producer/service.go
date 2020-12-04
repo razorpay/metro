@@ -34,17 +34,21 @@ func NewService(ctx context.Context, config *config.Service) *Service {
 	}
 }
 
-func (svc *Service) Start() {
+func (svc *Service) Start(errChan chan<- error) {
 	// Define server handlers
 
 	healthCore, err := health.NewCore(nil)
 	if err != nil {
-		panic(err)
+		errChan <- err
 	}
 
-	brokerCore, err := NewCore(messagebroker.NewBroker("kafka"))
+	mb, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.BrokerConfig)
 	if err != nil {
-		panic(err)
+		errChan <- err
+	}
+	brokerCore, err := NewCore(mb)
+	if err != nil {
+		errChan <- err
 	}
 
 	s, err := server.NewServer(svc.config.Interfaces.Api, func(server *grpc.Server) error {
@@ -68,19 +72,17 @@ func (svc *Service) Start() {
 	)
 
 	if err != nil {
-		panic(err)
+		errChan <- err
 	}
 
-	err = s.Start()
-	if err != nil {
-		panic(err)
-	}
+	s.Start(errChan)
+
 	svc.srv = s
 	svc.health = healthCore
 
 	err = runOpenAPIHandler()
 	if err != nil {
-		panic(err)
+		errChan <- err
 	}
 }
 
@@ -99,8 +101,7 @@ func runOpenAPIHandler() error {
 
 	statikFS, err := fs.New()
 	if err != nil {
-		// Panic since this is a permanent error.
-		panic("creating OpenAPI filesystem: " + err.Error())
+		return err
 	}
 	http.Handle("/", http.FileServer(statikFS))
 	log.Println("Listening on :3000...")

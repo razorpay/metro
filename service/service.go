@@ -1,6 +1,6 @@
-package common
+package service
 
 type IService interface {
-	Start()
+	Start(chan<- error)
 	Stop() error
 }

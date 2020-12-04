@@ -22,8 +22,7 @@ func NewService(ctx context.Context, config *config.Service) *Service {
 	}
 }
 
-func (c *Service) Start() {
-
+func (c *Service) Start(errChan chan<- error) {
 }
 
 func (c *Service) Stop() error {

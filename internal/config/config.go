@@ -6,13 +6,15 @@ import (
 	"github.com/razorpay/metro/pkg/tracing"
 )
 
-type Config struct {
-	App     App
-	Sentry  *sentry.Config
-	Auth    Auth
-	Tracing tracing.Config
-	// Services is a map of service name to service config items
-	Services map[string]Service
+type Config map[string]ServiceConfig
+
+type ServiceConfig struct {
+	App        App
+	Sentry     *sentry.Config
+	Tracing    tracing.Config
+	Interfaces struct {
+		Api NetworkInterfaces
+	}
 }
 
 // App contains application-specific config values
@@ -25,9 +27,6 @@ type App struct {
 }
 
 type Service struct {
-	Interfaces struct {
-		Api NetworkInterfaces
-	}
 	Variant      string // kafka or pulsar
 	BrokerConfig messagebroker.BrokerConfig
 }
@@ -41,8 +40,4 @@ type NetworkInterfaces struct {
 type Auth struct {
 	Username string
 	Password string
-}
-
-type Job struct {
-	UserApprove string `mapstructure:"user_approve"`
 }

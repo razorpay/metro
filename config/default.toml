@@ -1,36 +1,83 @@
-[app]
-    appEnv                = "default"
-    serviceName           = "metro"
-    shutdownTimeout       = 2
-    shutdownDelay         = 2
-    gitCommitHash         = "nil"
+[producer]
+    [producer.app]
+        appEnv                = "default"
+        serviceName           = "metro-producer"
+        shutdownTimeout       = 2
+        shutdownDelay         = 2
+        gitCommitHash         = "nil"
+    [producer.tracing]
+        serviceName           = "metro-producer"
+        logSpans              = false
+        localAgentHostPort    = "localhost:6831"
+        disabled              = true
+    [producer.sentry]
+        appName               = "metro-producer"
+        dsn                   = "dummy"
+        mock                  = true
+        errorLevel            = 1
+    [producer.broker]
+        variant               = "kafka"
+        [producer.broker.BrokerConfig]
+            [producer.broker.BrokerConfig.Producer]
+                Brokers       = ["localhost:9021"]
+    [producer.interfaces]
+        [producer.interfaces.api]
+            GrpcServerAddress     = "0.0.0.0:8081"
+            HttpServerAddress     = "0.0.0.0:8082"
+            InternalServerAddress = "0.0.0.0:8083"
 
-[tracing]
-    serviceName           = "metro"
-    logSpans              = false
-    localAgentHostPort    = "localhost:6831"
-    disabled              = true
+[push-consumer]
+    [push-consumer.app]
+        appEnv                = "default"
+        serviceName           = "metro-push-consumer"
+        shutdownTimeout       = 2
+        shutdownDelay         = 2
+        gitCommitHash         = "nil"
+    [push-consumer.tracing]
+        serviceName           = "metro-push-consumer"
+        logSpans              = false
+        localAgentHostPort    = "localhost:6831"
+        disabled              = true
+    [push-consumer.sentry]
+        appName               = "metro-push-consumer"
+        dsn                   = "dummy"
+        mock                  = true
+        errorLevel            = 1
+    [push-consumer.broker]
+        variant               = "kafka"
+        [push-consumer.broker.BrokerConfig]
+            [push-consumer.broker.BrokerConfig.Consumer]
+                Brokers       = ["localhost:9021"]
+    [push-consumer.interfaces]
+        [push-consumer.interfaces.api]
+            GrpcServerAddress     = "0.0.0.0:8084"
+            HttpServerAddress     = "0.0.0.0:8085"
+            InternalServerAddress = "0.0.0.0:8086"
 
-[auth]
-    username              = "key"
-    password              = "secret"
-
-[sentry]
-    appName               = "metro"
-    dsn                   = "dummy"
-    mock                  = true
-    errorLevel            = 1
-
-[services]
-    [services.producer]
-        variant = "kafka"
-        [services.producer.interfaces]
-            [services.producer.interfaces.api]
-                GrpcServerAddress     = "0.0.0.0:8081"
-                HttpServerAddress     = "0.0.0.0:8082"
-                InternalServerAddress = "0.0.0.0:8083"
-        [services.producer.BrokerConfig]
-            [services.producer.BrokerConfig.Producer]
-                Brokers = ["localhost:9021"]
-    [services.push_consumer]
-    [services.pull_consumer]
+[pull-consumer]
+    [pull-consumer.app]
+        appEnv                = "default"
+        serviceName           = "metro-pull-consumer"
+        shutdownTimeout       = 2
+        shutdownDelay         = 2
+        gitCommitHash         = "nil"
+    [pull-consumer.tracing]
+        serviceName           = "metro-pull-consumer"
+        logSpans              = false
+        localAgentHostPort    = "localhost:6831"
+        disabled              = true
+    [pull-consumer.sentry]
+        appName               = "metro-pull-consumer"
+        dsn                   = "dummy"
+        mock                  = true
+        errorLevel            = 1
+    [push-consumer.broker]
+        variant               = "kafka"
+        [push-consumer.broker.BrokerConfig]
+            [push-consumer.broker.BrokerConfig.Consumer]
+                Brokers       = ["localhost:9021"]
+    [pull-consumer.interfaces]
+        [pull-consumer.interfaces.api]
+            GrpcServerAddress     = "0.0.0.0:8087"
+            HttpServerAddress     = "0.0.0.0:8088"
+            InternalServerAddress = "0.0.0.0:8089"

@@ -4,8 +4,6 @@ import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/tracing"
-	"github.com/razorpay/metro/pkg/worker"
-	"github.com/razorpay/metro/pkg/worker/queue"
 )
 
 type Config struct {
@@ -13,9 +11,6 @@ type Config struct {
 	Sentry  *sentry.Config
 	Auth    Auth
 	Tracing tracing.Config
-	Job     Job
-	Queue   queue.Config
-	Worker  worker.Config
 	// Services is a map of service name to service config items
 	Services map[string]Service
 }

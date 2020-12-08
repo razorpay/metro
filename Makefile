@@ -127,10 +127,7 @@ docker-build-metro:
 
 .PHONY: mock-gen ## Generates mocks
 mock-gen:
-	@mkdir -p pkg/queue/mocks
-	@mockgen -destination=pkg/worker/mock/manager.go -package=api github.com/razorpay/metro/pkg/worker IManager
-	@mockgen -destination=pkg/worker/mock/queue/queue.go -package=queue github.com/razorpay/metro/pkg/worker/queue IQueue
-	@mockgen -destination=pkg/worker/mock/logger/logger.go -package=logger github.com/razorpay/metro/pkg/worker ILogger
+	## TODO: replace with go generate
 
 .PHONY: docs-uml ## Generates UML file
 docs-uml:

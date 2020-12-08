@@ -57,6 +57,7 @@ RUN make go-build-metro
 ######################################
 FROM alpine:3.12
 ARG GIT_COMMIT_HASH
+ARG SERVICE
 
 COPY --from=builder /src/bin/metro /app/
 COPY --from=builder /src/config/ /app/config/
@@ -72,7 +73,7 @@ ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
 RUN mkdir -p /app/public && \
     echo "$GIT_COMMIT_HASH" > /app/public/commit.txt
 
-EXPOSE 8081
+EXPOSE 8081 8084 8087
 
 RUN chmod +x entrypoint.sh probe.sh
-ENTRYPOINT ["/app/entrypoint.sh", "metro"]
+ENTRYPOINT ["/app/entrypoint.sh", "metro", "$SERVICE"]

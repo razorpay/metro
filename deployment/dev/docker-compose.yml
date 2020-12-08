@@ -6,6 +6,7 @@ services:
       dockerfile: build/docker/Dockerfile
       args:
         - GIT_TOKEN
+        - SERVICE: "producer"
     container_name: metro-producer
     image: razorpay/metro
     networks:
@@ -13,6 +14,42 @@ services:
       - monitoring_rzp-dev-monitoring
     ports:
       - "8081:8081"
+    environment:
+      - APP_ENV=dev_docker
+    restart: on-failure
+
+  metro-push-consumer:
+    build:
+      context: ../..
+      dockerfile: build/docker/Dockerfile
+      args:
+        - GIT_TOKEN
+        - SERVICE: "push-consumer"
+    container_name: metro-push-consumer
+    image: razorpay/metro
+    networks:
+      - app-network
+      - monitoring_rzp-dev-monitoring
+    ports:
+      - "8084:8084"
+    environment:
+      - APP_ENV=dev_docker
+    restart: on-failure
+
+  metro-pull-consumer:
+    build:
+      context: ../..
+      dockerfile: build/docker/Dockerfile
+      args:
+        - GIT_TOKEN
+        - SERVICE: "pull-consumer"
+    container_name: metro-pull-consumer
+    image: razorpay/metro
+    networks:
+      - app-network
+      - monitoring_rzp-dev-monitoring
+    ports:
+      - "8087:8087"
     environment:
       - APP_ENV=dev_docker
     restart: on-failure

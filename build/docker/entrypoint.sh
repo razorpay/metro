@@ -3,7 +3,7 @@ set -euo pipefail
 
 start_application()
 {
-    su-exec appuser $WORKDIR/"$appName" &
+    su-exec appuser $WORKDIR/"$appName" -service $serviceName &
 
     # Get pid for app
     APP_PID=$!
@@ -24,5 +24,6 @@ shutdown_application()
 }
 
 appName="$1"
+serviceName="$2"
 trap shutdown_application SIGTERM SIGINT
 start_application

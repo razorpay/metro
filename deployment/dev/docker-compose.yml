@@ -6,7 +6,7 @@ services:
       dockerfile: build/docker/Dockerfile
       args:
         - GIT_TOKEN
-        - SERVICE: "producer"
+        - SERVICE=producer
     container_name: metro-producer
     image: razorpay/metro
     networks:
@@ -24,7 +24,7 @@ services:
       dockerfile: build/docker/Dockerfile
       args:
         - GIT_TOKEN
-        - SERVICE: "push-consumer"
+        - SERVICE=push-consumer
     container_name: metro-push-consumer
     image: razorpay/metro
     networks:
@@ -42,7 +42,7 @@ services:
       dockerfile: build/docker/Dockerfile
       args:
         - GIT_TOKEN
-        - SERVICE: "pull-consumer"
+        - SERVICE=pull-consumer
     container_name: metro-pull-consumer
     image: razorpay/metro
     networks:

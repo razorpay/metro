@@ -11,26 +11,22 @@
     localAgentHostPort    = "localhost:6831"
     disabled              = true
 
-[auth]
-    username              = "key"
-    password              = "secret"
-
 [sentry]
     appName               = "metro"
     dsn                   = "dummy"
     mock                  = true
     errorLevel            = 1
 
-[services]
-    [services.producer]
+[components]
+    [components.producer]
         variant = "kafka"
-        [services.producer.interfaces]
-            [services.producer.interfaces.api]
+        [components.producer.interfaces]
+            [components.producer.interfaces.api]
                 GrpcServerAddress     = "0.0.0.0:8081"
                 HttpServerAddress     = "0.0.0.0:8082"
                 InternalServerAddress = "0.0.0.0:8083"
-        [services.producer.BrokerConfig]
-            [services.producer.BrokerConfig.Producer]
+        [components.producer.BrokerConfig]
+            [components.producer.BrokerConfig.Producer]
                 Brokers = ["localhost:9021"]
-    [services.push_consumer]
-    [services.pull_consumer]
+    [components.push_consumer]
+    [components.pull_consumer]

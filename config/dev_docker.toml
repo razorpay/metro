@@ -9,17 +9,13 @@
     disabled              = false
     localAgentHostPort    = "jaeger:6831"
 
-[auth]
-    username = "key"
-    password = "secret"
-
-[services]
-    [services.producer]
-        [services.producer.interfaces]
-            [services.producer.interfaces.api]
+[components]
+    [components.producer]
+        [components.producer.interfaces]
+            [components.producer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
 
-    [services.push_consumer]
-    [services.pull_consumer]
+    [components.push_consumer]
+    [components.pull_consumer]

@@ -9,10 +9,11 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const (
-	// LoggerCtxKey is a unique identifier for the context key.
-	LoggerCtxKey = "Logger"
-)
+// CtxKeyType defines the ctx key type
+type CtxKeyType string
+
+// CtxKey is a unique identifier for the context key.
+const CtxKey CtxKeyType = "Logger"
 
 var (
 	// Log holds an instance of the sugared logger
@@ -63,7 +64,7 @@ func NewLogger(env string, serviceKV map[string]interface{}, hookCore zapcore.Co
 	return Log, err
 }
 
-// serviceKV is service's core information which should exist in each log.
+// AppendServiceKV attaches service's core information which should exist in each log.
 func AppendServiceKV(serviceKV map[string]interface{}) {
 	// serviceKV is service's core information which should exist in each log.
 	if serviceKV != nil {
@@ -73,7 +74,7 @@ func AppendServiceKV(serviceKV map[string]interface{}) {
 }
 
 // WithContext returns an instance of the logger with the supplied context populated
-func WithContext(ctx context.Context, ctxFields []string) *zap.SugaredLogger {
+func WithContext(ctx context.Context, ctxFields []CtxKeyType) *zap.SugaredLogger {
 	if Log == nil {
 		// TODO: Valid environment must be passed or else this is invalid invocation.
 		NewLogger("", nil, nil)
@@ -83,7 +84,7 @@ func WithContext(ctx context.Context, ctxFields []string) *zap.SugaredLogger {
 		var args []interface{}
 		for _, field := range ctxFields {
 			val := ctx.Value(field)
-			args = append(args, field, val)
+			args = append(args, string(field), val)
 		}
 		// We receive an array of keys and values, we unpack them here
 		newLogger := Log.With(args...)
@@ -95,14 +96,14 @@ func WithContext(ctx context.Context, ctxFields []string) *zap.SugaredLogger {
 
 // Ctx gets logger instance from context if available else returns default.
 func Ctx(ctx context.Context) *zap.SugaredLogger {
-	l, ok := ctx.Value(LoggerCtxKey).(*zap.SugaredLogger)
+	l, ok := ctx.Value(CtxKey).(*zap.SugaredLogger)
 	if ok {
 		return l
 	}
 	return WithContext(ctx, nil)
 }
 
-// TODO: Move to a common place. No utility file please!
+// MapToSliceOfKV ...
 func MapToSliceOfKV(m map[string]interface{}) []interface{} {
 	s := []interface{}{}
 	for k, v := range m {
@@ -111,18 +112,3 @@ func MapToSliceOfKV(m map[string]interface{}) []interface{} {
 	}
 	return s
 }
-
-// RegisterHook incrementally adds a Hook to the Logger initialized
-// func RegisterHook(hook func(zapcore.Entry) error) {
-// 	hookMutex.Lock()
-// 	defer hookMutex.Unlock()
-
-// 	dl := Log.Desugar()
-
-// 	dl.WithOptions(
-// 		zap.Hooks(hook),
-// 	)
-
-// 	Log = dl.Sugar()
-
-// }

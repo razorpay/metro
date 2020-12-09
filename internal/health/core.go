@@ -7,8 +7,9 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
+// Checker interface for health
 type Checker interface {
-	CheckHealth() (bool, error)
+	checkHealth() (bool, error)
 }
 
 // Core holds business logic and/or orchestrator of other things in the package.
@@ -23,8 +24,6 @@ func NewCore(checkers ...Checker) (*Core, error) {
 	return &Core{isMarkedUnhealthy: false, mutex: &sync.Mutex{}, checkers: checkers}, nil
 }
 
-// RunHealthCheck runs various server checks and returns true if all individual components are working fine.
-// Todo: Fix server check response per https://tools.ietf.org/id/draft-inadarei-api-health-check-01.html :)
 // IsHealthy checks if the app has been marked unhealthy. If so it'll return false. Otherwise, it'll check the application
 // health and return a boolean value based on the health check result.
 func (c *Core) IsHealthy() bool {
@@ -43,7 +42,7 @@ func (c *Core) IsHealthy() bool {
 		if checker == nil {
 			continue
 		}
-		isHealthy, err := checker.CheckHealth()
+		isHealthy, err := checker.checkHealth()
 		if !isHealthy {
 			logger.Ctx(context.TODO()).Errorw("health check failed", "msg", err)
 			return false
@@ -61,12 +60,13 @@ func (c *Core) MarkUnhealthy() {
 	c.isMarkedUnhealthy = true
 }
 
-type DBHealthChecker struct{}
+type dbHealthChecker struct{}
 
-func (d *DBHealthChecker) CheckHealth() (bool, error) {
+func (d *dbHealthChecker) checkHealth() (bool, error) {
 	return true, nil
 }
 
+// NewDBHealthChecker returns a db health checker
 func NewDBHealthChecker() Checker {
-	return &DBHealthChecker{}
+	return &dbHealthChecker{}
 }

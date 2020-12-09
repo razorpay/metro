@@ -2,7 +2,6 @@ package metro
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/razorpay/metro/internal/config"
@@ -13,61 +12,67 @@ import (
 )
 
 const (
-	Producer     = "producer"
+	// Producer component to which publishers publish messages
+	Producer = "producer"
+	// PullConsumer component from which subscribers pull messages
 	PullConsumer = "pull-consumer"
+	// PushConsumer component which fires webhooks to subscribers
 	PushConsumer = "push-consumer"
 )
 
-var validServices = []string{Producer, PullConsumer, PushConsumer}
+var validComponents = []string{Producer, PullConsumer, PushConsumer}
 
-func isValidService(service string) bool {
-	for _, s := range validServices {
-		if s == service {
+func isValidComponent(component string) bool {
+	for _, s := range validComponents {
+		if s == component {
 			return true
 		}
 	}
 	return false
 }
 
-type Service struct {
+// Component is a holder for a metro's deployable component
+type Component struct {
 	name    string
 	cfg     *config.Config
 	service service.IService
 }
 
-// newServer returns a new instance of a metro service component
-func NewService(service string, cfg *config.Config) (*Service, error) {
-	if isValidService(service) == false {
-		return nil, errors.New(fmt.Sprintf("invalid service name input : %v", service))
+// NewComponent returns a new instance of a metro service component
+func NewComponent(component string, cfg *config.Config) (*Component, error) {
+	if isValidComponent(component) == false {
+		return nil, fmt.Errorf("invalid component name input : %v", component)
 	}
 
-	return &Service{
+	return &Component{
 		cfg:  cfg,
-		name: service,
+		name: component,
 	}, nil
 }
 
-func (s *Service) Start(ctx context.Context) <-chan error {
+// Start a metro component
+func (c *Component) Start(ctx context.Context) <-chan error {
 	errChan := make(chan error)
 
-	serviceConfig, ok := s.cfg.Services[s.name]
+	componentConfig, ok := c.cfg.Components[c.name]
 
 	if !ok {
-		errChan <- fmt.Errorf("`%v` service missing config", s.name)
+		errChan <- fmt.Errorf("`%v` service missing config", c.name)
 	}
 
-	s.service = s.startService(ctx, &serviceConfig, errChan)
+	c.service = c.start(ctx, &componentConfig, errChan)
 	return errChan
 }
 
-func (s *Service) Stop() error {
-	return s.service.Stop()
+// Stop a metro component
+func (c *Component) Stop() error {
+	return c.service.Stop()
 }
 
-func (s *Service) startService(ctx context.Context, config *config.Service, errChan chan<- error) service.IService {
+func (c *Component) start(ctx context.Context, config *config.Component, errChan chan<- error) service.IService {
 	var svc service.IService
 
-	switch s.name {
+	switch c.name {
 	case Producer:
 		svc = producer.NewService(ctx, config)
 	case PushConsumer:

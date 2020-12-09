@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	RequestIDHeaderKey = "x-rzp-request-id"
-	RequestIDTagKey    = "grpc.request.rzp.id"
-
-	RpcMethodKey = "method"
+	requestIDHeaderKey = "x-rzp-request-id"
+	requestIDTagKey    = "grpc.request.rzp.id"
+	rpcMethodKey       = "method"
 )
 
+// UnaryServerTagInterceptor ...
 func UnaryServerTagInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		t := grpc_ctxtags.Extract(ctx)
@@ -28,17 +28,17 @@ func UnaryServerTagInterceptor() grpc.UnaryServerInterceptor {
 		}
 
 		// Todo: Add additional context information as required
-		t.Set(RequestIDTagKey, getRequestId(m))
-		t.Set(RpcMethodKey, info.FullMethod)
+		t.Set(requestIDTagKey, getRequestID(m))
+		t.Set(rpcMethodKey, info.FullMethod)
 		return handler(ctx, req)
 	}
 }
 
-// getRequestId from request metadata. If not set, we'll generate a new one which will be used by logger, tracer etc
-func getRequestId(m metadata.MD) string {
-	requestIdHeader := m.Get(RequestIDHeaderKey)
-	if len(requestIdHeader) >= 1 {
-		return requestIdHeader[0]
+// getRequestID from request metadata. If not set, we'll generate a new one which will be used by logger, tracer etc
+func getRequestID(m metadata.MD) string {
+	requestIDHeader := m.Get(requestIDHeaderKey)
+	if len(requestIDHeader) >= 1 {
+		return requestIDHeader[0]
 	}
 
 	return uuid.New().String()

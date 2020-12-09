@@ -1,4 +1,4 @@
-// tracing package provides func to initialize opentracing tracer using jaeger client
+// Package tracing provides func to initialize opentracing tracer using jaeger client
 package tracing
 
 import (

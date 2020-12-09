@@ -5,19 +5,6 @@
     shutdownDelay         = 2
     gitCommitHash         = "nil"
 
-[db]
-    dialect               = "mysql"
-    protocol              = "tcp"
-    url                   = "127.0.0.1"
-    port                  = "3306"
-    username              = "metro"
-    password              = "metro"
-    sslMode               = "require"
-    name                  = "metro"
-    maxOpenConnections    = 5
-    maxIdleConnections    = 5
-    connectionMaxLifetime = 0
-
 [tracing]
     serviceName           = "metro"
     logSpans              = false

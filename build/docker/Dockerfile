@@ -73,7 +73,9 @@ ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
 RUN mkdir -p /app/public && \
     echo "$GIT_COMMIT_HASH" > /app/public/commit.txt
 
+ENV SERVICE=${SERVICE}
+
 EXPOSE 8081 8084 8087
 
 RUN chmod +x entrypoint.sh probe.sh
-ENTRYPOINT ["/app/entrypoint.sh", "metro", "$SERVICE"]
+ENTRYPOINT ["/app/entrypoint.sh", "metro"]

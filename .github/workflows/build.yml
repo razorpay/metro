@@ -16,9 +16,6 @@ jobs:
             - name: goimports-check
               run: |
                 make goimports-check
-            - name: run unit tests
-              run: |
-                make proto-generate && make test-unit
             - name: build
               uses: docker/build-push-action@v1
               with:

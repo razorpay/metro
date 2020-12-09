@@ -29,7 +29,7 @@ func NewLogger(env string, serviceKV map[string]interface{}, hookCore zapcore.Co
 	logonce.Do(func() {
 		// Set-up logger based on env
 		switch env {
-		case "stage", "prod", "drone", "perf", "func":
+		case "stage", "prod", "dev_docker", "perf", "func":
 			// Logger that writes InfoLevel and above logs to standard error as JSON.
 			// It uses a JSON encoder, writes to standard error, and enables sampling.
 			// Stacktraces are automatically included on logs of ErrorLevel and above.

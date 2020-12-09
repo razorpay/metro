@@ -29,7 +29,7 @@ mock/
 rpc
 
 # Generated or local configuration files.
-config/dev.*
+config/dev.toml
 
 # docker-compose .dev file in deployments.
 # deployments/docker-compose.dev.yml

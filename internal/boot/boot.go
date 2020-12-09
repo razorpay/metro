@@ -74,7 +74,6 @@ func initialize(ctx context.Context, service string) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Print(appConfig)
 
 	serviceConfig, ok := appConfig[service]
 

@@ -18,7 +18,6 @@ type KafkaBroker struct {
 }
 
 func NewKafkaBroker(ctx context.Context, bConfig *BrokerConfig) (Broker, error) {
-
 	// init producer
 	producer, err := kakfapkg.NewProducer(&kakfapkg.ConfigMap{"bootstrap.servers": strings.Join(bConfig.Producer.Brokers, ",")})
 	if err != nil {

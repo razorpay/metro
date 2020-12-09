@@ -57,7 +57,6 @@ RUN make go-build-metro
 ######################################
 FROM alpine:3.12
 ARG GIT_COMMIT_HASH
-ARG SERVICE
 
 COPY --from=builder /src/bin/metro /app/
 COPY --from=builder /src/config/ /app/config/
@@ -66,6 +65,7 @@ COPY build/docker/entrypoint.sh /app/
 
 ENV WORKDIR=/app
 ENV DUMB_INIT_SETSID=0
+ENV SERVICE=${SERVICE}
 WORKDIR /app
 
 RUN apk add --update --no-cache dumb-init su-exec ca-certificates curl
@@ -73,9 +73,7 @@ ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
 RUN mkdir -p /app/public && \
     echo "$GIT_COMMIT_HASH" > /app/public/commit.txt
 
-ENV SERVICE=${SERVICE}
-
-EXPOSE 8081 8084 8087
+EXPOSE 8081
 
 RUN chmod +x entrypoint.sh probe.sh
 ENTRYPOINT ["/app/entrypoint.sh", "metro"]

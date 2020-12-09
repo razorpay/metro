@@ -83,10 +83,10 @@ func TestInMemoryCache_Set(t *testing.T) {
 			imc := &InMemoryCache{
 				mem: tt.fields.mem,
 			}
-			if err := imc.Set(tt.args.key, tt.args.value, tt.args.ttl); (err != nil) != tt.wantErr {
+			if err := imc.Set(nil, tt.args.key, tt.args.value, tt.args.ttl); (err != nil) != tt.wantErr {
 				t.Errorf("InMemoryCache.Set() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if val, _ := imc.Get(tt.args.key); val != tt.args.value {
+			if val, _ := imc.Get(nil, tt.args.key); val != tt.args.value {
 				t.Errorf("InMemoryCache.Set() value = %v, want %v", tt.args.value, val)
 			}
 
@@ -127,11 +127,11 @@ func TestInMemoryCache_Get(t *testing.T) {
 			imc := &InMemoryCache{
 				mem: tt.fields.mem,
 			}
-			if err := imc.Set(tt.args.key, tt.want, 1*time.Minute); err != nil {
+			if err := imc.Set(nil, tt.args.key, tt.want, 1*time.Minute); err != nil {
 				t.Errorf("error setting key: %v", err)
 			}
 
-			got, got1 := imc.Get(tt.args.key)
+			got, got1 := imc.Get(nil, tt.args.key)
 			if got != tt.want {
 				t.Errorf("InMemoryCache.Get() got = %v, want %v", got, tt.want)
 			}
@@ -165,7 +165,7 @@ func TestInMemoryCache_Delete(t *testing.T) {
 			imc := &InMemoryCache{
 				mem: tt.fields.mem,
 			}
-			if err := imc.Delete(tt.args.key); err != nil {
+			if err := imc.Delete(nil, tt.args.key); err != nil {
 				t.Errorf("error deleting key: %v", err)
 			}
 		})

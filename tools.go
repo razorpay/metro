@@ -7,7 +7,7 @@ import (
 	// build/test tools
 	_ "github.com/bykof/go-plantuml"
 	_ "github.com/golang/mock/mockgen"
-	_ "golang.org/x/lint/golint"
+	_ "golang.org/x/tools/cmd/goimports"
 
 	// protobuf tools
 	_ "github.com/bufbuild/buf/cmd/buf"

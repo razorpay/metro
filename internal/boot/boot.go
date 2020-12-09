@@ -13,7 +13,6 @@ import (
 	logpkg "github.com/razorpay/metro/pkg/logger"
 	sentrypkg "github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/tracing"
-	"github.com/razorpay/metro/pkg/worker"
 
 	"github.com/rs/xid"
 )
@@ -28,7 +27,6 @@ var (
 	Config config.Config
 
 	Tracer opentracing.Tracer
-	Worker worker.IManager
 	// Closer holds an instance to the RequestTracing object's Closer.
 	Closer io.Closer
 )

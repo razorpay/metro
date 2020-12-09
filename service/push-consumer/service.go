@@ -12,10 +12,10 @@ type Service struct {
 	ctx    context.Context
 	srv    *server.Server
 	health *health.Core
-	config *config.Service
+	config *config.ServiceConfig
 }
 
-func NewService(ctx context.Context, config *config.Service) *Service {
+func NewService(ctx context.Context, config *config.ServiceConfig) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,

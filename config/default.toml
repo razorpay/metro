@@ -71,10 +71,10 @@
         dsn                   = "dummy"
         mock                  = true
         errorLevel            = 1
-    [push-consumer.broker]
+    [pull-consumer.broker]
         variant               = "kafka"
-        [push-consumer.broker.BrokerConfig]
-            [push-consumer.broker.BrokerConfig.Consumer]
+        [pull-consumer.broker.BrokerConfig]
+            [pull-consumer.broker.BrokerConfig.Consumer]
                 Brokers       = ["localhost:9021"]
     [pull-consumer.interfaces]
         [pull-consumer.interfaces.api]

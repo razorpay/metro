@@ -2,6 +2,7 @@ package boot
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -24,31 +25,14 @@ const (
 
 var (
 	// Config contains application configuration values.
-	Config config.Config
+	ServiceConfig config.ServiceConfig
 
 	Tracer opentracing.Tracer
 	// Closer holds an instance to the RequestTracing object's Closer.
 	Closer io.Closer
 )
 
-func init() {
-	// Init config
-	err := config_reader.NewDefaultConfig().Load(GetEnv(), &Config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	/*
-		queues, err := queue.New(&Config.Queue)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	*/
-
-	//Worker = worker.NewManager(&Config.Worker, queues, Logger(context.Background()))
-}
-
-func GetEnv() string {
+func getEnv() string {
 	// Fetch env for bootstrapping
 	environment := os.Getenv("APP_ENV")
 	if environment == "" {
@@ -80,23 +64,42 @@ func WithRequestID(ctx context.Context, requestID string) context.Context {
 }
 
 // initialize all core dependencies for the application
-func initialize(ctx context.Context, env string) error {
+func initialize(ctx context.Context, service string) error {
+	// get env (dev/stage/prod) and init config
+	env := getEnv()
+
+	// read the service config for env
+	var appConfig config.Config
+	err := config_reader.NewDefaultConfig().Load(env, &appConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(appConfig)
+
+	serviceConfig, ok := appConfig[service]
+
+	if !ok {
+		log.Fatal(fmt.Errorf("`%v` service missing config", service))
+	}
+
+	ServiceConfig = serviceConfig
+
 	// Initializes Sentry monitoring client.
-	sentry, err := sentrypkg.InitSentry(Config.Sentry, env)
+	sentry, err := sentrypkg.InitSentry(ServiceConfig.Sentry, env)
 	if err != nil {
 		return err
 	}
 	// Initializes logging driver.
 	servicekv := map[string]interface{}{
-		"appEnv":        Config.App.Env,
-		"serviceName":   Config.App.ServiceName,
-		"gitCommitHash": Config.App.GitCommitHash,
+		"appEnv":        ServiceConfig.App.Env,
+		"serviceName":   ServiceConfig.App.ServiceName,
+		"gitCommitHash": ServiceConfig.App.GitCommitHash,
 	}
 	logger, err := logpkg.NewLogger(env, servicekv, sentry)
 	if err != nil {
 		return err
 	}
-	Tracer, Closer, err = tracing.Init(Config.Tracing, logger.Desugar())
+	Tracer, Closer, err = tracing.Init(ServiceConfig.Tracing, logger.Desugar())
 	if err != nil {
 		return err
 	}
@@ -104,8 +107,8 @@ func initialize(ctx context.Context, env string) error {
 	return nil
 }
 
-func InitMetro(ctx context.Context, env string) error {
-	err := initialize(ctx, env)
+func InitMetro(ctx context.Context, service string) error {
+	err := initialize(ctx, service)
 	if err != nil {
 		return err
 	}

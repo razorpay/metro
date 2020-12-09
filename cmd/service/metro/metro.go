@@ -31,12 +31,12 @@ func isValidService(service string) bool {
 
 type Service struct {
 	name    string
-	cfg     *config.Config
+	cfg     *config.ServiceConfig
 	service service.IService
 }
 
 // newServer returns a new instance of a metro service component
-func NewService(service string, cfg *config.Config) (*Service, error) {
+func NewService(service string, cfg *config.ServiceConfig) (*Service, error) {
 	if isValidService(service) == false {
 		return nil, errors.New(fmt.Sprintf("invalid service name input : %v", service))
 	}
@@ -50,13 +50,7 @@ func NewService(service string, cfg *config.Config) (*Service, error) {
 func (s *Service) Start(ctx context.Context) <-chan error {
 	errChan := make(chan error)
 
-	serviceConfig, ok := s.cfg.Services[s.name]
-
-	if !ok {
-		errChan <- fmt.Errorf("`%v` service missing config", s.name)
-	}
-
-	s.service = s.startService(ctx, &serviceConfig, errChan)
+	s.service = s.startService(ctx, errChan)
 	return errChan
 }
 
@@ -64,16 +58,16 @@ func (s *Service) Stop() error {
 	return s.service.Stop()
 }
 
-func (s *Service) startService(ctx context.Context, config *config.Service, errChan chan<- error) service.IService {
+func (s *Service) startService(ctx context.Context, errChan chan<- error) service.IService {
 	var svc service.IService
 
 	switch s.name {
 	case Producer:
-		svc = producer.NewService(ctx, config)
+		svc = producer.NewService(ctx, s.cfg)
 	case PushConsumer:
-		svc = push_consumer.NewService(ctx, config)
+		svc = push_consumer.NewService(ctx, s.cfg)
 	case PullConsumer:
-		svc = pull_consumer.NewService(ctx, config)
+		svc = pull_consumer.NewService(ctx, s.cfg)
 	}
 
 	go svc.Start(errChan)

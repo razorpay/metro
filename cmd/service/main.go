@@ -30,8 +30,7 @@ func main() {
 	flag.Parse()
 
 	// Init app dependencies
-	env := boot.GetEnv()
-	err := boot.InitMetro(ctx, env)
+	err := boot.InitMetro(ctx, *serviceName)
 	if err != nil {
 		log.Fatalf("failed to init metro: %v", err)
 	}
@@ -46,7 +45,7 @@ func main() {
 
 	// start the requested service
 	var service *metro.Service
-	service, err = metro.NewService(*serviceName, &boot.Config)
+	service, err = metro.NewService(*serviceName, &boot.ServiceConfig)
 	if err != nil {
 		log.Fatalf("error creating metro server: %v", err)
 	}

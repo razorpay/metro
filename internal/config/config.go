@@ -12,6 +12,7 @@ type ServiceConfig struct {
 	App        App
 	Sentry     *sentry.Config
 	Tracing    tracing.Config
+	Broker     Broker
 	Interfaces struct {
 		Api NetworkInterfaces
 	}
@@ -26,7 +27,7 @@ type App struct {
 	GitCommitHash   string
 }
 
-type Service struct {
+type Broker struct {
 	Variant      string // kafka or pulsar
 	BrokerConfig messagebroker.BrokerConfig
 }
@@ -35,9 +36,4 @@ type NetworkInterfaces struct {
 	GrpcServerAddress     string
 	HttpServerAddress     string
 	InternalServerAddress string
-}
-
-type Auth struct {
-	Username string
-	Password string
 }

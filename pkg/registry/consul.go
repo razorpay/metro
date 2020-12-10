@@ -7,20 +7,20 @@ import (
 	"github.com/hashicorp/consul/api/watch"
 )
 
+// ConsulClient ...
 type ConsulClient struct {
 	client *api.Client
 }
 
+// ConsulConfig for ConsulClient
 type ConsulConfig struct {
 	api.Config
 }
 
 var once sync.Once
 
-/**
- * Create a new Consul singleton client
- */
-func NewClient(config ConsulConfig) (*ConsulClient, error) {
+// NewConsulClient creates a new consul client
+func NewConsulClient(config ConsulConfig) (*ConsulClient, error) {
 	var c *ConsulClient
 	var err error
 
@@ -39,37 +39,42 @@ func NewClient(config ConsulConfig) (*ConsulClient, error) {
 	return c, err
 }
 
+// CreateSession creates a session to consul
 func (c *ConsulClient) CreateSession(name string) (string, error) {
-	sessionId, _, err := c.client.Session().Create(&api.SessionEntry{
+	sessionID, _, err := c.client.Session().Create(&api.SessionEntry{
 		Name: name,
 	}, nil)
 
 	if err != nil {
 		return "", err
 	}
-	return sessionId, nil
+	return sessionID, nil
 }
 
-func (c *ConsulClient) RenewPeriodic(sessionId string, doneChan chan struct{}) error {
+// RenewPeriodic renews consul session to be used in a long
+// running goroutine to ensure a session stays valid
+func (c *ConsulClient) RenewPeriodic(sessionID string, doneChan chan struct{}) error {
 	return c.client.Session().RenewPeriodic(
 		"10s",
-		sessionId,
+		sessionID,
 		nil,
 		doneChan,
 	)
 }
 
-func (c *ConsulClient) Destroy(sessionId string) error {
-	_, err := c.client.Session().Destroy(sessionId, nil)
+// Destroy consul session
+func (c *ConsulClient) Destroy(sessionID string) error {
+	_, err := c.client.Session().Destroy(sessionID, nil)
 
 	return err
 }
 
-func (c *ConsulClient) Acquire(sessionId string, key string, value string) (bool, error) {
+// Acquire a lock
+func (c *ConsulClient) Acquire(sessionID string, key string, value string) (bool, error) {
 	isAcquired, _, err := c.client.KV().Acquire(&api.KVPair{
 		Key:     key,
 		Value:   []byte(value),
-		Session: sessionId,
+		Session: sessionID,
 	}, nil)
 
 	if err != nil {
@@ -79,11 +84,12 @@ func (c *ConsulClient) Acquire(sessionId string, key string, value string) (bool
 	return isAcquired, nil
 }
 
-func (c *ConsulClient) Release(sessionId string, key string, value string) (bool, error) {
+// Release a lock
+func (c *ConsulClient) Release(sessionID string, key string, value string) (bool, error) {
 	isReleased, _, err := c.client.KV().Release(&api.KVPair{
 		Key:     key,
 		Value:   []byte(value),
-		Session: sessionId,
+		Session: sessionID,
 	}, nil)
 
 	if err != nil {
@@ -93,6 +99,7 @@ func (c *ConsulClient) Release(sessionId string, key string, value string) (bool
 	return isReleased, nil
 }
 
+// WatchKey watches a key
 func (c *ConsulClient) WatchKey(key string) error {
 	plan, err := watch.Parse(map[string]interface{}{
 		"type":   "keyprefix",

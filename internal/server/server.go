@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Server in a composition of various types of servers
 type Server struct {
 	config         config.NetworkInterfaces
 	internalServer *http.Server
@@ -28,17 +29,18 @@ type Server struct {
 	httpServer     *http.Server
 }
 
-type RegisterGrpcHandlers func(server *grpc.Server) error
-type RegisterHttpHandlers func(mux *runtime.ServeMux) error
+type registerGrpcHandlers func(server *grpc.Server) error
+type registerHTTPHandlers func(mux *runtime.ServeMux) error
 
-func NewServer(config config.NetworkInterfaces, registerGrpcHandlers RegisterGrpcHandlers,
-	registerHttpHandlers RegisterHttpHandlers, interceptors ...grpc.UnaryServerInterceptor) (*Server, error) {
+// NewServer returns the Server
+func NewServer(config config.NetworkInterfaces, registerGrpcHandlers registerGrpcHandlers,
+	registerHTTPHandlers registerHTTPHandlers, interceptors ...grpc.UnaryServerInterceptor) (*Server, error) {
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
 		return nil, err
 	}
 
-	httpServer, err := newHttpServer(registerHttpHandlers)
+	httpServer, err := newHTTPServer(registerHTTPHandlers)
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +58,7 @@ func NewServer(config config.NetworkInterfaces, registerGrpcHandlers RegisterGrp
 	}, nil
 }
 
+// Start the servers
 func (s *Server) Start(errChan chan<- error) {
 	// Start gRPC server.
 	go func(chan<- error) {
@@ -85,7 +88,7 @@ func (s *Server) Start(errChan chan<- error) {
 
 	// Start HTTP server for gRPC gateway.
 	go func(chan<- error) {
-		listener, err := net.Listen("tcp", s.config.HttpServerAddress)
+		listener, err := net.Listen("tcp", s.config.HTTPServerAddress)
 		if err != nil {
 			errChan <- err
 		}
@@ -97,17 +100,18 @@ func (s *Server) Start(errChan chan<- error) {
 	}(errChan)
 }
 
+// Stop the servers
 func (s *Server) Stop(ctx context.Context, healthCore *health.Core) error {
 	logger.Ctx(ctx).Info("marking server unhealthy")
 	healthCore.MarkUnhealthy()
 	time.Sleep(time.Duration(boot.Config.App.ShutdownDelay) * time.Second)
 	s.grpcServer.GracefulStop()
 
-	err := stopHttpServers(ctx, []*http.Server{s.internalServer, s.httpServer}, boot.Config.App.ShutdownTimeout)
+	err := stopHTTPServers(ctx, []*http.Server{s.internalServer, s.httpServer}, boot.Config.App.ShutdownTimeout)
 	return err
 }
 
-func stopHttpServers(ctx context.Context, servers []*http.Server, timeout int) error {
+func stopHTTPServers(ctx context.Context, servers []*http.Server, timeout int) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
 
@@ -122,7 +126,7 @@ func stopHttpServers(ctx context.Context, servers []*http.Server, timeout int) e
 	return err
 }
 
-func newGrpcServer(r RegisterGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
+func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
 	grpcprometheus.EnableHandlingTimeHistogram(func(opts *prometheus.HistogramOpts) {
 		opts.Name = "grpc_server_handled_duration_seconds"
 		// The buckets covers 2ms to 8.192s
@@ -156,7 +160,7 @@ func newGrpcServer(r RegisterGrpcHandlers, interceptors ...grpc.UnaryServerInter
 	return grpcServer, nil
 }
 
-func newHttpServer(r RegisterHttpHandlers) (*http.Server, error) {
+func newHTTPServer(r registerHTTPHandlers) (*http.Server, error) {
 	// MarshalerOption is added so that grpc-gateway does not omit empty values - https://stackoverflow.com/a/50044963
 	mux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{}))
 	err := r(mux)

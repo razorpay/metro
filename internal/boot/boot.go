@@ -8,24 +8,16 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/config"
-	"github.com/razorpay/metro/internal/constants/contextkeys"
 	config_reader "github.com/razorpay/metro/pkg/config"
 	logpkg "github.com/razorpay/metro/pkg/logger"
 	sentrypkg "github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/tracing"
-
-	"github.com/rs/xid"
-)
-
-const (
-	requestIDHttpHeaderKey = "X-Request-ID"
-	requestIDCtxKey        = "RequestID"
 )
 
 var (
 	// Config contains application configuration values.
 	Config config.Config
-
+	// Tracer is used for creating spans for distributed tracing
 	Tracer opentracing.Tracer
 	// Closer holds an instance to the RequestTracing object's Closer.
 	Closer io.Closer
@@ -48,6 +40,7 @@ func init() {
 	//Worker = worker.NewManager(&Config.Worker, queues, Logger(context.Background()))
 }
 
+// GetEnv returns the current environment, prod, dev etc
 func GetEnv() string {
 	// Fetch env for bootstrapping
 	environment := os.Getenv("APP_ENV")
@@ -56,27 +49,6 @@ func GetEnv() string {
 	}
 
 	return environment
-}
-
-// GetRequestID gets the request id
-// if its already set in the given context
-// if there is no requestID set then it'll create a new
-// request id and returns the same
-func GetRequestID(ctx context.Context) string {
-	if val, ok := ctx.Value(contextkeys.RequestID).(string); ok {
-		return val
-	}
-	return xid.New().String()
-}
-
-// WithRequestID adds a request if to the context and gives the updated context back
-// if the passed requestID is empty then creates one by itself
-func WithRequestID(ctx context.Context, requestID string) context.Context {
-	if requestID == "" {
-		requestID = xid.New().String()
-	}
-
-	return context.WithValue(ctx, contextkeys.RequestID, requestID)
 }
 
 // initialize all core dependencies for the application
@@ -104,6 +76,7 @@ func initialize(ctx context.Context, env string) error {
 	return nil
 }
 
+// InitMetro initialised all singletons for the application
 func InitMetro(ctx context.Context, env string) error {
 	err := initialize(ctx, env)
 	if err != nil {

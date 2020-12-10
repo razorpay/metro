@@ -33,7 +33,7 @@ func TestLoadConfig(t *testing.T) {
 
 	key := strings.ToUpper("metro") + "_DB_PASSWORD"
 	os.Setenv(key, "envpass")
-	err := NewConfig(NewOptions("toml", "./testdata", "default")).Load("drone", &c)
+	err := NewConfig(NewOptions("toml", "./testdata", "default")).Load("test", &c)
 	assert.Nil(t, err)
 	// Asserts that default value exists.
 	assert.Equal(t, "mysql", c.Db.Dialect)

@@ -53,6 +53,15 @@ services:
       CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
       CONFLUENT_METRICS_ENABLE: 'true'
       CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
+
+  consul:
+    image: consul:1.9.0
+    container_name: metro-consul
+    networks:
+      - app-network
+    ports:
+      - "8500:8500"
+
 networks:
   app-network:
     external: false

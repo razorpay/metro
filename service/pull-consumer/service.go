@@ -13,11 +13,11 @@ type Service struct {
 	ctx    context.Context
 	srv    *server.Server
 	health *health.Core
-	config *config.Component
+	config *config.ComponentConfig
 }
 
 // NewService creates an instance of new pull consumer service
-func NewService(ctx context.Context, config *config.Component) *Service {
+func NewService(ctx context.Context, config *config.ComponentConfig) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,

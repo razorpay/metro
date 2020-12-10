@@ -18,7 +18,7 @@ var (
 )
 
 func init() {
-	componentName = flag.String("component", metro.Producer, "service to start")
+	componentName = flag.String("component", metro.Producer, "component to start")
 }
 
 func main() {
@@ -29,9 +29,17 @@ func main() {
 	// parse the cmd input
 	flag.Parse()
 
-	// Init app dependencies
+	// component argument validation
+	ok := metro.IsValidComponent(*componentName)
+	if !ok {
+		log.Fatalf("invalid component name input : %v", *componentName)
+	}
+
+	// read the env
 	env := boot.GetEnv()
-	err := boot.InitMetro(ctx, env)
+
+	// Init app dependencies
+	err := boot.InitMetro(ctx, env, *componentName)
 	if err != nil {
 		log.Fatalf("failed to init metro: %v", err)
 	}
@@ -46,9 +54,10 @@ func main() {
 
 	// start the requested component
 	var component *metro.Component
-	component, err = metro.NewComponent(*componentName, &boot.Config)
+	component, err = metro.NewComponent(*componentName, &boot.ComponentConfig)
+
 	if err != nil {
-		log.Fatalf("error creating metro server: %v", err)
+		log.Fatalf("error creating metro component: %v", err)
 	}
 
 	errChan := component.Start(ctx)

@@ -6,13 +6,18 @@ import (
 	"github.com/razorpay/metro/pkg/tracing"
 )
 
-// Config for metro
-type Config struct {
-	App     App
-	Sentry  *sentry.Config
-	Tracing tracing.Config
-	// Components is a map of service name to service config items
-	Components map[string]Component
+// Config is application config
+type Config map[string]ComponentConfig
+
+// ComponentConfig for Metro components
+type ComponentConfig struct {
+	App        App
+	Sentry     *sentry.Config
+	Tracing    tracing.Config
+	Broker     Broker
+	Interfaces struct {
+		API NetworkInterfaces
+	}
 }
 
 // App contains application-specific config values
@@ -24,11 +29,8 @@ type App struct {
 	GitCommitHash   string
 }
 
-// Component specific configuration
-type Component struct {
-	Interfaces struct {
-		API NetworkInterfaces
-	}
+// Broker Config (Kafka/Pulsar)
+type Broker struct {
 	Variant      string // kafka or pulsar
 	BrokerConfig messagebroker.BrokerConfig
 }

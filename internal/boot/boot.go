@@ -2,6 +2,7 @@ package boot
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -15,30 +16,14 @@ import (
 )
 
 var (
-	// Config contains application configuration values.
-	Config config.Config
+	// ComponentConfig contains component configuration values.
+	ComponentConfig config.ComponentConfig
+
 	// Tracer is used for creating spans for distributed tracing
 	Tracer opentracing.Tracer
 	// Closer holds an instance to the RequestTracing object's Closer.
 	Closer io.Closer
 )
-
-func init() {
-	// Init config
-	err := config_reader.NewDefaultConfig().Load(GetEnv(), &Config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	/*
-		queues, err := queue.New(&Config.Queue)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	*/
-
-	//Worker = worker.NewManager(&Config.Worker, queues, Logger(context.Background()))
-}
 
 // GetEnv returns the current environment, prod, dev etc
 func GetEnv() string {
@@ -52,23 +37,38 @@ func GetEnv() string {
 }
 
 // initialize all core dependencies for the application
-func initialize(ctx context.Context, env string) error {
+func initialize(ctx context.Context, env string, component string) error {
+	// read the component config for env
+	var appConfig config.Config
+	err := config_reader.NewDefaultConfig().Load(env, &appConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	componentConfig, ok := appConfig[component]
+
+	if !ok {
+		log.Fatal(fmt.Errorf("`%v` component missing config", component))
+	}
+
+	ComponentConfig = componentConfig
+
 	// Initializes Sentry monitoring client.
-	sentry, err := sentrypkg.InitSentry(Config.Sentry, env)
+	sentry, err := sentrypkg.InitSentry(ComponentConfig.Sentry, env)
 	if err != nil {
 		return err
 	}
 	// Initializes logging driver.
 	servicekv := map[string]interface{}{
-		"appEnv":        Config.App.Env,
-		"serviceName":   Config.App.ServiceName,
-		"gitCommitHash": Config.App.GitCommitHash,
+		"appEnv":        ComponentConfig.App.Env,
+		"serviceName":   ComponentConfig.App.ServiceName,
+		"gitCommitHash": ComponentConfig.App.GitCommitHash,
 	}
 	logger, err := logpkg.NewLogger(env, servicekv, sentry)
 	if err != nil {
 		return err
 	}
-	Tracer, Closer, err = tracing.Init(Config.Tracing, logger.Desugar())
+	Tracer, Closer, err = tracing.Init(ComponentConfig.Tracing, logger.Desugar())
 	if err != nil {
 		return err
 	}
@@ -76,9 +76,10 @@ func initialize(ctx context.Context, env string) error {
 	return nil
 }
 
-// InitMetro initialised all singletons for the application
-func InitMetro(ctx context.Context, env string) error {
-	err := initialize(ctx, env)
+// InitMetro initializes all packages (logger, tracing, config, metro component)
+func InitMetro(ctx context.Context, env string, service string) error {
+	err := initialize(ctx, env, service)
+
 	if err != nil {
 		return err
 	}

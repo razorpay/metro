@@ -23,11 +23,11 @@ type Service struct {
 	ctx    context.Context
 	srv    *internalserver.Server
 	health *health.Core
-	config *config.Component
+	config *config.ComponentConfig
 }
 
 // NewService creates an instance of new producer service
-func NewService(ctx context.Context, config *config.Component) *Service {
+func NewService(ctx context.Context, config *config.ComponentConfig) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,
@@ -43,7 +43,7 @@ func (svc *Service) Start(errChan chan<- error) {
 		errChan <- err
 	}
 
-	mb, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.BrokerConfig)
+	mb, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.Broker.BrokerConfig)
 	if err != nil {
 		errChan <- err
 	}

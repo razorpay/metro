@@ -104,10 +104,10 @@ func (s *Server) Start(errChan chan<- error) {
 func (s *Server) Stop(ctx context.Context, healthCore *health.Core) error {
 	logger.Ctx(ctx).Info("marking server unhealthy")
 	healthCore.MarkUnhealthy()
-	time.Sleep(time.Duration(boot.Config.App.ShutdownDelay) * time.Second)
+	time.Sleep(time.Duration(boot.ComponentConfig.App.ShutdownDelay) * time.Second)
 	s.grpcServer.GracefulStop()
 
-	err := stopHTTPServers(ctx, []*http.Server{s.internalServer, s.httpServer}, boot.Config.App.ShutdownTimeout)
+	err := stopHTTPServers(ctx, []*http.Server{s.internalServer, s.httpServer}, boot.ComponentConfig.App.ShutdownTimeout)
 	return err
 }
 

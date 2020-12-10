@@ -67,6 +67,7 @@ COPY build/docker/entrypoint.sh /app/
 
 ENV WORKDIR=/app
 ENV DUMB_INIT_SETSID=0
+ENV METRO_COMPONENT=${METRO_COMPONENT}
 WORKDIR /app
 
 RUN apk add --update --no-cache dumb-init su-exec ca-certificates curl

@@ -26,6 +26,24 @@ Build the binary
 make go-build-metro
 ```
 The binary can be found at `bin/` directory
+### Running the binary
+metro has 3 components, all components are part of same binary and can be ran using a cmd param `component`
+
+Running Metro Producer
+```
+bin/metro -component producer
+```
+
+Running Metro Pull Consumer
+```
+bin/metro -component pull-consumer
+```
+
+Running Metro Push Consumer
+```
+bin/metro -component push-consumer
+```
+
 ### Building the `metro` docker image
 After cloning the repository, run
 ```sh

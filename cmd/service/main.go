@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	serviceName *string
+	componentName *string
 )
 
 func init() {
-	serviceName = flag.String("service", metro.Producer, "service to start")
+	componentName = flag.String("component", metro.Producer, "component to start")
 }
 
 func main() {
@@ -28,9 +28,17 @@ func main() {
 
 	// parse the cmd input
 	flag.Parse()
+	// validate component
+	ok := metro.IsValidComponent(*componentName)
+	if !ok {
+		log.Fatalf("invalid component name input : %v", *componentName)
+	}
+
+	// read the env
+	env := boot.GetEnv()
 
 	// Init app dependencies
-	err := boot.InitMetro(ctx, *serviceName)
+	err := boot.InitMetro(ctx, env, *componentName)
 	if err != nil {
 		log.Fatalf("failed to init metro: %v", err)
 	}
@@ -43,31 +51,32 @@ func main() {
 		}
 	}()
 
-	// start the requested service
-	var service *metro.Service
-	service, err = metro.NewService(*serviceName, &boot.ServiceConfig)
+	// start the requested component
+	var component *metro.Component
+	component, err = metro.NewComponent(*componentName, &boot.ComponentConfig)
+
 	if err != nil {
-		log.Fatalf("error creating metro server: %v", err)
+		log.Fatalf("error creating metro component: %v", err)
 	}
 
-	errChan := service.Start(ctx)
+	errChan := component.Start(ctx)
 
 	// Handle SIGINT & SIGTERM - Shutdown gracefully
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 
-	// Block until signal is received or error is received in starting the service.
+	// Block until signal is received or error is received in starting the component.
 	select {
 	case <-c:
 		logger.Ctx(ctx).Infow("received signal")
 	case err := <-errChan:
-		logger.Ctx(ctx).Fatalw("error in starting service", "msg", err.Error())
+		logger.Ctx(ctx).Fatalw("error in starting component", "msg", err.Error())
 	}
 
 	logger.Ctx(ctx).Infow("stopping metro")
 
-	// stop service
-	err = service.Stop()
+	// stop component
+	err = component.Stop()
 	if err != nil {
 		logger.Ctx(ctx).Fatalw("error in stopping metro")
 

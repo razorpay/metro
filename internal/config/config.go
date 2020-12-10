@@ -6,15 +6,15 @@ import (
 	"github.com/razorpay/metro/pkg/tracing"
 )
 
-type Config map[string]ServiceConfig
+type Config map[string]ComponentConfig
 
-type ServiceConfig struct {
+type ComponentConfig struct {
 	App        App
 	Sentry     *sentry.Config
 	Tracing    tracing.Config
 	Broker     Broker
 	Interfaces struct {
-		Api NetworkInterfaces
+		API NetworkInterfaces
 	}
 }
 
@@ -32,8 +32,9 @@ type Broker struct {
 	BrokerConfig messagebroker.BrokerConfig
 }
 
+// NetworkInterfaces contains all exposed interfaces
 type NetworkInterfaces struct {
 	GrpcServerAddress     string
-	HttpServerAddress     string
+	HTTPServerAddress     string
 	InternalServerAddress string
 }

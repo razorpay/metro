@@ -42,16 +42,21 @@ GOIMPORTS = $(BIN)/goimports
 
 GOFILES     ?= $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
-.PHONY: goimports ## Run goimports
-goimports: | $(GOIMPORTS) ; $(info $(M) running goimports…) @ ## Run golint
+.PHONY: goimports ## Run goimports and format files
+goimports: | $(GOIMPORTS) ; $(info $(M) running goimports…) @
 	$Q $(GOIMPORTS) -w $(GOFILES)
+
+.PHONY: goimports-check ## Check goimports without modifying the files
+goimports-check: | $(GOIMPORTS) ; $(info $(M) running goimports -l …) @
+	$(eval FILES=$(shell sh -c '$(GOIMPORTS) -l $(GOFILES)'))
+	@$(if $(strip $(FILES)), echo $(FILES); exit 1, echo "goimports check passed")
 
 $(BIN)/golint: PACKAGE=golang.org/x/lint/golint
 
 GOLINT = $(BIN)/golint
 
-.PHONY: lint ## Run golint
-lint: | $(GOLINT) ; $(info $(M) running golint…) @ ## Run golint
+.PHONY: lint-check ## Run golint check
+lint-check: | $(GOLINT) ; $(info $(M) running golint…) @
 	$Q $(GOLINT) -set_exit_status $(PKGS)
 
 .PHONY: setup-git-hooks ## First time setup
@@ -140,7 +145,7 @@ test-unit-prepare:
 
 .PHONY: test-unit ## Run unit tests
 test-unit: test-unit-prepare
-	@go test -tags=unit -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
+	@APP_ENV=dev_docker go test -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
 	@go tool cover -func=$(TMP_DIR)/$(COVERAGE_TMP_FILE)
 
 .PHONY: help ## Display this help screen

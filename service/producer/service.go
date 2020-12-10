@@ -6,38 +6,39 @@ import (
 	"mime"
 	"net/http"
 
-	"github.com/razorpay/metro/pkg/messagebroker"
-	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
-
-	"github.com/razorpay/metro/internal/config"
-
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rakyll/statik/fs"
+	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/internal/health"
-	"github.com/razorpay/metro/internal/server"
+	internalserver "github.com/razorpay/metro/internal/server"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	healthv1 "github.com/razorpay/metro/rpc/common/health/v1"
-	_ "github.com/razorpay/metro/statik"
+	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
+	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 	"google.golang.org/grpc"
 )
 
+// Service for producer
 type Service struct {
 	ctx    context.Context
-	srv    *server.Server
+	srv    *internalserver.Server
 	health *health.Core
-	config *config.ServiceConfig
+	config *config.ComponentConfig
 }
 
-func NewService(ctx context.Context, config *config.ServiceConfig) *Service {
+// NewService creates an instance of new producer service
+func NewService(ctx context.Context, config *config.ComponentConfig) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,
 	}
 }
 
+// Start the service
 func (svc *Service) Start(errChan chan<- error) {
 	// Define server handlers
 
-	healthCore, err := health.NewCore(nil)
+	healthCore, err := health.NewCore(nil) //TODO: Add checkers
 	if err != nil {
 		errChan <- err
 	}
@@ -46,22 +47,22 @@ func (svc *Service) Start(errChan chan<- error) {
 	if err != nil {
 		errChan <- err
 	}
-	brokerCore, err := NewCore(mb)
+	brokerCore, err := newCore(mb)
 	if err != nil {
 		errChan <- err
 	}
 
-	s, err := server.NewServer(svc.config.Interfaces.Api, func(server *grpc.Server) error {
+	s, err := internalserver.NewServer(svc.config.Interfaces.API, func(server *grpc.Server) error {
 		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-		producerv1.RegisterProducerServer(server, NewServer(brokerCore))
+		producerv1.RegisterProducerServer(server, newServer(brokerCore))
 		return nil
 	}, func(mux *runtime.ServeMux) error {
-		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
 		}
 
-		err = producerv1.RegisterProducerHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.Api.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		err = producerv1.RegisterProducerHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
 		}
@@ -86,6 +87,7 @@ func (svc *Service) Start(errChan chan<- error) {
 	}
 }
 
+// Stop the service
 func (svc *Service) Stop() error {
 	return svc.srv.Stop(svc.ctx, svc.health)
 }

@@ -44,6 +44,30 @@ To rebuild
  ```sh
  make dev-docker-rebuild
  ```
+### Contributing guidelines
+`metro` runs unit tests, `golint` and `goimports` check in the continuous integration (CI) pipeline.
+
+You can locally test these changes by running the following `make` targets
+
+`golint` check
+```sh
+make lint-check
+```
+
+`goimports` check
+```sh
+make goimports-check
+```
+
+You can also apply `goimports` changes locally by doing the following
+```sh
+make goimports
+```
+
+Running unit tests
+```sh
+make test-unit
+```
 ### Updating the `metro-proto` submodule
 To update the submodule to the latest remote commit
 ```sh

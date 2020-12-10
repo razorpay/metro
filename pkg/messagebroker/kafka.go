@@ -9,6 +9,7 @@ import (
 	kakfapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
+// KafkaBroker for kafka
 type KafkaBroker struct {
 	Producer *kakfapkg.Producer
 	Consumer *kakfapkg.Consumer
@@ -17,6 +18,7 @@ type KafkaBroker struct {
 	Config   *BrokerConfig
 }
 
+// NewKafkaBroker returns a kafka broker
 func NewKafkaBroker(ctx context.Context, bConfig *BrokerConfig) (Broker, error) {
 	// init producer
 	producer, err := kakfapkg.NewProducer(&kakfapkg.ConfigMap{"bootstrap.servers": strings.Join(bConfig.Producer.Brokers, ",")})
@@ -57,21 +59,25 @@ func NewKafkaBroker(ctx context.Context, bConfig *BrokerConfig) (Broker, error) 
 	}, nil
 }
 
+// CreateTopic ...
 func (k KafkaBroker) CreateTopic(topic string) error {
 	//TODO: Implement me
 	return nil
 }
 
+// DeleteTopic ...
 func (k KafkaBroker) DeleteTopic(topic string) error {
 	//TODO: Implement me
 	return nil
 }
 
+// Produce messages to broker
 func (k KafkaBroker) Produce(topic string, message []byte) (string, error) {
 	//TODO: Implement me
 	return "", nil
 }
 
+// GetMessages returns a list of messages
 func (k KafkaBroker) GetMessages(numOfMessages int, timeout time.Duration) ([]string, error) {
 	var msgs []string
 	for {
@@ -98,6 +104,7 @@ func (k KafkaBroker) GetMessages(numOfMessages int, timeout time.Duration) ([]st
 	}
 }
 
+// Commit commits the offset
 func (k KafkaBroker) Commit() {
 	k.Consumer.Commit()
 }

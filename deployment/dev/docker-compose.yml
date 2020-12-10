@@ -15,7 +15,7 @@ services:
       - "8081:8081"
     environment:
       - APP_ENV=dev_docker
-      - SERVICE=producer
+      - METRO_COMPONENT=producer
     restart: on-failure
 
   metro-push-consumer:
@@ -33,7 +33,7 @@ services:
       - "8084:8081"
     environment:
       - APP_ENV=dev_docker
-      - SERVICE=push-consumer
+      - METRO_COMPONENT=push-consumer
     restart: on-failure
 
   metro-pull-consumer:
@@ -52,7 +52,7 @@ services:
       - "8087:8081"
     environment:
       - APP_ENV=dev_docker
-      - SERVICE=pull-consumer
+      - METRO_COMPONENT=pull-consumer
     restart: on-failure
 
 networks:

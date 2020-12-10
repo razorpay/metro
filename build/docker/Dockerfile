@@ -51,6 +51,8 @@ ADD . /src/
 RUN make deps
 RUN make mock-gen
 RUN go mod vendor
+# move test-unit out with multi stage builds on github actions
+RUN make test-unit
 RUN make go-build-metro
 
 # Stage 3 - Binary build stage
@@ -65,7 +67,7 @@ COPY build/docker/entrypoint.sh /app/
 
 ENV WORKDIR=/app
 ENV DUMB_INIT_SETSID=0
-ENV SERVICE=${SERVICE}
+ENV METRO_COMPONENT=${METRO_COMPONENT}
 WORKDIR /app
 
 RUN apk add --update --no-cache dumb-init su-exec ca-certificates curl

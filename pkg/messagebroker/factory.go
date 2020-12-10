@@ -5,10 +5,13 @@ import (
 )
 
 const (
-	Kafka  = "kafka"
+	// Kafka identifier
+	Kafka = "kafka"
+	// Pulsar identifier
 	Pulsar = "pulsar"
 )
 
+// NewBroker returns an instance of a broker, kafka or pulsar
 func NewBroker(identifier string, bConfig *BrokerConfig) (Broker, error) {
 	fmt.Printf("id : %s", identifier)
 	switch identifier {

@@ -3,8 +3,8 @@ set -euo pipefail
 
 start_application()
 {
-    echo "su-exec appuser $WORKDIR/"$appName" -service=${SERVICE} &"
-    su-exec appuser $WORKDIR/"$appName" -service=${SERVICE} &
+    echo "su-exec appuser $WORKDIR/"$appName" -component=${METRO_COMPONENT} &"
+    su-exec appuser $WORKDIR/"$appName" -component=${METRO_COMPONENT} &
 
     # Get pid for app
     APP_PID=$!

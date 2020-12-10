@@ -53,6 +53,7 @@
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
+
 [pull-consumer]
     [pull-consumer.app]
         appEnv                = "default"

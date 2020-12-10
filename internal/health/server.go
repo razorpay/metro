@@ -14,6 +14,7 @@ type Server struct {
 	core *Core
 }
 
+// NewServer returns a health server
 func NewServer(core *Core) *Server {
 	return &Server{core: core}
 }

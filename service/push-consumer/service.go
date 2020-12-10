@@ -1,4 +1,4 @@
-package push_consumer
+package pushconsumer
 
 import (
 	"context"
@@ -8,23 +8,27 @@ import (
 	"github.com/razorpay/metro/internal/server"
 )
 
+// Service for push consumer
 type Service struct {
 	ctx    context.Context
 	srv    *server.Server
 	health *health.Core
-	config *config.ServiceConfig
+	config *config.ComponentConfig
 }
 
-func NewService(ctx context.Context, config *config.ServiceConfig) *Service {
+// NewService creates an instance of new push consumer service
+func NewService(ctx context.Context, config *config.ComponentConfig) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,
 	}
 }
 
+// Start the service
 func (c *Service) Start(errChan chan<- error) {
 }
 
+// Stop the service
 func (c *Service) Stop() error {
 	return nil
 }

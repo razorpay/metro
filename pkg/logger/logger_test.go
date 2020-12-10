@@ -52,11 +52,11 @@ func TestWithContext(t *testing.T) {
 		"context1", "item1",
 		"context2", 123,
 	)
-	baseCtx := context.WithValue(context.Background(), "context1", "item1")
-	finalCtx := context.WithValue(baseCtx, "context2", 123)
+	baseCtx := context.WithValue(context.Background(), CtxKeyType("context1"), "item1")
+	finalCtx := context.WithValue(baseCtx, CtxKeyType("context2"), 123)
 	type args struct {
 		ctx       context.Context
-		ctxFields []string
+		ctxFields []CtxKeyType
 	}
 	tests := []struct {
 		name string
@@ -67,7 +67,7 @@ func TestWithContext(t *testing.T) {
 			name: "Verify context fields",
 			args: args{
 				ctx: finalCtx,
-				ctxFields: []string{
+				ctxFields: []CtxKeyType{
 					"context1",
 					"context2",
 				},

@@ -2,10 +2,10 @@ package producer
 
 import "github.com/razorpay/metro/pkg/messagebroker"
 
-type Core struct {
+type core struct {
 	Broker messagebroker.Broker
 }
 
-func NewCore(broker messagebroker.Broker) (*Core, error) {
-	return &Core{Broker: broker}, nil
+func newCore(broker messagebroker.Broker) (*core, error) {
+	return &core{Broker: broker}, nil
 }

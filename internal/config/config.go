@@ -6,8 +6,10 @@ import (
 	"github.com/razorpay/metro/pkg/tracing"
 )
 
+// Config is application config
 type Config map[string]ComponentConfig
 
+// ComponentConfig for Metro components
 type ComponentConfig struct {
 	App        App
 	Sentry     *sentry.Config
@@ -27,6 +29,7 @@ type App struct {
 	GitCommitHash   string
 }
 
+// Broker Config (Kafka/Pulsar)
 type Broker struct {
 	Variant      string // kafka or pulsar
 	BrokerConfig messagebroker.BrokerConfig

@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	// Config contains application configuration values.
+	// ComponentConfig contains component configuration values.
 	ComponentConfig config.ComponentConfig
 
 	// Tracer is used for creating spans for distributed tracing
@@ -76,6 +76,7 @@ func initialize(ctx context.Context, env string, component string) error {
 	return nil
 }
 
+// InitMetro initializes all packages (logger, tracing, config, metro component)
 func InitMetro(ctx context.Context, env string, service string) error {
 	err := initialize(ctx, env, service)
 

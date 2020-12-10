@@ -28,7 +28,8 @@ func main() {
 
 	// parse the cmd input
 	flag.Parse()
-	// validate component
+
+	// component argument validation
 	ok := metro.IsValidComponent(*componentName)
 	if !ok {
 		log.Fatalf("invalid component name input : %v", *componentName)

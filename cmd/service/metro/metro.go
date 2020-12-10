@@ -21,6 +21,8 @@ const (
 
 var validComponents = []string{Producer, PullConsumer, PushConsumer}
 
+// IsValidComponent validates if the input comonent is a valid metro component
+// validComponents : producer, pull-consumer, push-consumer
 func IsValidComponent(component string) bool {
 	for _, s := range validComponents {
 		if s == component {

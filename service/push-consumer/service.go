@@ -26,6 +26,20 @@ func NewService(ctx context.Context, config *config.ComponentConfig) *Service {
 
 // Start the service
 func (c *Service) Start(errChan chan<- error) {
+	//1. Register Node with Consul
+
+	// 2. Create a channel and go routine
+	//    Go routine should try to do leader election, if elected as leader, push message to channel
+
+	// 3. Watch the Jobs/Node_id path for jobs
+
+	// 4. listen to leader channel, if elected as leader, act as leader
+
+	// 5. watch all subscriptions, for any changes in subscripitons, if leader -> load rebalance
+
+	// 6. watch for nodes, if any node goes down rebalance
+
+	// 7. if leader renew session
 }
 
 // Stop the service

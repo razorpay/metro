@@ -52,7 +52,7 @@ func (svc *Service) Start(errChan chan<- error) {
 		errChan <- err
 	}
 
-	s, err := internalserver.NewServer(svc.config.Interfaces.API, func(server *grpc.Server) error {
+	s, err := internalserver.NewServer(svc.config, func(server *grpc.Server) error {
 		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 		producerv1.RegisterProducerServer(server, newServer(brokerCore))
 		return nil

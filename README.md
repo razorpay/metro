@@ -1,15 +1,15 @@
 # metro-proto
-Protobuf definitions for Metro
+Protobuf definitions for project [metro](https://github.com/razorpay/metro)
 
 ## Intro
 Repo for maintaining protobuf definitions for Metro.
 
 Suggested readings-
-- [Protocol buffers](https://github.com/protocolbuffers/protobuf)
-- [Prototool](https://github.com/uber/prototool)
+- [protocol buffers](https://github.com/protocolbuffers/protobuf)
+- [buf](https://buf.build/)
 
 ## Management
-We standardize management of Protobuf files via [prototool](https://github.com/uber/prototool).
+We standardize management of Protobuf files via [buf](https://buf.build/).
 
 ## Commands
 Run `make help` for more info on available commands.

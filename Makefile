@@ -1,68 +1,81 @@
-#############################################################
-#
-#  Razorpay (c) 2019
-#
-#  Leverages https://github.com/uber/prototool (MIT License)
-#
-#############################################################
+SHELL := /usr/bin/env bash -o pipefail
 
-SHELL := /bin/bash -o pipefail
+# This controls the location of the cache.
+PROJECT := metro-proto
+#
+# This controls the version of buf to install and use.
+BUF_VERSION := 0.32.0
+# If true, Buf is installed from source instead of from releases
+BUF_INSTALL_FROM_SOURCE := false
+
+### Everything below this line is meant to be static, i.e. only adjust the above variables. ###
 
 UNAME_OS := $(shell uname -s)
 UNAME_ARCH := $(shell uname -m)
+# Buf will be cached to ~/.cache/buf-example.
+CACHE_BASE := $(HOME)/.cache/$(PROJECT)
+# This allows switching between i.e a Docker container and your local setup without overwriting.
+CACHE := $(CACHE_BASE)/$(UNAME_OS)/$(UNAME_ARCH)
+# The location where buf will be installed.
+CACHE_BIN := $(CACHE)/bin
+# Marker files are put into this directory to denote the current version of binaries that are installed.
+CACHE_VERSIONS := $(CACHE)/versions
 
-TMP_BASE := .tmp
-TMP := $(TMP_BASE)/$(UNAME_OS)/$(UNAME_ARCH)
-TMP_BIN = $(TMP)/bin
-TMP_VERSIONS := $(TMP)/versions
-
+# Update the $PATH so we can use buf directly
+export PATH := $(abspath $(CACHE_BIN)):$(PATH)
+# Update GOBIN to point to CACHE_BIN for source installations
+export GOBIN := $(abspath $(CACHE_BIN))
+# This is needed to allow versions to be added to Golang modules with go get
 export GO111MODULE := on
-export GOBIN := $(abspath $(TMP_BIN))
-export PATH := $(GOBIN):$(PATH)
 
-# This is the only variable that ever should change.
-# This can be a branch, tag, or commit.
-# When changed, the given version of Prototool will be installed to
-# .tmp/$(uname -s)/(uname -m)/bin/prototool
-PROTOTOOL_VERSION := v1.9.0
+# BUF points to the marker file for the installed version.
+#
+# If BUF_VERSION is changed, the binary will be re-downloaded.
+BUF := $(CACHE_VERSIONS)/buf/$(BUF_VERSION)
+$(BUF):
+	@rm -f $(CACHE_BIN)/buf
+	@mkdir -p $(CACHE_BIN)
+ifeq ($(BUF_INSTALL_FROM_SOURCE),true)
+	$(eval BUF_TMP := $(shell mktemp -d))
+	cd $(BUF_TMP); go get github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
+	@rm -rf $(BUF_TMP)
+else
+	curl -sSL \
+		"https://github.com/bufbuild/buf/releases/download/v$(BUF_VERSION)/buf-$(UNAME_OS)-$(UNAME_ARCH)" \
+		-o "$(CACHE_BIN)/buf"
+	chmod +x "$(CACHE_BIN)/buf"
+endif
+	@rm -rf $(dir $(BUF))
+	@mkdir -p $(dir $(BUF))
+	@touch $(BUF)
 
-PROTOTOOL := $(TMP_VERSIONS)/prototool/$(PROTOTOOL_VERSION)
-$(PROTOTOOL):
-	$(eval PROTOTOOL_TMP := $(shell mktemp -d))
-	cd $(PROTOTOOL_TMP); go get github.com/uber/prototool/cmd/prototool@$(PROTOTOOL_VERSION)
-	@rm -rf $(PROTOTOOL_TMP)
-	@rm -rf $(dir $(PROTOTOOL))
-	@mkdir -p $(dir $(PROTOTOOL))
-	@touch $(PROTOTOOL)
+.DEFAULT_GOAL := local
 
-# proto is a target that uses prototool.
-# By depending on $(PROTOTOOL), prototool will be installed on the Makefile's path.
-# Since the path above has the temporary GOBIN at the front, this will use the
-# locally installed prototool.
+.PHONY: deps
+deps: $(BUF) ## deps allows us to install deps without running any checks.
 
-.PHONY: lint format fix
+.PHONY: local
+local: $(BUF) ## local is what we run when testing locally. This checks lint and breaking changes
+	buf check lint
+	#buf check breaking --against '.git#branch=master'
 
-# make lint PACKAGE=stork/message/v1/message.proto
-lint: $(PROTOTOOL) ## Run linter on a given package. Uses prototool.yaml file located in the package root.
-	prototool lint $(PACKAGE)
+.PHONY: clean
+clean: ## clean deletes any files not checked in and the cache for all platforms.
+	git clean -xdf
+	rm -rf $(CACHE_BASE)
 
-# make format PACKAGE=stork/message/v1/message.proto
-format: $(PROTOTOOL) ## Format a Protobuf file and print the formatted file to stdout
-	prototool format $(PACKAGE)
+.PHONY: updateversion
+updateversion: ## For updating this repository
+ifndef VERSION
+	$(error "VERSION must be set")
+else
+ifeq ($(UNAME_OS),Darwin)
+	sed -i '' "s/BUF_VERSION := [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*/BUF_VERSION := $(VERSION)/g" Makefile
+else
+	sed -i "s/BUF_VERSION := [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*/BUF_VERSION := $(VERSION)/g" Makefile
+endif
+endif
 
-# make fix PACKAGE=stork/message/v1/message.proto
-fix: $(PROTOTOOL) ## Fix the file according to the Style Guide
-	prototool format -f -w $(PACKAGE)
-
-# make create PACKAGE=stork/message/v1/message.proto
-create: $(PROTOTOOL) ## Create Protobuf files from a template
-	prototool create $(PACKAGE)
-
-# make generate PACKAGE=stork/message/v1/message.proto
-generate: $(PROTOTOOL) ## Generate .pb.go files from Protobuf files
-	prototool generate $(PACKAGE)
-
+.PHONY: help
 help: ## Display this help screen
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-
-## TODO: Add more prototool commands (generate, init, etc)

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
+	producerv1 "github.com/razorpay/metro/rpc/producer/v1"
 )
 
 type server struct {

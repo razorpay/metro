@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	healthv1 "github.com/razorpay/metro/rpc/common/health/v1"
+	healthv1 "github.com/razorpay/metro/rpc/health/v1"
 )
 
 // Server has methods implementing of server rpc.

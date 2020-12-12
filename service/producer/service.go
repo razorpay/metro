@@ -12,8 +12,8 @@ import (
 	"github.com/razorpay/metro/internal/health"
 	internalserver "github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/pkg/messagebroker"
-	healthv1 "github.com/razorpay/metro/rpc/common/health/v1"
-	producerv1 "github.com/razorpay/metro/rpc/metro/producer/v1"
+	healthv1 "github.com/razorpay/metro/rpc/health/v1"
+	producerv1 "github.com/razorpay/metro/rpc/producer/v1"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 	"google.golang.org/grpc"
 )

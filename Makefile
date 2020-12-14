@@ -40,7 +40,7 @@ $(BIN)/goimports: PACKAGE=golang.org/x/tools/cmd/goimports
 
 GOIMPORTS = $(BIN)/goimports
 
-GOFILES     ?= $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+GOFILES     ?= $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./statik/*" -not -path "./rpc/*")
 
 .PHONY: goimports ## Run goimports and format files
 goimports: | $(GOIMPORTS) ; $(info $(M) running goimports…) @
@@ -82,8 +82,7 @@ deps:
 .PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:
 	@echo "\n + Generating pb language bindings\n"
-	@buf generate --path ./metro-proto/common/health
-	@buf generate --path ./metro-proto/metro/producer
+	@buf generate --path ./metro-proto/metro/proto
 	# Generate static assets for OpenAPI UI
 	@statik -m -f -src third_party/OpenAPI/
 

@@ -57,7 +57,7 @@ deps: $(BUF) ## deps allows us to install deps without running any checks.
 .PHONY: local
 local: $(BUF) ## local is what we run when testing locally. This checks lint and breaking changes
 	buf check lint
-	#buf check breaking --against '.git#branch=master'
+	buf check breaking --against '.git#branch=master'
 
 .PHONY: clean
 clean: ## clean deletes any files not checked in and the cache for all platforms.

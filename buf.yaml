@@ -1,6 +1,7 @@
 version: v1beta1
 build:
   roots:
-    - metro-proto
-    - third_party/grpc-gateway
-    - third_party/googleapis
+    - metro-proto/common
+    - metro-proto/metro
+    - metro-proto/third_party/grpc-gateway
+    - metro-proto/third_party/googleapis

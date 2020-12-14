@@ -3,6 +3,8 @@ package pushconsumer
 import (
 	"context"
 
+	"github.com/razorpay/metro/pkg/registry"
+
 	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/server"
@@ -10,10 +12,11 @@ import (
 
 // Service for push consumer
 type Service struct {
-	ctx    context.Context
-	srv    *server.Server
-	health *health.Core
-	config *config.ComponentConfig
+	ctx      context.Context
+	srv      *server.Server
+	health   *health.Core
+	config   *config.ComponentConfig
+	registry registry.Registry
 }
 
 // NewService creates an instance of new push consumer service
@@ -26,6 +29,15 @@ func NewService(ctx context.Context, config *config.ComponentConfig) *Service {
 
 // Start the service
 func (c *Service) Start(errChan chan<- error) {
+	var err error
+
+	// Init the Registry
+	c.registry, err = registry.NewRegistry(&c.config.Registry)
+
+	if err != nil {
+		errChan <- err
+	}
+
 	//1. Register Node with Consul
 
 	// 2. Create a channel and go routine

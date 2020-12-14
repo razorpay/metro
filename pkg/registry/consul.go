@@ -20,7 +20,7 @@ type ConsulConfig struct {
 var once sync.Once
 
 // NewConsulClient creates a new consul client
-func NewConsulClient(config ConsulConfig) (*ConsulClient, error) {
+func NewConsulClient(config *ConsulConfig) (Registry, error) {
 	var c *ConsulClient
 	var err error
 
@@ -40,7 +40,7 @@ func NewConsulClient(config ConsulConfig) (*ConsulClient, error) {
 }
 
 // CreateSession creates a session to consul
-func (c *ConsulClient) CreateSession(name string) (string, error) {
+func (c *ConsulClient) Register(name string) (string, error) {
 	sessionID, _, err := c.client.Session().Create(&api.SessionEntry{
 		Name: name,
 	}, nil)
@@ -63,7 +63,7 @@ func (c *ConsulClient) RenewPeriodic(sessionID string, doneChan chan struct{}) e
 }
 
 // Destroy consul session
-func (c *ConsulClient) Destroy(sessionID string) error {
+func (c *ConsulClient) Deregister(sessionID string) error {
 	_, err := c.client.Session().Destroy(sessionID, nil)
 
 	return err
@@ -100,7 +100,7 @@ func (c *ConsulClient) Release(sessionID string, key string, value string) (bool
 }
 
 // WatchKey watches a key
-func (c *ConsulClient) WatchKey(key string) error {
+func (c *ConsulClient) Watch(sessionId string, key string) error {
 	plan, err := watch.Parse(map[string]interface{}{
 		"type":   "keyprefix",
 		"prefix": key,

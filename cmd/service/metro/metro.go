@@ -11,7 +11,7 @@ import (
 
 	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/config"
-	config_reader "github.com/razorpay/metro/pkg/config"
+	configreader "github.com/razorpay/metro/pkg/config"
 )
 
 const (
@@ -47,7 +47,7 @@ func Init(env string, componentName string) {
 
 	// read the componentName config for env
 	var appConfig config.Config
-	err := config_reader.NewDefaultConfig().Load(env, &appConfig)
+	err := configreader.NewDefaultConfig().Load(env, &appConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,19 +55,19 @@ func Init(env string, componentName string) {
 	componentConfig, ok := appConfig[componentName]
 
 	if !ok {
-		log.Fatal("%v config missing", componentName)
+		log.Fatalf("%v config missing", componentName)
 	}
 
 	err = boot.InitMonitoring(env, &componentConfig)
 
 	if err != nil {
-		log.Fatal("error in setting up monitoring : %v", err)
+		log.Fatalf("error in setting up monitoring : %v", err)
 	}
 
 	// Init the requested componentName
 	component, err = NewComponent(componentName, &componentConfig)
 	if err != nil {
-		log.Fatal("error in creating metro component : %v", err)
+		log.Fatalf("error in creating metro component : %v", err)
 	}
 }
 

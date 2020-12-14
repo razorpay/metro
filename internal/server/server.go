@@ -13,7 +13,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/internal/health"
 	grpcinterceptor "github.com/razorpay/metro/internal/interceptors"
@@ -23,7 +22,7 @@ import (
 
 // Server in a composition of various types of servers
 type Server struct {
-	config         config.NetworkInterfaces
+	config         *config.ComponentConfig
 	internalServer *http.Server
 	grpcServer     *grpc.Server
 	httpServer     *http.Server
@@ -33,7 +32,7 @@ type registerGrpcHandlers func(server *grpc.Server) error
 type registerHTTPHandlers func(mux *runtime.ServeMux) error
 
 // NewServer returns the Server
-func NewServer(config config.NetworkInterfaces, registerGrpcHandlers registerGrpcHandlers,
+func NewServer(config *config.ComponentConfig, registerGrpcHandlers registerGrpcHandlers,
 	registerHTTPHandlers registerHTTPHandlers, interceptors ...grpc.UnaryServerInterceptor) (*Server, error) {
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
@@ -62,7 +61,7 @@ func NewServer(config config.NetworkInterfaces, registerGrpcHandlers registerGrp
 func (s *Server) Start(errChan chan<- error) {
 	// Start gRPC server.
 	go func(chan<- error) {
-		listener, err := net.Listen("tcp", s.config.GrpcServerAddress)
+		listener, err := net.Listen("tcp", s.config.Interfaces.API.GrpcServerAddress)
 		if err != nil {
 			errChan <- err
 		}
@@ -75,7 +74,7 @@ func (s *Server) Start(errChan chan<- error) {
 
 	// Start internal HTTP server. Used for exposing prometheus metrics.
 	go func(chan<- error) {
-		listener, err := net.Listen("tcp", s.config.InternalServerAddress)
+		listener, err := net.Listen("tcp", s.config.Interfaces.API.InternalServerAddress)
 		if err != nil {
 			errChan <- err
 		}
@@ -88,7 +87,7 @@ func (s *Server) Start(errChan chan<- error) {
 
 	// Start HTTP server for gRPC gateway.
 	go func(chan<- error) {
-		listener, err := net.Listen("tcp", s.config.HTTPServerAddress)
+		listener, err := net.Listen("tcp", s.config.Interfaces.API.HTTPServerAddress)
 		if err != nil {
 			errChan <- err
 		}
@@ -104,10 +103,10 @@ func (s *Server) Start(errChan chan<- error) {
 func (s *Server) Stop(ctx context.Context, healthCore *health.Core) error {
 	logger.Ctx(ctx).Info("marking server unhealthy")
 	healthCore.MarkUnhealthy()
-	time.Sleep(time.Duration(boot.ComponentConfig.App.ShutdownDelay) * time.Second)
+	time.Sleep(time.Duration(s.config.App.ShutdownDelay) * time.Second)
 	s.grpcServer.GracefulStop()
 
-	err := stopHTTPServers(ctx, []*http.Server{s.internalServer, s.httpServer}, boot.ComponentConfig.App.ShutdownTimeout)
+	err := stopHTTPServers(ctx, []*http.Server{s.internalServer, s.httpServer}, s.config.App.ShutdownTimeout)
 	return err
 }
 

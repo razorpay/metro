@@ -6,9 +6,12 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 
 	"github.com/rakyll/statik/fs"
 )
+
+const metroAPIPrefix = "/v1"
 
 // Service for openapi-server
 type Service struct {
@@ -48,13 +51,17 @@ func (svc *Service) runOpenAPIHandler() error {
 		return err
 	}
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(statikFS))
-	mux.HandleFunc("/v1/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		httputil.NewSingleHostReverseProxy(&url.URL{
-			Scheme: "http",
-			Host:   svc.config.GRPCGatewayAddress,
-		}).ServeHTTP(w, r)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.RequestURI, metroAPIPrefix) {
+			httputil.NewSingleHostReverseProxy(&url.URL{
+				Scheme: "http",
+				Host:   svc.config.GRPCGatewayAddress,
+			}).ServeHTTP(w, r)
+		} else {
+			http.FileServer(statikFS).ServeHTTP(w, r)
+		}
 	})
+
 	server := http.Server{Addr: svc.config.HTTPServerAddress, Handler: mux}
 	err = server.ListenAndServe()
 	if err != nil {

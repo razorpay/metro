@@ -25,6 +25,12 @@
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
+    [producer.registry]
+        driver                    = "consul"
+        [producer.registry.consulconfig]
+            [producer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"
 
 [push-consumer]
     [push-consumer.app]
@@ -53,6 +59,12 @@
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
+    [push-consumer.registry]
+        driver                    = "consul"
+        [push-consumer.registry.consulconfig]
+            [push-consumer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"
 
 [pull-consumer]
     [pull-consumer.app]
@@ -81,3 +93,9 @@
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
+    [pull-consumer.registry]
+        driver                    = "consul"
+        [pull-consumer.registry.consulconfig]
+            [pull-consumer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"

@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
+	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/tracing"
 )
 
@@ -15,6 +16,7 @@ type ComponentConfig struct {
 	Sentry     *sentry.Config
 	Tracing    tracing.Config
 	Broker     Broker
+	Registry   registry.Config
 	Interfaces struct {
 		API NetworkInterfaces
 	}

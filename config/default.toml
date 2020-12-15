@@ -20,6 +20,12 @@
         [producer.broker.BrokerConfig]
             [producer.broker.BrokerConfig.Producer]
                 Brokers       = ["localhost:9021"]
+    [producer.registry]
+        driver                    = "consul"
+        [producer.registry.consulconfig]
+            [producer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"
     [producer.interfaces]
         [producer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
@@ -31,6 +37,12 @@
         [pushConsumer.broker.BrokerConfig]
             [pushConsumer.broker.BrokerConfig.Consumer]
                 Brokers       = ["localhost:9021"]
+    [pushConsumer.registry]
+        driver                    = "consul"
+        [pushConsumer.registry.consulconfig]
+            [pushConsumer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"
     [pushConsumer.interfaces]
         [pushConsumer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8084"
@@ -42,8 +54,14 @@
         [pullConsumer.broker.BrokerConfig]
             [pullConsumer.broker.BrokerConfig.Consumer]
                 Brokers       = ["localhost:9021"]
-    [pullConsumer.interfaces]
-        [pullConsumer.interfaces.api]
+    [pull-consumer.registry]
+        driver                    = "consul"
+        [pull-consumer.registry.consulconfig]
+            [pull-consumer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"
+    [pull-consumer.interfaces]
+        [pull-consumer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8087"
             HttpServerAddress     = "0.0.0.0:8088"
             InternalServerAddress = "0.0.0.0:8089"

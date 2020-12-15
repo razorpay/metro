@@ -20,12 +20,24 @@
         [producer.broker.BrokerConfig]
             [producer.broker.BrokerConfig.Producer]
                 Brokers       = ["localhost:9092"]
+    [producer.registry]
+        driver                    = "consul"
+        [producer.registry.consulconfig]
+            [producer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"
     [producer.interfaces]
         [producer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
 [pushConsumer]
+    [pushConsumer.registry]
+        driver                    = "consul"
+        [pushConsumer.registry.consulconfig]
+            [producer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"
     [pushConsumer.broker]
         variant               = "kafka"
         [pushConsumer.broker.BrokerConfig]
@@ -37,6 +49,12 @@
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
 [pullConsumer]
+    [pullConsumer.registry]
+        driver                    = "consul"
+        [push-consumer.registry.consulconfig]
+            [push-consumer.registry.consulconfig.config]
+                address               = "localhost:8500"
+                scheme                = "http"
     [pullConsumer.broker]
         variant               = "kafka"
         [pullConsumer.broker.BrokerConfig]

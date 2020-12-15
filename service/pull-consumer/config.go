@@ -2,11 +2,13 @@ package pullconsumer
 
 import (
 	"github.com/razorpay/metro/pkg/messagebroker"
+	"github.com/razorpay/metro/pkg/registry"
 )
 
 // Config for pullconsumer
 type Config struct {
 	Broker     Broker
+	Registry   registry.Config
 	Interfaces struct {
 		API NetworkInterfaces
 	}

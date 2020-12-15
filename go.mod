@@ -3,12 +3,10 @@ module github.com/razorpay/metro
 go 1.15
 
 require (
-	github.com/bufbuild/buf v0.33.0 // indirect
-	github.com/bykof/go-plantuml v0.0.0-20200125152403-0ce50616dc25 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.5.2
 	github.com/getsentry/sentry-go v0.8.0
-	github.com/golang/protobuf v1.4.3
+	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -30,6 +28,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 // indirect
+	golang.org/x/sys v0.0.0-20201211090839-8ad439b19e0f // indirect
 	golang.org/x/tools v0.0.0-20201204222352-654352759326 // indirect
 	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a
 	google.golang.org/grpc v1.33.2

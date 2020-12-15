@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	healthv1 "github.com/razorpay/metro/rpc/health/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 // Server has methods implementing of server rpc.
@@ -20,12 +20,12 @@ func NewServer(core *Core) *Server {
 }
 
 // Check returns service's serving status.
-func (h *Server) Check(_ context.Context, req *healthv1.HealthCheckRequest) (*healthv1.HealthCheckResponse, error) {
+func (h *Server) Check(_ context.Context, req *metrov1.HealthCheckRequest) (*metrov1.HealthCheckResponse, error) {
 	if !h.core.IsHealthy() {
 		return nil, status.Error(codes.Unavailable, "Unhealthy")
 	}
 
-	return &healthv1.HealthCheckResponse{
-		ServingStatus: healthv1.HealthCheckResponse_SERVING_STATUS_SERVING,
+	return &metrov1.HealthCheckResponse{
+		ServingStatus: metrov1.HealthCheckResponse_SERVING_STATUS_SERVING,
 	}, nil
 }

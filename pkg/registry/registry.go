@@ -10,12 +10,12 @@ type Registry interface {
 	// Returns error on failure
 	Deregister(string) error
 
-	// Acquires a lock for a registration_id on a given key and value pair
+	// Acquire a lock for a registration_id on a given key and value pair
 	Acquire(string, string, string) (bool, error)
 
 	// Release a lock for a restration_id on a given key and value pair
 	Release(string, string, string) (bool, error)
 
-	// watch on a key for a given registration_id
+	// Watch on a key for a given registration_id
 	Watch(string, string) error
 }

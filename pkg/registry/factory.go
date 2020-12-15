@@ -3,6 +3,7 @@ package registry
 import "fmt"
 
 const (
+	// Consul constant for getting ConsulClient from Registry factory
 	Consul = "consul"
 )
 

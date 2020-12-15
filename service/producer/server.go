@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	producerv1 "github.com/razorpay/metro/rpc/producer/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 type server struct {
@@ -16,7 +16,7 @@ func newServer(core *core) *server {
 }
 
 // Produce messages to a topic
-func (s server) Produce(ctx context.Context, request *producerv1.ProduceRequest) (*producerv1.ProduceResponse, error) {
+func (s server) Produce(ctx context.Context, request *metrov1.ProduceRequest) (*metrov1.ProduceResponse, error) {
 
 	log.Println("produce request received")
 
@@ -29,5 +29,5 @@ func (s server) Produce(ctx context.Context, request *producerv1.ProduceRequest)
 
 	log.Println("produce request completed")
 
-	return &producerv1.ProduceResponse{MessageIds: msgIds}, nil
+	return &metrov1.ProduceResponse{MessageIds: msgIds}, nil
 }

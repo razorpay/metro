@@ -9,8 +9,7 @@ import (
 	"github.com/razorpay/metro/internal/health"
 	internalserver "github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/pkg/messagebroker"
-	healthv1 "github.com/razorpay/metro/rpc/health/v1"
-	producerv1 "github.com/razorpay/metro/rpc/producer/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 	"google.golang.org/grpc"
 )
@@ -51,8 +50,8 @@ func (svc *Service) Start(errChan chan<- error) {
 	}
 
 	grpcServer, err := internalserver.StartGRPCServer(errChan, svc.config.Interfaces.API.GrpcServerAddress, func(server *grpc.Server) error {
-		healthv1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-		producerv1.RegisterProducerServer(server, newServer(brokerCore))
+		metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
+		metrov1.RegisterProducerServer(server, newServer(brokerCore))
 		return nil
 	},
 		getInterceptors()...,
@@ -62,12 +61,12 @@ func (svc *Service) Start(errChan chan<- error) {
 	}
 
 	httpServer, err := internalserver.StartHTTPServer(errChan, svc.config.Interfaces.API.HTTPServerAddress, func(mux *runtime.ServeMux) error {
-		err := healthv1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
 		}
 
-		err = producerv1.RegisterProducerHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		err = metrov1.RegisterProducerHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
 		}

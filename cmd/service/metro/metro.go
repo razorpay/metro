@@ -20,7 +20,7 @@ const (
 	PullConsumer = "pull-consumer"
 	// PushConsumer component which fires webhooks to subscribers
 	PushConsumer = "push-consumer"
-	// OpenAPI Server to server swagger docs
+	// OpenAPIServer to server swagger docs
 	OpenAPIServer = "openapi-server"
 )
 

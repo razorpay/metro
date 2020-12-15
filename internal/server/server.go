@@ -17,6 +17,7 @@ import (
 type registerGrpcHandlers func(server *grpc.Server) error
 type registerHTTPHandlers func(mux *runtime.ServeMux) error
 
+// StartGRPCServer with handlers and interceptors
 func StartGRPCServer(errChan chan<- error, address string, registerGrpcHandlers registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
@@ -37,6 +38,7 @@ func StartGRPCServer(errChan chan<- error, address string, registerGrpcHandlers 
 	return grpcServer, nil
 }
 
+// StartHTTPServer with handlers
 func StartHTTPServer(errChan chan<- error, address string, registerHTTPHandlers registerHTTPHandlers) (*http.Server, error) {
 	httpServer, err := newHTTPServer(registerHTTPHandlers)
 	if err != nil {

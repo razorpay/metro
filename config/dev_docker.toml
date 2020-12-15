@@ -1,20 +1,20 @@
+[app]
+    appEnv                = "default"
+    serviceName           = "metro-producer"
+    shutdownTimeout       = 2
+    shutdownDelay         = 2
+    gitCommitHash         = "nil"
+[tracing]
+    serviceName           = "metro-producer"
+    logSpans              = false
+    disabled              = false
+    localAgentHostPort    = "jaeger:6831"
+[sentry]
+    appName               = "metro-producer"
+    dsn                   = "dummy"
+    mock                  = true
+    errorLevel            = 1
 [producer]
-    [producer.app]
-        appEnv                = "default"
-        serviceName           = "metro-producer"
-        shutdownTimeout       = 2
-        shutdownDelay         = 2
-        gitCommitHash         = "nil"
-    [producer.tracing]
-        serviceName           = "metro-producer"
-        logSpans              = false
-        disabled              = false
-        localAgentHostPort    = "jaeger:6831"
-    [producer.sentry]
-        appName               = "metro-producer"
-        dsn                   = "dummy"
-        mock                  = true
-        errorLevel            = 1
     [producer.broker]
         variant               = "kafka"
         [producer.broker.BrokerConfig]
@@ -25,59 +25,29 @@
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
-
-[push-consumer]
-    [push-consumer.app]
-        appEnv                = "default"
-        serviceName           = "metro-push-consumer"
-        shutdownTimeout       = 2
-        shutdownDelay         = 2
-        gitCommitHash         = "nil"
-    [push-consumer.tracing]
-        serviceName           = "metro-push-consumer"
-        logSpans              = false
-        disabled              = false
-        localAgentHostPort    = "jaeger:6831"
-    [push-consumer.sentry]
-        appName               = "metro-push-consumer"
-        dsn                   = "dummy"
-        mock                  = true
-        errorLevel            = 1
-    [push-consumer.broker]
+[pushConsumer]
+    [pushConsumer.broker]
         variant               = "kafka"
-        [push-consumer.broker.BrokerConfig]
-            [push-consumer.broker.BrokerConfig.Consumer]
+        [pushConsumer.broker.BrokerConfig]
+            [pushConsumer.broker.BrokerConfig.Consumer]
                 Brokers       = ["localhost:9092"]
-    [push-consumer.interfaces]
-        [push-consumer.interfaces.api]
+    [pushConsumer.interfaces]
+        [pushConsumer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
-
-[pull-consumer]
-    [pull-consumer.app]
-        appEnv                = "default"
-        serviceName           = "metro-pull-consumer"
-        shutdownTimeout       = 2
-        shutdownDelay         = 2
-        gitCommitHash         = "nil"
-    [pull-consumer.tracing]
-        serviceName           = "metro-pull-consumer"
-        logSpans              = false
-        disabled              = false
-        localAgentHostPort    = "jaeger:6831"
-    [pull-consumer.sentry]
-        appName               = "metro-pull-consumer"
-        dsn                   = "dummy"
-        mock                  = true
-        errorLevel            = 1
-    [pull-consumer.broker]
+[pullConsumer]
+    [pullConsumer.broker]
         variant               = "kafka"
-        [pull-consumer.broker.BrokerConfig]
-            [pull-consumer.broker.BrokerConfig.Consumer]
+        [pullConsumer.broker.BrokerConfig]
+            [pullConsumer.broker.BrokerConfig.Consumer]
                 Brokers       = ["localhost:9092"]
-    [pull-consumer.interfaces]
-        [pull-consumer.interfaces.api]
+    [pullConsumer.interfaces]
+        [pullConsumer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
             InternalServerAddress = "0.0.0.0:8083"
+[openAPIServer]
+    httpServerAddress     = "0.0.0.0:3000"
+    grpcGatewayAddress    = "localhost:8082"
+    scheme                = "http"

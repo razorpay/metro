@@ -7,11 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/razorpay/metro/pkg/logger"
-
 	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/config"
 	configreader "github.com/razorpay/metro/pkg/config"
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 const (
@@ -21,9 +20,11 @@ const (
 	PullConsumer = "pull-consumer"
 	// PushConsumer component which fires webhooks to subscribers
 	PushConsumer = "push-consumer"
+	// OpenAPI Server to server swagger docs
+	OpenAPIServer = "openapi-server"
 )
 
-var validComponents = []string{Producer, PullConsumer, PushConsumer}
+var validComponents = []string{Producer, PullConsumer, PushConsumer, OpenAPIServer}
 var component *Component
 
 // isValidComponent validates if the input component is a valid metro component
@@ -38,7 +39,7 @@ func isValidComponent(component string) bool {
 }
 
 // Init initializes all modules (logger, tracing, config, metro component)
-func Init(env string, componentName string) {
+func Init(ctx context.Context, env string, componentName string) {
 	// componentName validation
 	ok := isValidComponent(componentName)
 	if !ok {
@@ -52,20 +53,18 @@ func Init(env string, componentName string) {
 		log.Fatal(err)
 	}
 
-	componentConfig, ok := appConfig[componentName]
-
 	if !ok {
 		log.Fatalf("%v config missing", componentName)
 	}
 
-	err = boot.InitMonitoring(env, &componentConfig)
+	err = boot.InitMonitoring(env, appConfig.App, appConfig.Sentry, appConfig.Tracing)
 
 	if err != nil {
 		log.Fatalf("error in setting up monitoring : %v", err)
 	}
 
 	// Init the requested componentName
-	component, err = NewComponent(componentName, &componentConfig)
+	component, err = NewComponent(ctx, componentName, appConfig)
 	if err != nil {
 		log.Fatalf("error in creating metro component : %v", err)
 	}
@@ -81,7 +80,7 @@ func Run(ctx context.Context) {
 		}
 	}()
 
-	errChan := component.Start(ctx)
+	errChan := component.Start()
 
 	// Handle SIGINT & SIGTERM - Shutdown gracefully
 	c := make(chan os.Signal, 1)

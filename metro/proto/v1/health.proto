@@ -1,13 +1,12 @@
-// Proto, (c) Razorpay 2019
+// (c) metro 2020
 syntax = "proto3";
 
-package rzp.common.health.v1;
+package metro.v1;
 
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 
-option go_package = "common/health/v1;healthv1";
-option php_namespace = "Rzp\\Common\\Health\\V1";
+option go_package = "github.com/razorpay/metro-proto/metro/proto/v1;metrov1";
 
 // These annotations are used when generating the OpenAPI file.
 option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {

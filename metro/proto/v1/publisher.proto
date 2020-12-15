@@ -1,16 +1,10 @@
-// Protocol Buffers, (c) Razorpay 2020
+// (c) metro 2020
 
 syntax = "proto3";
 
-package metro.producer.v1;
+package metro.v1;
 
-option csharp_namespace = "Metro.Producer.V1";
-option go_package = "metro/producer/v1;producerv1";
-option java_multiple_files = true;
-option java_outer_classname = "ProducerApiProto";
-option java_package = "com.metro.producer.v1";
-option objc_class_prefix = "MP";
-option php_namespace = "Metro\\Producer\\V1";
+option go_package = "github.com/razorpay/metro-proto/metro/proto/v1;metrov1";
 
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";

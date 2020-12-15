@@ -1,8 +1,6 @@
 version: v1beta1
 build:
   roots:
-    - common
-    - example
     - metro
     - third_party/googleapis
     - third_party/grpc-gateway

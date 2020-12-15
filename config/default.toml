@@ -22,7 +22,6 @@
                 Brokers       = ["localhost:9021"]
     [producer.registry]
         driver                    = "consul"
-        name                      = "metro"
         [producer.registry.consulconfig]
             [producer.registry.consulconfig.config]
                 address               = "localhost:8500"
@@ -56,7 +55,6 @@
                 Brokers       = ["localhost:9021"]
     [push-consumer.registry]
         driver                    = "consul"
-        name                      = "metro"
         [push-consumer.registry.consulconfig]
             [push-consumer.registry.consulconfig.config]
                 address               = "localhost:8500"
@@ -90,7 +88,6 @@
                 Brokers       = ["localhost:9021"]
     [pull-consumer.registry]
         driver                    = "consul"
-        name                      = "metro"
         [pull-consumer.registry.consulconfig]
             [pull-consumer.registry.consulconfig.config]
                 address               = "localhost:8500"

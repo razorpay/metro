@@ -27,7 +27,7 @@ make go-build-metro
 ```
 The binary can be found at `bin/` directory
 ### Running the binary
-metro has 3 components, all components are part of same binary and can be ran using a cmd param `component`
+metro has 4 components, all components are part of same binary and can be ran using a cmd param `component`
 
 Running Metro Producer
 ```
@@ -42,6 +42,11 @@ bin/metro -component pull-consumer
 Running Metro Push Consumer
 ```
 bin/metro -component push-consumer
+```
+
+Running OpenAPI Server
+```
+bin/metro -component openapi-server
 ```
 
 ### Building the `metro` docker image
@@ -92,10 +97,9 @@ To update the submodule to the latest remote commit
 git submodule update --remote --merge
 ```
  ## Accessing the APIs
- `metro` exposes a
+ The default ports for various services in `metro`
 * gRPC endpoint on port 8081
 * `grpc-gateway` HTTP endpoint on port 8082
-* `/metrics` HTTP endpoint on 8003
 * swagger docs on port 3000
 
 

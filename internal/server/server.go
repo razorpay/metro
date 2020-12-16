@@ -1,10 +1,8 @@
 package server
 
 import (
-	"context"
 	"net"
 	"net/http"
-	"time"
 
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -12,117 +10,53 @@ import (
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/razorpay/metro/internal/config"
-	"github.com/razorpay/metro/internal/health"
 	grpcinterceptor "github.com/razorpay/metro/internal/interceptors"
-	"github.com/razorpay/metro/pkg/logger"
 	"google.golang.org/grpc"
 )
-
-// Server in a composition of various types of servers
-type Server struct {
-	config         *config.ComponentConfig
-	internalServer *http.Server
-	grpcServer     *grpc.Server
-	httpServer     *http.Server
-}
 
 type registerGrpcHandlers func(server *grpc.Server) error
 type registerHTTPHandlers func(mux *runtime.ServeMux) error
 
-// NewServer returns the Server
-func NewServer(config *config.ComponentConfig, registerGrpcHandlers registerGrpcHandlers,
-	registerHTTPHandlers registerHTTPHandlers, interceptors ...grpc.UnaryServerInterceptor) (*Server, error) {
+// StartGRPCServer with handlers and interceptors
+func StartGRPCServer(errChan chan<- error, address string, registerGrpcHandlers registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
 		return nil, err
 	}
+	// Start gRPC server.
+	go func(chan<- error) {
+		listener, err := net.Listen("tcp", address)
+		if err != nil {
+			errChan <- err
+		}
 
+		err = grpcServer.Serve(listener)
+		if err != nil {
+			errChan <- err
+		}
+	}(errChan)
+	return grpcServer, nil
+}
+
+// StartHTTPServer with handlers
+func StartHTTPServer(errChan chan<- error, address string, registerHTTPHandlers registerHTTPHandlers) (*http.Server, error) {
 	httpServer, err := newHTTPServer(registerHTTPHandlers)
 	if err != nil {
 		return nil, err
 	}
-
-	internalServer, err := newInternalServer()
-	if err != nil {
-		return nil, err
-	}
-
-	return &Server{
-		config:         config,
-		internalServer: internalServer,
-		grpcServer:     grpcServer,
-		httpServer:     httpServer,
-	}, nil
-}
-
-// Start the servers
-func (s *Server) Start(errChan chan<- error) {
-	// Start gRPC server.
-	go func(chan<- error) {
-		listener, err := net.Listen("tcp", s.config.Interfaces.API.GrpcServerAddress)
-		if err != nil {
-			errChan <- err
-		}
-
-		err = s.grpcServer.Serve(listener)
-		if err != nil {
-			errChan <- err
-		}
-	}(errChan)
-
-	// Start internal HTTP server. Used for exposing prometheus metrics.
-	go func(chan<- error) {
-		listener, err := net.Listen("tcp", s.config.Interfaces.API.InternalServerAddress)
-		if err != nil {
-			errChan <- err
-		}
-
-		err = s.internalServer.Serve(listener)
-		if err != nil && err != http.ErrServerClosed {
-			errChan <- err
-		}
-	}(errChan)
-
 	// Start HTTP server for gRPC gateway.
 	go func(chan<- error) {
-		listener, err := net.Listen("tcp", s.config.Interfaces.API.HTTPServerAddress)
+		listener, err := net.Listen("tcp", address)
 		if err != nil {
 			errChan <- err
 		}
 
-		err = s.httpServer.Serve(listener)
+		err = httpServer.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
 			errChan <- err
 		}
 	}(errChan)
-}
-
-// Stop the servers
-func (s *Server) Stop(ctx context.Context, healthCore *health.Core) error {
-	logger.Ctx(ctx).Info("marking server unhealthy")
-	healthCore.MarkUnhealthy()
-	time.Sleep(time.Duration(s.config.App.ShutdownDelay) * time.Second)
-	s.grpcServer.GracefulStop()
-
-	err := stopHTTPServers(ctx, []*http.Server{s.internalServer, s.httpServer}, s.config.App.ShutdownTimeout)
-	return err
-}
-
-func stopHTTPServers(ctx context.Context, servers []*http.Server, timeout int) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
-	defer cancel()
-
-	var err error
-	for _, s := range servers {
-		e := s.Shutdown(ctx)
-		if e != nil {
-			err = e
-		}
-	}
-
-	return err
+	return httpServer, nil
 }
 
 func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
@@ -168,13 +102,5 @@ func newHTTPServer(r registerHTTPHandlers) (*http.Server, error) {
 	}
 
 	server := http.Server{Handler: mux}
-	return &server, nil
-}
-
-func newInternalServer() (*http.Server, error) {
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-	server := http.Server{Handler: mux}
-
 	return &server, nil
 }

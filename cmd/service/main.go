@@ -28,7 +28,7 @@ func main() {
 	env := boot.GetEnv()
 
 	// Init app dependencies
-	metro.Init(env, *componentName)
+	metro.Init(ctx, env, *componentName)
 
 	// Run metro
 	metro.Run(ctx)

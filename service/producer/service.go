@@ -2,13 +2,10 @@ package producer
 
 import (
 	"context"
-	"log"
-	"mime"
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/rakyll/statik/fs"
-	"github.com/razorpay/metro/internal/config"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/health"
 	internalserver "github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -19,14 +16,15 @@ import (
 
 // Service for producer
 type Service struct {
-	ctx    context.Context
-	srv    *internalserver.Server
-	health *health.Core
-	config *config.ComponentConfig
+	ctx        context.Context
+	grpcServer *grpc.Server
+	httpServer *http.Server
+	health     *health.Core
+	config     *Config
 }
 
 // NewService creates an instance of new producer service
-func NewService(ctx context.Context, config *config.ComponentConfig) *Service {
+func NewService(ctx context.Context, config *Config) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,
@@ -51,11 +49,18 @@ func (svc *Service) Start(errChan chan<- error) {
 		errChan <- err
 	}
 
-	s, err := internalserver.NewServer(svc.config, func(server *grpc.Server) error {
+	grpcServer, err := internalserver.StartGRPCServer(errChan, svc.config.Interfaces.API.GrpcServerAddress, func(server *grpc.Server) error {
 		metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 		metrov1.RegisterProducerServer(server, newServer(brokerCore))
 		return nil
-	}, func(mux *runtime.ServeMux) error {
+	},
+		getInterceptors()...,
+	)
+	if err != nil {
+		errChan <- err
+	}
+
+	httpServer, err := internalserver.StartHTTPServer(errChan, svc.config.Interfaces.API.HTTPServerAddress, func(mux *runtime.ServeMux) error {
 		err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
@@ -65,50 +70,27 @@ func (svc *Service) Start(errChan chan<- error) {
 		if err != nil {
 			return err
 		}
-
+		mux.Handle("GET", runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "metrics"}, "")), func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+			promhttp.Handler().ServeHTTP(w, r)
+		})
 		return nil
-	},
-		getInterceptors()...,
-	)
-
+	})
 	if err != nil {
 		errChan <- err
 	}
 
-	s.Start(errChan)
-
-	svc.srv = s
+	svc.grpcServer = grpcServer
+	svc.httpServer = httpServer
 	svc.health = healthCore
-
-	err = runOpenAPIHandler()
-	if err != nil {
-		errChan <- err
-	}
 }
 
 // Stop the service
 func (svc *Service) Stop() error {
-	return svc.srv.Stop(svc.ctx, svc.health)
+	svc.grpcServer.GracefulStop()
+	svc.httpServer.Shutdown(svc.ctx)
+	return nil
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {
 	return []grpc.UnaryServerInterceptor{}
-}
-
-// runOpenAPIHandler serves an OpenAPI UI.
-// Adapted from https://github.com/philips/grpc-gateway-example/blob/a269bcb5931ca92be0ceae6130ac27ae89582ecc/cmd/serve.go#L63
-func runOpenAPIHandler() error {
-	mime.AddExtensionType(".svg", "image/svg+xml")
-
-	statikFS, err := fs.New()
-	if err != nil {
-		return err
-	}
-	http.Handle("/", http.FileServer(statikFS))
-	log.Println("Listening on :3000...")
-	err = http.ListenAndServe(":3000", nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }

@@ -3,24 +3,20 @@ package pushconsumer
 import (
 	"context"
 
-	"github.com/razorpay/metro/pkg/registry"
-
-	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/internal/health"
-	"github.com/razorpay/metro/internal/server"
+	"github.com/razorpay/metro/pkg/registry"
 )
 
 // Service for push consumer
 type Service struct {
 	ctx      context.Context
-	srv      *server.Server
 	health   *health.Core
-	config   *config.ComponentConfig
+	config   *Config
 	registry registry.Registry
 }
 
 // NewService creates an instance of new push consumer service
-func NewService(ctx context.Context, config *config.ComponentConfig) *Service {
+func NewService(ctx context.Context, config *Config) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,

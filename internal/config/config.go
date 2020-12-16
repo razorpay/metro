@@ -1,25 +1,23 @@
 package config
 
 import (
-	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
-	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/tracing"
+	openapiserver "github.com/razorpay/metro/service/openapi-server"
+	"github.com/razorpay/metro/service/producer"
+	pullconsumer "github.com/razorpay/metro/service/pull-consumer"
+	pushconsumer "github.com/razorpay/metro/service/push-consumer"
 )
 
 // Config is application config
-type Config map[string]ComponentConfig
-
-// ComponentConfig for Metro components
-type ComponentConfig struct {
-	App        App
-	Sentry     *sentry.Config
-	Tracing    tracing.Config
-	Broker     Broker
-	Registry   registry.Config
-	Interfaces struct {
-		API NetworkInterfaces
-	}
+type Config struct {
+	App           App
+	Tracing       tracing.Config
+	Sentry        sentry.Config
+	Producer      producer.Config
+	PushConsumer  pushconsumer.Config
+	PullConsumer  pullconsumer.Config
+	OpenAPIServer openapiserver.Config
 }
 
 // App contains application-specific config values
@@ -29,17 +27,4 @@ type App struct {
 	ShutdownTimeout int
 	ShutdownDelay   int
 	GitCommitHash   string
-}
-
-// Broker Config (Kafka/Pulsar)
-type Broker struct {
-	Variant      string // kafka or pulsar
-	BrokerConfig messagebroker.BrokerConfig
-}
-
-// NetworkInterfaces contains all exposed interfaces
-type NetworkInterfaces struct {
-	GrpcServerAddress     string
-	HTTPServerAddress     string
-	InternalServerAddress string
 }

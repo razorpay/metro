@@ -1,16 +1,16 @@
 [app]
     appEnv                = "default"
-    serviceName           = "metro-producer"
+    serviceName           = "metro"
     shutdownTimeout       = 2
     shutdownDelay         = 2
     gitCommitHash         = "nil"
 [tracing]
-    serviceName           = "metro-producer"
+    serviceName           = "metro"
     logSpans              = false
     disabled              = false
     localAgentHostPort    = "jaeger:6831"
 [sentry]
-    appName               = "metro-producer"
+    appName               = "metro"
     dsn                   = "dummy"
     mock                  = true
     errorLevel            = 1

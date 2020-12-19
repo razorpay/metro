@@ -20,6 +20,12 @@ type Config struct {
 	// refreshing leadership before giving up.
 	RenewDeadline time.Duration
 
+	// RetryPeriod is the duration the LeaderElector clients should wait
+	// between tries of actions.
+	//
+	// Core clients default this value to 2 seconds.
+	RetryPeriod time.Duration
+
 	// Callbacks are callbacks that are triggered during certain lifecycle
 	// events of the LeaderElector
 	Callbacks LeaderCallbacks
@@ -27,12 +33,13 @@ type Config struct {
 
 // LeaderCallbacks are callbacks that are triggered during certain
 // lifecycle events of the LeaderElector. These are invoked asynchronously.
-//
-// possible future callbacks:
-//  * OnChallenge()
 type LeaderCallbacks struct {
 	// OnStartedLeading is called when a LeaderElector client starts leading
 	OnStartedLeading func(context.Context)
 	// OnStoppedLeading is called when a LeaderElector client stops leading
 	OnStoppedLeading func()
+	// OnNewLeader is called when the client observes a leader that is
+	// not the previously observed leader. This includes the first observed
+	// leader when the client starts.
+	OnNewLeader func(identity string)
 }

@@ -119,5 +119,14 @@ func (c *ConsulClient) Watch(_ string, key string) error {
 	return nil
 }
 
+// Put a key value pair
+func (c *ConsulClient) Put(key string, value []byte) error {
+	_, err := c.client.KV().Put(&api.KVPair{
+		Key:   key,
+		Value: value,
+	}, nil)
+	return err
+}
+
 func (c *ConsulClient) handler(_ uint64, _ interface{}) {
 }

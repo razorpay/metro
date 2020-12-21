@@ -1,6 +1,7 @@
 package project
 
 import (
+	"github.com/razorpay/metro/internal/common"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -10,6 +11,7 @@ const (
 
 // Model for a project
 type Model struct {
+	common.BaseModel
 	Name      string            `json:"name"`
 	ProjectID string            `json:"projectId"`
 	Labels    map[string]string `json:"labels"`
@@ -26,10 +28,10 @@ func FromProto(proto *metrov1.Project) *Model {
 
 // Key returns the key for storing in the registry
 func (m *Model) Key() string {
-	return m.ProjectID
+	return m.Prefix() + m.ProjectID
 }
 
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
-	return projectPrefix
+	return m.BaseModel.Prefix() + projectPrefix
 }

@@ -6,20 +6,16 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
-const (
-	basePrefix = "registry/"
-)
-
-// Repo implements base repo methods
-type Repo struct {
+// BaseRepo implements base repo methods
+type BaseRepo struct {
 	Registry registry.Registry
 }
 
 // Create puts the model in the registry
-func (r Repo) Create(m Model) error {
+func (r BaseRepo) Create(m IModel) error {
 	b, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-	return r.Registry.Put(basePrefix+m.Prefix()+m.Key(), b)
+	return r.Registry.Put(m.Key(), b)
 }

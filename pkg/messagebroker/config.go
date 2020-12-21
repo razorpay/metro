@@ -4,9 +4,9 @@ import "time"
 
 // BrokerConfig holds broker's configuration
 type BrokerConfig struct {
-	Producer ProducerConfig
-	Consumer ConsumerConfig
-	Admin    AdminConfig
+	Producer *ProducerConfig
+	Consumer *ConsumerConfig
+	Admin    *AdminConfig
 }
 
 // ProducerConfig holds producer's configuration'

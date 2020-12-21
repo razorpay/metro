@@ -20,30 +20,44 @@ type KafkaBroker struct {
 
 // NewKafkaBroker returns a kafka broker
 func NewKafkaBroker(ctx context.Context, bConfig *BrokerConfig) (Broker, error) {
-	// init producer
-	producer, err := kakfapkg.NewProducer(&kakfapkg.ConfigMap{"bootstrap.servers": strings.Join(bConfig.Producer.Brokers, ",")})
-	if err != nil {
-		return nil, err
+
+	var producer *kakfapkg.Producer
+	if bConfig.Producer != nil {
+		// init producer
+		p, err := kakfapkg.NewProducer(&kakfapkg.ConfigMap{"bootstrap.servers": strings.Join(bConfig.Producer.Brokers, ",")})
+		if err != nil {
+			return nil, err
+		}
+		producer = p
 	}
 
-	// init consumer
-	consumer, err := kakfapkg.NewConsumer(&kakfapkg.ConfigMap{
-		"bootstrap.servers":  bConfig.Consumer.BrokerList,
-		"group.id":           bConfig.Consumer.GroupID,
-		"auto.offset.reset":  "earliest",
-		"enable.auto.commit": "false",
-	})
+	var consumer *kakfapkg.Consumer
+	if bConfig.Consumer != nil {
+		// init consumer
+		c, err := kakfapkg.NewConsumer(&kakfapkg.ConfigMap{
+			"bootstrap.servers":  bConfig.Consumer.BrokerList,
+			"group.id":           bConfig.Consumer.GroupID,
+			"auto.offset.reset":  "earliest",
+			"enable.auto.commit": "false",
+		})
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+
+		c.SubscribeTopics([]string{bConfig.Consumer.Topic}, nil)
+
+		consumer = c
 	}
 
-	consumer.SubscribeTopics([]string{bConfig.Consumer.Topic}, nil)
-
-	// init admin
-	admin, err := kakfapkg.NewAdminClient(&kakfapkg.ConfigMap{})
-	if err != nil {
-		return nil, err
+	var admin *kakfapkg.AdminClient
+	if bConfig.Admin != nil {
+		// init admin
+		a, err := kakfapkg.NewAdminClient(&kakfapkg.ConfigMap{})
+		if err != nil {
+			return nil, err
+		}
+		admin = a
 	}
 
 	if ctx == nil {
@@ -59,52 +73,103 @@ func NewKafkaBroker(ctx context.Context, bConfig *BrokerConfig) (Broker, error) 
 	}, nil
 }
 
-// CreateTopic ...
-func (k KafkaBroker) CreateTopic(topic string) error {
-	//TODO: Implement me
-	return nil
+func (k *KafkaBroker) CreateTopic(request CreateTopicRequest) CreateTopicResponse {
+	// TODO : validate request
+	topics := make([]kakfapkg.TopicSpecification, 0)
+	ts := kakfapkg.TopicSpecification{
+		Topic:         request.Name,
+		NumPartitions: request.NumPartitions,
+	}
+	topics = append(topics, ts)
+	result, err := k.Admin.CreateTopics(k.Ctx, topics, nil)
+	return CreateTopicResponse{
+		BaseResponse{
+			Error:    err,
+			Response: result,
+		},
+	}
 }
 
-// DeleteTopic ...
-func (k KafkaBroker) DeleteTopic(topic string) error {
-	//TODO: Implement me
-	return nil
+func (k *KafkaBroker) DeleteTopic(request DeleteTopicRequest) DeleteTopicResponse {
+	// TODO : validate request
+	topics := make([]string, 0)
+	topics = append(topics, request.Name)
+	result, err := k.Admin.DeleteTopics(k.Ctx, topics)
+	return DeleteTopicResponse{
+		BaseResponse{
+			Error:    err,
+			Response: result,
+		},
+	}
 }
 
-// Produce messages to broker
-func (k KafkaBroker) Produce(topic string, message []byte) (string, error) {
-	//TODO: Implement me
-	return "", nil
+func (k *KafkaBroker) SendMessage(request SendMessageToTopicRequest) SendMessageToTopicResponse {
+	// TODO : validate request
+
+	deliveryChan := make(chan kakfapkg.Event)
+
+	err := k.Producer.Produce(&kakfapkg.Message{
+		TopicPartition: kakfapkg.TopicPartition{Topic: &request.Topic, Partition: kakfapkg.PartitionAny},
+		Value:          request.Message,
+		Headers:        []kakfapkg.Header{{Key: "myTestHeader", Value: []byte("header values are binary")}},
+	}, deliveryChan)
+
+	e := <-deliveryChan
+	m := e.(*kakfapkg.Message)
+
+	if m.TopicPartition.Error != nil {
+		fmt.Printf("Delivery failed: %v\n", m.TopicPartition.Error)
+	} else {
+		fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",
+			*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+	}
+
+	close(deliveryChan)
+
+	return SendMessageToTopicResponse{
+		BaseResponse: BaseResponse{
+			Error:    err,
+			Response: m,
+		},
+		MessageId: e.String(),
+	}
 }
 
-// GetMessages returns a list of messages
-func (k KafkaBroker) GetMessages(numOfMessages int, timeout time.Duration) ([]string, error) {
+func (k *KafkaBroker) GetMessages(request GetMessagesFromTopicRequest) GetMessagesFromTopicResponse {
+	// TODO : validate request
 	var msgs []string
 	for {
 		var interval time.Duration
 		interval = k.Config.Consumer.PollInterval
 		if len(msgs) == 0 {
-			interval = timeout
+			interval = request.Timeout
 		}
 
 		msg, err := k.Consumer.ReadMessage(interval)
 		if err == nil {
 			msgs = append(msgs, string(msg.Value))
-			if len(msgs) == numOfMessages {
+			if len(msgs) == request.NumOfMessages {
 				k.Consumer.Commit()
-				return msgs, nil
+				return GetMessagesFromTopicResponse{
+					Messages: msgs,
+				}
 			}
 
 		} else {
 			// The client will automatically try to recover from all errors.
 			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
 
-			return msgs, nil
+			return GetMessagesFromTopicResponse{
+				Messages: msgs,
+				BaseResponse: BaseResponse{
+					Error: err,
+				},
+			}
 		}
 	}
 }
 
 // Commit commits the offset
-func (k KafkaBroker) Commit() {
+func (k *KafkaBroker) Commit() {
 	k.Consumer.Commit()
 }

@@ -3,6 +3,8 @@ module github.com/razorpay/metro
 go 1.15
 
 require (
+	github.com/bufbuild/buf v0.33.0 // indirect
+	github.com/bykof/go-plantuml v0.0.0-20200125152403-0ce50616dc25 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.5.2
 	github.com/getsentry/sentry-go v0.8.0

@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/razorpay/metro/pkg/logger"
+
 	"github.com/google/uuid"
 
 	"github.com/razorpay/metro/pkg/leaderelection"
@@ -18,7 +20,7 @@ type Service struct {
 	health   *health.Core
 	config   *Config
 	registry registry.Registry
-	NodeId   string
+	NodeID   string
 }
 
 // NewService creates an instance of new push consumer service
@@ -26,7 +28,7 @@ func NewService(ctx context.Context, config *Config) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,
-		NodeId: uuid.New().String(),
+		NodeID: uuid.New().String(),
 	}
 }
 
@@ -49,15 +51,16 @@ func (c *Service) Start(errChan chan<- error) {
 	go leaderelection.RunOrDie(c.ctx, leaderelection.Config{
 		// TODO: read values from config
 		Name:          "metro-push-consumer",
-		LeaseDuration: 15 * time.Second,
-		RenewDeadline: 10 * time.Second,
-		RetryPeriod:   2 * time.Second,
+		Path:          "leader/election",
+		LeaseDuration: 30 * time.Second,
+		RenewDeadline: 20 * time.Second,
+		RetryPeriod:   5 * time.Second,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
 				c.lead(ctx)
 			},
 			OnStoppedLeading: func() {
-				// we can do cleanup here
+				c.stepDown()
 			},
 			OnNewLeader: func(identity string) {
 			},
@@ -81,5 +84,9 @@ func (c *Service) Stop() error {
 }
 
 func (c *Service) lead(ctx context.Context) {
+	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.NodeID)
+}
 
+func (c *Service) stepDown() {
+	logger.Log.Infof("Node %s stepping down from leader", c.NodeID)
 }

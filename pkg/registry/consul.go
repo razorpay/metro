@@ -1,8 +1,8 @@
 package registry
 
 import (
-	"errors"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
@@ -41,15 +41,23 @@ func NewConsulClient(config *ConsulConfig) (Registry, error) {
 }
 
 // Register is used for node registration which creates a session to consul
-func (c *ConsulClient) Register(name string) (string, error) {
+func (c *ConsulClient) Register(name string, ttl time.Duration) (string, error) {
 	sessionID, _, err := c.client.Session().Create(&api.SessionEntry{
 		Name: name,
+		TTL:  ttl.String(),
 	}, nil)
 
 	if err != nil {
 		return "", err
 	}
 	return sessionID, nil
+}
+
+// IsRegistered is used checking the registration status
+func (c *ConsulClient) IsRegistered(sessionID string) bool {
+	session, _, _ := c.client.Session().Info(sessionID, nil)
+
+	return session != nil
 }
 
 // Renew renews consul session
@@ -67,7 +75,7 @@ func (c *ConsulClient) Deregister(sessionID string) error {
 }
 
 // Acquire a lock
-func (c *ConsulClient) Acquire(sessionID string, key string, value string) error {
+func (c *ConsulClient) Acquire(sessionID string, key string, value string) bool {
 	isAcquired, _, err := c.client.KV().Acquire(&api.KVPair{
 		Key:     key,
 		Value:   []byte(value),
@@ -75,18 +83,14 @@ func (c *ConsulClient) Acquire(sessionID string, key string, value string) error
 	}, nil)
 
 	if err != nil {
-		return err
+		return false
 	}
 
-	if isAcquired == false {
-		return errors.New("failed to acqurie lock")
-	}
-
-	return nil
+	return isAcquired
 }
 
 // Release a lock
-func (c *ConsulClient) Release(sessionID string, key string, value string) error {
+func (c *ConsulClient) Release(sessionID string, key string, value string) bool {
 	isReleased, _, err := c.client.KV().Release(&api.KVPair{
 		Key:     key,
 		Value:   []byte(value),
@@ -94,13 +98,10 @@ func (c *ConsulClient) Release(sessionID string, key string, value string) error
 	}, nil)
 
 	if err != nil {
-		return err
-	}
-	if isReleased == false {
-		return errors.New("failed to release lock on session")
+		return false
 	}
 
-	return nil
+	return isReleased
 }
 
 // Watch watches a key

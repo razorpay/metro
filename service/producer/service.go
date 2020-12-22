@@ -7,8 +7,10 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/health"
+	"github.com/razorpay/metro/internal/project"
 	internalserver "github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/pkg/messagebroker"
+	"github.com/razorpay/metro/pkg/registry"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 	"google.golang.org/grpc"
@@ -44,14 +46,18 @@ func (svc *Service) Start(errChan chan<- error) {
 	if err != nil {
 		errChan <- err
 	}
-	brokerCore, err := newCore(mb)
+
+	r, err := registry.NewRegistry(&svc.config.Registry)
 	if err != nil {
 		errChan <- err
 	}
 
+	projectCore := project.NewCore(project.NewRepo(r))
+
 	grpcServer, err := internalserver.StartGRPCServer(errChan, svc.config.Interfaces.API.GrpcServerAddress, func(server *grpc.Server) error {
 		metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-		metrov1.RegisterProducerServer(server, newServer(brokerCore))
+		metrov1.RegisterProducerServer(server, newPublisherServer(mb))
+		metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
 		return nil
 	},
 		getInterceptors()...,
@@ -70,6 +76,12 @@ func (svc *Service) Start(errChan chan<- error) {
 		if err != nil {
 			return err
 		}
+
+		err = metrov1.RegisterAdminServiceHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		if err != nil {
+			return err
+		}
+
 		mux.Handle("GET", runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "metrics"}, "")), func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 			promhttp.Handler().ServeHTTP(w, r)
 		})

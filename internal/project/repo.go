@@ -9,7 +9,7 @@ import (
 )
 
 // IRepo interface over database repository
-//go:generate mockgen -destination=mocks/repo/mock_repo.go -package=mocks . IRepo
+//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/repo/mock_repo.go -package=mocks . IRepo
 type IRepo interface {
 	Create(ctx context.Context, m common.IModel) error
 }

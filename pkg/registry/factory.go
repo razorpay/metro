@@ -8,7 +8,7 @@ const (
 )
 
 // NewRegistry initializes the registry instance based on Config
-func NewRegistry(config *Config) (Registry, error) {
+func NewRegistry(config *Config) (IRegistry, error) {
 	switch config.Driver {
 	case Consul:
 		r, err := NewConsulClient(&config.ConsulConfig)

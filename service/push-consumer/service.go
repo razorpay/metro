@@ -12,7 +12,7 @@ type Service struct {
 	ctx      context.Context
 	health   *health.Core
 	config   *Config
-	registry registry.Registry
+	registry registry.IRegistry
 }
 
 // NewService creates an instance of new push consumer service

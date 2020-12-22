@@ -1,5 +1,13 @@
 package project
 
+import "context"
+
+// ICore is an interface over project core
+//go:generate mockgen -destination=mocks/core/mock_core.go -package=mocks . ICore
+type ICore interface {
+	CreateProject(ctx context.Context, m *Model) error
+}
+
 // Core implements all business logic for project
 type Core struct {
 	repo IRepo
@@ -11,6 +19,6 @@ func NewCore(repo IRepo) *Core {
 }
 
 // CreateProject creates a new project
-func (c *Core) CreateProject(m *Model) error {
-	return c.repo.Create(m)
+func (c *Core) CreateProject(ctx context.Context, m *Model) error {
+	return c.repo.Create(ctx, m)
 }

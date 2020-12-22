@@ -49,7 +49,6 @@ COPY go.sum .
 ADD . /src/
 
 RUN make deps
-RUN make mock-gen
 RUN go mod vendor
 # move test-unit out with multi stage builds on github actions
 RUN make test-unit

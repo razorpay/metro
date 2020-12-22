@@ -1,7 +1,7 @@
 package registry
 
 // IRegistry implements a generic interface for service discovery
-//go:generate mockgen -destination=mocks/mock_registry.go -package=mocks . IRegistry
+//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/mock_registry.go -package=mocks . IRegistry
 type IRegistry interface {
 	// Register a service with the Registry with a given name
 	// Returns a Registration id or error

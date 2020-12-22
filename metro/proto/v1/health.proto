@@ -1,4 +1,3 @@
-// (c) metro 2020
 syntax = "proto3";
 
 package metro.v1;

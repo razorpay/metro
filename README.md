@@ -1,4 +1,10 @@
 # 🚇 metro <!-- omit in toc -->
+![build](https://github.com/razorpay/metro/workflows/.github/workflows/build.yml/badge.svg)
+<a href="https://somsubhra.com/github-release-stats/?username=razorpay&repository=metro">
+  <img alt="Github Releases Stats" src="https://img.shields.io/github/downloads/razorpay/metro/total.svg?logo=github">
+</a>
+<a href="https://starcharts.herokuapp.com/razorpay/metro"><img alt="Stars" src="https://img.shields.io/github/stars/razorpay/metro.svg?style=social"></a>
+
 Fast and reliable message transport between microservices!
 
 🚧  **Disclaimer**: `metro` is under active development currently. The first release is expected soon. Watch this space for updates.

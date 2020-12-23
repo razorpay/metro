@@ -4,10 +4,7 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/runtime"
-
 	"github.com/razorpay/metro/pkg/logger"
-
 	"github.com/razorpay/metro/pkg/registry"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -51,7 +48,6 @@ type LeaderElector struct {
 // before leader election loop is stopped by ctx or it has
 // stopped holding the leader lease
 func (le *LeaderElector) Run(ctx context.Context) {
-	defer runtime.HandleCrash()
 	defer func() {
 		le.config.Callbacks.OnStoppedLeading()
 	}()
@@ -109,7 +105,7 @@ func (le *LeaderElector) tryAcquireOrRenew(ctx context.Context) bool {
 		// if node is not registred anymore, we will need register it again
 		// it can happen that ttl associated with registration had expired
 		if ok := le.registry.IsRegistered(le.nodeID); !ok {
-			logger.Log.Info("node is unregisterd")
+			logger.Log.Infof("node %s is unregisterd", le.nodeID)
 			le.nodeID = ""
 		} else {
 			err = le.registry.Renew(le.nodeID)

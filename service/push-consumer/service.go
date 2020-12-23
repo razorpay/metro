@@ -4,13 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/razorpay/metro/pkg/logger"
-
 	"github.com/google/uuid"
-
-	"github.com/razorpay/metro/pkg/leaderelection"
-
 	"github.com/razorpay/metro/internal/health"
+	"github.com/razorpay/metro/pkg/leaderelection"
+	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
 )
 

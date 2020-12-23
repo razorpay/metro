@@ -18,4 +18,7 @@ type Registry interface {
 
 	// Watch on a key for a given registration_id
 	Watch(string, string) error
+
+	// Put a key value pair
+	Put(key string, value []byte) error
 }

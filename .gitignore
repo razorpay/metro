@@ -39,3 +39,6 @@ statik/*
 
 # ignore any *.swagger.json as it is auto generated
 /third_party/OpenAPI/**/*.swagger.json
+
+# ignore all mocks directories
+**/mocks

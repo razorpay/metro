@@ -16,8 +16,8 @@ type Service struct {
 	ctx      context.Context
 	health   *health.Core
 	config   *Config
-	registry registry.Registry
-	NodeID   string
+	registry registry.IRegistry
+	nodeID   string
 }
 
 // NewService creates an instance of new push consumer service
@@ -25,7 +25,7 @@ func NewService(ctx context.Context, config *Config) *Service {
 	return &Service{
 		ctx:    ctx,
 		config: config,
-		NodeID: uuid.New().String(),
+		nodeID: uuid.New().String(),
 	}
 }
 
@@ -81,9 +81,9 @@ func (c *Service) Stop() error {
 }
 
 func (c *Service) lead(ctx context.Context) {
-	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.NodeID)
+	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.nodeID)
 }
 
 func (c *Service) stepDown() {
-	logger.Log.Infof("Node %s stepping down from leader", c.NodeID)
+	logger.Log.Infof("Node %s stepping down from leader", c.nodeID)
 }

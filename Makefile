@@ -40,7 +40,7 @@ $(BIN)/goimports: PACKAGE=golang.org/x/tools/cmd/goimports
 
 GOIMPORTS = $(BIN)/goimports
 
-GOFILES     ?= $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./statik/*" -not -path "./rpc/*")
+GOFILES     ?= $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./statik/*" -not -path "./rpc/*" -not -path "*/mocks/*")
 
 .PHONY: goimports ## Run goimports and format files
 goimports: | $(GOIMPORTS) ; $(info $(M) running goimports…) @
@@ -100,8 +100,8 @@ build-info:
 go-build-metro:
 	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
-.PHONY: clean ## Remove previous builds, protobuf files, and proto compiled code
-clean:
+.PHONY: clean ## Remove mocks, previous builds, protobuf files, and proto compiled code
+clean: mock-gen-clean
 	@echo " + Removing cloned and generated files\n"
 	##- todo: use go clean here
 	@rm -rf $(METRO_OUT) $(RPC_ROOT) $(TMP_DIR)/* $(DOCS_DIR)/$(UML_OUT_FILE)
@@ -130,7 +130,11 @@ docker-build-metro:
 
 .PHONY: mock-gen ## Generates mocks
 mock-gen:
-	## TODO: replace with go generate
+	@go generate ./...
+
+.PHONY: mock-gen-clean ## Clean up all mockgen generated mocks directories
+mock-gen-clean:
+	@find . -type d -name 'mocks' | xargs rm -rf
 
 .PHONY: docs-uml ## Generates UML file
 docs-uml:
@@ -142,7 +146,8 @@ test-unit-prepare:
 	@go list ./... > $(TMP_DIR)/$(PKG_LIST_TMP_FILE)
 
 .PHONY: test-unit ## Run unit tests
-test-unit: test-unit-prepare
+test-unit: test-unit-prepare mock-gen-clean mock-gen
+	@go generate ./...
 	@APP_ENV=dev_docker go test -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
 	@go tool cover -func=$(TMP_DIR)/$(COVERAGE_TMP_FILE)
 

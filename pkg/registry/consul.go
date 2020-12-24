@@ -21,7 +21,7 @@ type ConsulConfig struct {
 var once sync.Once
 
 // NewConsulClient creates a new consul client
-func NewConsulClient(config *ConsulConfig) (Registry, error) {
+func NewConsulClient(config *ConsulConfig) (IRegistry, error) {
 	var c *ConsulClient
 	var err error
 

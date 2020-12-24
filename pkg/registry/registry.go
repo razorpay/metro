@@ -2,13 +2,14 @@ package registry
 
 import "time"
 
-// Registry implements a generic interface for service discovery
-type Registry interface {
+// IRegistry implements a generic interface for service discovery
+//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/mock_registry.go -package=mocks . IRegistry
+type IRegistry interface {
 	// Register a node with the Registry with a given name
 	// Returns a Registration id or error
 	Register(string, time.Duration) (string, error)
 
-	// Deregister a service which was registred with a id
+	// Deregister a node which was registered with a id
 	// Returns error on failure
 	Deregister(string) error
 

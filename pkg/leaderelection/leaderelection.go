@@ -15,7 +15,7 @@ const (
 )
 
 // NewLeaderElector creates a LeaderElector from a LeaderElection Config
-func NewLeaderElector(c Config, registry registry.Registry) (*LeaderElector, error) {
+func NewLeaderElector(c Config, registry registry.IRegistry) (*LeaderElector, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ type LeaderElector struct {
 	config Config
 
 	// registry being used for leader election
-	registry registry.Registry
+	registry registry.IRegistry
 }
 
 // Run starts the leader election loop. Run will not return
@@ -189,7 +189,7 @@ func (le *LeaderElector) release() bool {
 // RunOrDie starts a client with the provided config or panics if the config
 // fails to validate. RunOrDie blocks until leader election loop is
 // stopped by ctx or it has stopped holding the leader lease
-func RunOrDie(ctx context.Context, lec Config, registry registry.Registry) {
+func RunOrDie(ctx context.Context, lec Config, registry registry.IRegistry) {
 	le, err := NewLeaderElector(lec, registry)
 	if err != nil {
 		// TODO: return error than panic

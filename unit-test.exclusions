@@ -1,0 +1,4 @@
+# Path of packages to exclude from unit testing. This has to be a sorted list.
+github.com/razorpay/metro/cmd/service
+github.com/razorpay/metro/cmd/service/metro
+github.com/razorpay/metro/rpc/proto/v1

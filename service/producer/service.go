@@ -42,7 +42,7 @@ func (svc *Service) Start(errChan chan<- error) {
 		errChan <- err
 	}
 
-	mb, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.Broker.BrokerConfig)
+	mb, err := messagebroker.NewProducer(context.Background(), messagebroker.Kafka, &svc.config.Broker.BrokerConfig)
 	if err != nil {
 		errChan <- err
 	}

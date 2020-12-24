@@ -2,8 +2,6 @@ package messagebroker
 
 import "time"
 
-// TODO : re-structure this, duplicates!!
-
 // BrokerConfig holds broker's configuration
 type BrokerConfig struct {
 	Brokers           []string

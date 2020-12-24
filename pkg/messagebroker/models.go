@@ -20,6 +20,7 @@ type SendMessageToTopicRequest struct {
 	Topic      string
 	Message    []byte
 	Attributes []map[string][]byte
+	Timeout    time.Duration
 }
 
 // GetMessagesFromTopicRequest ...

@@ -114,10 +114,15 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		Headers:        kHeaders,
 	}, deliveryChan)
 
-	e := <-deliveryChan
-	m := e.(*kakfapkg.Message)
+	var m *kakfapkg.Message
+	select {
+	case err := <-deliveryChan:
+		m = err.(*kakfapkg.Message)
+	case <-time.After(1 * request.Timeout):
+		break
+	}
 
-	if m.TopicPartition.Error != nil {
+	if m != nil && m.TopicPartition.Error != nil {
 		fmt.Printf("Delivery failed: %v\n", m.TopicPartition.Error)
 	} else {
 		fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",

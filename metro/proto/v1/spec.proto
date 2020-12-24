@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package metro.v1;
+
+option go_package = "github.com/razorpay/metro-proto/metro/proto/v1;metrov1";
+
+import "google/api/annotations.proto";
+import "google/api/field_behaviour.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+// These annotations are used when generating the OpenAPI file.
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        version: "1.0";
+    };
+    external_docs: {
+        url: "https://github.com/razorpay/metro-proto";
+        description: "protobuf definitions for metro";
+    }
+    schemes: HTTP;
+    schemes: HTTPS;
+};
+
+// HealthCheckAPI defines the health check service.
+service HealthCheckAPI {
+    // Check returns HealthCheckResponse for the requested service.
+    rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {
+        option (google.api.http) = {
+            // Route to this method from GET requests to /v1/healthcheck
+            get: "/v1/healthcheck"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Do a healthcheck"
+            description: "Do a healthcheck on the server."
+            tags: "Healthcheck"
+        };
+    }
+}
+
+message HealthCheckRequest {
+    string service = 1;
+}
+
+message HealthCheckResponse {
+    // ServingStatus denotes the status of the service.
+    enum ServingStatus {
+        SERVING_STATUS_INVALID = 0;
+        SERVING_STATUS_UNKNOWN = 1;
+        SERVING_STATUS_SERVING = 2;
+        SERVING_STATUS_NOT_SERVING = 3;
+    }
+    ServingStatus serving_status = 1;
+}
+
+service AdminService {
+    rpc CreateProject(Project) returns (Project){
+        option (google.api.http) = {
+            post: "/v1/projects"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Create a project"
+            description: "Topics and Subscriptions belong to a project"
+            tags: "Project"
+        };
+    }
+}
+
+message Project {
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+  string project_id = 2;
+  map<string, string> labels = 3;
+}
+
+service Producer {
+
+    rpc Produce(ProduceRequest) returns (ProduceResponse){
+        option (google.api.http) = {
+            // Route to this method from POST requests to /v1/produce
+            post: "/v1/produce"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Produce a message"
+            description: "Produce a new message"
+            tags: "Message"
+        };
+    }
+}
+
+message ProduceRequest {
+
+    string topic = 1;
+
+    repeated Message messages = 2;
+}
+
+
+message ProduceResponse {
+    // The server-assigned ID of each Produceed message, in the same order as
+    // the messages in the request. IDs are guaranteed to be unique within
+    // the topic.
+    repeated string message_ids = 1;
+}
+
+message Message {
+    // The message data field. If this field is empty, the message must contain
+    // at least one attribute.
+    bytes data = 1;
+
+    // Attributes for this message. If this field is empty, the message must
+    // contain non-empty data. This can be used to filter messages on the
+    // subscription.
+    map<string, string> attributes = 2;
+
+    // ID of this message, assigned by the server when the message is Produceed.
+    // Guaranteed to be unique within the topic. This value may be read by a
+    // subscriber that receives a `Message` via a `Pull` call or a push
+    // delivery. It must not be populated by the Producer in a `Produce` call.
+    string message_id = 3;
+
+    // The time at which the message was Produceed, populated by the server when
+    // it receives the `Produce` call. It must not be populated by the
+    // Produceer in a `Produce` call.
+    int32 produced_at = 4;
+
+    // If non-empty, identifies related messages for which Produce order should be
+    // respected. If a `Subscription` has `enable_message_ordering` set to `true`,
+    // messages Produceed with the same non-empty `ordering_key` value will be
+    // delivered to subscribers in the order in which they are received by the
+    // Pub/Sub system. All `PubsubMessage`s Produceed in a given `ProduceRequest`
+    // must specify the same `ordering_key` value.
+    string ordering_key = 5;
+
+    // Would be used along with ordering_key to implement message ordering
+    string sequence_id = 6;
+}
+

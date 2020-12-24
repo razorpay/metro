@@ -38,7 +38,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.0
-	github.com/streamnative/pulsarctl v0.5.0
+	github.com/streamnative/pulsarctl v0.5.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/uber/jaeger-client-go v2.24.0+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
@@ -51,7 +51,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5 // indirect
 	golang.org/x/sys v0.0.0-20201221093633-bc327ba9c2f0 // indirect
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
-	golang.org/x/tools v0.0.0-20201204222352-654352759326 // indirect
+	golang.org/x/tools v0.0.0-20201224043029-2b0845dc783e // indirect
 	google.golang.org/api v0.36.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a // indirect

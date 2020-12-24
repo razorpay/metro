@@ -68,6 +68,7 @@ func NewKafkaAdmin(ctx context.Context, bConfig *BrokerConfig) (Admin, error) {
 	}, nil
 }
 
+// CreateTopic creates a new topic if not available
 func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
 
 	topics := make([]kakfapkg.TopicSpecification, 0)
@@ -81,6 +82,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 	return CreateTopicResponse{}, err
 }
 
+// DeleteTopic deletes an existing topic
 func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicRequest) (DeleteTopicResponse, error) {
 
 	topics := make([]string, 0)
@@ -89,6 +91,7 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 	return DeleteTopicResponse{}, err
 }
 
+// SendMessage sends a message on the topic
 func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (SendMessageToTopicResponse, error) {
 
 	deliveryChan := make(chan kakfapkg.Event)
@@ -123,9 +126,12 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	close(deliveryChan)
 
-	return SendMessageToTopicResponse{MessageId: m.String()}, err
+	return SendMessageToTopicResponse{MessageID: m.String()}, err
 }
 
+//GetMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
+//from the previous committed offset. If the available messages in the queue are less, returns
+// how many ever messages are available
 func (k *KafkaBroker) GetMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
 
 	var msgs []string
@@ -153,7 +159,9 @@ func (k *KafkaBroker) GetMessages(ctx context.Context, request GetMessagesFromTo
 	return GetMessagesFromTopicResponse{Messages: msgs}, nil
 }
 
-// Commit commits the offset
+// Commit Commits messages if any
+//This func will commit the message consumed
+//by all the previous calls to GetMessages
 func (k *KafkaBroker) Commit(ctx context.Context) (CommitOnTopicResponse, error) {
 	_, err := k.Consumer.Commit()
 	return CommitOnTopicResponse{}, err

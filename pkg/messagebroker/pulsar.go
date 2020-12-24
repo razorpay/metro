@@ -82,24 +82,30 @@ func NewPulsarAdmin(ctx context.Context, bConfig *BrokerConfig) (Admin, error) {
 	}, nil
 }
 
+// CreateTopic creates a new topic if not available
 func (p PulsarBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
 	panic("implement me")
 }
 
+// DeleteTopic deletes an existing topic
 func (p PulsarBroker) DeleteTopic(ctx context.Context, request DeleteTopicRequest) (DeleteTopicResponse, error) {
 	panic("implement me")
 }
 
+// SendMessage sends a message on the topic
 func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (SendMessageToTopicResponse, error) {
-	msgId, err := p.Producer.Send(context.Background(), &pulsar.ProducerMessage{
+	msgID, err := p.Producer.Send(context.Background(), &pulsar.ProducerMessage{
 		Payload: request.Message,
 	})
 
 	return SendMessageToTopicResponse{
-		MessageId: string(msgId.Serialize()),
+		MessageID: string(msgID.Serialize()),
 	}, err
 }
 
+//GetMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
+//from the previous committed offset. If the available messages in the queue are less, returns
+// how many ever messages are available
 func (p PulsarBroker) GetMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
 
 	channel := make(chan pulsar.ConsumerMessage, request.NumOfMessages)
@@ -115,6 +121,9 @@ func (p PulsarBroker) GetMessages(ctx context.Context, request GetMessagesFromTo
 	}, nil
 }
 
+//Commit Commits messages if any
+//This func will commit the message consumed
+//by all the previous calls to GetMessages
 func (p PulsarBroker) Commit(ctx context.Context) (CommitOnTopicResponse, error) {
 	panic("implement me")
 }

@@ -108,11 +108,12 @@ func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 // how many ever messages are available
 func (p PulsarBroker) GetMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
 
-	channel := make(chan pulsar.ConsumerMessage, request.NumOfMessages)
-
-	msgs := make([]string, 0)
-	for cm := range channel {
-		msg := cm.Message
+	msgs := make([]string, request.NumOfMessages)
+	for i := 0; i < request.NumOfMessages; i++ {
+		msg, err := p.Consumer.Receive(ctx)
+		if err != nil {
+			return GetMessagesFromTopicResponse{}, err
+		}
 		msgs = append(msgs, string(msg.ID().Serialize()))
 	}
 

@@ -2,6 +2,7 @@ package registry
 
 import (
 	"sync"
+	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
@@ -40,9 +41,10 @@ func NewConsulClient(config *ConsulConfig) (IRegistry, error) {
 }
 
 // Register is used for node registration which creates a session to consul
-func (c *ConsulClient) Register(name string) (string, error) {
+func (c *ConsulClient) Register(name string, ttl time.Duration) (string, error) {
 	sessionID, _, err := c.client.Session().Create(&api.SessionEntry{
 		Name: name,
+		TTL:  ttl.String(),
 	}, nil)
 
 	if err != nil {
@@ -51,15 +53,18 @@ func (c *ConsulClient) Register(name string) (string, error) {
 	return sessionID, nil
 }
 
-// RenewPeriodic renews consul session to be used in a long
-// running goroutine to ensure a session stays valid
-func (c *ConsulClient) RenewPeriodic(sessionID string, doneChan chan struct{}) error {
-	return c.client.Session().RenewPeriodic(
-		"10s",
-		sessionID,
-		nil,
-		doneChan,
-	)
+// IsRegistered is used checking the registration status
+func (c *ConsulClient) IsRegistered(sessionID string) bool {
+	session, _, _ := c.client.Session().Info(sessionID, nil)
+
+	return session != nil
+}
+
+// Renew renews consul session
+func (c *ConsulClient) Renew(sessionID string) error {
+	_, _, err := c.client.Session().Renew(sessionID, nil)
+
+	return err
 }
 
 // Deregister node, destroy consul session
@@ -70,7 +75,7 @@ func (c *ConsulClient) Deregister(sessionID string) error {
 }
 
 // Acquire a lock
-func (c *ConsulClient) Acquire(sessionID string, key string, value string) (bool, error) {
+func (c *ConsulClient) Acquire(sessionID string, key string, value string) bool {
 	isAcquired, _, err := c.client.KV().Acquire(&api.KVPair{
 		Key:     key,
 		Value:   []byte(value),
@@ -78,14 +83,14 @@ func (c *ConsulClient) Acquire(sessionID string, key string, value string) (bool
 	}, nil)
 
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	return isAcquired, nil
+	return isAcquired
 }
 
 // Release a lock
-func (c *ConsulClient) Release(sessionID string, key string, value string) (bool, error) {
+func (c *ConsulClient) Release(sessionID string, key string, value string) bool {
 	isReleased, _, err := c.client.KV().Release(&api.KVPair{
 		Key:     key,
 		Value:   []byte(value),
@@ -93,10 +98,10 @@ func (c *ConsulClient) Release(sessionID string, key string, value string) (bool
 	}, nil)
 
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	return isReleased, nil
+	return isReleased
 }
 
 // Watch watches a key

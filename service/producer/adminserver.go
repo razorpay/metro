@@ -9,17 +9,17 @@ import (
 )
 
 type adminServer struct {
-	projectCore *project.Core
+	projectCore project.ICore
 }
 
-func newAdminServer(projectCore *project.Core) *adminServer {
+func newAdminServer(projectCore project.ICore) *adminServer {
 	return &adminServer{projectCore}
 }
 
 func (s adminServer) CreateProject(ctx context.Context, req *metrov1.Project) (*metrov1.Project, error) {
-	logger.Ctx(ctx).Infow("create project request received", "req", req)
+	logger.Ctx(ctx).Infow("create project request received")
 	p := project.FromProto(req)
-	err := s.projectCore.CreateProject(p)
+	err := s.projectCore.CreateProject(ctx, p)
 	if err != nil {
 		return nil, err
 	}

@@ -26,6 +26,7 @@ var (
 func NewLogger(env string, serviceKV map[string]interface{}, hookCore zapcore.Core) (*zap.SugaredLogger, error) {
 
 	var err error
+	var slogger *zap.Logger
 	logonce.Do(func() {
 		// Set-up logger based on env
 		switch env {
@@ -35,28 +36,26 @@ func NewLogger(env string, serviceKV map[string]interface{}, hookCore zapcore.Co
 			// Stacktraces are automatically included on logs of ErrorLevel and above.
 			config := zap.NewProductionConfig()
 			config.Sampling = nil
-			slogger, err := config.Build()
+			slogger, err = config.Build()
 			if err != nil {
 				fmt.Printf("Error initializing sugared zap logger: %s", err)
 			}
-			slogger = slogger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-				return zapcore.NewTee(core, hookCore)
-			}))
-			Log = slogger.Sugar()
 		default:
 			// Logger that writes DebugLevel and above logs to standard error in a human-friendly format.
 			// It enables development mode (which makes DPanicLevel logs panic), uses a console encoder,
 			// writes to standard error, and disables sampling.
 			// Stacktraces are automatically included on logs of WarnLevel and above.
-			slogger, err := zap.NewDevelopment()
-			slogger = slogger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-				return zapcore.NewTee(core, hookCore)
-			}))
+			slogger, err = zap.NewDevelopment()
 			if err != nil {
 				fmt.Printf("Error initializing sugared zap logger: %s", err)
 			}
-			Log = slogger.Sugar()
 		}
+		if hookCore != nil {
+			slogger = slogger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+				return zapcore.NewTee(core, hookCore)
+			}))
+		}
+		Log = slogger.Sugar()
 
 		AppendServiceKV(serviceKV)
 	})

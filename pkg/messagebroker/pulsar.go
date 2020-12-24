@@ -101,13 +101,13 @@ func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 }
 
 func (p PulsarBroker) GetMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
+
 	channel := make(chan pulsar.ConsumerMessage, request.NumOfMessages)
 
 	msgs := make([]string, 0)
 	for cm := range channel {
 		msg := cm.Message
 		msgs = append(msgs, string(msg.ID().Serialize()))
-		p.Consumer.Ack(msg)
 	}
 
 	return GetMessagesFromTopicResponse{

@@ -86,6 +86,10 @@ proto-generate:
 	# Generate static assets for OpenAPI UI
 	@statik -m -f -src third_party/OpenAPI/
 
+.PHONY: proto-clean ## Clean generated proto files
+proto-clean:
+	@rm -rf $(RPC_ROOT)
+
 .PHONY: proto-refresh ## Re-compile protobuf
 proto-refresh: clean proto-generate
 
@@ -101,10 +105,10 @@ go-build-metro:
 	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
 .PHONY: clean ## Remove mocks, previous builds, protobuf files, and proto compiled code
-clean: mock-gen-clean
+clean: mock-gen-clean proto-clean
 	@echo " + Removing cloned and generated files\n"
 	##- todo: use go clean here
-	@rm -rf $(METRO_OUT) $(RPC_ROOT) $(TMP_DIR)/* $(DOCS_DIR)/$(UML_OUT_FILE)
+	@rm -rf $(METRO_OUT) $(TMP_DIR)/* $(DOCS_DIR)/$(UML_OUT_FILE)
 
 .PHONY: dev-docker-up ## Bring up docker-compose for local dev-setup
 dev-docker-up:
@@ -112,7 +116,7 @@ dev-docker-up:
 	docker-compose -f deployment/dev/docker-compose.yml up -d --build
 
 .PHONY: dev-docker-datastores-up ## Bring up datastore containers
-dev-docker-datastores-up:
+dev-docker-datastores-up: dev-docker-datastores-down
 	docker-compose -f deployment/dev/docker-compose-datastores.yml up -d
 
 .PHONY: dev-docker-datastores-down ## Shut down datastore containers
@@ -123,6 +127,14 @@ dev-docker-datastores-down:
 dev-docker-down:
 	@docker-compose -f deployment/dev/docker-compose.yml down --remove-orphans
 	@docker-compose -f deployment/dev/monitoring/docker-compose.yml down --remove-orphans
+
+.PHONY: dev-docker-emulator-up ## Bring up google pub/sub emulator
+dev-docker-emulator-up:
+	docker-compose -f deployment/dev/docker-compose-emulator.yml up -d
+
+.PHONY: dev-docker-emulator-down ## Bring down google pub/sub emulator
+dev-docker-emulator-down:
+	docker-compose -f deployment/dev/docker-compose-emulator.yml down --remove-orphans
 
 .PHONY: docker-build-metro
 docker-build-metro:

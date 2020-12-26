@@ -35,7 +35,7 @@
     [pushConsumer.registry]
         driver                    = "consul"
         [pushConsumer.registry.consulconfig]
-            [producer.registry.consulconfig.config]
+            [pushConsumer.registry.consulconfig.config]
                 address               = "localhost:8500"
                 scheme                = "http"
     [pushConsumer.broker]
@@ -51,8 +51,8 @@
 [pullConsumer]
     [pullConsumer.registry]
         driver                    = "consul"
-        [push-consumer.registry.consulconfig]
-            [push-consumer.registry.consulconfig.config]
+        [pullConsumer.registry.consulconfig]
+            [pullConsumer.registry.consulconfig.config]
                 address               = "localhost:8500"
                 scheme                = "http"
     [pullConsumer.broker]

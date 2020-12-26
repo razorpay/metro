@@ -56,8 +56,10 @@ func (svc *Service) Start(errChan chan<- error) {
 
 	grpcServer, err := internalserver.StartGRPCServer(errChan, svc.config.Interfaces.API.GrpcServerAddress, func(server *grpc.Server) error {
 		metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-		metrov1.RegisterProducerServer(server, newPublisherServer(mb))
+		metrov1.RegisterPublisherServer(server, newPublisherServer(mb))
 		metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
+		metrov1.RegisterSubscriberServer(server, newSubscriberServer())
+
 		return nil
 	},
 		getInterceptors()...,
@@ -72,12 +74,17 @@ func (svc *Service) Start(errChan chan<- error) {
 			return err
 		}
 
-		err = metrov1.RegisterProducerHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		err = metrov1.RegisterPublisherHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
 		}
 
 		err = metrov1.RegisterAdminServiceHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+		if err != nil {
+			return err
+		}
+
+		err = metrov1.RegisterSubscriberHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
 		}

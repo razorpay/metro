@@ -3,8 +3,6 @@ module github.com/razorpay/metro
 go 1.15
 
 require (
-	github.com/bufbuild/buf v0.33.0 // indirect
-	github.com/bykof/go-plantuml v0.0.0-20200125152403-0ce50616dc25 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.5.2
 	github.com/getsentry/sentry-go v0.8.0
@@ -17,13 +15,11 @@ require (
 	github.com/hashicorp/consul/api v1.1.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.3.0
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.6.1
 	github.com/uber/jaeger-client-go v2.24.0+incompatible
@@ -36,12 +32,7 @@ require (
 	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.1-0.20201020201750-d3470999428b
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
-	k8s.io/api v0.20.0 // indirect
 	k8s.io/apimachinery v0.20.0
-	k8s.io/client-go v11.0.0+incompatible // indirect
-	k8s.io/klog v1.0.0 // indirect
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920 // indirect
 )

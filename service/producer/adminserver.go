@@ -16,10 +16,15 @@ func newAdminServer(projectCore project.ICore) *adminServer {
 	return &adminServer{projectCore}
 }
 
+// CreateProject creates a new project
 func (s adminServer) CreateProject(ctx context.Context, req *metrov1.Project) (*metrov1.Project, error) {
 	logger.Ctx(ctx).Infow("create project request received")
+	err := project.Validate(req)
+	if err != nil {
+		return nil, err
+	}
 	p := project.FromProto(req)
-	err := s.projectCore.CreateProject(ctx, p)
+	err = s.projectCore.CreateProject(ctx, p)
 	if err != nil {
 		return nil, err
 	}

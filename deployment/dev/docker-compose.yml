@@ -4,10 +4,7 @@ services:
     build:
       context: ../..
       dockerfile: build/docker/Dockerfile
-      args:
-        - GIT_TOKEN
     container_name: metro-producer
-    image: razorpay/metro
     networks:
       - app-network
       - monitoring_rzp-dev-monitoring
@@ -16,16 +13,14 @@ services:
     environment:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=producer
+      - GIT_COMMIT_HASH=dev
     restart: on-failure
 
   metro-push-consumer:
     build:
       context: ../..
       dockerfile: build/docker/Dockerfile
-      args:
-        - GIT_TOKEN
     container_name: metro-push-consumer
-    image: razorpay/metro
     networks:
       - app-network
       - monitoring_rzp-dev-monitoring
@@ -34,17 +29,14 @@ services:
     environment:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=push-consumer
+      - GIT_COMMIT_HASH=dev
     restart: on-failure
 
   metro-pull-consumer:
     build:
       context: ../..
       dockerfile: build/docker/Dockerfile
-      args:
-        - GIT_TOKEN
-        - SERVICE=pull-consumer
     container_name: metro-pull-consumer
-    image: razorpay/metro
     networks:
       - app-network
       - monitoring_rzp-dev-monitoring
@@ -53,6 +45,7 @@ services:
     environment:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=pull-consumer
+      - GIT_COMMIT_HASH=dev
     restart: on-failure
 
 networks:

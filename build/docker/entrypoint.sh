@@ -3,6 +3,7 @@ set -euo pipefail
 
 start_application()
 {
+    echo "${GIT_COMMIT_HASH}" > /app/public/commit.txt
     echo "su-exec appuser $WORKDIR/"$appName" -component=${METRO_COMPONENT} &"
     su-exec appuser $WORKDIR/"$appName" -component=${METRO_COMPONENT} &
 
@@ -27,3 +28,9 @@ shutdown_application()
 appName="$1"
 trap shutdown_application SIGTERM SIGINT
 start_application
+
+
+
+
+
+

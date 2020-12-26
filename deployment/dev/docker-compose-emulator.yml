@@ -1,0 +1,13 @@
+version: '3.3'
+
+services:
+  pubsub:
+    image: adhawk/google-pubsub-emulator
+    ports:
+      - 8085:8085
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: false

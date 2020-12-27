@@ -86,6 +86,7 @@ jobs:
               ports:
                 - "9092:9092"
                 - "9101:9101"
+              options: --health-cmd "nc -z localhost 9092"
               env:
                 KAFKA_BROKER_ID: 1
                 KAFKA_ZOOKEEPER_CONNECT: 'kafka-zookeeper:2181'
@@ -109,17 +110,38 @@ jobs:
               image: consul:1.9.0
               ports:
                 - "8500:8500"
+              options: --health-cmd "nc -z localhost 8500"
             metro-producer:
               image: razorpay/metro:${{ github.sha }}
               ports:
                 - "8081:8081"
+                - "8082:8082"
               env:
                 APP_ENV: dev_docker
                 METRO_COMPONENT: producer
+              options: --health-cmd "nc -z localhost 8082"
         steps:
           - name: checkout
             id: checkout
             uses: actions/checkout@v1
             with:
               submodules: true
+          - name: install prerequisites
+            run: |
+              apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
+          - name: deps
+            run: |
+              make deps
+          - name: proto-generate
+            run: |
+              make proto-generate
+          - name: mock-gen
+            run: |
+              make mock-gen
+          - name: go mod vendor
+            run: |
+              go mod vendor
+          - name: integration tests
+            run: |
+              make test-integration
 

@@ -116,7 +116,7 @@ dev-docker-up:
 	docker-compose -f deployment/dev/docker-compose.yml up -d --build
 
 .PHONY: dev-docker-datastores-up ## Bring up datastore containers
-dev-docker-datastores-up: dev-docker-datastores-down
+dev-docker-datastores-up:
 	docker-compose -f deployment/dev/docker-compose-datastores.yml up -d
 
 .PHONY: dev-docker-datastores-down ## Shut down datastore containers
@@ -151,6 +151,10 @@ mock-gen-clean:
 .PHONY: docs-uml ## Generates UML file
 docs-uml:
 	@go-plantuml generate --recursive --directories cmd --directories internal --directories pkg --out $(DOCS_DIR)/$(UML_OUT_FILE)
+
+.PHONY: test-integration ## run integration tests
+test-integration:
+	@go test ./... -tags=integration
 
 .PHONY: test-unit-prepare
 test-unit-prepare:

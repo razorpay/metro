@@ -7,7 +7,7 @@
 [tracing]
     serviceName           = "metro"
     logSpans              = false
-    disabled              = false
+    disabled              = true
     localAgentHostPort    = "jaeger:6831"
 [sentry]
     appName               = "metro"

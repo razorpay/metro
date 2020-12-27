@@ -26,7 +26,6 @@ RUN make proto-generate
 ######################################
 FROM golang:1.15.5-alpine3.12 as builder
 
-ARG MODE
 ENV CGO_ENABLED 1
 
 RUN mkdir /src
@@ -50,7 +49,6 @@ ADD . /src/
 RUN make deps
 RUN make mock-gen
 RUN go mod vendor
-
 RUN make go-build-metro
 
 # Stage 3 - Binary build stage
@@ -64,7 +62,7 @@ COPY build/docker/entrypoint.sh /app/
 
 ENV WORKDIR=/app
 ENV DUMB_INIT_SETSID=0
-ENV METRO_COMPONENT=${METRO_COMPONENT}
+#ENV METRO_COMPONENT=${METRO_COMPONENT}
 
 WORKDIR /app
 

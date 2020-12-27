@@ -3,15 +3,16 @@
 package integration
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Topic_CreateTopic(t *testing.T) {
-	_, err := http.Get("http://metro-producer:8082/v1/healthcheck")
+	url := fmt.Sprintf("http://%s:8082/v1/healthcheck", os.Getenv("METRO_INTEGRATION_TEST_HOST"))
+	_, err := http.Get(url)
 	assert.Nil(t, err)
-	t.Logf("error : %s", err.Error())
-	//assert.Equal(t, 200, resp.StatusCode)
 }

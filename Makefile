@@ -152,9 +152,13 @@ mock-gen-clean:
 docs-uml:
 	@go-plantuml generate --recursive --directories cmd --directories internal --directories pkg --out $(DOCS_DIR)/$(UML_OUT_FILE)
 
-.PHONY: test-integration ## run integration tests
+.PHONY: test-integration-ci ## run integration tests on ci (github actions)
+test-integration-ci:
+	@METRO_INTEGRATION_TEST_HOST=metro-producer go test ./... -tags=integration,musl
+
+.PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration:
-	@go test ./... -tags=integration
+	@METRO_INTEGRATION_TEST_HOST=localhost go test ./... -tags=integration,musl
 
 .PHONY: test-unit-prepare
 test-unit-prepare:

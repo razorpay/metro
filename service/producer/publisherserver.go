@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/razorpay/metro/pkg/logger"
-
 	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )

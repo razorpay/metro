@@ -31,8 +31,3 @@ appName="$1"
 trap shutdown_application SIGTERM SIGINT
 start_application
 
-
-
-
-
-

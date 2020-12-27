@@ -3,7 +3,9 @@ set -euo pipefail
 
 start_application()
 {
-    echo "${GIT_COMMIT_HASH}" > /app/public/commit.txt
+    if [[ -n "${GIT_COMMIT_HASH}" ]]; then
+      echo "${GIT_COMMIT_HASH}" > /app/public/commit.txt
+    fi
     echo "su-exec appuser $WORKDIR/"$appName" -component=${METRO_COMPONENT} &"
     su-exec appuser $WORKDIR/"$appName" -component=${METRO_COMPONENT} &
 

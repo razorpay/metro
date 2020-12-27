@@ -119,6 +119,7 @@ jobs:
               env:
                 APP_ENV: dev_docker
                 METRO_COMPONENT: producer
+                GIT_COMMIT_HASH: ${{ github.sha }}
               options: --health-cmd "nc -z localhost 8082"
         steps:
           - name: checkout

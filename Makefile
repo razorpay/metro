@@ -121,12 +121,12 @@ dev-docker-datastores-up:
 
 .PHONY: dev-docker-datastores-down ## Shut down datastore containers
 dev-docker-datastores-down:
-	docker-compose -f deployment/dev/docker-compose-datastores.yml down --remove-orphans
+	docker-compose -f deployment/dev/docker-compose-datastores.yml down
 
 .PHONY: dev-docker-down ## Shutdown docker-compose for local dev-setup
 dev-docker-down:
-	@docker-compose -f deployment/dev/docker-compose.yml down --remove-orphans
-	@docker-compose -f deployment/dev/monitoring/docker-compose.yml down --remove-orphans
+	@docker-compose -f deployment/dev/docker-compose.yml down
+	@docker-compose -f deployment/dev/monitoring/docker-compose.yml down
 
 .PHONY: dev-docker-emulator-up ## Bring up google pub/sub emulator
 dev-docker-emulator-up:
@@ -134,7 +134,7 @@ dev-docker-emulator-up:
 
 .PHONY: dev-docker-emulator-down ## Bring down google pub/sub emulator
 dev-docker-emulator-down:
-	docker-compose -f deployment/dev/docker-compose-emulator.yml down --remove-orphans
+	docker-compose -f deployment/dev/docker-compose-emulator.yml down
 
 .PHONY: docker-build-metro
 docker-build-metro:
@@ -154,11 +154,19 @@ docs-uml:
 
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
 test-integration-ci:
-	@METRO_INTEGRATION_TEST_HOST=metro-producer go test ./... -tags=integration,musl
+	@METRO_TEST_HOST=metro-producer go test ./... -tags=integration,musl
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration:
-	@METRO_INTEGRATION_TEST_HOST=localhost go test ./... -tags=integration,musl
+	@METRO_TEST_HOST=localhost go test ./... -tags=integration,musl
+
+.PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
+test-compat-ci:
+	@METRO_TEST_HOST=metro-producer PUBSUB_TEST_HOST=pubsub go test ./... -tags=compatibility,musl
+
+.PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
+test-compat:
+	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test ./... -tags=compatibility,musl
 
 .PHONY: test-unit-prepare
 test-unit-prepare:

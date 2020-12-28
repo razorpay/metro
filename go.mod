@@ -3,6 +3,7 @@ module github.com/razorpay/metro
 go 1.15
 
 require (
+	cloud.google.com/go/pubsub v1.3.1
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.5.2
 	github.com/getsentry/sentry-go v0.8.0
@@ -29,6 +30,7 @@ require (
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 // indirect
 	golang.org/x/sys v0.0.0-20201211090839-8ad439b19e0f // indirect
 	golang.org/x/tools v0.0.0-20201204222352-654352759326 // indirect
+	google.golang.org/api v0.30.0
 	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.1-0.20201020201750-d3470999428b

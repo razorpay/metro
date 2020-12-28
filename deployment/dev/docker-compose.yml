@@ -16,6 +16,11 @@ services:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=producer
       - GIT_COMMIT_HASH=dev_docker
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     restart: on-failure
 
   metro-push-consumer:

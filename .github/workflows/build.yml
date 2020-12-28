@@ -4,7 +4,7 @@ jobs:
       runs-on: ubuntu-latest
       container: golang:1.15.5-alpine3.12
       continue-on-error: false
-      name: checks and tests
+      name: checks and unit tests
       steps:
         - name: checkout
           id: checkout
@@ -60,7 +60,7 @@ jobs:
         runs-on: ubuntu-latest
         container: golang:1.15.5-alpine3.12
         continue-on-error: false
-        name: integration-tests
+        name: integration/compatibility tests
         needs: build
         services:
 #            pulsar:
@@ -121,6 +121,11 @@ jobs:
                 METRO_COMPONENT: producer
                 GIT_COMMIT_HASH: ${{ github.sha }}
               options: --health-cmd "nc -z localhost 8082"
+            pubsub:
+              image: adhawk/google-pubsub-emulator
+              ports:
+                - "8085:8085"
+              options: --health-cmd "nc -z localhost 8085"
         steps:
           - name: checkout
             id: checkout
@@ -145,4 +150,7 @@ jobs:
           - name: integration tests
             run: |
               make test-integration-ci
+          - name: compatibility tests
+            run: |
+              make test-compat-ci
 

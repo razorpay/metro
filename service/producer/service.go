@@ -34,27 +34,27 @@ func NewService(ctx context.Context, config *Config) *Service {
 }
 
 // Start the service
-func (svc *Service) Start(errChan chan<- error) {
+func (svc *Service) Start() error {
 	// Define server handlers
 
 	healthCore, err := health.NewCore(nil) //TODO: Add checkers
 	if err != nil {
-		errChan <- err
+		return err
 	}
 
 	mb, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.Broker.BrokerConfig)
 	if err != nil {
-		errChan <- err
+		return err
 	}
 
 	r, err := registry.NewRegistry(&svc.config.Registry)
 	if err != nil {
-		errChan <- err
+		return err
 	}
 
 	projectCore := project.NewCore(project.NewRepo(r))
 
-	grpcServer, err := internalserver.StartGRPCServer(errChan, svc.config.Interfaces.API.GrpcServerAddress, func(server *grpc.Server) error {
+	grpcServer, err := internalserver.StartGRPCServer(svc.ctx, svc.config.Interfaces.API.GrpcServerAddress, func(server *grpc.Server) error {
 		metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 		metrov1.RegisterPublisherServer(server, newPublisherServer(mb))
 		metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
@@ -65,10 +65,10 @@ func (svc *Service) Start(errChan chan<- error) {
 		getInterceptors()...,
 	)
 	if err != nil {
-		errChan <- err
+		return err
 	}
 
-	httpServer, err := internalserver.StartHTTPServer(errChan, svc.config.Interfaces.API.HTTPServerAddress, func(mux *runtime.ServeMux) error {
+	httpServer, err := internalserver.StartHTTPServer(svc.ctx, svc.config.Interfaces.API.HTTPServerAddress, func(mux *runtime.ServeMux) error {
 		err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 		if err != nil {
 			return err
@@ -95,12 +95,14 @@ func (svc *Service) Start(errChan chan<- error) {
 		return nil
 	})
 	if err != nil {
-		errChan <- err
+		return err
 	}
 
 	svc.grpcServer = grpcServer
 	svc.httpServer = httpServer
 	svc.health = healthCore
+
+	return nil
 }
 
 // Stop the service

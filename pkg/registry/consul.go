@@ -43,8 +43,9 @@ func NewConsulClient(config *ConsulConfig) (IRegistry, error) {
 // Register is used for node registration which creates a session to consul
 func (c *ConsulClient) Register(name string, ttl time.Duration) (string, error) {
 	sessionID, _, err := c.client.Session().Create(&api.SessionEntry{
-		Name: name,
-		TTL:  ttl.String(),
+		Name:      name,
+		TTL:       ttl.String(),
+		LockDelay: 2,
 	}, nil)
 
 	if err != nil {

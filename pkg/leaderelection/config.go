@@ -72,11 +72,7 @@ func (c *Config) Validate() error {
 // lifecycle events of the LeaderElector. These are invoked asynchronously.
 type LeaderCallbacks struct {
 	// OnStartedLeading is called when a LeaderElector client starts leading
-	OnStartedLeading func(context.Context)
+	OnStartedLeading func(ctx context.Context)
 	// OnStoppedLeading is called when a LeaderElector client stops leading
 	OnStoppedLeading func()
-	// OnNewLeader is called when the client observes a leader that is
-	// not the previously observed leader. This includes the first observed
-	// leader when the client starts.
-	OnNewLeader func(identity string)
 }

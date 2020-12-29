@@ -80,24 +80,22 @@ func Run(ctx context.Context) {
 		}
 	}()
 
-	errChan := component.Start()
+	err := component.Start()
+	if err != nil {
+		logger.Ctx(ctx).Fatalw("error in starting component", "msg", err.Error())
+		return
+	}
 
 	// Handle SIGINT & SIGTERM - Shutdown gracefully
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 
-	// Block until signal is received or error is received in starting the component.
-	select {
-	case <-c:
-		logger.Ctx(ctx).Infow("received signal")
-	case err := <-errChan:
-		logger.Ctx(ctx).Fatalw("error in starting component", "msg", err.Error())
-	}
+	// Block until SIGINT/SIGTERM signal is received
+	sig := <-c
+	logger.Ctx(ctx).Infow("received a signal, stopping metro", "signal", sig)
 
-	logger.Ctx(ctx).Infow("stopping metro")
-
-	// stop component
-	err := component.Stop()
+	// call stop component, it should internally clean up all running go routines
+	err = component.Stop()
 	if err != nil {
 		logger.Ctx(ctx).Fatalw("error in stopping metro")
 	}

@@ -29,11 +29,10 @@ func NewService(ctx context.Context, config *Config) *Service {
 }
 
 // Start the service
-func (svc *Service) Start(errChan chan<- error) {
+func (svc *Service) Start() error {
 	err := svc.runOpenAPIHandler()
-	if err != nil {
-		errChan <- err
-	}
+
+	return err
 }
 
 // Stop the service

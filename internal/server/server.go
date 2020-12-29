@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net"
 	"net/http"
 
@@ -18,12 +19,13 @@ type registerGrpcHandlers func(server *grpc.Server) error
 type registerHTTPHandlers func(mux *runtime.ServeMux) error
 
 // StartGRPCServer with handlers and interceptors
-func StartGRPCServer(errChan chan<- error, address string, registerGrpcHandlers registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
+func StartGRPCServer(ctx context.Context, address string, registerGrpcHandlers registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
 		return nil, err
 	}
 	// Start gRPC server.
+	var errChan chan<- error
 	go func(chan<- error) {
 		listener, err := net.Listen("tcp", address)
 		if err != nil {
@@ -39,12 +41,13 @@ func StartGRPCServer(errChan chan<- error, address string, registerGrpcHandlers 
 }
 
 // StartHTTPServer with handlers
-func StartHTTPServer(errChan chan<- error, address string, registerHTTPHandlers registerHTTPHandlers) (*http.Server, error) {
+func StartHTTPServer(ctx context.Context, address string, registerHTTPHandlers registerHTTPHandlers) (*http.Server, error) {
 	httpServer, err := newHTTPServer(registerHTTPHandlers)
 	if err != nil {
 		return nil, err
 	}
 	// Start HTTP server for gRPC gateway.
+	var errChan chan<- error
 	go func(chan<- error) {
 		listener, err := net.Listen("tcp", address)
 		if err != nil {

@@ -133,5 +133,17 @@ func (c *ConsulClient) Put(key string, value []byte) error {
 	return err
 }
 
+// Exists checks the existence of a key
+func (c *ConsulClient) Exists(key string) (bool, error) {
+	kvp, _, err := c.client.KV().Get(key, nil)
+	if err != nil {
+		return false, err
+	}
+	if kvp == nil {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (c *ConsulClient) handler(_ uint64, _ interface{}) {
 }

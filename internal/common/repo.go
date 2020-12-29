@@ -20,3 +20,8 @@ func (r BaseRepo) Create(ctx context.Context, m IModel) error {
 	}
 	return r.Registry.Put(m.Key(), b)
 }
+
+// Exists to check if the key exists in the registry
+func (r BaseRepo) Exists(ctx context.Context, key string) (bool, error) {
+	return r.Registry.Exists(key)
+}

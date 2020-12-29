@@ -12,6 +12,7 @@ import (
 //go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/repo/mock_repo.go -package=mocks . IRepo
 type IRepo interface {
 	Create(ctx context.Context, m common.IModel) error
+	Exists(ctx context.Context, key string) (bool, error)
 }
 
 // Repo implements various repository methods

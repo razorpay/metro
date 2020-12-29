@@ -22,6 +22,7 @@ func TestCore_CreateProject(t *testing.T) {
 	core := NewCore(mockRepo)
 	project := getDummyProjectModel()
 	ctx := context.Background()
+	mockRepo.EXPECT().Exists(ctx, project.Key())
 	mockRepo.EXPECT().Create(ctx, project)
 	err := core.CreateProject(ctx, project)
 	assert.NoError(t, err)

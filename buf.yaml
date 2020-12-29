@@ -4,6 +4,8 @@ build:
     - metro
     - third_party/googleapis
     - third_party/grpc-gateway
+    - third_party/protobuf
+
 lint:
   use:
     - BASIC

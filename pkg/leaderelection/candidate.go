@@ -2,7 +2,6 @@ package leaderelection
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/razorpay/metro/pkg/logger"
@@ -10,13 +9,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-// NewLeaderElector creates a LeaderElector from a LeaderElection Config
-func NewLeaderElector(c Config, registry registry.IRegistry) (*LeaderElector, error) {
+const (
+	// JitterFactor used in wait utils
+	JitterFactor = 1.2
+)
+
+// New creates a instance of LeaderElector from a LeaderElection Config
+func New(c Config, registry registry.IRegistry) (*Candidate, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 
-	le := LeaderElector{
+	le := Candidate{
 		config:   c,
 		registry: registry,
 		nodeID:   "",
@@ -25,8 +29,8 @@ func NewLeaderElector(c Config, registry registry.IRegistry) (*LeaderElector, er
 	return &le, nil
 }
 
-// LeaderElector is a leader election client.
-type LeaderElector struct {
+// Candidate is a leader election candidate.
+type Candidate struct {
 	// nodeID represents the id assigned by registry
 	nodeID string
 
@@ -43,9 +47,7 @@ type LeaderElector struct {
 // Run starts the leader election loop. Run will not return
 // before leader election loop is stopped by ctx or it has
 // stopped holding the leader lease
-func (le *LeaderElector) Run(ctx context.Context, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func (c *Candidate) Run(ctx context.Context) error {
 	leadCtx, leadCancel := context.WithCancel(ctx)
 
 	logger.Ctx(ctx).Info("attempting to acquire leader lease")
@@ -56,8 +58,8 @@ func (le *LeaderElector) Run(ctx context.Context, wg *sync.WaitGroup) {
 
 		// inner wait retry loop for faster retries if failed to acquire lease
 		acquired := false
-		wait.Until(func() {
-			acquired = le.tryAcquireOrRenew(retryCtx)
+		wait.JitterUntil(func() {
+			acquired = c.tryAcquireOrRenew(retryCtx)
 
 			if !acquired {
 				logger.Ctx(retryCtx).Infow("failed to acquire lease, retrying...")
@@ -67,46 +69,48 @@ func (le *LeaderElector) Run(ctx context.Context, wg *sync.WaitGroup) {
 			// if succeeded, we can break the inner loop by cancelling context and renew in outer loop
 			logger.Ctx(ctx).Info("successfully acquired lease")
 			retryCancel()
-		}, le.config.RetryPeriod, retryCtx.Done())
+		}, c.config.RetryPeriod, JitterFactor, true, retryCtx.Done())
 
 		// OnStartedLeading
-		le.leaderID = le.nodeID
-		go le.config.Callbacks.OnStartedLeading(leadCtx)
+		c.leaderID = c.nodeID
+		go c.config.Callbacks.OnStartedLeading(leadCtx)
 
-	}, le.config.RenewDeadline, ctx.Done())
+	}, c.config.RenewDeadline, ctx.Done())
 
 	// context returned done, release the lease
 	logger.Ctx(ctx).Info("context done, releasing lease")
 	leadCancel()
-	le.release(ctx)
+	c.release(ctx)
+
+	return nil
 }
 
 // GetLeader returns the identity of the last observed leader or returns the empty string if
 // no leader has yet been observed.
-func (le *LeaderElector) GetLeader() string {
-	return le.nodeID
+func (c *Candidate) GetLeader() string {
+	return c.nodeID
 }
 
 // IsLeader returns true if the last observed leader was this client else returns false.
-func (le *LeaderElector) IsLeader() bool {
+func (c *Candidate) IsLeader() bool {
 	// TODO: fetch latest data from registry for current leader
-	return (le.nodeID != "") && (le.nodeID == le.leaderID)
+	return (c.nodeID != "") && (c.nodeID == c.leaderID)
 }
 
 // tryAcquire tries to acquire a leader lease if it is not already acquired
 // Returns true on success else returns false.
-func (le *LeaderElector) tryAcquireOrRenew(ctx context.Context) bool {
+func (c *Candidate) tryAcquireOrRenew(ctx context.Context) bool {
 	var err error
 
 	// validate if node is already registered
-	if le.nodeID != "" {
+	if c.nodeID != "" {
 		// if node is not registred anymore, we will need register it again
 		// it can happen that ttl associated with registration had expired
-		if ok := le.registry.IsRegistered(le.nodeID); !ok {
-			logger.Ctx(ctx).Infof("node %s is unregisterd", le.nodeID)
-			le.nodeID = ""
+		if ok := c.registry.IsRegistered(c.nodeID); !ok {
+			logger.Ctx(ctx).Infof("node %s is unregisterd", c.nodeID)
+			c.nodeID = ""
 		} else {
-			err = le.registry.Renew(le.nodeID)
+			err = c.registry.Renew(c.nodeID)
 			if err != nil {
 				logger.Ctx(ctx).Infof("error while renewing registration: %v", err.Error())
 				return false
@@ -115,38 +119,38 @@ func (le *LeaderElector) tryAcquireOrRenew(ctx context.Context) bool {
 	}
 
 	// if not registered, register it
-	if le.nodeID == "" {
-		le.nodeID, err = le.registry.Register(le.config.Name, le.config.LeaseDuration)
+	if c.nodeID == "" {
+		c.nodeID, err = c.registry.Register(c.config.Name, c.config.LeaseDuration)
 		if err != nil {
 			logger.Ctx(ctx).Errorf("failed to register node with registry: %v", err)
 			return false
 		}
-		logger.Ctx(ctx).Infof("succesfully registered node with registry: %s", le.nodeID)
+		logger.Ctx(ctx).Infof("succesfully registered node with registry: %s", c.nodeID)
 	}
 
 	// try acquiring lock
-	acquired := le.registry.Acquire(le.nodeID, le.config.Path, time.Now().String())
+	acquired := c.registry.Acquire(c.nodeID, c.config.Path, time.Now().String())
 
 	return acquired
 }
 
 // release attempts to release the leader lease if we have acquired it.
-func (le *LeaderElector) release(ctx context.Context) bool {
-	if !le.IsLeader() {
+func (c *Candidate) release(ctx context.Context) bool {
+	if !c.IsLeader() {
 		return true
 	}
 
 	// deregister node, which releases lock as well
-	if err := le.registry.Deregister(le.nodeID); err != nil {
+	if err := c.registry.Deregister(c.nodeID); err != nil {
 		logger.Ctx(ctx).Error("Failed to deregister node: %v", err)
 		return false
 	}
 
 	// reset nodeId as current node id is deregistered
-	le.nodeID = ""
+	c.nodeID = ""
 
 	// handle OnStoppedLeading callback
-	le.config.Callbacks.OnStoppedLeading()
+	c.config.Callbacks.OnStoppedLeading()
 
 	logger.Ctx(ctx).Info("successfully released lease")
 	return true

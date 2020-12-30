@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/health"
@@ -35,8 +37,10 @@ func NewService(ctx context.Context, config *Config) *Service {
 
 // Start the service
 func (svc *Service) Start() error {
-	// Define server handlers
+	// initiates a error group
+	grp, gctx := errgroup.WithContext(svc.ctx)
 
+	// Define server handlers
 	healthCore, err := health.NewCore(nil) //TODO: Add checkers
 	if err != nil {
 		return err
@@ -54,46 +58,52 @@ func (svc *Service) Start() error {
 
 	projectCore := project.NewCore(project.NewRepo(r))
 
-	grpcServer, err := internalserver.StartGRPCServer(svc.ctx, svc.config.Interfaces.API.GrpcServerAddress, func(server *grpc.Server) error {
-		metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-		metrov1.RegisterPublisherServer(server, newPublisherServer(mb))
-		metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
-		metrov1.RegisterSubscriberServer(server, newSubscriberServer())
-
-		return nil
-	},
+	grpcServer, err := internalserver.StartGRPCServer(
+		grp,
+		svc.config.Interfaces.API.GrpcServerAddress,
+		func(server *grpc.Server) error {
+			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
+			metrov1.RegisterPublisherServer(server, newPublisherServer(mb))
+			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
+			metrov1.RegisterSubscriberServer(server, newSubscriberServer())
+			return nil
+		},
 		getInterceptors()...,
 	)
 	if err != nil {
 		return err
 	}
 
-	httpServer, err := internalserver.StartHTTPServer(svc.ctx, svc.config.Interfaces.API.HTTPServerAddress, func(mux *runtime.ServeMux) error {
-		err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
-		if err != nil {
-			return err
-		}
+	httpServer, err := internalserver.StartHTTPServer(
+		grp,
+		svc.config.Interfaces.API.HTTPServerAddress,
+		func(mux *runtime.ServeMux) error {
+			err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(gctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			if err != nil {
+				return err
+			}
 
-		err = metrov1.RegisterPublisherHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
-		if err != nil {
-			return err
-		}
+			err = metrov1.RegisterPublisherHandlerFromEndpoint(gctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			if err != nil {
+				return err
+			}
 
-		err = metrov1.RegisterAdminServiceHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
-		if err != nil {
-			return err
-		}
+			err = metrov1.RegisterAdminServiceHandlerFromEndpoint(gctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			if err != nil {
+				return err
+			}
 
-		err = metrov1.RegisterSubscriberHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
-		if err != nil {
-			return err
-		}
+			err = metrov1.RegisterSubscriberHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			if err != nil {
+				return err
+			}
 
-		mux.Handle("GET", runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "metrics"}, "")), func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-			promhttp.Handler().ServeHTTP(w, r)
+			mux.Handle("GET", runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "metrics"}, "")), func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+				promhttp.Handler().ServeHTTP(w, r)
+			})
+			return nil
 		})
-		return nil
-	})
+
 	if err != nil {
 		return err
 	}
@@ -102,14 +112,23 @@ func (svc *Service) Start() error {
 	svc.httpServer = httpServer
 	svc.health = healthCore
 
-	return nil
+	return grp.Wait()
 }
 
 // Stop the service
 func (svc *Service) Stop() error {
-	svc.grpcServer.GracefulStop()
-	svc.httpServer.Shutdown(svc.ctx)
-	return nil
+	grp, gctx := errgroup.WithContext(svc.ctx)
+
+	grp.Go(func() error {
+		svc.grpcServer.GracefulStop()
+		return nil
+	})
+
+	grp.Go(func() error {
+		return svc.httpServer.Shutdown(gctx)
+	})
+
+	return grp.Wait()
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {

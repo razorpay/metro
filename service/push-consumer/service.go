@@ -2,7 +2,6 @@ package pushconsumer
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,18 +9,18 @@ import (
 	"github.com/razorpay/metro/pkg/leaderelection"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
+	"golang.org/x/sync/errgroup"
 )
 
 // Service for push consumer
 type Service struct {
-	ctx      context.Context
-	health   *health.Core
-	config   *Config
-	registry registry.IRegistry
-	le       *leaderelection.LeaderElector
-	leCancel context.CancelFunc
-	nodeID   string
-	wg       sync.WaitGroup
+	ctx       context.Context
+	health    *health.Core
+	config    *Config
+	registry  registry.IRegistry
+	candidate *leaderelection.Candidate
+	leCancel  context.CancelFunc
+	nodeID    string
 }
 
 // NewService creates an instance of new push consumer service
@@ -33,9 +32,10 @@ func NewService(ctx context.Context, config *Config) *Service {
 	}
 }
 
-// Start the service
+// Start implements all the tasks for push-consumer and waits until one of the task fails
 func (c *Service) Start() error {
 	var err error
+	grp, gctx := errgroup.WithContext(c.ctx)
 
 	// Init the Registry
 	// TODO: move to component init ?
@@ -46,11 +46,11 @@ func (c *Service) Start() error {
 	}
 
 	// Init Leader Election
-	c.le, err = leaderelection.NewLeaderElector(leaderelection.Config{
+	c.candidate, err = leaderelection.New(leaderelection.Config{
 		// TODO: read values from config
 		Name:          "metro-push-consumer",
 		Path:          "leader/election",
-		LeaseDuration: 3000 * time.Second,
+		LeaseDuration: 30 * time.Second,
 		RenewDeadline: 20 * time.Second,
 		RetryPeriod:   5 * time.Second,
 		Callbacks: leaderelection.LeaderCallbacks{
@@ -71,7 +71,9 @@ func (c *Service) Start() error {
 	// TODO: use repo to add the node under /registry/nodes/{node_id} path
 
 	// Run leader election
-	c.runLeaderElection()
+	grp.Go(func() error {
+		return c.candidate.Run(gctx)
+	})
 
 	// 3. Watch the Jobs/Node_id path for jobs
 
@@ -83,17 +85,13 @@ func (c *Service) Start() error {
 
 	// 7. if leader renew session
 
-	return nil
+	return grp.Wait()
 }
 
 // Stop the service
 func (c *Service) Stop() error {
-	// Stop Leader Election, cancelling context will stop leader election
-	logger.Ctx(c.ctx).Info("stopping leader election")
-	c.leCancel()
 
 	// wait until all goroutines return done
-	c.wg.Wait()
 	return nil
 }
 
@@ -103,12 +101,4 @@ func (c *Service) lead(ctx context.Context) {
 
 func (c *Service) stepDown() {
 	logger.Ctx(c.ctx).Infof("Node %s stepping down from leader", c.nodeID)
-}
-
-func (c *Service) runLeaderElection() {
-	ctx, cancel := context.WithCancel(c.ctx)
-	c.leCancel = cancel
-
-	c.wg.Add(1)
-	go c.le.Run(ctx, &c.wg)
 }

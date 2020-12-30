@@ -4,6 +4,8 @@ import (
 	"net"
 	"net/http"
 
+	"golang.org/x/sync/errgroup"
+
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	grpcopentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
@@ -18,44 +20,50 @@ type registerGrpcHandlers func(server *grpc.Server) error
 type registerHTTPHandlers func(mux *runtime.ServeMux) error
 
 // StartGRPCServer with handlers and interceptors
-func StartGRPCServer(errChan chan<- error, address string, registerGrpcHandlers registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
+func StartGRPCServer(
+	grp *errgroup.Group,
+	address string,
+	registerGrpcHandlers registerGrpcHandlers,
+	interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
 		return nil, err
 	}
-	// Start gRPC server.
-	go func(chan<- error) {
-		listener, err := net.Listen("tcp", address)
-		if err != nil {
-			errChan <- err
-		}
 
-		err = grpcServer.Serve(listener)
-		if err != nil {
-			errChan <- err
-		}
-	}(errChan)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start gRPC server
+	grp.Go(func() error {
+		return grpcServer.Serve(listener)
+	})
+
 	return grpcServer, nil
 }
 
 // StartHTTPServer with handlers
-func StartHTTPServer(errChan chan<- error, address string, registerHTTPHandlers registerHTTPHandlers) (*http.Server, error) {
+func StartHTTPServer(grp *errgroup.Group, address string, registerHTTPHandlers registerHTTPHandlers) (*http.Server, error) {
 	httpServer, err := newHTTPServer(registerHTTPHandlers)
 	if err != nil {
 		return nil, err
 	}
-	// Start HTTP server for gRPC gateway.
-	go func(chan<- error) {
-		listener, err := net.Listen("tcp", address)
-		if err != nil {
-			errChan <- err
-		}
 
-		err = httpServer.Serve(listener)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start HTTP server for gRPC gateway
+	grp.Go(func() error {
+		err := httpServer.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
-			errChan <- err
+			return err
 		}
-	}(errChan)
+		return nil
+	})
+
 	return httpServer, nil
 }
 

@@ -71,10 +71,11 @@ func (c *Candidate) Run(ctx context.Context) error {
 			retryCancel()
 		}, c.config.RetryPeriod, JitterFactor, true, retryCtx.Done())
 
-		// OnStartedLeading
-		c.leaderID = c.nodeID
-		go c.config.Callbacks.OnStartedLeading(leadCtx)
-
+		// OnStartedLeading if new leader
+		if c.leaderID != c.nodeID {
+			c.leaderID = c.nodeID
+			go c.config.Callbacks.OnStartedLeading(leadCtx)
+		}
 	}, c.config.RenewDeadline, ctx.Done())
 
 	// context returned done, release the lease

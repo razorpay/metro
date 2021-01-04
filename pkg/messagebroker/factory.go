@@ -12,35 +12,35 @@ const (
 	Pulsar = "pulsar"
 )
 
-// NewConsumer returns an instance of a consumer, kafka or pulsar
-func NewConsumer(ctx context.Context, identifier string, bConfig *BrokerConfig) (Consumer, error) {
+// NewConsumerClient returns an instance of a consumer, kafka or pulsar
+func NewConsumerClient(ctx context.Context, identifier string, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 	switch identifier {
 	case Kafka:
-		return NewKafkaConsumer(ctx, bConfig)
+		return NewKafkaConsumerClient(ctx, bConfig, options)
 	case Pulsar:
-		return NewPulsarConsumer(ctx, bConfig)
+		return NewPulsarConsumerClient(ctx, bConfig, options)
 	}
 	return nil, fmt.Errorf("unknown Broker identifier, %s", identifier)
 }
 
-// NewProducer returns an instance of a producer, kafka or pulsar
-func NewProducer(ctx context.Context, identifier string, bConfig *BrokerConfig) (Producer, error) {
+// NewProducerClient returns an instance of a producer, kafka or pulsar
+func NewProducerClient(ctx context.Context, identifier string, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
 	switch identifier {
 	case Kafka:
-		return NewKafkaProducer(ctx, bConfig)
+		return NewKafkaProducerClient(ctx, bConfig, options)
 	case Pulsar:
-		return NewPulsarProducer(ctx, bConfig)
+		return NewPulsarProducerClient(ctx, bConfig, options)
 	}
 	return nil, fmt.Errorf("unknown Broker identifier, %s", identifier)
 }
 
-// NewAdmin returns an instance of a admin, kafka or pulsar
-func NewAdmin(ctx context.Context, identifier string, bConfig *BrokerConfig) (Admin, error) {
+// NewAdminClient returns an instance of a admin, kafka or pulsar
+func NewAdminClient(ctx context.Context, identifier string, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
 	switch identifier {
 	case Kafka:
-		return NewKafkaAdmin(ctx, bConfig)
+		return NewKafkaAdminClient(ctx, bConfig, options)
 	case Pulsar:
-		return NewPulsarAdmin(ctx, bConfig)
+		return NewPulsarAdminClient(ctx, bConfig, options)
 	}
 	return nil, fmt.Errorf("unknown Broker identifier, %s", identifier)
 }

@@ -15,8 +15,19 @@ type PulsarBroker struct {
 	Producer pulsar.Producer
 }
 
-// NewPulsarConsumer returns a pulsar consumer
-func NewPulsarConsumer(ctx context.Context, bConfig *BrokerConfig) (Consumer, error) {
+// NewPulsarConsumerClient returns a pulsar consumer
+func NewPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
+
+	err := validatePulsarConsumerConfig(bConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validatePulsarConsumerClientConfig(options)
+	if err != nil {
+		return nil, err
+	}
+
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:               bConfig.Brokers[0],
 		OperationTimeout:  time.Duration(bConfig.OperationTimeout) * time.Second,
@@ -28,8 +39,8 @@ func NewPulsarConsumer(ctx context.Context, bConfig *BrokerConfig) (Consumer, er
 	}
 
 	c, err := client.Subscribe(pulsar.ConsumerOptions{
-		Topic:            bConfig.Consumer.Topic,
-		SubscriptionName: bConfig.Consumer.Subscription,
+		Topic:            options.Topic,
+		SubscriptionName: options.Subscription,
 		Type:             pulsar.SubscriptionType(bConfig.Consumer.SubscriptionType),
 	})
 
@@ -44,8 +55,19 @@ func NewPulsarConsumer(ctx context.Context, bConfig *BrokerConfig) (Consumer, er
 	}, nil
 }
 
-// NewPulsarProducer returns a pulsar producer
-func NewPulsarProducer(ctx context.Context, bConfig *BrokerConfig) (Producer, error) {
+// NewPulsarProducerClient returns a pulsar producer
+func NewPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
+
+	err := validatePulsarProducerConfig(bConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validatePulsarProducerClientConfig(options)
+	if err != nil {
+		return nil, err
+	}
+
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:               bConfig.Brokers[0],
 		OperationTimeout:  time.Duration(bConfig.OperationTimeout) * time.Second,
@@ -57,7 +79,7 @@ func NewPulsarProducer(ctx context.Context, bConfig *BrokerConfig) (Producer, er
 	}
 
 	p, err := client.CreateProducer(pulsar.ProducerOptions{
-		Topic: bConfig.Producer.Topic,
+		Topic: options.Topic,
 	})
 
 	if err != nil {
@@ -71,8 +93,18 @@ func NewPulsarProducer(ctx context.Context, bConfig *BrokerConfig) (Producer, er
 	}, nil
 }
 
-// NewPulsarAdmin returns a pulsar admin
-func NewPulsarAdmin(ctx context.Context, bConfig *BrokerConfig) (Admin, error) {
+// NewPulsarAdminClient returns a pulsar admin
+func NewPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
+	err := validatePulsarAdminConfig(bConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validatePulsarAdminClientConfig(options)
+	if err != nil {
+		return nil, err
+	}
+
 	// admin client init
 	// Need to write an Admin wrapper over http://pulsar.apache.org/docs/v2.0.1-incubating/reference/RestApi/
 	// https://streamnative.io/en/blog/tech/2019-11-26-introduction-pulsarctl
@@ -92,9 +124,9 @@ func (p PulsarBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 	panic("implement me")
 }
 
-// SendMessage sends a message on the topic
-func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (SendMessageToTopicResponse, error) {
-	msgID, err := p.Producer.Send(context.Background(), &pulsar.ProducerMessage{
+// SendMessages sends a message on the topic
+func (p PulsarBroker) SendMessages(ctx context.Context, request SendMessageToTopicRequest) (SendMessageToTopicResponse, error) {
+	msgID, err := p.Producer.Send(ctx, &pulsar.ProducerMessage{
 		Payload: request.Message,
 	})
 
@@ -103,16 +135,18 @@ func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}, err
 }
 
-//GetMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
+//ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
-func (p PulsarBroker) GetMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
+func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
 
 	msgs := make([]string, request.NumOfMessages)
 	for i := 0; i < request.NumOfMessages; i++ {
 		msg, err := p.Consumer.Receive(ctx)
 		if err != nil {
-			return GetMessagesFromTopicResponse{}, err
+			return GetMessagesFromTopicResponse{
+				Response: err,
+			}, err
 		}
 		msgs = append(msgs, string(msg.ID().Serialize()))
 	}
@@ -125,6 +159,6 @@ func (p PulsarBroker) GetMessages(ctx context.Context, request GetMessagesFromTo
 //Commit Commits messages if any
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
-func (p PulsarBroker) Commit(ctx context.Context) (CommitOnTopicResponse, error) {
+func (p PulsarBroker) Commit(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	panic("implement me")
 }

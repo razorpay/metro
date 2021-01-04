@@ -20,7 +20,6 @@ type BrokerConfig struct {
 
 // ProducerConfig holds producer's configuration'
 type ProducerConfig struct {
-	Topic              string
 	RetryBackoff       time.Duration
 	Partitioner        string
 	MaxRetry           int
@@ -32,12 +31,26 @@ type ProducerConfig struct {
 
 // ConsumerConfig holds consumer's configuration
 type ConsumerConfig struct {
-	GroupID          string
-	Subscription     string
-	Topic            string
 	SubscriptionType int
 	PollInterval     time.Duration
+	OffsetReset      string
+	EnableAutoCommit bool
 }
 
 // AdminConfig holds configuration for admin APIs
 type AdminConfig struct{}
+
+// ConsumerClientOptions holds client specific configuration for consumer
+type ConsumerClientOptions struct {
+	Topic        string
+	Subscription string
+	GroupID      string
+}
+
+// ProducerClientOptions holds client specific configuration for producer
+type ProducerClientOptions struct {
+	Topic string
+}
+
+// AdminClientOptions holds client specific configuration for admin
+type AdminClientOptions struct{}

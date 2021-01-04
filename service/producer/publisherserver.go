@@ -24,7 +24,7 @@ func (s publisherServer) Produce(ctx context.Context, request *metrov1.ProduceRe
 	msgIds := make([]string, 0)
 
 	for _, msg := range request.Messages {
-		msgResp, _ := s.producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
+		msgResp, _ := s.producer.SendMessages(ctx, messagebroker.SendMessageToTopicRequest{
 			Topic:   request.Topic,
 			Message: msg.Data,
 		})

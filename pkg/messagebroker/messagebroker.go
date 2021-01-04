@@ -21,7 +21,7 @@ type Admin interface {
 // Producer for produce operations
 type Producer interface {
 	// sends a message on the topic
-	SendMessage(context.Context, SendMessageToTopicRequest) (SendMessageToTopicResponse, error)
+	SendMessages(context.Context, SendMessageToTopicRequest) (SendMessageToTopicResponse, error)
 }
 
 // Consumer interface for consuming messages
@@ -29,10 +29,10 @@ type Consumer interface {
 	//GetMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
 	//from the previous committed offset. If the available messages in the queue are less, returns
 	// how many ever messages are available
-	GetMessages(context.Context, GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error)
+	ReceiveMessages(context.Context, GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error)
 
 	//Commits messages if any
 	//This func will commit the message consumed
 	//by all the previous calls to GetMessages
-	Commit(context.Context) (CommitOnTopicResponse, error)
+	Commit(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
 }

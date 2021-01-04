@@ -53,7 +53,7 @@ func (c *Candidate) Run(ctx context.Context) error {
 	logger.Ctx(ctx).Info("attempting to acquire leader lease")
 	// outer wait loop runs when a instance has successfully acquired lease
 	wait.Until(func() {
-		retryCtx, retryCancel := context.WithCancel(ctx)
+		retryCtx, retryCancel := context.WithTimeout(ctx, c.config.RenewDeadline)
 		defer retryCancel()
 
 		// inner wait retry loop for faster retries if failed to acquire lease
@@ -62,19 +62,20 @@ func (c *Candidate) Run(ctx context.Context) error {
 			acquired = c.tryAcquireOrRenew(retryCtx)
 
 			if !acquired {
-				logger.Ctx(retryCtx).Infow("failed to acquire lease, retrying...")
+				logger.Ctx(retryCtx).Infow("failed to acquire lease, retrying...", "nodeID", c.nodeID)
 				return
 			}
 
 			// if succeeded, we can break the inner loop by cancelling context and renew in outer loop
-			logger.Ctx(ctx).Info("successfully acquired lease")
+			logger.Ctx(ctx).Infow("successfully acquired lease", "nodeID", c.nodeID)
 			retryCancel()
 		}, c.config.RetryPeriod, JitterFactor, true, retryCtx.Done())
 
-		// OnStartedLeading
-		c.leaderID = c.nodeID
-		go c.config.Callbacks.OnStartedLeading(leadCtx)
-
+		// OnStartedLeading if new leader
+		if acquired && c.leaderID != c.nodeID {
+			c.leaderID = c.nodeID
+			go c.config.Callbacks.OnStartedLeading(leadCtx)
+		}
 	}, c.config.RenewDeadline, ctx.Done())
 
 	// context returned done, release the lease
@@ -125,7 +126,7 @@ func (c *Candidate) tryAcquireOrRenew(ctx context.Context) bool {
 			logger.Ctx(ctx).Errorf("failed to register node with registry: %v", err)
 			return false
 		}
-		logger.Ctx(ctx).Infof("succesfully registered node with registry: %s", c.nodeID)
+		logger.Ctx(ctx).Infow("succesfully registered node with registry", "nodeID", c.nodeID)
 	}
 
 	// try acquiring lock
@@ -136,21 +137,19 @@ func (c *Candidate) tryAcquireOrRenew(ctx context.Context) bool {
 
 // release attempts to release the leader lease if we have acquired it.
 func (c *Candidate) release(ctx context.Context) bool {
-	if !c.IsLeader() {
-		return true
-	}
-
 	// deregister node, which releases lock as well
 	if err := c.registry.Deregister(c.nodeID); err != nil {
 		logger.Ctx(ctx).Error("Failed to deregister node: %v", err)
 		return false
 	}
 
+	if c.IsLeader() {
+		// handle OnStoppedLeading callback
+		c.config.Callbacks.OnStoppedLeading()
+	}
+
 	// reset nodeId as current node id is deregistered
 	c.nodeID = ""
-
-	// handle OnStoppedLeading callback
-	c.config.Callbacks.OnStoppedLeading()
 
 	logger.Ctx(ctx).Info("successfully released lease")
 	return true

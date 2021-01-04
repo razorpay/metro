@@ -19,7 +19,7 @@ type KafkaBroker struct {
 
 // NewKafkaConsumerClient returns a kafka consumer
 func NewKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
-	err := validateKafkaConsumerConfig(bConfig)
+	err := validateKafkaConsumerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func NewKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 
 // NewKafkaProducerClient returns a kafka producer
 func NewKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
-	err := validateKafkaProducerConfig(bConfig)
+	err := validateKafkaProducerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func NewKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 
 // NewKafkaAdminClient returns a kafka admin
 func NewKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
-	err := validateKafkaAdminConfig(bConfig)
+	err := validateKafkaAdminBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
 	}

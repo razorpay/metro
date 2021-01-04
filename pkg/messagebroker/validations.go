@@ -1,61 +1,127 @@
 package messagebroker
 
+import "errors"
+
 // validateKafkaConsumerClientConfig validates kafka consumer client config
 func validateKafkaConsumerClientConfig(options *ConsumerClientOptions) error {
+
+	if options.Topic == "" {
+		return errors.New("kafka: empty topic name")
+	}
+
+	if options.GroupID == "" {
+		return errors.New("kafka: empty group_id name")
+	}
+
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates kafka consumer broker config
-func validateKafkaConsumerConfig(config *BrokerConfig) error {
+// validateKafkaConsumerBrokerConfig validates kafka consumer broker config
+func validateKafkaConsumerBrokerConfig(config *BrokerConfig) error {
+
+	if config.Brokers == nil || len(config.Brokers) == 0 {
+		return errors.New("kafka: empty brokers list")
+	}
+
+	if config.ConnectionTimeout > 60 {
+		return errors.New("kafka: connection timeout above the allowed value of 60secs")
+	}
+
+	if config.ConnectionTimeout > 60 {
+		return errors.New("kafka: operation timeout above the allowed value of 60secs")
+	}
+
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates kafka producer client config
+// validateKafkaProducerClientConfig validates kafka producer client config
 func validateKafkaProducerClientConfig(options *ProducerClientOptions) error {
+
+	if options.Topic == "" {
+		return errors.New("kafka: empty topic name")
+	}
+
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates kafka producer broker config
-func validateKafkaProducerConfig(config *BrokerConfig) error {
+// validateKafkaProducerBrokerConfig validates kafka producer broker config
+func validateKafkaProducerBrokerConfig(config *BrokerConfig) error {
+
+	if config.Brokers == nil || len(config.Brokers) == 0 {
+		return errors.New("kafka: empty brokers list")
+	}
+
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates kafka admin client config
+// validateKafkaAdminClientConfig validates kafka admin client config
 func validateKafkaAdminClientConfig(options *AdminClientOptions) error {
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates kafka admin broker config
-func validateKafkaAdminConfig(config *BrokerConfig) error {
+// validateKafkaAdminBrokerConfig validates kafka admin broker config
+func validateKafkaAdminBrokerConfig(config *BrokerConfig) error {
+
+	if config.Brokers == nil || len(config.Brokers) == 0 {
+		return errors.New("kafka: empty brokers list")
+	}
+
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates pulsar consumer client config
+// validatePulsarConsumerClientConfig validates pulsar consumer client config
 func validatePulsarConsumerClientConfig(options *ConsumerClientOptions) error {
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates pulsar consumer broker config
-func validatePulsarConsumerConfig(config *BrokerConfig) error {
+// validatePulsarConsumerBrokerConfig validates pulsar consumer broker config
+func validatePulsarConsumerBrokerConfig(config *BrokerConfig) error {
+
+	if config.Brokers == nil || len(config.Brokers) == 0 {
+		return errors.New("pulsar: empty brokers list")
+	}
+
+	if len(config.Brokers) > 1 {
+		return errors.New("pulsar: should have only one broker during init")
+	}
+
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates pulsar producer client config
+// validatePulsarProducerClientConfig validates pulsar producer client config
 func validatePulsarProducerClientConfig(options *ProducerClientOptions) error {
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates pulsar producer broker config
-func validatePulsarProducerConfig(config *BrokerConfig) error {
+// validatePulsarProducerBrokerConfig validates pulsar producer broker config
+func validatePulsarProducerBrokerConfig(config *BrokerConfig) error {
+
+	if config.Brokers == nil || len(config.Brokers) == 0 {
+		return errors.New("pulsar: empty brokers list")
+	}
+
+	if len(config.Brokers) > 1 {
+		return errors.New("pulsar: should have only one broker during init")
+	}
+
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates pulsar admin client config
+// validatePulsarAdminClientConfig validates pulsar admin client config
 func validatePulsarAdminClientConfig(options *AdminClientOptions) error {
 	return nil
 }
 
-// validateKafkaConsumerClientConfig validates pulsar admin broker config
-func validatePulsarAdminConfig(config *BrokerConfig) error {
+// validatePulsarAdminBrokerConfig validates pulsar admin broker config
+func validatePulsarAdminBrokerConfig(config *BrokerConfig) error {
+
+	if config.Brokers == nil || len(config.Brokers) == 0 {
+		return errors.New("pulsar: empty brokers list")
+	}
+
+	if len(config.Brokers) > 1 {
+		return errors.New("pulsar: should have only one broker during init")
+	}
+
 	return nil
 }

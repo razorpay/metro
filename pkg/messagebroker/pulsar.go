@@ -18,7 +18,7 @@ type PulsarBroker struct {
 // NewPulsarConsumerClient returns a pulsar consumer
 func NewPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 
-	err := validatePulsarConsumerConfig(bConfig)
+	err := validatePulsarConsumerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func NewPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options
 // NewPulsarProducerClient returns a pulsar producer
 func NewPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
 
-	err := validatePulsarProducerConfig(bConfig)
+	err := validatePulsarProducerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func NewPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options
 
 // NewPulsarAdminClient returns a pulsar admin
 func NewPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
-	err := validatePulsarAdminConfig(bConfig)
+	err := validatePulsarAdminBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,6 @@ package messagebroker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -164,7 +163,7 @@ func (k *KafkaBroker) SendMessages(ctx context.Context, request SendMessageToTop
 	case err := <-deliveryChan:
 		m = err.(*kakfapkg.Message)
 	case <-time.After(time.Duration(k.POptions.Timeout)):
-		return SendMessageToTopicResponse{}, errors.New(fmt.Sprintf("failed to produce message to topic [%v] due to timeout [%v]", &request.Topic, k.POptions.Timeout))
+		return SendMessageToTopicResponse{}, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", &request.Topic, k.POptions.Timeout)
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {

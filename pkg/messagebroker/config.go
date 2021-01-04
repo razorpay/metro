@@ -49,7 +49,8 @@ type ConsumerClientOptions struct {
 
 // ProducerClientOptions holds client specific configuration for producer
 type ProducerClientOptions struct {
-	Topic string
+	Topic   string
+	Timeout int64
 }
 
 // AdminClientOptions holds client specific configuration for admin

@@ -2,6 +2,8 @@ package messagebroker
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -14,7 +16,14 @@ type KafkaBroker struct {
 	Consumer *kakfapkg.Consumer
 	Admin    *kakfapkg.AdminClient
 	Ctx      context.Context
-	Config   *BrokerConfig
+
+	// holds the broker config
+	Config *BrokerConfig
+
+	// holds the client configs
+	POptions *ProducerClientOptions
+	COptions *ConsumerClientOptions
+	AOptions *AdminClientOptions
 }
 
 // NewKafkaConsumerClient returns a kafka consumer
@@ -46,6 +55,7 @@ func NewKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		Consumer: c,
 		Ctx:      ctx,
 		Config:   bConfig,
+		COptions: options,
 	}, nil
 }
 
@@ -70,6 +80,7 @@ func NewKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		Producer: p,
 		Ctx:      ctx,
 		Config:   bConfig,
+		POptions: options,
 	}, nil
 }
 
@@ -91,9 +102,10 @@ func NewKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 	}
 
 	return &KafkaBroker{
-		Admin:  a,
-		Ctx:    ctx,
-		Config: bConfig,
+		Admin:    a,
+		Ctx:      ctx,
+		Config:   bConfig,
+		AOptions: options,
 	}, nil
 }
 
@@ -151,8 +163,8 @@ func (k *KafkaBroker) SendMessages(ctx context.Context, request SendMessageToTop
 	select {
 	case err := <-deliveryChan:
 		m = err.(*kakfapkg.Message)
-	case <-time.After(1 * request.Timeout):
-		break
+	case <-time.After(time.Duration(k.POptions.Timeout)):
+		return SendMessageToTopicResponse{}, errors.New(fmt.Sprintf("failed to produce message to topic [%v] due to timeout [%v]", &request.Topic, k.POptions.Timeout))
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {

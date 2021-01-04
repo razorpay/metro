@@ -10,9 +10,16 @@ import (
 // PulsarBroker for pulsar
 type PulsarBroker struct {
 	Ctx      context.Context
-	Config   *BrokerConfig
 	Consumer pulsar.Consumer
 	Producer pulsar.Producer
+
+	// holds the broker config
+	Config *BrokerConfig
+
+	// holds the client configs
+	POptions *ProducerClientOptions
+	COptions *ConsumerClientOptions
+	AOptions *AdminClientOptions
 }
 
 // NewPulsarConsumerClient returns a pulsar consumer
@@ -52,6 +59,7 @@ func NewPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options
 		Ctx:      ctx,
 		Config:   bConfig,
 		Consumer: c,
+		COptions: options,
 	}, nil
 }
 
@@ -90,6 +98,7 @@ func NewPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options
 		Ctx:      ctx,
 		Config:   bConfig,
 		Producer: p,
+		POptions: options,
 	}, nil
 }
 
@@ -109,8 +118,9 @@ func NewPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *A
 	// Need to write an Admin wrapper over http://pulsar.apache.org/docs/v2.0.1-incubating/reference/RestApi/
 	// https://streamnative.io/en/blog/tech/2019-11-26-introduction-pulsarctl
 	return &PulsarBroker{
-		Ctx:    ctx,
-		Config: bConfig,
+		Ctx:      ctx,
+		Config:   bConfig,
+		AOptions: options,
 	}, nil
 }
 

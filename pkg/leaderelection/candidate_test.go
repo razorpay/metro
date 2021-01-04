@@ -42,67 +42,25 @@ func TestLeaderElectionRun(t *testing.T) {
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
 
-	gomock.InOrder(
-		registryMock.EXPECT().Register("leaderelection-test", 30*time.Second).Return("id1", nil).Times(1),
-		registryMock.EXPECT().Register("leaderelection-test", 30*time.Second).Return("id2", nil).Times(1),
-		registryMock.EXPECT().Register("leaderelection-test", 30*time.Second).Return("id3", nil).Times(1),
-	)
+	registryMock.EXPECT().Register("leaderelection-test", 30*time.Second).Return("id", nil).MaxTimes(1)
+	registryMock.EXPECT().IsRegistered("id").Return(true).AnyTimes()
+	registryMock.EXPECT().Deregister("id").Return(nil).MaxTimes(1)
+	registryMock.EXPECT().Acquire("id", "leader/election/test", gomock.Any()).Return(false).AnyTimes()
 
-	registryMock.EXPECT().IsRegistered("id1").Return(true).AnyTimes()
-	registryMock.EXPECT().IsRegistered("id2").Return(true).AnyTimes()
-	registryMock.EXPECT().IsRegistered("id3").Return(true).AnyTimes()
+	ctx, cancel := context.WithCancel(context.Background())
+	c, _ := New(getConfig(), registryMock)
 
-	registryMock.EXPECT().Deregister("id1").Return(nil).Times(1)
-	registryMock.EXPECT().Deregister("id2").Return(nil).Times(1)
-	registryMock.EXPECT().Deregister("id3").Return(nil).Times(1)
-
-	registryMock.EXPECT().Acquire("id1", "leader/election/test", gomock.Any()).Return(false).AnyTimes()
-	registryMock.EXPECT().Acquire("id2", "leader/election/test", gomock.Any()).Return(true).AnyTimes()
-	registryMock.EXPECT().Acquire("id3", "leader/election/test", gomock.Any()).Return(false).AnyTimes()
-
-	gctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	c1, _ := New(getConfig(), registryMock)
-	c2, _ := New(getConfig(), registryMock)
-	c3, _ := New(getConfig(), registryMock)
-
 	wg.Add(1)
-	go func(wg *sync.WaitGroup) error {
+	go func(c1 *Candidate) error {
 		defer wg.Done()
-		return c1.Run(gctx)
-	}(&wg)
+		return c1.Run(ctx)
+	}(c)
 
-	wg.Add(1)
-	go func(wg *sync.WaitGroup) error {
-		defer wg.Done()
-		return c2.Run(gctx)
-	}(&wg)
-
-	wg.Add(1)
-	go func(wg *sync.WaitGroup) error {
-		defer wg.Done()
-		return c3.Run(gctx)
-	}(&wg)
-
-	wg.Add(1)
-	go func(wg *sync.WaitGroup) {
-		defer wg.Done()
-		// wait until all nodes are registered and leader is elected
-		for {
-			if c1.IsLeader() || c2.IsLeader() || c3.IsLeader() {
-				break
-			}
-		}
-
-		assert.Equal(t, (c1.nodeID == "id2"), c1.IsLeader())
-		assert.Equal(t, (c2.nodeID == "id2"), c2.IsLeader())
-		assert.Equal(t, (c3.nodeID == "id2"), c3.IsLeader())
-		cancel()
-		return
-	}(&wg)
-
+	cancel()
 	wg.Wait()
+	assert.Equal(t, "", c.nodeID)
 }
 
 func getConfig() Config {
@@ -114,7 +72,6 @@ func getConfig() Config {
 		Name:          "leaderelection-test",
 		Callbacks: LeaderCallbacks{
 			OnStartedLeading: func(gctx context.Context) {
-
 			},
 			OnStoppedLeading: func() {
 

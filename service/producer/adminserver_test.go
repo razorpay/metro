@@ -20,8 +20,9 @@ func TestAdminServer_CreateProject(t *testing.T) {
 		Labels:    map[string]string{"foo": "bar"},
 	}
 	adminServer := newAdminServer(mockProjectCore)
-	projectModel := project.FromProto(projectProto)
 	ctx := context.Background()
+	projectModel, err := project.GetValidatedModel(ctx, projectProto)
+	assert.Nil(t, err)
 	mockProjectCore.EXPECT().CreateProject(ctx, projectModel)
 	p, err := adminServer.CreateProject(ctx, projectProto)
 	assert.Equal(t, projectProto, p)

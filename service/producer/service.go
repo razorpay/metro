@@ -4,17 +4,17 @@ import (
 	"context"
 	"net/http"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/project"
 	internalserver "github.com/razorpay/metro/internal/server"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
 
@@ -46,7 +46,7 @@ func (svc *Service) Start() error {
 		return err
 	}
 
-	mb, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.Broker.BrokerConfig)
+	broker, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.Broker.BrokerConfig)
 	if err != nil {
 		return err
 	}
@@ -58,12 +58,14 @@ func (svc *Service) Start() error {
 
 	projectCore := project.NewCore(project.NewRepo(r))
 
+	topicCore := topic.NewCore(topic.NewRepo(r), projectCore)
+
 	grpcServer, err := internalserver.StartGRPCServer(
 		grp,
 		svc.config.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-			metrov1.RegisterPublisherServer(server, newPublisherServer(mb))
+			metrov1.RegisterPublisherServer(server, newPublisherServer(broker, topicCore))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
 			metrov1.RegisterSubscriberServer(server, newSubscriberServer())
 			return nil

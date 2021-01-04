@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -70,6 +71,20 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		os.Exit(2)
 	}
+	// create project in metro
+	createProjectInMetro()
 	exitVal := m.Run()
 	os.Exit(exitVal)
+}
+
+func createProjectInMetro() {
+	conn, err := grpc.Dial(":8081", grpc.WithInsecure())
+	if err != nil {
+		os.Exit(3)
+	}
+	client := metrov1.NewAdminServiceClient(conn)
+	_, err = client.CreateProject(context.Background(), &metrov1.Project{ProjectId: "project-id"})
+	if err != nil {
+		os.Exit(4)
+	}
 }

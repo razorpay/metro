@@ -3,14 +3,15 @@
 package compatibility
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -24,6 +25,7 @@ func Test_Topic_CreateTopic(t *testing.T) {
 	// TODO: fix it with more tests and better structure
 	for k, client := range []*pubsub.Client{metroClient, emulatorClient} {
 		topic, err := client.CreateTopic(context.Background(), "topic-name")
+		t.Log(err)
 		assert.Nil(t, err)
 		assert.NotNil(t, topic)
 
@@ -78,13 +80,9 @@ func TestMain(m *testing.M) {
 }
 
 func createProjectInMetro() {
-	conn, err := grpc.Dial(":8081", grpc.WithInsecure())
+	url := fmt.Sprintf("http://%s:8082/v1/projects", os.Getenv("METRO_TEST_HOST"))
+	_, err := http.Post(url, "application/json", bytes.NewBuffer([]byte("{name: project-id,projectId: project-id}")))
 	if err != nil {
 		os.Exit(3)
-	}
-	client := metrov1.NewAdminServiceClient(conn)
-	_, err = client.CreateProject(context.Background(), &metrov1.Project{ProjectId: "project-id"})
-	if err != nil {
-		os.Exit(4)
 	}
 }

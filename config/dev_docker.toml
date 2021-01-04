@@ -19,12 +19,12 @@
         variant               = "kafka"
         [producer.broker.BrokerConfig]
             [producer.broker.BrokerConfig.Producer]
-                Brokers       = ["localhost:9092"]
+                Brokers       = ["kafka-broker:9092"]
     [producer.registry]
         driver                    = "consul"
         [producer.registry.consulconfig]
             [producer.registry.consulconfig.config]
-                address               = "localhost:8500"
+                address               = "consul:8500"
                 scheme                = "http"
     [producer.interfaces]
         [producer.interfaces.api]
@@ -36,13 +36,13 @@
         driver                    = "consul"
         [pushConsumer.registry.consulconfig]
             [pushConsumer.registry.consulconfig.config]
-                address               = "localhost:8500"
+                address               = "consul:8500"
                 scheme                = "http"
     [pushConsumer.broker]
         variant               = "kafka"
         [pushConsumer.broker.BrokerConfig]
             [pushConsumer.broker.BrokerConfig.Consumer]
-                Brokers       = ["localhost:9092"]
+                Brokers       = ["kafka-broker:9092"]
     [pushConsumer.interfaces]
         [pushConsumer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
@@ -53,13 +53,13 @@
         driver                    = "consul"
         [pullConsumer.registry.consulconfig]
             [pullConsumer.registry.consulconfig.config]
-                address               = "localhost:8500"
+                address               = "consul:8500"
                 scheme                = "http"
     [pullConsumer.broker]
         variant               = "kafka"
         [pullConsumer.broker.BrokerConfig]
             [pullConsumer.broker.BrokerConfig.Consumer]
-                Brokers       = ["localhost:9092"]
+                Brokers       = ["kafka-broker:9092"]
     [pullConsumer.interfaces]
         [pullConsumer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"

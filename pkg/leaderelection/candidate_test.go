@@ -88,16 +88,18 @@ func TestLeaderElectionRun(t *testing.T) {
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
 		defer wg.Done()
+		// wait until all nodes are registered and leader is elected
 		for {
-			// wait until all nodes are registered
-			if c1.nodeID != "" && c2.nodeID != "" && c3.nodeID != "" {
-				assert.Equal(t, (c1.nodeID == "id2"), c1.IsLeader())
-				assert.Equal(t, (c2.nodeID == "id2"), c2.IsLeader())
-				assert.Equal(t, (c3.nodeID == "id2"), c3.IsLeader())
-				cancel()
-				return
+			if c1.IsLeader() || c2.IsLeader() || c3.IsLeader() {
+				break
 			}
 		}
+
+		assert.Equal(t, (c1.nodeID == "id2"), c1.IsLeader())
+		assert.Equal(t, (c2.nodeID == "id2"), c2.IsLeader())
+		assert.Equal(t, (c3.nodeID == "id2"), c3.IsLeader())
+		cancel()
+		return
 	}(&wg)
 
 	wg.Wait()

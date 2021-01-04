@@ -9,7 +9,7 @@ type BrokerConfig struct {
 	UserCertificate   string
 	UserKey           string
 	CACertificate     string
-	KafkaVersion      string
+	Version           string
 	DebugEnabled      bool
 	OperationTimeout  int
 	ConnectionTimeout int

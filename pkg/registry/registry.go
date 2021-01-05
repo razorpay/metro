@@ -1,6 +1,15 @@
 package registry
 
-import "time"
+import (
+	"time"
+)
+
+type Pair struct {
+	key   string
+	value []byte
+}
+
+type HandlerFunc func([]Pair)
 
 // IRegistry implements a generic interface for service discovery
 //go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/mock_registry.go -package=mocks . IRegistry
@@ -25,8 +34,8 @@ type IRegistry interface {
 	// Release a lock for a restration_id on a given key and value pair
 	Release(string, string, string) bool
 
-	// Watch on a key for a given registration_id
-	Watch(string, string) error
+	// Watch on a key/keyprefix in registry
+	Watch(string, string, HandlerFunc) error
 
 	// Put a key value pair
 	Put(key string, value []byte) error

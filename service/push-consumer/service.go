@@ -14,21 +14,26 @@ import (
 
 // Service for push consumer
 type Service struct {
-	ctx       context.Context
-	health    *health.Core
-	config    *Config
-	registry  registry.IRegistry
-	candidate *leaderelection.Candidate
-	leCancel  context.CancelFunc
-	nodeID    string
+	ctx        context.Context
+	health     *health.Core
+	config     *Config
+	registry   registry.IRegistry
+	candidate  *leaderelection.Candidate
+	cancelFunc context.CancelFunc
+	nodeID     string
+	doneCh     chan bool
 }
 
 // NewService creates an instance of new push consumer service
 func NewService(ctx context.Context, config *Config) *Service {
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Service{
-		ctx:    ctx,
-		config: config,
-		nodeID: uuid.New().String(),
+		ctx:        ctx,
+		config:     config,
+		nodeID:     uuid.New().String(),
+		cancelFunc: cancel,
+		doneCh:     make(chan bool),
 	}
 }
 
@@ -39,7 +44,7 @@ func (c *Service) Start() error {
 
 	// Init the Registry
 	// TODO: move to component init ?
-	c.registry, err = registry.NewRegistry(&c.config.Registry)
+	c.registry, err = registry.NewRegistry(c.ctx, &c.config.Registry)
 
 	if err != nil {
 		return err
@@ -75,8 +80,6 @@ func (c *Service) Start() error {
 		return c.candidate.Run(gctx)
 	})
 
-	// 3. Watch the Jobs/Node_id path for jobs
-
 	// 4. listen to leader channel, if elected as leader, act as leader
 
 	// 5. watch all subscriptions, for any changes in subscripitons, if leader -> load rebalance
@@ -85,18 +88,28 @@ func (c *Service) Start() error {
 
 	// 7. if leader renew session
 
-	return grp.Wait()
+	err = grp.Wait()
+	c.doneCh <- true
+	return err
 }
 
 // Stop the service
 func (c *Service) Stop() error {
+	c.cancelFunc()
 
 	// wait until all goroutines return done
+	<-c.doneCh
+
 	return nil
 }
 
 func (c *Service) lead(ctx context.Context) {
 	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.nodeID)
+
+	// Watch the Jobs/Node_id path for jobs
+	c.registry.Watch("keyprefix", "/registry/nodes", func(pairs []registry.Pair) {
+		logger.Ctx(ctx).Infow("watch handler called", "pairs", pairs)
+	})
 }
 
 func (c *Service) stepDown() {

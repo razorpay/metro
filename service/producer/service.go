@@ -46,7 +46,11 @@ func (svc *Service) Start() error {
 		return err
 	}
 
-	mb, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.Broker.BrokerConfig)
+	mb, err := messagebroker.NewProducerClient(context.Background(),
+		messagebroker.Kafka,
+		&svc.config.Broker.BrokerConfig,
+		&messagebroker.ProducerClientOptions{},
+	)
 	if err != nil {
 		return err
 	}

@@ -24,6 +24,7 @@ func New(c Config, registry registry.IRegistry) (*Candidate, error) {
 		config:   c,
 		registry: registry,
 		nodeID:   "",
+		leader:   false,
 	}
 
 	return &le, nil
@@ -34,8 +35,8 @@ type Candidate struct {
 	// nodeID represents the id assigned by registry
 	nodeID string
 
-	// leaderID stores id the current leader
-	leaderID string
+	// leader stores true if current node is leader
+	leader bool
 
 	// Leader election config
 	config Config
@@ -67,13 +68,13 @@ func (c *Candidate) Run(ctx context.Context) error {
 			}
 
 			// if succeeded, we can break the inner loop by cancelling context and renew in outer loop
-			logger.Ctx(ctx).Infow("successfully acquired lease", "nodeID", c.nodeID)
+			logger.Ctx(retryCtx).Infow("successfully acquired lease", "nodeID", c.nodeID)
 			retryCancel()
 		}, c.config.RetryPeriod, JitterFactor, true, retryCtx.Done())
 
 		// OnStartedLeading if new leader
-		if acquired && c.leaderID != c.nodeID {
-			c.leaderID = c.nodeID
+		if acquired && !c.leader {
+			c.leader = true
 			go c.config.Callbacks.OnStartedLeading(leadCtx)
 		}
 	}, c.config.RenewDeadline, ctx.Done())
@@ -86,16 +87,9 @@ func (c *Candidate) Run(ctx context.Context) error {
 	return nil
 }
 
-// GetLeader returns the identity of the last observed leader or returns the empty string if
-// no leader has yet been observed.
-func (c *Candidate) GetLeader() string {
-	return c.nodeID
-}
-
 // IsLeader returns true if the last observed leader was this client else returns false.
 func (c *Candidate) IsLeader() bool {
-	// TODO: fetch latest data from registry for current leader
-	return (c.nodeID != "") && (c.nodeID == c.leaderID)
+	return c.leader
 }
 
 // tryAcquire tries to acquire a leader lease if it is not already acquired
@@ -137,6 +131,10 @@ func (c *Candidate) tryAcquireOrRenew(ctx context.Context) bool {
 
 // release attempts to release the leader lease if we have acquired it.
 func (c *Candidate) release(ctx context.Context) bool {
+	if c.nodeID == "" {
+		return true
+	}
+
 	// deregister node, which releases lock as well
 	if err := c.registry.Deregister(c.nodeID); err != nil {
 		logger.Ctx(ctx).Error("Failed to deregister node: %v", err)

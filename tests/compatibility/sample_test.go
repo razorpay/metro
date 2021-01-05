@@ -81,8 +81,8 @@ func TestMain(m *testing.M) {
 
 func createProjectInMetro() {
 	url := fmt.Sprintf("http://%s:8082/v1/projects", os.Getenv("METRO_TEST_HOST"))
-	_, err := http.Post(url, "application/json", bytes.NewBuffer([]byte("{name: project-id,projectId: project-id}")))
-	if err != nil {
+	r, err := http.Post(url, "application/json", bytes.NewBuffer([]byte("{\"name\": \"project-id\",\"projectId\": \"project-id\"}")))
+	if err != nil || r.StatusCode != 200 {
 		os.Exit(3)
 	}
 }

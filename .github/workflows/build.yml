@@ -1,27 +1,156 @@
 on: [push]
 jobs:
+    tests:
+      runs-on: ubuntu-latest
+      container: golang:1.15.5-alpine3.12
+      continue-on-error: false
+      name: checks and unit tests
+      steps:
+        - name: checkout
+          id: checkout
+          uses: actions/checkout@v1
+          with:
+            submodules: true
+        - name: install prerequisites
+          run: |
+            apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
+        - name: lint-check
+          run: |
+            make lint-check
+        - name: goimports-check
+          run: |
+            make goimports-check
+        - name: deps
+          run: |
+            make deps
+        - name: proto-generate
+          run: |
+            make proto-generate
+        - name: mock-gen
+          run: |
+            make mock-gen
+        - name: go mod vendor
+          run: |
+            go mod vendor
+        - name: test unit
+          run: |
+            make test-unit
     build:
+      runs-on: ubuntu-latest
+      continue-on-error: false
+      name: build
+      needs: tests
+      steps:
+        - name: checkout
+          id: checkout
+          uses: actions/checkout@v2
+          with:
+            submodules: true
+        - name: build
+          uses: docker/build-push-action@v1
+          with:
+            username: ${{ secrets.DOCKER_USERNAME }}
+            password: ${{ secrets.DOCKER_PASSWORD }}
+            repository: razorpay/metro
+            tags: ${{ github.sha }}
+            dockerfile: build/docker/Dockerfile
+          env:
+            GIT_COMMIT_HASH: ${{ github.sha }}
+    integration-tests:
         runs-on: ubuntu-latest
+        container: golang:1.15.5-alpine3.12
         continue-on-error: false
-        name: Build
+        name: integration/compatibility tests
+        needs: build
+        services:
+#            pulsar:
+#              image: apachepulsar/pulsar:2.6.2
+#              entrypoint: ["bin/pulsar","standalone"]
+#              ports:
+#                - "6650:6650"
+#                - "8080:8080"
+#              healthcheck:
+#                test: ["CMD","bin/pulsar-admin","brokers","healthcheck"]
+#                interval: 30s
+#                timeout: 10s
+#                retries: 5
+            kafka-zookeeper:
+              image: confluentinc/cp-zookeeper:6.0.0
+              ports:
+                - "2181:2181"
+              env:
+                ZOOKEEPER_CLIENT_PORT: 2181
+                ZOOKEEPER_TICK_TIME: 2000
+            kafka-broker:
+              image: confluentinc/cp-server:6.0.0
+              ports:
+                - "9092:9092"
+                - "9101:9101"
+              options: --health-cmd "nc -z localhost 9092"
+              env:
+                KAFKA_BROKER_ID: 1
+                KAFKA_ZOOKEEPER_CONNECT: 'kafka-zookeeper:2181'
+                KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+                KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker:29092,PLAINTEXT_HOST://localhost:9092
+                KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+                KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+                KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+                KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+                KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+                KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+                KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+                KAFKA_JMX_PORT: 9101
+                KAFKA_JMX_HOSTNAME: localhost
+                KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+                CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka-broker:29092
+                CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
+                CONFLUENT_METRICS_ENABLE: 'true'
+                CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
+            consul:
+              image: consul:1.9.0
+              ports:
+                - "8500:8500"
+              options: --health-cmd "nc -z localhost 8500"
+            metro-producer:
+              image: razorpay/metro:${{ github.sha }}
+              ports:
+                - "8081:8081"
+                - "8082:8082"
+              env:
+                APP_ENV: dev_docker
+                METRO_COMPONENT: producer
+                GIT_COMMIT_HASH: ${{ github.sha }}
+              options: --health-cmd "nc -z localhost 8082"
+            pubsub:
+              image: adhawk/google-pubsub-emulator
+              ports:
+                - "8085:8085"
+              options: --health-cmd "nc -z localhost 8085"
         steps:
-            - name: checkout
-              id: checkout
-              uses: actions/checkout@v2
-              with:
-                submodules: true
-            - name: lint-check
-              run: |
-                make lint-check
-            - name: goimports-check
-              run: |
-                make goimports-check
-            - name: build
-              uses: docker/build-push-action@v1
-              with:
-                username: ${{ secrets.DOCKER_USERNAME }}
-                password: ${{ secrets.DOCKER_PASSWORD }}
-                repository: razorpay/metro
-                tags: ${{ github.sha }}
-                dockerfile: build/docker/Dockerfile
+          - name: checkout
+            id: checkout
+            uses: actions/checkout@v1
+            with:
+              submodules: true
+          - name: install prerequisites
+            run: |
+              apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
+          - name: deps
+            run: |
+              make deps
+          - name: proto-generate
+            run: |
+              make proto-generate
+          - name: mock-gen
+            run: |
+              make mock-gen
+          - name: go mod vendor
+            run: |
+              go mod vendor
+          - name: integration tests
+            run: |
+              make test-integration-ci
+          - name: compatibility tests
+            run: |
+              make test-compat-ci
 

@@ -2,7 +2,6 @@
 ###########################
 FROM golang:1.15.5-alpine3.12 as proto-builder
 
-ARG GIT_TOKEN
 ENV CGO_ENABLED 1
 
 RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
@@ -27,7 +26,6 @@ RUN make proto-generate
 ######################################
 FROM golang:1.15.5-alpine3.12 as builder
 
-ARG GIT_TOKEN
 ENV CGO_ENABLED 1
 
 RUN mkdir /src
@@ -51,14 +49,11 @@ ADD . /src/
 RUN make deps
 RUN make mock-gen
 RUN go mod vendor
-# move test-unit out with multi stage builds on github actions
-RUN make test-unit
 RUN make go-build-metro
 
 # Stage 3 - Binary build stage
 ######################################
 FROM alpine:3.12
-ARG GIT_COMMIT_HASH
 
 COPY --from=builder /src/bin/metro /app/
 COPY --from=builder /src/config/ /app/config/
@@ -67,13 +62,12 @@ COPY build/docker/entrypoint.sh /app/
 
 ENV WORKDIR=/app
 ENV DUMB_INIT_SETSID=0
-ENV METRO_COMPONENT=${METRO_COMPONENT}
+#ENV METRO_COMPONENT=${METRO_COMPONENT}
+
 WORKDIR /app
 
 RUN apk add --update --no-cache dumb-init su-exec ca-certificates curl
-ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
-RUN mkdir -p /app/public && \
-    echo "$GIT_COMMIT_HASH" > /app/public/commit.txt
+RUN mkdir -p /app/public
 
 EXPOSE 8081
 

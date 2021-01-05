@@ -18,8 +18,7 @@ func init() {
 
 func main() {
 	// Initialize context
-	ctx, cancel := context.WithCancel(boot.NewContext(context.Background()))
-	defer cancel()
+	ctx := boot.NewContext(context.Background())
 
 	// parse the cmd input
 	flag.Parse()

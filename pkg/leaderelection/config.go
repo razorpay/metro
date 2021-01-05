@@ -36,33 +36,57 @@ type Config struct {
 	Name string
 }
 
+// Errors raised by package
+var (
+	// ErrLeaseDurationLessThanRenewDeadline is thrown if lease duration is lessthan renew deadline
+	ErrLeaseDurationLessThanRenewDeadline = fmt.Errorf("leaseDuration must be greater than renewDeadline")
+
+	// ErrInvalidLeaseDuration is thrown if lease duration is less than 0
+	ErrInvalidLeaseDuration = fmt.Errorf("leaseDuration must be greater than zero")
+
+	// ErrInvalidRenewDeadline is thrown if renew deadline is less than 0
+	ErrInvalidRenewDeadline = fmt.Errorf("renewDeadline must be greater than zero")
+
+	// ErrInvalidOnStartedLeadingCallback is thrown if OnStartedLeading callback is not defined
+	ErrInvalidOnStartedLeadingCallback = fmt.Errorf("OnStartedLeading callback must not be nil")
+
+	// ErrInvalidOnStoppedLeadingCallback is thrown if OnStoppedLeading callback is not defined
+	ErrInvalidOnStoppedLeadingCallback = fmt.Errorf("OnStoppedLeading callback must not be nil")
+
+	// ErrInvalidRetryPeriod is thrown if retry period is less than 0
+	ErrInvalidRetryPeriod = fmt.Errorf("retryPeriod must be greater than zero")
+
+	// ErrInvalidPath is thrown if path for lease is not defined
+	ErrInvalidPath = fmt.Errorf("path must not be nil")
+)
+
 // Validate validates the config
 func (c *Config) Validate() error {
 	if c.LeaseDuration <= c.RenewDeadline {
-		return fmt.Errorf("leaseDuration must be greater than renewDeadline")
+		return ErrLeaseDurationLessThanRenewDeadline
 	}
 
 	if c.LeaseDuration < 1 {
-		return fmt.Errorf("leaseDuration must be greater than zero")
+		return ErrInvalidLeaseDuration
 	}
 
 	if c.RenewDeadline < 1 {
-		return fmt.Errorf("renewDeadline must be greater than zero")
+		return ErrInvalidRenewDeadline
 	}
 
 	if c.Callbacks.OnStartedLeading == nil {
-		return fmt.Errorf("OnStartedLeading callback must not be nil")
+		return ErrInvalidOnStartedLeadingCallback
 	}
 	if c.Callbacks.OnStoppedLeading == nil {
-		return fmt.Errorf("OnStoppedLeading callback must not be nil")
+		return ErrInvalidOnStoppedLeadingCallback
 	}
 
 	if c.RetryPeriod < 1 {
-		return fmt.Errorf("retryPeriod must be greater than zero")
+		return ErrInvalidRetryPeriod
 	}
 
 	if c.Path == "" {
-		return fmt.Errorf("path must not be nil")
+		return ErrInvalidPath
 	}
 
 	return nil
@@ -75,8 +99,4 @@ type LeaderCallbacks struct {
 	OnStartedLeading func(context.Context)
 	// OnStoppedLeading is called when a LeaderElector client stops leading
 	OnStoppedLeading func()
-	// OnNewLeader is called when the client observes a leader that is
-	// not the previously observed leader. This includes the first observed
-	// leader when the client starts.
-	OnNewLeader func(identity string)
 }

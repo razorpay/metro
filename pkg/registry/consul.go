@@ -43,8 +43,9 @@ func NewConsulClient(config *ConsulConfig) (IRegistry, error) {
 // Register is used for node registration which creates a session to consul
 func (c *ConsulClient) Register(name string, ttl time.Duration) (string, error) {
 	sessionID, _, err := c.client.Session().Create(&api.SessionEntry{
-		Name: name,
-		TTL:  ttl.String(),
+		Name:      name,
+		TTL:       ttl.String(),
+		LockDelay: 2,
 	}, nil)
 
 	if err != nil {
@@ -131,6 +132,18 @@ func (c *ConsulClient) Put(key string, value []byte) error {
 		Value: value,
 	}, nil)
 	return err
+}
+
+// Exists checks the existence of a key
+func (c *ConsulClient) Exists(key string) (bool, error) {
+	kvp, _, err := c.client.KV().Get(key, nil)
+	if err != nil {
+		return false, err
+	}
+	if kvp == nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (c *ConsulClient) handler(_ uint64, _ interface{}) {

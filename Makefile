@@ -86,6 +86,10 @@ proto-generate:
 	# Generate static assets for OpenAPI UI
 	@statik -m -f -src third_party/OpenAPI/
 
+.PHONY: proto-clean ## Clean generated proto files
+proto-clean:
+	@rm -rf $(RPC_ROOT)
+
 .PHONY: proto-refresh ## Re-compile protobuf
 proto-refresh: clean proto-generate
 
@@ -101,10 +105,10 @@ go-build-metro:
 	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
 .PHONY: clean ## Remove mocks, previous builds, protobuf files, and proto compiled code
-clean: mock-gen-clean
+clean: mock-gen-clean proto-clean
 	@echo " + Removing cloned and generated files\n"
 	##- todo: use go clean here
-	@rm -rf $(METRO_OUT) $(RPC_ROOT) $(TMP_DIR)/* $(DOCS_DIR)/$(UML_OUT_FILE)
+	@rm -rf $(METRO_OUT) $(TMP_DIR)/* $(DOCS_DIR)/$(UML_OUT_FILE)
 
 .PHONY: dev-docker-up ## Bring up docker-compose for local dev-setup
 dev-docker-up:
@@ -117,12 +121,20 @@ dev-docker-datastores-up:
 
 .PHONY: dev-docker-datastores-down ## Shut down datastore containers
 dev-docker-datastores-down:
-	docker-compose -f deployment/dev/docker-compose-datastores.yml down --remove-orphans
+	docker-compose -f deployment/dev/docker-compose-datastores.yml down
 
 .PHONY: dev-docker-down ## Shutdown docker-compose for local dev-setup
 dev-docker-down:
-	@docker-compose -f deployment/dev/docker-compose.yml down --remove-orphans
-	@docker-compose -f deployment/dev/monitoring/docker-compose.yml down --remove-orphans
+	@docker-compose -f deployment/dev/docker-compose.yml down
+	@docker-compose -f deployment/dev/monitoring/docker-compose.yml down
+
+.PHONY: dev-docker-emulator-up ## Bring up google pub/sub emulator
+dev-docker-emulator-up:
+	docker-compose -f deployment/dev/docker-compose-emulator.yml up -d
+
+.PHONY: dev-docker-emulator-down ## Bring down google pub/sub emulator
+dev-docker-emulator-down:
+	docker-compose -f deployment/dev/docker-compose-emulator.yml down
 
 .PHONY: docker-build-metro
 docker-build-metro:
@@ -139,6 +151,22 @@ mock-gen-clean:
 .PHONY: docs-uml ## Generates UML file
 docs-uml:
 	@go-plantuml generate --recursive --directories cmd --directories internal --directories pkg --out $(DOCS_DIR)/$(UML_OUT_FILE)
+
+.PHONY: test-integration-ci ## run integration tests on ci (github actions)
+test-integration-ci:
+	@METRO_TEST_HOST=metro-producer go test ./... -tags=integration,musl
+
+.PHONY: test-integration ## run integration tests locally (metro service needs to be up)
+test-integration:
+	@METRO_TEST_HOST=localhost go test ./... -tags=integration,musl
+
+.PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
+test-compat-ci:
+	@METRO_TEST_HOST=metro-producer PUBSUB_TEST_HOST=pubsub go test ./... -tags=compatibility,musl
+
+.PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
+test-compat:
+	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test ./... -tags=compatibility,musl
 
 .PHONY: test-unit-prepare
 test-unit-prepare:

@@ -44,10 +44,8 @@ func NewComponent(ctx context.Context, component string, cfg config.Config) (*Co
 }
 
 // Start a metro component
-func (c *Component) Start() <-chan error {
-	errChan := make(chan error)
-	go c.service.Start(errChan)
-	return errChan
+func (c *Component) Start() error {
+	return c.service.Start()
 }
 
 // Stop a metro component

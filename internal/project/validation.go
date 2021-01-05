@@ -10,6 +10,16 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
+var idRegex *regexp.Regexp
+
+func init() {
+	var err error
+	idRegex, err = regexp.Compile("([a-z][a-z0-9-]{5,29})$")
+	if err != nil {
+		panic(err)
+	}
+}
+
 // GetValidatedModel validates an incoming proto request and returns a project model
 func GetValidatedModel(ctx context.Context, req *metrov1.Project) (*Model, error) {
 	if req.Name == "" {
@@ -38,10 +48,5 @@ func isValidProjectID(ctx context.Context, projectID string) bool {
 		logger.Ctx(ctx).Error("projectID cannot end with a trailing hyphen")
 		return false
 	}
-	r, err := regexp.Compile("([a-z][a-z0-9-]{5,29})$")
-	if err != nil {
-		logger.Ctx(ctx).Error(err.Error())
-		return false
-	}
-	return r.MatchString(projectID)
+	return idRegex.MatchString(projectID)
 }

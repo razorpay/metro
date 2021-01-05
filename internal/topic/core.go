@@ -33,7 +33,7 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 		if err != nil {
 			return err
 		}
-		merror.Newf(merror.NotFound, "project not found")
+		return merror.Newf(merror.NotFound, "project not found")
 	}
 	ok, err := c.Exists(ctx, m.Key())
 	if err != nil {

@@ -1,16 +1,18 @@
 package messagebroker
 
-import "errors"
+import (
+	"fmt"
+)
 
 // validateKafkaConsumerClientConfig validates kafka consumer client config
 func validateKafkaConsumerClientConfig(options *ConsumerClientOptions) error {
 
 	if options.Topic == "" {
-		return errors.New("kafka: empty topic name")
+		return fmt.Errorf("kafka: empty topic name")
 	}
 
 	if options.GroupID == "" {
-		return errors.New("kafka: empty group_id name")
+		return fmt.Errorf("kafka: empty group_id name")
 	}
 
 	return nil
@@ -20,15 +22,15 @@ func validateKafkaConsumerClientConfig(options *ConsumerClientOptions) error {
 func validateKafkaConsumerBrokerConfig(config *BrokerConfig) error {
 
 	if config.Brokers == nil || len(config.Brokers) == 0 {
-		return errors.New("kafka: empty brokers list")
+		return fmt.Errorf("kafka: empty brokers list")
 	}
 
 	if config.ConnectionTimeout > 60 {
-		return errors.New("kafka: connection timeout above the allowed value of 60secs")
+		return fmt.Errorf("kafka: connection timeout above the allowed value of 60secs")
 	}
 
 	if config.ConnectionTimeout > 60 {
-		return errors.New("kafka: operation timeout above the allowed value of 60secs")
+		return fmt.Errorf("kafka: operation timeout above the allowed value of 60secs")
 	}
 
 	return nil
@@ -38,7 +40,7 @@ func validateKafkaConsumerBrokerConfig(config *BrokerConfig) error {
 func validateKafkaProducerClientConfig(options *ProducerClientOptions) error {
 
 	if options.Topic == "" {
-		return errors.New("kafka: empty topic name")
+		return fmt.Errorf("kafka: empty topic name")
 	}
 
 	return nil
@@ -48,7 +50,7 @@ func validateKafkaProducerClientConfig(options *ProducerClientOptions) error {
 func validateKafkaProducerBrokerConfig(config *BrokerConfig) error {
 
 	if config.Brokers == nil || len(config.Brokers) == 0 {
-		return errors.New("kafka: empty brokers list")
+		return fmt.Errorf("kafka: empty brokers list")
 	}
 
 	return nil
@@ -63,7 +65,7 @@ func validateKafkaAdminClientConfig(options *AdminClientOptions) error {
 func validateKafkaAdminBrokerConfig(config *BrokerConfig) error {
 
 	if config.Brokers == nil || len(config.Brokers) == 0 {
-		return errors.New("kafka: empty brokers list")
+		return fmt.Errorf("kafka: empty brokers list")
 	}
 
 	return nil
@@ -78,11 +80,11 @@ func validatePulsarConsumerClientConfig(options *ConsumerClientOptions) error {
 func validatePulsarConsumerBrokerConfig(config *BrokerConfig) error {
 
 	if config.Brokers == nil || len(config.Brokers) == 0 {
-		return errors.New("pulsar: empty brokers list")
+		return fmt.Errorf("pulsar: empty brokers list")
 	}
 
 	if len(config.Brokers) > 1 {
-		return errors.New("pulsar: should have only one broker during init")
+		return fmt.Errorf("pulsar: should have only one broker during init")
 	}
 
 	return nil
@@ -97,11 +99,11 @@ func validatePulsarProducerClientConfig(options *ProducerClientOptions) error {
 func validatePulsarProducerBrokerConfig(config *BrokerConfig) error {
 
 	if config.Brokers == nil || len(config.Brokers) == 0 {
-		return errors.New("pulsar: empty brokers list")
+		return fmt.Errorf("pulsar: empty brokers list")
 	}
 
 	if len(config.Brokers) > 1 {
-		return errors.New("pulsar: should have only one broker during init")
+		return fmt.Errorf("pulsar: should have only one broker during init")
 	}
 
 	return nil
@@ -116,11 +118,11 @@ func validatePulsarAdminClientConfig(options *AdminClientOptions) error {
 func validatePulsarAdminBrokerConfig(config *BrokerConfig) error {
 
 	if config.Brokers == nil || len(config.Brokers) == 0 {
-		return errors.New("pulsar: empty brokers list")
+		return fmt.Errorf("pulsar: empty brokers list")
 	}
 
 	if len(config.Brokers) > 1 {
-		return errors.New("pulsar: should have only one broker during init")
+		return fmt.Errorf("pulsar: should have only one broker during init")
 	}
 
 	return nil

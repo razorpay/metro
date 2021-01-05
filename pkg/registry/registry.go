@@ -5,8 +5,8 @@ import (
 )
 
 type Pair struct {
-	key   string
-	value []byte
+	Key   string
+	Value []byte
 }
 
 type HandlerFunc func([]Pair)

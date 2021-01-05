@@ -1,8 +1,6 @@
 package registry
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/consul/api"
 )
 
@@ -26,13 +24,12 @@ func (cw *ConsulWatchHandler) Handler(index uint64, result interface{}) {
 		return
 	}
 
-	fmt.Println(pairs)
 	results := []Pair{}
 
 	for i := range pairs {
 		results = append(results, Pair{
-			key:   pairs[i].Key,
-			value: pairs[i].Value,
+			Key:   pairs[i].Key,
+			Value: pairs[i].Value,
 		})
 	}
 

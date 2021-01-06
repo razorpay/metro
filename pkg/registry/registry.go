@@ -4,11 +4,14 @@ import (
 	"time"
 )
 
+// Pair is the registry struct returned to watch handler
 type Pair struct {
 	Key   string
 	Value []byte
 }
 
+// HandlerFunc provides interface for the watch handler func
+// which is implemented by watch subscriber
 type HandlerFunc func([]Pair)
 
 // IRegistry implements a generic interface for service discovery

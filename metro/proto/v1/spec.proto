@@ -116,9 +116,7 @@ message Topic {
     // must not start with `"goog"`.
     string name = 1 [(google.api.field_behavior) = REQUIRED];
 
-    string project = 2;
-
-    map<string, string> labels = 3;
+    map<string, string> labels = 2;
 }
 
 

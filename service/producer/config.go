@@ -24,5 +24,4 @@ type Broker struct {
 type NetworkInterfaces struct {
 	GrpcServerAddress     string
 	HTTPServerAddress     string
-	InternalServerAddress string
 }

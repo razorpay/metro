@@ -31,7 +31,8 @@ services:
       - dev_app-network
       - monitoring_rzp-dev-monitoring
     ports:
-      - "8084:8081"
+      - "8083:8083"
+      - "8084:8084"
     environment:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=push-consumer
@@ -47,7 +48,8 @@ services:
       - dev_app-network
       - monitoring_rzp-dev-monitoring
     ports:
-      - "8087:8081"
+      - "8085:8085"
+      - "8086:8086"
     environment:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=pull-consumer

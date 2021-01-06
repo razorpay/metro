@@ -1,6 +1,6 @@
 package messagebroker
 
-import "time"
+import "context"
 
 // Broker interface for all types of ops
 type Broker interface {
@@ -11,25 +11,28 @@ type Broker interface {
 
 // Admin for admin operations on topics, partitions, updating schema registry etc
 type Admin interface {
-	CreateTopic(topic string) error
+	// creates a new topic if not available
+	CreateTopic(context.Context, CreateTopicRequest) (CreateTopicResponse, error)
 
-	DeleteTopic(topic string) error
+	// deletes an existing topic
+	DeleteTopic(context.Context, DeleteTopicRequest) (DeleteTopicResponse, error)
 }
 
 // Producer for produce operations
 type Producer interface {
-	Produce(topic string, message []byte) (string, error)
+	// sends a message on the topic
+	SendMessages(context.Context, SendMessageToTopicRequest) (SendMessageToTopicResponse, error)
 }
 
 // Consumer interface for consuming messages
 type Consumer interface {
 	//GetMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
 	//from the previous committed offset. If the available messages in the queue are less, returns
-	// how many ever messages are availble
-	GetMessages(numOfMessages int, timeout time.Duration) ([]string, error)
+	// how many ever messages are available
+	ReceiveMessages(context.Context, GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error)
 
 	//Commits messages if any
 	//This func will commit the message consumed
 	//by all the previous calls to GetMessages
-	Commit()
+	Commit(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
 }

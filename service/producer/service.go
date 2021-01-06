@@ -46,7 +46,11 @@ func (svc *Service) Start() error {
 		return err
 	}
 
-	broker, err := messagebroker.NewBroker(messagebroker.Kafka, &svc.config.Broker.BrokerConfig)
+	mb, err := messagebroker.NewProducerClient(context.Background(),
+		messagebroker.Kafka,
+		&svc.config.Broker.BrokerConfig,
+		&messagebroker.ProducerClientOptions{Topic: "dummy-topic"},
+	)
 	if err != nil {
 		return err
 	}
@@ -65,7 +69,7 @@ func (svc *Service) Start() error {
 		svc.config.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-			metrov1.RegisterPublisherServer(server, newPublisherServer(broker, topicCore))
+			metrov1.RegisterPublisherServer(server, newPublisherServer(mb, topicCore))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
 			metrov1.RegisterSubscriberServer(server, newSubscriberServer())
 			return nil

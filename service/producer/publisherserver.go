@@ -12,12 +12,12 @@ import (
 )
 
 type publisherServer struct {
-	broker    messagebroker.Broker
+	producer  messagebroker.Producer
 	topicCore topic.ICore
 }
 
-func newPublisherServer(broker messagebroker.Broker, topicCore topic.ICore) *publisherServer {
-	return &publisherServer{broker: broker, topicCore: topicCore}
+func newPublisherServer(producer messagebroker.Producer, topicCore topic.ICore) *publisherServer {
+	return &publisherServer{producer: producer, topicCore: topicCore}
 }
 
 // Produce messages to a topic
@@ -28,8 +28,11 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 	msgIds := make([]string, 0)
 
 	for _, msg := range req.Messages {
-		msgID, _ := s.broker.Produce(req.Topic, msg.Data)
-		msgIds = append(msgIds, msgID)
+		msgResp, _ := s.producer.SendMessages(ctx, messagebroker.SendMessageToTopicRequest{
+			Topic:   req.Topic,
+			Message: msg.Data,
+		})
+		msgIds = append(msgIds, msgResp.MessageID)
 	}
 
 	log.Println("produce request completed")

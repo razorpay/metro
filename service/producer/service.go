@@ -49,7 +49,7 @@ func (svc *Service) Start() error {
 	mb, err := messagebroker.NewProducerClient(context.Background(),
 		messagebroker.Kafka,
 		&svc.config.Broker.BrokerConfig,
-		&messagebroker.ProducerClientOptions{},
+		&messagebroker.ProducerClientOptions{Topic: "dummy-topic"},
 	)
 	if err != nil {
 		return err

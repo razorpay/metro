@@ -57,14 +57,14 @@
         [pullconsumer.broker.brokerconfig]
             brokers       = ["localhost:9021"]
                 [pullconsumer.broker.brokerconfig.consumer]
-    [pull-consumer.registry]
+    [pullconsumer.registry]
         driver                    = "consul"
-        [pull-consumer.registry.consulconfig]
-            [pull-consumer.registry.consulconfig.config]
+        [pullconsumer.registry.consulconfig]
+            [pullconsumer.registry.consulconfig.config]
                 address               = "localhost:8500"
                 scheme                = "http"
-    [pull-consumer.interfaces]
-        [pull-consumer.interfaces.api]
+    [pullconsumer.interfaces]
+        [pullconsumer.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8087"
             HttpServerAddress     = "0.0.0.0:8088"
             InternalServerAddress = "0.0.0.0:8089"

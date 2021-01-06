@@ -1,24 +1,10 @@
 package project
 
 import (
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"github.com/stretchr/testify/assert"
-
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
-
-func TestModel_FromProto(t *testing.T) {
-	projectProto := &metrov1.Project{
-		Name:      "test-project",
-		ProjectId: "test-project-id",
-		Labels:    map[string]string{"foo": "bar"},
-	}
-	projectModel := FromProto(projectProto)
-	assert.Equal(t, projectProto.Name, projectModel.Name)
-	assert.Equal(t, projectProto.ProjectId, projectModel.ProjectID)
-	assert.Equal(t, projectProto.Labels, projectModel.Labels)
-
-}
 
 func TestModel_Prefix(t *testing.T) {
 	project := getDummyProjectModel()

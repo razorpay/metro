@@ -18,6 +18,8 @@ services:
   kafka-zookeeper:
     image: confluentinc/cp-zookeeper:6.0.0
     hostname: kafka-zookeeper
+    networks:
+      - app-network
     container_name: metro-kafka-zookeeper
     ports:
       - "2181:2181"
@@ -28,6 +30,8 @@ services:
   kafka-broker:
     image: confluentinc/cp-server:6.0.0
     hostname: kafka-broker
+    networks:
+      - app-network
     container_name: metro-kafka-broker
     depends_on:
       - kafka-zookeeper
@@ -74,4 +78,4 @@ services:
 
 networks:
   app-network:
-    external: false
+    driver: bridge

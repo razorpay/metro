@@ -1,7 +1,8 @@
 package common
 
 const (
-	basePrefix = "registry/"
+	// BasePrefix is the base prefix for all keys
+	BasePrefix = "registry/"
 )
 
 // IModel interface which all models should implement
@@ -14,8 +15,3 @@ type IModel interface {
 
 // BaseModel implements basic model functionality
 type BaseModel struct{}
-
-// Prefix returns the global base prefix
-func (m *BaseModel) Prefix() string {
-	return basePrefix
-}

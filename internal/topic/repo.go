@@ -1,4 +1,4 @@
-package project
+package topic
 
 import (
 	"context"

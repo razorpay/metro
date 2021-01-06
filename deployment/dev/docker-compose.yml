@@ -6,11 +6,11 @@ services:
       dockerfile: build/docker/Dockerfile
     container_name: metro-producer
     networks:
-      - app-network
+      - dev_app-network
       - monitoring_rzp-dev-monitoring
     ports:
       - "8081:8081"
-      - "3001:3000"
+      - "8082:8082"
     environment:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=producer
@@ -28,10 +28,11 @@ services:
       dockerfile: build/docker/Dockerfile
     container_name: metro-push-consumer
     networks:
-      - app-network
+      - dev_app-network
       - monitoring_rzp-dev-monitoring
     ports:
-      - "8084:8081"
+      - "8083:8083"
+      - "8084:8084"
     environment:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=push-consumer
@@ -44,10 +45,11 @@ services:
       dockerfile: build/docker/Dockerfile
     container_name: metro-pull-consumer
     networks:
-      - app-network
+      - dev_app-network
       - monitoring_rzp-dev-monitoring
     ports:
-      - "8087:8081"
+      - "8085:8085"
+      - "8086:8086"
     environment:
       - APP_ENV=dev_docker
       - METRO_COMPONENT=pull-consumer
@@ -55,6 +57,7 @@ services:
     restart: on-failure
 
 networks:
-  app-network:
+  dev_app-network:
+    external: true
   monitoring_rzp-dev-monitoring:
     external: true

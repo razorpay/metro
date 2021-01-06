@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
 )
 
@@ -16,6 +17,7 @@ type BaseRepo struct {
 func (r BaseRepo) Create(ctx context.Context, m IModel) error {
 	b, err := json.Marshal(m)
 	if err != nil {
+		logger.Ctx(ctx).Error("error in json marshal", "msg", err.Error())
 		return err
 	}
 	return r.Registry.Put(m.Key(), b)

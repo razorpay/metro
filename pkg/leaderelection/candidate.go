@@ -50,6 +50,7 @@ type Candidate struct {
 // stopped holding the leader lease
 func (c *Candidate) Run(ctx context.Context) error {
 	leadCtx, leadCancel := context.WithCancel(ctx)
+	defer leadCancel()
 
 	logger.Ctx(ctx).Info("attempting to acquire leader lease")
 	// outer wait loop runs when a instance has successfully acquired lease
@@ -81,9 +82,7 @@ func (c *Candidate) Run(ctx context.Context) error {
 
 	// context returned done, release the lease
 	logger.Ctx(ctx).Info("context done, releasing lease")
-	leadCancel()
 	c.release(ctx)
-
 	return nil
 }
 

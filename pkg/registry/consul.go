@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -10,7 +11,10 @@ import (
 
 // ConsulClient ...
 type ConsulClient struct {
-	client *api.Client
+	ctx      context.Context
+	client   *api.Client
+	plans    []*watch.Plan
+	watchers []*ConsulWatchHandler
 }
 
 // ConsulConfig for ConsulClient
@@ -21,7 +25,7 @@ type ConsulConfig struct {
 var once sync.Once
 
 // NewConsulClient creates a new consul client
-func NewConsulClient(config *ConsulConfig) (IRegistry, error) {
+func NewConsulClient(ctx context.Context, config *ConsulConfig) (IRegistry, error) {
 	var c *ConsulClient
 	var err error
 
@@ -32,6 +36,7 @@ func NewConsulClient(config *ConsulConfig) (IRegistry, error) {
 
 		if err == nil {
 			c = &ConsulClient{
+				ctx:    ctx,
 				client: client,
 			}
 		}
@@ -106,9 +111,9 @@ func (c *ConsulClient) Release(sessionID string, key string, value string) bool 
 }
 
 // Watch watches a key
-func (c *ConsulClient) Watch(_ string, key string) error {
+func (c *ConsulClient) Watch(watchType string, key string, handler HandlerFunc) error {
 	plan, err := watch.Parse(map[string]interface{}{
-		"type":   "keyprefix",
+		"type":   watchType,
 		"prefix": key,
 	})
 
@@ -116,13 +121,16 @@ func (c *ConsulClient) Watch(_ string, key string) error {
 		return err
 	}
 
-	plan.Handler = c.handler
+	wh := NewConsulWatchHandler(handler)
 
-	err = plan.RunWithClientAndLogger(c.client, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	// add the plan to list so that we have an updated reference to all the plans
+	// this will used while terminating the application gracefully
+	c.plans = append(c.plans, plan)
+	c.watchers = append(c.watchers, wh)
+
+	plan.Handler = wh.Handler
+
+	return plan.RunWithClientAndLogger(c.client, nil)
 }
 
 // Put a key value pair
@@ -144,7 +152,4 @@ func (c *ConsulClient) Exists(key string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
-}
-
-func (c *ConsulClient) handler(_ uint64, _ interface{}) {
 }

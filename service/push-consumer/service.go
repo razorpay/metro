@@ -86,14 +86,29 @@ func (c *Service) Start() error {
 		return c.candidate.Run(gctx)
 	})
 
+	// Watch for the subscription assignment changes
+	var watcher registry.IWatcher
 	c.workgrp.Go(func() error {
-		nodepath := fmt.Sprintf("/registry/nodes/%s/subscriptions", c.nodeID)
-		return c.registry.Watch(
-			"keyprefix",
-			nodepath,
-			func(pairs []registry.Pair) {
+		wh := registry.WatchConfig{
+			WatchType: "keyprefix",
+			WatchPath: fmt.Sprintf("/registry/nodes/%s/subscriptions", c.nodeID),
+			Handler: func(pairs []registry.Pair) {
 				logger.Ctx(gctx).Infow("node subscriptions", "pairs", pairs)
-			})
+			},
+		}
+
+		watcher, err = c.registry.Watch(&wh)
+		if err != nil {
+			return err
+		}
+
+		return watcher.StartWatch()
+	})
+
+	c.workgrp.Go(func() error {
+		<-c.stopCh
+		watcher.StopWatch()
+		return fmt.Errorf("signal received, stopping push-consumer")
 	})
 
 	c.workgrp.Go(func() error {
@@ -117,34 +132,60 @@ func (c *Service) Stop() error {
 	return nil
 }
 
-func (c *Service) lead(ctx context.Context) {
+func (c *Service) lead(ctx context.Context) error {
 	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.nodeID)
+
+	var (
+		nodeWatcher, subWatcher registry.IWatcher
+		err                     error
+	)
+
+	nwh := registry.WatchConfig{
+		WatchType: "keyprefix",
+		WatchPath: "/registry/nodes",
+		Handler: func(pairs []registry.Pair) {
+			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
+		},
+	}
+
+	nodeWatcher, err = c.registry.Watch(&nwh)
+	if err != nil {
+		return err
+	}
+
+	swh := registry.WatchConfig{
+		WatchType: "keyprefix",
+		WatchPath: "/registry/subscriptions",
+		Handler: func(pairs []registry.Pair) {
+			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
+		},
+	}
+
+	subWatcher, err = c.registry.Watch(&swh)
+	if err != nil {
+		return err
+	}
 
 	// watch for nodes addition/deletion, for any changes a rebalance might be required
 	c.leadgrp.Go(func() error {
-		return c.registry.Watch(
-			"keyprefix",
-			"/registry/nodes",
-			func(pairs []registry.Pair) {
-				logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
-			})
+		return nodeWatcher.StartWatch()
 	})
 
-	// Watch the Subscriptions path for new subscriptions and rebalance
+	// watch the Subscriptions path for new subscriptions and rebalance
 	c.leadgrp.Go(func() error {
-		return c.registry.Watch(
-			"keyprefix",
-			"/registry/subscriptions",
-			func(pairs []registry.Pair) {
-				logger.Ctx(ctx).Infow("subscriptions watch handler data", "pairs", pairs)
-			})
+		return subWatcher.StartWatch()
 	})
 
+	// wait for done channel to be closed and stop watches if received done
 	c.leadgrp.Go(func() error {
 		<-ctx.Done()
+		nodeWatcher.StopWatch()
+		subWatcher.StopWatch()
 		logger.Ctx(ctx).Info("leader context returned done")
 		return ctx.Err()
 	})
+
+	return nil
 }
 
 func (c *Service) stepDown() {

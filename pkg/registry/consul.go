@@ -11,10 +11,8 @@ import (
 
 // ConsulClient ...
 type ConsulClient struct {
-	ctx      context.Context
-	client   *api.Client
-	plans    []*watch.Plan
-	watchers []*ConsulWatchHandler
+	ctx    context.Context
+	client *api.Client
 }
 
 // ConsulConfig for ConsulClient
@@ -110,27 +108,20 @@ func (c *ConsulClient) Release(sessionID string, key string, value string) bool 
 	return isReleased
 }
 
-// Watch watches a key
-func (c *ConsulClient) Watch(watchType string, key string, handler HandlerFunc) error {
+// Watch watches a key and returns a watcher instance, this instance should be used to terminate the watch
+func (c *ConsulClient) Watch(wh *WatchConfig) (IWatcher, error) {
 	plan, err := watch.Parse(map[string]interface{}{
-		"type":   watchType,
-		"prefix": key,
+		"type":   wh.WatchType,
+		"prefix": wh.WatchPath,
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	wh := NewConsulWatchHandler(handler)
+	cwh := NewConsulWatcher(wh, plan, c.client)
 
-	// add the plan to list so that we have an updated reference to all the plans
-	// this will used while terminating the application gracefully
-	c.plans = append(c.plans, plan)
-	c.watchers = append(c.watchers, wh)
-
-	plan.Handler = wh.Handler
-
-	return plan.RunWithClientAndLogger(c.client, nil)
+	return cwh, nil
 }
 
 // Put a key value pair

@@ -3,22 +3,32 @@ package producer
 import (
 	"context"
 
+	"github.com/razorpay/metro/internal/merror"
+	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type subscriberserver struct {
+	subscriptionCore subscription.ICore
 }
 
-func newSubscriberServer() *subscriberserver {
-	return &subscriberserver{}
+func newSubscriberServer(subscriptionCore subscription.ICore) *subscriberserver {
+	return &subscriberserver{subscriptionCore}
 }
 
 // CreateSubscription to create a new subscription
 func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.Subscription) (*metrov1.Subscription, error) {
-	logger.Ctx(ctx).Infow("received request to create subscription")
-	// TODO: Implement
+	logger.Ctx(ctx).Infow("received request to create subscription", "name", req.Name, "topic", req.Topic)
+	m, err := subscription.GetValidatedModel(ctx, req)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+	err = s.subscriptionCore.CreateSubscription(ctx, m)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
 	return req, nil
 }
 

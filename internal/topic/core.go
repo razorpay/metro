@@ -3,10 +3,10 @@ package topic
 import (
 	"context"
 
+	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
-	"github.com/razorpay/metro/pkg/logger"
-
 	"github.com/razorpay/metro/internal/project"
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 // ICore is an interface over topic core
@@ -14,9 +14,10 @@ import (
 type ICore interface {
 	CreateTopic(ctx context.Context, topic *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
+	ExistsWithName(ctx context.Context, name string) (bool, error)
 }
 
-// Core implements all business logic for project
+// Core implements all business logic for a topic
 type Core struct {
 	repo        IRepo
 	projectCore project.ICore
@@ -54,4 +55,9 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 	return ok, nil
+}
+
+// ExistsWithName checks if the topic exists with a given name
+func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
+	return c.Exists(ctx, common.BasePrefix+name)
 }

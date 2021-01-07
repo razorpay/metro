@@ -9,6 +9,7 @@ import (
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/project"
 	internalserver "github.com/razorpay/metro/internal/server"
+	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
@@ -64,6 +65,8 @@ func (svc *Service) Start() error {
 
 	topicCore := topic.NewCore(topic.NewRepo(r), projectCore)
 
+	subscriptionCore := subscription.NewCore(subscription.NewRepo(r), projectCore, topicCore)
+
 	grpcServer, err := internalserver.StartGRPCServer(
 		grp,
 		svc.config.Interfaces.API.GrpcServerAddress,
@@ -71,7 +74,7 @@ func (svc *Service) Start() error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 			metrov1.RegisterPublisherServer(server, newPublisherServer(mb, topicCore))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
-			metrov1.RegisterSubscriberServer(server, newSubscriberServer())
+			metrov1.RegisterSubscriberServer(server, newSubscriberServer(subscriptionCore))
 			return nil
 		},
 		getInterceptors()...,

@@ -25,7 +25,7 @@ func init() {
 
 // GetValidatedModel validates an incoming proto request and returns the model
 func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) {
-	p, t, err := extractTopicMetaAndValidate(ctx, req.GetName())
+	p, t, err := ExtractTopicMetaAndValidate(ctx, req.GetName())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topics] name: (name=%s)", req.Name)
 	}
@@ -37,7 +37,8 @@ func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) 
 	return m, nil
 }
 
-func extractTopicMetaAndValidate(ctx context.Context, name string) (projectID string, topicName string, err error) {
+// ExtractTopicMetaAndValidate extracts  topic metadata from its fully qualified name
+func ExtractTopicMetaAndValidate(ctx context.Context, name string) (projectID string, topicName string, err error) {
 	match := topicNameRegex.FindStringSubmatch(name)
 	if len(match) != 3 {
 		err = fmt.Errorf("invalid topic name")

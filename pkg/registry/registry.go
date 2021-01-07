@@ -10,10 +10,6 @@ type Pair struct {
 	Value []byte
 }
 
-// HandlerFunc provides interface for the watch handler func
-// which is implemented by watch subscriber
-type HandlerFunc func([]Pair)
-
 // IRegistry implements a generic interface for service discovery
 //go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/mock_registry.go -package=mocks . IRegistry
 type IRegistry interface {

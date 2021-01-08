@@ -152,6 +152,7 @@ func (c *Candidate) release(ctx context.Context) bool {
 
 	// reset nodeId as current node id is deregistered
 	c.nodeID = ""
+	c.leader = false
 
 	logger.Ctx(ctx).Info("successfully released lease")
 	return true

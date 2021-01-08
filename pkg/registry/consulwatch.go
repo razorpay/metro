@@ -5,14 +5,14 @@ import (
 	"github.com/hashicorp/consul/api/watch"
 )
 
-// ConsulWatchHandler implements consul watch handler and stores the users handler function
+// ConsulWatcher implements consul watch handler and stores the users handler function
 type ConsulWatcher struct {
 	Config *WatchConfig
 	plan   *watch.Plan
 	client *api.Client
 }
 
-// NewConsulWatchHandler is used to create a new struct of type WatchHandler
+// NewConsulWatcher is used to create a new struct of type WatchHandler
 func NewConsulWatcher(watchConfig *WatchConfig, plan *watch.Plan, client *api.Client) IWatcher {
 	return &ConsulWatcher{
 		Config: watchConfig,

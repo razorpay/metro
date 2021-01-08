@@ -49,13 +49,12 @@ type Candidate struct {
 // before leader election loop is stopped by ctx or it has
 // stopped holding the leader lease
 func (c *Candidate) Run(ctx context.Context) error {
-	leadCtx, leadCancel := context.WithCancel(ctx)
-	defer leadCancel()
-
 	logger.Ctx(ctx).Info("attempting to acquire leader lease")
+
+	leadCtx, leadCancel := context.WithCancel(ctx)
 	// outer wait loop runs when a instance has successfully acquired lease
 	wait.Until(func() {
-		retryCtx, retryCancel := context.WithTimeout(ctx, c.config.RenewDeadline)
+		retryCtx, retryCancel := context.WithTimeout(leadCtx, c.config.RenewDeadline)
 		defer retryCancel()
 
 		// inner wait retry loop for faster retries if failed to acquire lease
@@ -76,13 +75,19 @@ func (c *Candidate) Run(ctx context.Context) error {
 		// OnStartedLeading if new leader
 		if acquired && !c.leader {
 			c.leader = true
-			go c.config.Callbacks.OnStartedLeading(leadCtx)
+			go func() {
+				err := c.config.Callbacks.OnStartedLeading(leadCtx)
+				if err != nil {
+					logger.Ctx(leadCtx).Errorf("on started leading callback returned with err : %s", err.Error())
+					leadCancel()
+				}
+			}()
 		}
-	}, c.config.RenewDeadline, ctx.Done())
+	}, c.config.RenewDeadline, leadCtx.Done())
 
 	// context returned done, release the lease
-	logger.Ctx(ctx).Info("context done, releasing lease")
-	c.release(ctx)
+	logger.Ctx(leadCtx).Info("context done, releasing lease")
+	c.release(leadCtx)
 	return nil
 }
 

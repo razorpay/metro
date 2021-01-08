@@ -30,12 +30,11 @@ type Service struct {
 // NewService creates an instance of new push consumer service
 func NewService(ctx context.Context, config *Config) *Service {
 	return &Service{
-		ctx:     ctx,
-		config:  config,
-		nodeID:  uuid.New().String(),
-		doneCh:  make(chan struct{}),
-		stopCh:  make(chan struct{}),
-		leadgrp: &errgroup.Group{},
+		ctx:    ctx,
+		config: config,
+		nodeID: uuid.New().String(),
+		doneCh: make(chan struct{}),
+		stopCh: make(chan struct{}),
 	}
 }
 
@@ -65,8 +64,8 @@ func (c *Service) Start() error {
 		RenewDeadline: 20 * time.Second,
 		RetryPeriod:   5 * time.Second,
 		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(ctx context.Context) {
-				c.lead(ctx)
+			OnStartedLeading: func(ctx context.Context) error {
+				return c.lead(ctx)
 			},
 			OnStoppedLeading: func() {
 				c.stepDown()
@@ -106,9 +105,19 @@ func (c *Service) Start() error {
 	})
 
 	c.workgrp.Go(func() error {
-		<-c.stopCh
-		watcher.StopWatch()
-		return fmt.Errorf("signal received, stopping push-consumer")
+		var err error
+		select {
+		case <-gctx.Done():
+			err = gctx.Err()
+		case <-c.stopCh:
+			err = fmt.Errorf("signal received, stopping push-consumer")
+		}
+
+		if watcher != nil {
+			watcher.StopWatch()
+		}
+
+		return err
 	})
 
 	c.workgrp.Go(func() error {
@@ -138,13 +147,15 @@ func (c *Service) lead(ctx context.Context) error {
 	var (
 		nodeWatcher, subWatcher registry.IWatcher
 		err                     error
+		gctx                    context.Context
 	)
+	c.leadgrp, gctx = errgroup.WithContext(ctx)
 
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
 		WatchPath: "/registry/nodes",
 		Handler: func(pairs []registry.Pair) {
-			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
+			logger.Ctx(gctx).Infow("nodes watch handler data", "pairs", pairs)
 		},
 	}
 
@@ -157,7 +168,7 @@ func (c *Service) lead(ctx context.Context) error {
 		WatchType: "keyprefix",
 		WatchPath: "/registry/subscriptions",
 		Handler: func(pairs []registry.Pair) {
-			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
+			logger.Ctx(gctx).Infow("nodes watch handler data", "pairs", pairs)
 		},
 	}
 
@@ -178,11 +189,18 @@ func (c *Service) lead(ctx context.Context) error {
 
 	// wait for done channel to be closed and stop watches if received done
 	c.leadgrp.Go(func() error {
-		<-ctx.Done()
-		nodeWatcher.StopWatch()
-		subWatcher.StopWatch()
-		logger.Ctx(ctx).Info("leader context returned done")
-		return ctx.Err()
+		<-gctx.Done()
+
+		if nodeWatcher != nil {
+			nodeWatcher.StopWatch()
+		}
+
+		if subWatcher != nil {
+			subWatcher.StopWatch()
+		}
+
+		logger.Ctx(gctx).Info("leader context returned done")
+		return gctx.Err()
 	})
 
 	return nil

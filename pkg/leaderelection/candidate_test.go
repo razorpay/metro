@@ -71,7 +71,8 @@ func getConfig() Config {
 		RenewDeadline: 20 * time.Second,
 		Name:          "leaderelection-test",
 		Callbacks: LeaderCallbacks{
-			OnStartedLeading: func(gctx context.Context) {
+			OnStartedLeading: func(gctx context.Context) error {
+				return nil
 			},
 			OnStoppedLeading: func() {
 

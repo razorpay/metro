@@ -11,6 +11,7 @@ type WatchConfig struct {
 	Handler   HandlerFunc
 }
 
+// IWatcher defines the watch interface for watch over registry
 type IWatcher interface {
 	// StartWatch interface implemented by registry watcher to start a watch
 	StartWatch() error

@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/razorpay/metro/internal/node"
+
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/pkg/leaderelection"
 	"github.com/razorpay/metro/pkg/logger"
@@ -20,7 +23,7 @@ type Service struct {
 	config    *Config
 	registry  registry.IRegistry
 	candidate *leaderelection.Candidate
-	nodeID    string
+	node      *node.Model
 	doneCh    chan struct{}
 	stopCh    chan struct{}
 	workgrp   *errgroup.Group
@@ -29,13 +32,17 @@ type Service struct {
 
 // NewService creates an instance of new push consumer service
 func NewService(ctx context.Context, config *Config) *Service {
+	id := uuid.New().String()
 	return &Service{
-		ctx:     ctx,
+		ctx:     context.WithValue(ctx, "NodeId", id),
 		config:  config,
-		nodeID:  uuid.New().String(),
 		doneCh:  make(chan struct{}),
 		stopCh:  make(chan struct{}),
 		leadgrp: &errgroup.Group{},
+		node: &node.Model{
+			ID:   id,
+			Name: "push-consumer",
+		},
 	}
 }
 
@@ -78,16 +85,18 @@ func (c *Service) Start() error {
 		return err
 	}
 
-	// Add node to the registry
-	// TODO: use repo to add the node under /registry/nodes/{node_id} path
-
 	// Run leader election
 	c.workgrp.Go(func() error {
 		return c.candidate.Run(gctx)
 	})
 
 	c.workgrp.Go(func() error {
-		nodepath := fmt.Sprintf("/registry/nodes/%s/subscriptions", c.nodeID)
+		// Node registration with registry
+		nodeCore := node.NewCore(node.NewRepo(c.registry))
+		return nodeCore.CreateNode(gctx, c.node)
+
+		// watch for subscription for the node
+		nodepath := fmt.Sprintf("/registry/nodes/%s/subscriptions", c.node.ID)
 		return c.registry.Watch(
 			"keyprefix",
 			nodepath,
@@ -118,7 +127,7 @@ func (c *Service) Stop() error {
 }
 
 func (c *Service) lead(ctx context.Context) {
-	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.nodeID)
+	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.node.ID)
 
 	// watch for nodes addition/deletion, for any changes a rebalance might be required
 	c.leadgrp.Go(func() error {
@@ -148,7 +157,7 @@ func (c *Service) lead(ctx context.Context) {
 }
 
 func (c *Service) stepDown() {
-	logger.Ctx(c.ctx).Infof("Node %s stepping down from leader", c.nodeID)
+	logger.Ctx(c.ctx).Infof("Node %s stepping down from leader", c.node.ID)
 
 	// wait for leader go routines to terminate
 	c.leadgrp.Wait()

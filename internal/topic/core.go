@@ -15,6 +15,7 @@ type ICore interface {
 	CreateTopic(ctx context.Context, topic *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
+	DeleteTopic(ctx context.Context, m *Model) error
 }
 
 // Core implements all business logic for a topic
@@ -41,7 +42,7 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 		return err
 	}
 	if ok {
-		return merror.Newf(merror.AlreadyExists, "topic with id %s already exists", m.Name)
+		return merror.New(merror.AlreadyExists, "Topic already exists")
 	}
 	// TODO: Add topic creation in messagebroker
 	return c.repo.Create(ctx, m)
@@ -60,4 +61,21 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 // ExistsWithName checks if the topic exists with a given name
 func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
 	return c.Exists(ctx, common.BasePrefix+name)
+}
+
+// DeleteTopic deletes a topic and all resources associated with it
+func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
+	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedProjectID); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.Newf(merror.NotFound, "Project not found")
+	}
+	if ok, err := c.Exists(ctx, m.Key()); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.New(merror.NotFound, "Topic not found")
+	}
+	return c.repo.DeleteTree(ctx, m)
 }

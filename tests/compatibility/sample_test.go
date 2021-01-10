@@ -39,6 +39,13 @@ func Test_Pubsub(t *testing.T) {
 		})
 
 		time.Sleep(20 * time.Millisecond)
+
+		// cleanup
+		err = topic.Delete(ctx)
+		assert.Nil(t, err)
+		err = sub.Delete(ctx)
+		assert.Nil(t, err)
+
 		cancelFunc()
 	}
 }

@@ -14,6 +14,7 @@ type ICore interface {
 	CreateProject(ctx context.Context, m *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithID(ctx context.Context, id string) (bool, error)
+	DeleteProject(ctx context.Context, m *Model) error
 }
 
 // Core implements all business logic for project
@@ -52,4 +53,15 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 // ExistsWithID to check if the project exists with the projectID
 func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
 	return c.Exists(ctx, common.BasePrefix+Prefix+id)
+}
+
+// DeleteProject deletes a project and all resources in it
+func (c *Core) DeleteProject(ctx context.Context, m *Model) error {
+	if ok, err := c.Exists(ctx, m.Key()); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.Newf(merror.NotFound, "project not found %s", m.ProjectID)
+	}
+	return c.repo.DeleteTree(ctx, m)
 }

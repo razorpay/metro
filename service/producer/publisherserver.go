@@ -9,6 +9,7 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type publisherServer struct {
@@ -52,4 +53,20 @@ func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*
 		return nil, merror.ToGRPCError(err)
 	}
 	return req, nil
+}
+
+// Delete a topic
+func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTopicRequest) (*emptypb.Empty, error) {
+	logger.Ctx(ctx).Infow("received request to delete topic", "name", req.Topic)
+	// Delete topic but not the subscriptions for it
+	// the subscriptions would get tagged to _deleted_topic_
+	m, err := topic.GetValidatedModel(ctx, &metrov1.Topic{Name: req.Topic})
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+	err = s.topicCore.DeleteTopic(ctx, m)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+	return &emptypb.Empty{}, nil
 }

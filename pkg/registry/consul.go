@@ -153,3 +153,12 @@ func (c *ConsulClient) Exists(key string) (bool, error) {
 	}
 	return true, nil
 }
+
+// DeleteTree deletes all keys under a prefix
+func (c *ConsulClient) DeleteTree(key string) error {
+	_, err := c.client.KV().DeleteTree(key, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}

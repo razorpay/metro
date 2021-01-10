@@ -25,22 +25,25 @@ func init() {
 }
 
 // GetValidatedModel validates an incoming proto request and returns the model
-func GetValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
+func GetValidatedModel(ctx context.Context, req *metrov1.Subscription, shouldPopulateTopic bool) (*Model, error) {
 	p, s, err := extractSubscriptionMetaAndValidate(ctx, req.GetName())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] name: (name=%s)", req.Name)
 	}
-	_, t, err := topic.ExtractTopicMetaAndValidate(ctx, req.Topic)
-	if err != nil {
-		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topic] name: (name=%s)", req.Topic)
-	}
 	m := &Model{}
+	if shouldPopulateTopic {
+		p, t, err := topic.ExtractTopicMetaAndValidate(ctx, req.Topic)
+		if err != nil {
+			return nil, merror.Newf(merror.InvalidArgument, "Invalid [topic] name: (name=%s)", req.Topic)
+		}
+		m.ExtractedTopicName = t
+		m.ExtractedTopicProjectID = p
+	}
 	m.Name = req.GetName()
 	m.Topic = req.GetTopic()
 	m.Labels = req.GetLabels()
 	m.ExtractedSubscriptionProjectID = p
 	m.ExtractedSubscriptionName = s
-	m.ExtractedTopicName = t
 	return m, nil
 }
 

@@ -21,8 +21,8 @@ func init() {
 }
 
 // GetValidatedModel validates an incoming proto request and returns a project model
-func GetValidatedModel(ctx context.Context, req *metrov1.Project) (*Model, error) {
-	if req.Name == "" {
+func GetValidatedModel(ctx context.Context, req *metrov1.Project, allowEmptyName bool) (*Model, error) {
+	if !allowEmptyName && req.Name == "" {
 		return nil, fmt.Errorf("name cannot be empty")
 	}
 	if req.ProjectId == "" {

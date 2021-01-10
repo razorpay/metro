@@ -14,6 +14,7 @@ import (
 type ICore interface {
 	CreateSubscription(ctx context.Context, subscription *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
+	DeleteSubscription(ctx context.Context, m *Model) error
 }
 
 // Core implements all business logic for a subscription
@@ -39,7 +40,8 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		if err != nil {
 			return err
 		}
-		merror.Newf(merror.NotFound, "project not found")
+		logger.Ctx(ctx).Errorw("subscription project not found", "name", m.ExtractedSubscriptionProjectID)
+		return merror.New(merror.NotFound, "project not found")
 	}
 	ok, err := c.Exists(ctx, m.Key())
 	if err != nil {
@@ -52,7 +54,8 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		if err != nil {
 			return err
 		}
-		merror.Newf(merror.NotFound, "project not found")
+		logger.Ctx(ctx).Errorw("topic project not found", "name", m.ExtractedTopicProjectID)
+		return merror.New(merror.NotFound, "project not found")
 	}
 	if ok, err = c.topicCore.ExistsWithName(ctx, m.Topic); !ok {
 		if err != nil {
@@ -71,4 +74,21 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 	return ok, nil
+}
+
+// DeleteSubscription deletes a subscription
+func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
+	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedSubscriptionProjectID); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.Newf(merror.NotFound, "project not found")
+	}
+	if ok, err := c.Exists(ctx, m.Key()); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.Newf(merror.NotFound, "subscription not found")
+	}
+	return c.repo.DeleteTree(ctx, m)
 }

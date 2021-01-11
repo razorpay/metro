@@ -2,22 +2,27 @@ package registry
 
 import (
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/api/watch"
 )
 
-// ConsulWatchHandler implements consul watch handler and stores the users handler function
-type ConsulWatchHandler struct {
-	handlerFunc HandlerFunc
+// ConsulWatcher implements consul watch handler and stores the users handler function
+type ConsulWatcher struct {
+	Config *WatchConfig
+	plan   *watch.Plan
+	client *api.Client
 }
 
-// NewConsulWatchHandler is used to create a new struct of type WatchHandler
-func NewConsulWatchHandler(hfunc HandlerFunc) *ConsulWatchHandler {
-	return &ConsulWatchHandler{
-		handlerFunc: hfunc,
+// NewConsulWatcher is used to create a new struct of type WatchHandler
+func NewConsulWatcher(watchConfig *WatchConfig, plan *watch.Plan, client *api.Client) IWatcher {
+	return &ConsulWatcher{
+		Config: watchConfig,
+		plan:   plan,
+		client: client,
 	}
 }
 
 // Handler implements the consul watch handler method and invokes the requester handler
-func (cw *ConsulWatchHandler) Handler(index uint64, result interface{}) {
+func (cwh *ConsulWatcher) handler(index uint64, result interface{}) {
 	pairs, ok := result.(api.KVPairs)
 	if !ok {
 		// Todo: decide what to do in case consul schema is corrupted
@@ -33,5 +38,17 @@ func (cw *ConsulWatchHandler) Handler(index uint64, result interface{}) {
 		})
 	}
 
-	cw.handlerFunc(results)
+	cwh.Config.Handler(results)
+}
+
+// StartWatch will start the watch
+func (cwh *ConsulWatcher) StartWatch() error {
+	cwh.plan.Handler = cwh.handler
+
+	return cwh.plan.RunWithClientAndLogger(cwh.client, nil)
+}
+
+// StopWatch will cleanup the active consul watches
+func (cwh *ConsulWatcher) StopWatch() {
+	cwh.plan.Stop()
 }

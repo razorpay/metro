@@ -34,7 +34,7 @@ type IRegistry interface {
 	Release(string, string, string) bool
 
 	// Watch on a key/keyprefix in registry
-	Watch(string, string, HandlerFunc) error
+	Watch(wh *WatchConfig) (IWatcher, error)
 
 	// Put a key value pair
 	Put(key string, value []byte) error

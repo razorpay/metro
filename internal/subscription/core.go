@@ -88,7 +88,7 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 		if err != nil {
 			return err
 		}
-		return merror.Newf(merror.NotFound, "subscription not found")
+		return merror.Newf(merror.NotFound, "Subscription does not exist")
 	}
 	return c.repo.DeleteTree(ctx, m)
 }

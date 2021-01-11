@@ -3,14 +3,13 @@
 package compatibility
 
 import (
-	"context"
-	"testing"
-
 	"cloud.google.com/go/pubsub"
+	"context"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-func Test_Subscription_CreateSubscription(t *testing.T) {
+func Test_Subscription_DeleteSubscription(t *testing.T) {
 	ctx := context.Background()
 	metroTopic, err := metroClient.CreateTopic(ctx, "topic-name-b")
 	assert.Nil(t, err)
@@ -27,38 +26,17 @@ func Test_Subscription_CreateSubscription(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, emulatorSub.ID(), metroSub.ID())
-	assert.Equal(t, emulatorSub.ReceiveSettings, metroSub.ReceiveSettings)
-	assert.Equal(t, emulatorSub.String(), metroSub.String())
 
-	// cleanup
-	err = metroTopic.Delete(ctx)
-	assert.Nil(t, err)
-	err = emulatorTopic.Delete(ctx)
-	assert.Nil(t, err)
 	err = metroSub.Delete(ctx)
 	assert.Nil(t, err)
 	err = emulatorSub.Delete(ctx)
 	assert.Nil(t, err)
-}
 
-func Test_Subscription_CreateSubscription_InvalidSubscriptionName(t *testing.T) {
-	ctx := context.Background()
-	metroTopic, err := metroClient.CreateTopic(ctx, "topic-name-b")
-	assert.Nil(t, err)
-
-	emulatorTopic, err := emulatorClient.CreateTopic(ctx, "topic-name-b")
-	assert.Nil(t, err)
-
-	metroSub, errA := metroClient.CreateSubscription(context.Background(), "s",
-		pubsub.SubscriptionConfig{Topic: metroTopic})
+	// delete already deleted subscriptions
+	errA := metroSub.Delete(ctx)
 	assert.NotNil(t, errA)
-	assert.Nil(t, metroSub)
-
-	emulatorSub, errB := emulatorClient.CreateSubscription(context.Background(), "s",
-		pubsub.SubscriptionConfig{Topic: emulatorTopic})
+	errB := emulatorSub.Delete(ctx)
 	assert.NotNil(t, errB)
-	assert.Nil(t, emulatorSub)
-
 	assert.Equal(t, errB.Error(), errA.Error())
 
 	// cleanup

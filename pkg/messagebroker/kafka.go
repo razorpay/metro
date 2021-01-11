@@ -70,7 +70,9 @@ func NewKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
-	p, err := kakfapkg.NewProducer(&kakfapkg.ConfigMap{"bootstrap.servers": strings.Join(bConfig.Brokers, ",")})
+	p, err := kakfapkg.NewProducer(&kakfapkg.ConfigMap{
+		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -111,10 +113,12 @@ func NewKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 // CreateTopic creates a new topic if not available
 func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
 
+	tp := normalizeTopicName(request.Name)
 	topics := make([]kakfapkg.TopicSpecification, 0)
 	ts := kakfapkg.TopicSpecification{
-		Topic:         request.Name,
-		NumPartitions: request.NumPartitions,
+		Topic:             tp,
+		NumPartitions:     request.NumPartitions,
+		ReplicationFactor: 1,
 	}
 	topics = append(topics, ts)
 	resp, err := k.Admin.CreateTopics(k.Ctx, topics, nil)
@@ -152,8 +156,9 @@ func (k *KafkaBroker) SendMessages(ctx context.Context, request SendMessageToTop
 
 	deliveryChan := make(chan kakfapkg.Event)
 
+	tp := normalizeTopicName(request.Topic)
 	err := k.Producer.Produce(&kakfapkg.Message{
-		TopicPartition: kakfapkg.TopicPartition{Topic: &request.Topic, Partition: kakfapkg.PartitionAny},
+		TopicPartition: kakfapkg.TopicPartition{Topic: &tp, Partition: kakfapkg.PartitionAny},
 		Value:          request.Message,
 		Headers:        kHeaders,
 	}, deliveryChan)
@@ -162,7 +167,7 @@ func (k *KafkaBroker) SendMessages(ctx context.Context, request SendMessageToTop
 	select {
 	case err := <-deliveryChan:
 		m = err.(*kakfapkg.Message)
-	case <-time.After(time.Duration(k.POptions.Timeout)):
+	case <-time.After(time.Duration(k.POptions.Timeout) * time.Second):
 		return SendMessageToTopicResponse{}, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", &request.Topic, k.POptions.Timeout)
 	}
 

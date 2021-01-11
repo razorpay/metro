@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/razorpay/metro/internal/brokerstore"
+
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
@@ -12,12 +14,12 @@ import (
 )
 
 type publisherServer struct {
-	producer  messagebroker.Producer
-	topicCore topic.ICore
+	brokerStore brokerstore.IBrokerStore
+	topicCore   topic.ICore
 }
 
-func newPublisherServer(producer messagebroker.Producer, topicCore topic.ICore) *publisherServer {
-	return &publisherServer{producer: producer, topicCore: topicCore}
+func newPublisherServer(brokerStore brokerstore.IBrokerStore, topicCore topic.ICore) *publisherServer {
+	return &publisherServer{brokerStore: brokerStore, topicCore: topicCore}
 }
 
 // Produce messages to a topic
@@ -25,10 +27,15 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 
 	log.Println("produce request received")
 
+	producer, err := s.brokerStore.GetExistingOrCreateProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic})
+	if err != nil {
+		return nil, err
+	}
+
 	msgIds := make([]string, 0)
 
 	for _, msg := range req.Messages {
-		msgResp, _ := s.producer.SendMessages(ctx, messagebroker.SendMessageToTopicRequest{
+		msgResp, _ := producer.SendMessages(ctx, messagebroker.SendMessageToTopicRequest{
 			Topic:   req.Topic,
 			Message: msg.Data,
 		})

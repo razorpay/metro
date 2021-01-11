@@ -3,10 +3,11 @@
 package compatibility
 
 import (
-	"cloud.google.com/go/pubsub"
 	"context"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"cloud.google.com/go/pubsub"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Subscription_DeleteSubscription(t *testing.T) {

@@ -2,7 +2,9 @@ package brokerstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
@@ -46,8 +48,8 @@ type BrokerStore struct {
 	// stores active producer clients for a key
 	consumerMap map[*Key]messagebroker.Consumer
 
-	// stores active admin clients for a key
-	adminMap map[*Key]messagebroker.Admin
+	// stores an active admin client
+	admin messagebroker.Admin
 
 	// the broker variant
 	variant string
@@ -76,6 +78,15 @@ type IBrokerStore interface {
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
 func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBrokerStore, error) {
+
+	if len(strings.Trim(variant, " ")) == 0 {
+		return nil, errors.New("brokerstore: variant must be non-empty")
+	}
+
+	if config == nil {
+		return nil, errors.New("brokerstore: broker config must be non-nil")
+	}
+
 	return &BrokerStore{
 		variant: variant,
 		bConfig: config,
@@ -105,7 +116,14 @@ func (b *BrokerStore) GetExistingOrCreateConsumer(ctx context.Context, options m
 		return consumer, nil
 	}
 
-	return b.CreateConsumer(ctx, options)
+	newConsumer, cerr := b.CreateConsumer(ctx, options)
+	if cerr != nil {
+		return nil, cerr
+	}
+
+	b.consumerMap[key] = newConsumer
+
+	return newConsumer, nil
 }
 
 // CreateProducer returns a new producer instance of the desired broker
@@ -131,15 +149,21 @@ func (b *BrokerStore) GetExistingOrCreateProducer(ctx context.Context, options m
 		return producer, nil
 	}
 
+	newProducer, cerr := b.CreateProducer(ctx, options)
+	if cerr != nil {
+		return nil, cerr
+	}
+
+	b.producerMap[key] = newProducer
+
 	return b.CreateProducer(ctx, options)
 }
 
 // GetExistingOrCreateAdmin returns for an existing admin instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetExistingOrCreateAdmin(ctx context.Context, options messagebroker.AdminClientOptions) (messagebroker.Admin, error) {
-	key := NewKey(b.variant, "")
 
-	if admin, ok := b.adminMap[key]; ok {
-		return admin, nil
+	if b.admin != nil {
+		return b.admin, nil
 	}
 
 	admin, err := messagebroker.NewAdminClient(ctx,
@@ -147,6 +171,8 @@ func (b *BrokerStore) GetExistingOrCreateAdmin(ctx context.Context, options mess
 		b.bConfig,
 		&messagebroker.AdminClientOptions{},
 	)
+
+	b.admin = admin
 
 	return admin, err
 }

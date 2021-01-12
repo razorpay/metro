@@ -20,18 +20,27 @@ func init() {
 	}
 }
 
-// GetValidatedModel validates an incoming proto request and returns a project model
-func GetValidatedModel(ctx context.Context, req *metrov1.Project) (*Model, error) {
+// GetValidatedModelForCreate validates an incoming proto request and returns a project model for create requests
+func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Project) (*Model, error) {
 	if req.Name == "" {
 		return nil, fmt.Errorf("name cannot be empty")
 	}
+	return getValidatedModel(ctx, req)
+}
+
+// GetValidatedModelForDelete validates an incoming proto request and returns a project model for delete requests
+func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Project) (*Model, error) {
+	return getValidatedModel(ctx, req)
+}
+
+func getValidatedModel(ctx context.Context, req *metrov1.Project) (*Model, error) {
 	if req.ProjectId == "" {
 		return nil, fmt.Errorf("projectId cannot be empty")
 	}
-	if isValidProjectID(ctx, req.ProjectId) {
-		return fromProto(req), nil
+	if !isValidProjectID(ctx, req.ProjectId) {
+		return nil, fmt.Errorf("not a valid projectID")
 	}
-	return nil, fmt.Errorf("not a valid projectID")
+	return fromProto(req), nil
 }
 
 // fromProto creates and returns a Model from proto message

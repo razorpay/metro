@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 
@@ -62,5 +63,17 @@ func createProjectInMetro() {
 }
 
 func teardown() {
-
+	// delete project from metro
+	url, err := url.Parse(fmt.Sprintf("http://%s:8082/v1/projects/project-id", os.Getenv("METRO_TEST_HOST")))
+	if err != nil {
+		os.Exit(4)
+	}
+	req := &http.Request{
+		Method: "DELETE",
+		URL:    url,
+	}
+	r, err := http.DefaultClient.Do(req)
+	if err != nil || r.StatusCode != 200 {
+		os.Exit(5)
+	}
 }

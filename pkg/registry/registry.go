@@ -41,4 +41,7 @@ type IRegistry interface {
 
 	// Exists checks the existence of a key
 	Exists(key string) (bool, error)
+
+	// DeleteTree deletes all keys under a prefix
+	DeleteTree(key string) error
 }

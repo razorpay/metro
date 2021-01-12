@@ -1,20 +1,25 @@
 package registry
 
 import (
+	"context"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 // ConsulWatcher implements consul watch handler and stores the users handler function
 type ConsulWatcher struct {
+	ctx    context.Context
 	Config *WatchConfig
 	plan   *watch.Plan
 	client *api.Client
 }
 
 // NewConsulWatcher is used to create a new struct of type WatchHandler
-func NewConsulWatcher(watchConfig *WatchConfig, plan *watch.Plan, client *api.Client) IWatcher {
+func NewConsulWatcher(ctx context.Context, watchConfig *WatchConfig, plan *watch.Plan, client *api.Client) IWatcher {
 	return &ConsulWatcher{
+		ctx:    ctx,
 		Config: watchConfig,
 		plan:   plan,
 		client: client,
@@ -25,7 +30,7 @@ func NewConsulWatcher(watchConfig *WatchConfig, plan *watch.Plan, client *api.Cl
 func (cwh *ConsulWatcher) handler(index uint64, result interface{}) {
 	pairs, ok := result.(api.KVPairs)
 	if !ok {
-		// Todo: decide what to do in case consul schema is corrupted
+		logger.Ctx(cwh.ctx).Errorw("failed to parse consul watch results", "data", result)
 		return
 	}
 

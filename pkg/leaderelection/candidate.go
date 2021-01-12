@@ -88,7 +88,7 @@ func (c *Candidate) Run(ctx context.Context) error {
 	// context returned done, release the lease
 	logger.Ctx(leadCtx).Info("context done, releasing lease")
 	c.release(leadCtx)
-	return nil
+	return leadCtx.Err()
 }
 
 // IsLeader returns true if the last observed leader was this client else returns false.

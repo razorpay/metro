@@ -40,6 +40,9 @@ func NewService(ctx context.Context, config *Config) *Service {
 
 // Start implements all the tasks for push-consumer and waits until one of the task fails
 func (c *Service) Start() error {
+	// close the done channel when this function returns
+	defer close(c.doneCh)
+
 	var (
 		err  error
 		gctx context.Context
@@ -120,13 +123,8 @@ func (c *Service) Start() error {
 		return err
 	})
 
-	c.workgrp.Go(func() error {
-		<-c.stopCh
-		return fmt.Errorf("signal received, stopping push-consumer")
-	})
-
 	err = c.workgrp.Wait()
-	close(c.doneCh)
+	logger.Ctx(gctx).Errorf("push consumer servicer error: %s", err.Error())
 	return err
 }
 

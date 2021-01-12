@@ -24,21 +24,32 @@ func init() {
 	}
 }
 
-// GetValidatedModel validates an incoming proto request and returns the model
-func GetValidatedModel(ctx context.Context, req *metrov1.Subscription, shouldPopulateTopic bool) (*Model, error) {
+// GetValidatedModelForCreate validates an incoming proto request and returns the model for create requests
+func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
+	m, err := getValidatedModel(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	p, t, err := topic.ExtractTopicMetaAndValidate(ctx, req.Topic)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topic] name: (name=%s)", req.Topic)
+	}
+	m.ExtractedTopicName = t
+	m.ExtractedTopicProjectID = p
+	return m, nil
+}
+
+// GetValidatedModelForDelete validates an incoming proto request and returns the model for delete requests
+func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
+	return getValidatedModel(ctx, req)
+}
+
+func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
 	p, s, err := extractSubscriptionMetaAndValidate(ctx, req.GetName())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] name: (name=%s)", req.Name)
 	}
 	m := &Model{}
-	if shouldPopulateTopic {
-		p, t, err := topic.ExtractTopicMetaAndValidate(ctx, req.Topic)
-		if err != nil {
-			return nil, merror.Newf(merror.InvalidArgument, "Invalid [topic] name: (name=%s)", req.Topic)
-		}
-		m.ExtractedTopicName = t
-		m.ExtractedTopicProjectID = p
-	}
 	m.Name = req.GetName()
 	m.Topic = req.GetTopic()
 	m.Labels = req.GetLabels()

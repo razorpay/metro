@@ -21,7 +21,7 @@ func newSubscriberServer(subscriptionCore subscription.ICore) *subscriberserver 
 // CreateSubscription to create a new subscription
 func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.Subscription) (*metrov1.Subscription, error) {
 	logger.Ctx(ctx).Infow("received request to create subscription", "name", req.Name, "topic", req.Topic)
-	m, err := subscription.GetValidatedModel(ctx, req, true)
+	m, err := subscription.GetValidatedModelForCreate(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
@@ -54,7 +54,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 // DeleteSubscription deletes a subscription
 func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("received request to delete subscription", "name", req.Subscription)
-	m, err := subscription.GetValidatedModel(ctx, &metrov1.Subscription{Name: req.Subscription}, false)
+	m, err := subscription.GetValidatedModelForDelete(ctx, &metrov1.Subscription{Name: req.Subscription})
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}

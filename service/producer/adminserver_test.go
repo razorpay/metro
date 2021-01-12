@@ -21,7 +21,7 @@ func TestAdminServer_CreateProject(t *testing.T) {
 	}
 	adminServer := newAdminServer(mockProjectCore)
 	ctx := context.Background()
-	projectModel, err := project.GetValidatedModel(ctx, projectProto, false)
+	projectModel, err := project.GetValidatedModelForCreate(ctx, projectProto)
 	assert.Nil(t, err)
 	mockProjectCore.EXPECT().CreateProject(ctx, projectModel)
 	p, err := adminServer.CreateProject(ctx, projectProto)

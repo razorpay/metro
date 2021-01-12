@@ -21,7 +21,7 @@ func newAdminServer(projectCore project.ICore) *adminServer {
 // CreateProject creates a new project
 func (s adminServer) CreateProject(ctx context.Context, req *metrov1.Project) (*metrov1.Project, error) {
 	logger.Ctx(ctx).Infow("request received to create project", "id", req.ProjectId)
-	p, err := project.GetValidatedModel(ctx, req, false)
+	p, err := project.GetValidatedModelForCreate(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
@@ -35,7 +35,7 @@ func (s adminServer) CreateProject(ctx context.Context, req *metrov1.Project) (*
 // DeleteProject creates a new project
 func (s adminServer) DeleteProject(ctx context.Context, req *metrov1.Project) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("request received to delete project", "id", req.ProjectId)
-	p, err := project.GetValidatedModel(ctx, req, true)
+	p, err := project.GetValidatedModelForDelete(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}

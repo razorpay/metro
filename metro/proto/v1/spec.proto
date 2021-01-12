@@ -68,6 +68,17 @@ service AdminService {
             tags: "Project"
         };
     }
+
+    rpc DeleteProject(Project) returns (google.protobuf.Empty){
+        option (google.api.http) = {
+            delete: "/v1/projects/{project_id}"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Delete a project"
+            description: "Delete a project"
+            tags: "Project"
+        };
+    }
 }
 
 message Project {
@@ -104,6 +115,22 @@ service Publisher {
             tags: "Topic"
         };
     }
+
+    // Deletes the topic with the given name. Returns `NOT_FOUND` if the topic
+    // does not exist. After a topic is deleted, a new topic may be created with
+    // the same name; this is an entirely new topic with none of the old
+    // configuration or subscriptions. Existing subscriptions to this topic are
+    // not deleted, but their `topic` field is set to `_deleted-topic_`.
+    rpc DeleteTopic(DeleteTopicRequest) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            delete: "/v1/{topic=projects/*/topics/*}"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Delete a topic"
+            description: "Delete a topic"
+            tags: "Topic"
+        };
+    }
 }
 
 // A topic resource.
@@ -119,6 +146,11 @@ message Topic {
     map<string, string> labels = 2;
 }
 
+message DeleteTopicRequest {
+    // Required. Name of the topic to delete.
+    // Format is `projects/{project}/topics/{topic}`.
+    string topic = 1 [(google.api.field_behavior) = REQUIRED];
+}
 
 // Request for the Publish method.
 message PublishRequest {
@@ -239,6 +271,23 @@ service Subscriber {
     // underlying RPC channel.
     rpc StreamingPull(stream StreamingPullRequest)
         returns (stream StreamingPullResponse) {}
+
+    // Deletes an existing subscription. All messages retained in the subscription
+    // are immediately dropped. Calls to `Pull` after deletion will return
+    // `NOT_FOUND`. After a subscription is deleted, a new one may be created with
+    // the same name, but the new one has no association with the old
+    // subscription or its topic unless the same topic is specified.
+    rpc DeleteSubscription(DeleteSubscriptionRequest)
+        returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            delete: "/v1/{subscription=projects/*/subscriptions/*}"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Delete a subscription"
+            description: "Delete a subscription"
+            tags: "Subscriptions"
+        };
+    }
 }
 
 // A subscription resource.
@@ -628,5 +677,12 @@ message StreamingPullRequest {
 message StreamingPullResponse {
     // Received Pub/Sub messages. This will not be empty.
     repeated ReceivedMessage received_messages = 1;
+}
+
+// Request for the DeleteSubscription method.
+message DeleteSubscriptionRequest {
+    // Required. The subscription to delete.
+    // Format is `projects/{project}/subscriptions/{sub}`.
+    string subscription = 1 [(google.api.field_behavior) = REQUIRED];
 }
 

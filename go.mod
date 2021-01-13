@@ -5,8 +5,6 @@ go 1.15
 require (
 	cloud.google.com/go/pubsub v1.3.1
 	github.com/apache/pulsar-client-go v0.3.0
-	github.com/bufbuild/buf v0.35.1 // indirect
-	github.com/bykof/go-plantuml v1.0.0 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.5.2
 	github.com/getsentry/sentry-go v0.8.0
@@ -17,6 +15,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.1
 	github.com/hashicorp/consul/api v1.1.0
+	github.com/klauspost/compress v1.11.6 // indirect
 	github.com/magiconair/properties v1.8.1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
@@ -40,5 +39,6 @@ require (
 	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.1-0.20201208041424-160c7477e0e8
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/apimachinery v0.20.0
 )

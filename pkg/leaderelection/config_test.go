@@ -20,8 +20,8 @@ func TestConfig(t *testing.T) {
 				RetryPeriod:   3 * time.Second,
 				Path:          "test",
 				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) {
-
+					OnStartedLeading: func(ctx context.Context) error {
+						return nil
 					},
 					OnStoppedLeading: func() {
 
@@ -37,8 +37,8 @@ func TestConfig(t *testing.T) {
 				RetryPeriod:   3 * time.Second,
 				Path:          "test",
 				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) {
-
+					OnStartedLeading: func(ctx context.Context) error {
+						return nil
 					},
 					OnStoppedLeading: func() {
 
@@ -54,8 +54,8 @@ func TestConfig(t *testing.T) {
 				RetryPeriod:   3 * time.Second,
 				Path:          "test",
 				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) {
-
+					OnStartedLeading: func(ctx context.Context) error {
+						return nil
 					},
 					OnStoppedLeading: func() {
 
@@ -71,8 +71,8 @@ func TestConfig(t *testing.T) {
 				RetryPeriod:   0 * time.Second,
 				Path:          "test",
 				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) {
-
+					OnStartedLeading: func(ctx context.Context) error {
+						return nil
 					},
 					OnStoppedLeading: func() {
 
@@ -87,8 +87,8 @@ func TestConfig(t *testing.T) {
 				RenewDeadline: 5 * time.Second,
 				RetryPeriod:   1 * time.Second,
 				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) {
-
+					OnStartedLeading: func(ctx context.Context) error {
+						return nil
 					},
 					OnStoppedLeading: func() {
 
@@ -113,8 +113,8 @@ func TestConfig(t *testing.T) {
 				RetryPeriod:   1 * time.Second,
 				Path:          "test",
 				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) {
-
+					OnStartedLeading: func(ctx context.Context) error {
+						return nil
 					},
 				},
 			},
@@ -127,8 +127,8 @@ func TestConfig(t *testing.T) {
 				RetryPeriod:   1 * time.Second,
 				Path:          "test",
 				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) {
-
+					OnStartedLeading: func(ctx context.Context) error {
+						return nil
 					},
 					OnStoppedLeading: func() {
 

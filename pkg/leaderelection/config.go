@@ -96,7 +96,7 @@ func (c *Config) Validate() error {
 // lifecycle events of the LeaderElector. These are invoked asynchronously.
 type LeaderCallbacks struct {
 	// OnStartedLeading is called when a LeaderElector client starts leading
-	OnStartedLeading func(context.Context)
+	OnStartedLeading func(context.Context) error
 	// OnStoppedLeading is called when a LeaderElector client stops leading
 	OnStoppedLeading func()
 }

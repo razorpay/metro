@@ -36,6 +36,12 @@ type CommitOnTopicRequest struct {
 	Offset    int64
 }
 
+// GetTopicMetadataRequest ...
+type GetTopicMetadataRequest struct {
+	Topic     string
+	TimeoutMs int
+}
+
 // CreateTopicResponse ...
 type CreateTopicResponse struct {
 	Response interface{}
@@ -60,5 +66,10 @@ type GetMessagesFromTopicResponse struct {
 
 // CommitOnTopicResponse ...
 type CommitOnTopicResponse struct {
+	Response interface{}
+}
+
+// GetTopicMetadataResponse ...
+type GetTopicMetadataResponse struct {
 	Response interface{}
 }

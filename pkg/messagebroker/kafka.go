@@ -25,8 +25,8 @@ type KafkaBroker struct {
 	AOptions *AdminClientOptions
 }
 
-// NewKafkaConsumerClient returns a kafka consumer
-func NewKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
+// newKafkaConsumerClient returns a kafka consumer
+func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 	err := validateKafkaConsumerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
@@ -58,8 +58,8 @@ func NewKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}, nil
 }
 
-// NewKafkaProducerClient returns a kafka producer
-func NewKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
+// newKafkaProducerClient returns a kafka producer
+func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
 	err := validateKafkaProducerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
@@ -83,8 +83,8 @@ func NewKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}, nil
 }
 
-// NewKafkaAdminClient returns a kafka admin
-func NewKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
+// newKafkaAdminClient returns a kafka admin
+func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
 	err := validateKafkaAdminBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
@@ -113,14 +113,23 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 
 	topics := make([]kakfapkg.TopicSpecification, 0)
 	ts := kakfapkg.TopicSpecification{
-		Topic:         request.Name,
-		NumPartitions: request.NumPartitions,
+		Topic:             request.Name,
+		NumPartitions:     request.NumPartitions,
+		ReplicationFactor: 1,
 	}
 	topics = append(topics, ts)
-	resp, err := k.Admin.CreateTopics(k.Ctx, topics, nil)
+	topicsResp, err := k.Admin.CreateTopics(k.Ctx, topics, nil)
+
+	for _, tp := range topicsResp {
+		if tp.Error.Code() != kakfapkg.ErrNoError {
+			return CreateTopicResponse{
+				Response: topicsResp,
+			}, fmt.Errorf("kafka: %v", tp.Error.String())
+		}
+	}
 
 	return CreateTopicResponse{
-		Response: resp,
+		Response: topicsResp,
 	}, err
 }
 
@@ -132,6 +141,22 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 	resp, err := k.Admin.DeleteTopics(k.Ctx, topics)
 	return DeleteTopicResponse{
 		Response: resp,
+	}, err
+}
+
+// GetTopicMetadata fetches the given topics metadata stored in the broker
+func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, req GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	metadata, err := k.Admin.GetMetadata(&req.Topic, false, req.TimeoutMs)
+	if err != nil {
+		return GetTopicMetadataResponse{}, err
+	}
+
+	return GetTopicMetadataResponse{
+		Response: map[string]interface{}{
+			"brokers":           metadata.Brokers,
+			"originatingBroker": metadata.Brokers,
+			"topics":            metadata.Topics,
+		},
 	}, err
 }
 

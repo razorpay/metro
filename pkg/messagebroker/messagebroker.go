@@ -16,6 +16,8 @@ type Admin interface {
 
 	// deletes an existing topic
 	DeleteTopic(context.Context, DeleteTopicRequest) (DeleteTopicResponse, error)
+
+	GetTopicMetadata(context.Context, GetTopicMetadataRequest) (GetTopicMetadataResponse, error)
 }
 
 // Producer for produce operations

@@ -2,6 +2,7 @@ package messagebroker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_CreateValidTopic_1(t *testing.T) {
+func Test_CreateValidTopic(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -76,15 +77,60 @@ func Test_CreateDuplicateTopic(t *testing.T) {
 	assert.NotNil(t, duperr)
 }
 
+func Test_ProduceAndConsumeMessages(t *testing.T) {
+	ctx := context.Background()
+
+	topic := fmt.Sprintf("dummytopic-%v", uuid.New())
+
+	producer, err := messagebroker.NewProducerClient(ctx, "kafka", getKafkaBrokerConfig(), &messagebroker.ProducerClientOptions{
+		Topic:   topic,
+		Timeout: 6000,
+	})
+
+	assert.Nil(t, err)
+	assert.NotNil(t, producer)
+
+	msgsToSend := 10
+
+	// will assert whether all the same message_ids are consumed back or not
+	var msgIds []string
+
+	for i := 0; i < msgsToSend; i++ {
+		newMsg := fmt.Sprintf("msg-%v", i)
+		msgbytes, _ := json.Marshal(newMsg)
+		msg := messagebroker.SendMessageToTopicRequest{
+			Topic:   topic,
+			Message: msgbytes,
+			Timeout: 6000,
+		}
+
+		resp, rerr := producer.SendMessages(ctx, msg)
+		assert.Nil(t, rerr)
+		assert.NotNil(t, resp.MessageID)
+
+		msgIds = append(msgIds, resp.MessageID)
+	}
+
+	// message produced count should match the number of message ids generated in response
+	assert.Equal(t, msgsToSend, len(msgIds))
+
+	// now consume the messages and assert the message ids generated in the previous step
+
+}
+
 func getValidAdminClient() messagebroker.Admin {
 	admin, _ := messagebroker.NewAdminClient(context.Background(), "kafka", getKafkaBrokerConfig(), getAdminClientConfig())
 	return admin
 }
 
-func getProducerClientConfig() *messagebroker.ProducerClientOptions {
-	return &messagebroker.ProducerClientOptions{}
+func getValidProducerClientConfig(topic string) *messagebroker.ProducerClientOptions {
+	return &messagebroker.ProducerClientOptions{
+		Topic:   topic,
+		Timeout: 6000,
+	}
 }
-func getConsumerClientConfig() *messagebroker.ConsumerClientOptions {
+
+func getValidConsumerClientConfig() *messagebroker.ConsumerClientOptions {
 	return &messagebroker.ConsumerClientOptions{}
 }
 func getAdminClientConfig() *messagebroker.AdminClientOptions {

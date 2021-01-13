@@ -9,9 +9,8 @@ import (
 )
 
 func Test_NewKey(t *testing.T) {
-	assert.Equal(t, "producer-dummytopic", NewKey("producer", "dummytopic").Prefix())
-	assert.Equal(t, "consumer-dummytopic", NewKey("consumer", "dummytopic").Prefix())
-	assert.Equal(t, "admin", NewKey("admin", "dummytopic").Prefix())
+	assert.Equal(t, "dummytopic-0", NewKey("producer", 0).String())
+	assert.Equal(t, "dummytopic-25", NewKey("consumer", 25).String())
 }
 
 func Test_NewBrokerStore(t *testing.T) {
@@ -28,23 +27,6 @@ func Test_NewBrokerStore(t *testing.T) {
 	assert.NotNil(t, store3)
 }
 
-func Test_findFirstMatchingKeyPrefix(t *testing.T) {
-	mp := sync.Map{}
-
-	mp.Store("prefix1-k1", "v1")
-	mp.Store("prefix2-k2", "v2")
-	mp.Store("prefix4-k4", "v4")
-
-	val1 := findFirstMatchingKeyPrefix(&mp, "prefix4")
-	assert.NotNil(t, val1)
-
-	val2 := findFirstMatchingKeyPrefix(&mp, "prefix2")
-	assert.NotNil(t, val2)
-
-	val3 := findFirstMatchingKeyPrefix(&mp, "prefix-wrong")
-	assert.Nil(t, val3)
-}
-
 func Test_findAllMatchingKeyPrefix(t *testing.T) {
 	mp := sync.Map{}
 
@@ -56,6 +38,6 @@ func Test_findAllMatchingKeyPrefix(t *testing.T) {
 	assert.NotNil(t, val1)
 	assert.Equal(t, len(val1), 2)
 
-	val3 := findFirstMatchingKeyPrefix(&mp, "prefix-wrong")
+	val3 := findAllMatchingKeyPrefix(&mp, "prefix-wrong")
 	assert.Nil(t, val3)
 }

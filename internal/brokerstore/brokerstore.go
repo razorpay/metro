@@ -106,7 +106,7 @@ func (b *BrokerStore) CreateConsumer(ctx context.Context, op messagebroker.Consu
 	key := NewKey(b.variant, op.Topic)
 
 	if getExisting {
-		consumer := findFirstMatchingKeyPrefix(b.consumerMap, key.Prefix())
+		consumer := findFirstMatchingKeyPrefix(&b.consumerMap, key.Prefix())
 		if consumer != nil {
 			return consumer.(messagebroker.Consumer), nil
 		}
@@ -132,7 +132,7 @@ func (b *BrokerStore) CreateProducer(ctx context.Context, op messagebroker.Produ
 	key := NewKey(b.variant, op.Topic)
 
 	if getExisting {
-		producer := findFirstMatchingKeyPrefix(b.producerMap, key.Prefix())
+		producer := findFirstMatchingKeyPrefix(&b.producerMap, key.Prefix())
 		if producer != nil {
 			return producer.(messagebroker.Producer), nil
 		}
@@ -182,7 +182,7 @@ func (b *BrokerStore) GetActiveConsumers(ctx context.Context, op messagebroker.C
 	}
 
 	var consumers []messagebroker.Consumer
-	values := findAllMatchingKeyPrefix(b.consumerMap, prefix)
+	values := findAllMatchingKeyPrefix(&b.consumerMap, prefix)
 	for _, value := range values {
 		consumers = append(consumers, value.(messagebroker.Consumer))
 	}
@@ -200,7 +200,7 @@ func (b *BrokerStore) GetActiveProducers(ctx context.Context, op messagebroker.P
 	}
 
 	var producers []messagebroker.Producer
-	values := findAllMatchingKeyPrefix(b.consumerMap, prefix)
+	values := findAllMatchingKeyPrefix(&b.consumerMap, prefix)
 	for _, value := range values {
 		producers = append(producers, value.(messagebroker.Producer))
 	}
@@ -209,30 +209,28 @@ func (b *BrokerStore) GetActiveProducers(ctx context.Context, op messagebroker.P
 }
 
 // iterates over the sync.Map and looks for the first key matching the given prefix
-func findFirstMatchingKeyPrefix(mp sync.Map, prefix string) interface{} {
+func findFirstMatchingKeyPrefix(mp *sync.Map, prefix string) interface{} {
 	var val interface{}
 
 	mp.Range(func(key, value interface{}) bool {
 		if strings.HasPrefix(fmt.Sprintf("%v", key), prefix) {
 			val = value
-			return true
 		}
-		return false
+		return true
 	})
 
 	return val
 }
 
 // iterates over the sync.Map and looks for all keys matching the given prefix
-func findAllMatchingKeyPrefix(mp sync.Map, prefix string) []interface{} {
+func findAllMatchingKeyPrefix(mp *sync.Map, prefix string) []interface{} {
 	var values []interface{}
 
 	mp.Range(func(key, value interface{}) bool {
 		if strings.HasPrefix(fmt.Sprintf("%v", key), prefix) {
 			values = append(values, value)
-			return true
 		}
-		return false
+		return true
 	})
 	return values
 }

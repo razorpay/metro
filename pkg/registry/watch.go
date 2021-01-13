@@ -1,8 +1,10 @@
 package registry
 
+import "context"
+
 // HandlerFunc provides interface for the watch handler func
 // which is implemented by watch subscriber
-type HandlerFunc func([]Pair)
+type HandlerFunc func(context.Context, []Pair)
 
 // WatchConfig struct provides watch details on registry
 type WatchConfig struct {

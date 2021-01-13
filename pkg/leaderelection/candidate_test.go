@@ -27,7 +27,7 @@ func TestNewLeaderElectionFailure(t *testing.T) {
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	config := getConfig()
-	config.Path = ""
+	config.LockPath = ""
 	c1, err := New(config, registryMock)
 	assert.NotNil(t, err)
 	assert.Nil(t, c1)
@@ -142,7 +142,7 @@ func TestDeregisterNodeUnregistered(t *testing.T) {
 
 func getConfig() Config {
 	return Config{
-		Path:          "leader/election/test",
+		LockPath:      "leader/election/test",
 		LeaseDuration: 30 * time.Second,
 		RetryPeriod:   5 * time.Second,
 		RenewDeadline: 20 * time.Second,

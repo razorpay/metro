@@ -8,8 +8,11 @@ import (
 
 // Config for leaderelector
 type Config struct {
-	// Path to the location in registry that will be used for locking
-	Path string
+	// NodePath is key in registry that will be used for node registration
+	NodePath string
+
+	// LockPath is key in registry that will be used for locking
+	LockPath string
 
 	// LeaseDuration is the duration that follower candidates will
 	// wait to force acquire leadership. This is measured against time of
@@ -85,7 +88,7 @@ func (c *Config) Validate() error {
 		return ErrInvalidRetryPeriod
 	}
 
-	if c.Path == "" {
+	if c.LockPath == "" {
 		return ErrInvalidPath
 	}
 

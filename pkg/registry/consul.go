@@ -39,6 +39,7 @@ func (c *ConsulClient) Register(name string, ttl time.Duration) (string, error) 
 		Name:      name,
 		TTL:       ttl.String(),
 		LockDelay: 2,
+		Behavior:  api.SessionBehaviorDelete,
 	}, nil)
 
 	if err != nil {
@@ -59,6 +60,11 @@ func (c *ConsulClient) Renew(sessionID string) error {
 	_, _, err := c.client.Session().Renew(sessionID, nil)
 
 	return err
+}
+
+// // Renew renews consul session periodically until doneCh signals done
+func (c *ConsulClient) RenewPeriodic(sessionID string, ttl time.Duration, doneCh <-chan struct{}) error {
+	return c.client.Session().RenewPeriodic(ttl.String(), sessionID, nil, doneCh)
 }
 
 // Deregister node, destroy consul session
@@ -99,17 +105,22 @@ func (c *ConsulClient) Release(sessionID string, key string, value string) bool 
 }
 
 // Watch watches a key and returns a watcher instance, this instance should be used to terminate the watch
-func (c *ConsulClient) Watch(wh *WatchConfig) (IWatcher, error) {
-	plan, err := watch.Parse(map[string]interface{}{
-		"type":   wh.WatchType,
-		"prefix": wh.WatchPath,
-	})
+func (c *ConsulClient) Watch(ctx context.Context, wh *WatchConfig) (IWatcher, error) {
+	params := map[string]interface{}{}
 
+	if wh.WatchType == "key" {
+		params["type"] = wh.WatchType
+		params["key"] = wh.WatchPath
+	} else if wh.WatchType == "keyprefix" {
+		params["type"] = wh.WatchType
+		params["prefix"] = wh.WatchPath
+	}
+
+	plan, err := watch.Parse(params)
 	if err != nil {
 		return nil, err
 	}
-
-	cwh := NewConsulWatcher(c.ctx, wh, plan, c.client)
+	cwh := NewConsulWatcher(ctx, wh, plan, c.client)
 
 	return cwh, nil
 }

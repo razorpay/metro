@@ -18,7 +18,7 @@ func TestConfig(t *testing.T) {
 				LeaseDuration: 3 * time.Second,
 				RenewDeadline: 5 * time.Second,
 				RetryPeriod:   3 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -35,7 +35,7 @@ func TestConfig(t *testing.T) {
 				LeaseDuration: 0 * time.Second,
 				RenewDeadline: -1 * time.Second,
 				RetryPeriod:   3 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -52,7 +52,7 @@ func TestConfig(t *testing.T) {
 				LeaseDuration: 1 * time.Second,
 				RenewDeadline: 0 * time.Second,
 				RetryPeriod:   3 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -69,7 +69,7 @@ func TestConfig(t *testing.T) {
 				LeaseDuration: 10 * time.Second,
 				RenewDeadline: 5 * time.Second,
 				RetryPeriod:   0 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -102,7 +102,7 @@ func TestConfig(t *testing.T) {
 				LeaseDuration: 10 * time.Second,
 				RenewDeadline: 5 * time.Second,
 				RetryPeriod:   1 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 			},
 			err: ErrInvalidOnStartedLeadingCallback,
 		},
@@ -111,7 +111,7 @@ func TestConfig(t *testing.T) {
 				LeaseDuration: 10 * time.Second,
 				RenewDeadline: 5 * time.Second,
 				RetryPeriod:   1 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -125,7 +125,7 @@ func TestConfig(t *testing.T) {
 				LeaseDuration: 10 * time.Second,
 				RenewDeadline: 5 * time.Second,
 				RetryPeriod:   1 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil

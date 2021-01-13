@@ -9,8 +9,8 @@ import (
 )
 
 func Test_NewKey(t *testing.T) {
-	assert.Equal(t, "dummytopic-0", NewKey("producer", 0).String())
-	assert.Equal(t, "dummytopic-25", NewKey("consumer", 25).String())
+	assert.Equal(t, "dummytopic-0", NewKey("dummytopic", 0).String())
+	assert.Equal(t, "dummytopic-25", NewKey("dummytopic", 25).String())
 }
 
 func Test_NewBrokerStore(t *testing.T) {

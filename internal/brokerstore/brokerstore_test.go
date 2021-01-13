@@ -1,31 +1,28 @@
 package brokerstore
 
 import (
+	"testing"
+
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_NewKey(t *testing.T) {
-	assert.Equal(t, "producer-dummytopic", NewKey("producer", "dummytopic").String())
-	assert.Equal(t, "consumer-dummytopic", NewKey("consumer", "dummytopic").String())
-	assert.Equal(t, "admin", NewKey("admin", "dummytopic").String())
+	assert.Equal(t, "producer-dummytopic", NewKey("producer", "dummytopic").Prefix())
+	assert.Equal(t, "consumer-dummytopic", NewKey("consumer", "dummytopic").Prefix())
+	assert.Equal(t, "admin", NewKey("admin", "dummytopic").Prefix())
 }
 
-func Test_NewBrokerStore1(t *testing.T) {
-	store, err := NewBrokerStore("", &messagebroker.BrokerConfig{})
-	assert.Nil(t, store)
+func Test_NewBrokerStore(t *testing.T) {
+	store1, err := NewBrokerStore("", &messagebroker.BrokerConfig{})
+	assert.Nil(t, store1)
 	assert.NotNil(t, err)
-}
 
-func Test_NewBrokerStore2(t *testing.T) {
-	store, err := NewBrokerStore("kafka", nil)
-	assert.Nil(t, store)
+	store2, err := NewBrokerStore("kafka", nil)
+	assert.Nil(t, store2)
 	assert.NotNil(t, err)
-}
 
-func Test_NewBrokerStore3(t *testing.T) {
-	store, err := NewBrokerStore("kafka", &messagebroker.BrokerConfig{})
+	store3, err := NewBrokerStore("kafka", &messagebroker.BrokerConfig{})
 	assert.Nil(t, err)
-	assert.NotNil(t, store)
+	assert.NotNil(t, store3)
 }

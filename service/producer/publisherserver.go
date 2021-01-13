@@ -29,7 +29,7 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 
 	producer, err := s.brokerStore.GetExistingOrCreateProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic})
 	if err != nil {
-		return nil, err
+		return nil, merror.ToGRPCError(err)
 	}
 
 	msgIds := make([]string, 0)

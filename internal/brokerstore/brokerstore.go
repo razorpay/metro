@@ -23,6 +23,11 @@ func NewKey(topic string, partition int) *Key {
 	}
 }
 
+// Prefix returns only the topic name to run a match all query
+func (key *Key) Prefix() string {
+	return key.topic
+}
+
 func (key *Key) String() string {
 	return fmt.Sprintf("%v-%v", key.topic, key.partition)
 }
@@ -150,7 +155,7 @@ func (b *BrokerStore) GetActiveConsumers(ctx context.Context, op messagebroker.C
 
 	var prefix string
 	if op.Topic != "" {
-		prefix = NewKey(op.Topic, op.Partition).String()
+		prefix = NewKey(op.Topic, op.Partition).Prefix()
 	}
 
 	consumers := make([]messagebroker.Consumer, 0)
@@ -167,7 +172,7 @@ func (b *BrokerStore) GetActiveProducers(ctx context.Context, op messagebroker.P
 
 	var prefix string
 	if op.Topic != "" {
-		prefix = NewKey(op.Topic, op.Partition).String()
+		prefix = NewKey(op.Topic, op.Partition).Prefix()
 	}
 
 	producers := make([]messagebroker.Producer, 0)

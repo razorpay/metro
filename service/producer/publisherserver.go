@@ -27,7 +27,7 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 
 	log.Println("produce request received")
 
-	producer, err := s.brokerStore.GetExistingOrCreateProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic})
+	producer, err := s.brokerStore.CreateProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic}, true)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}

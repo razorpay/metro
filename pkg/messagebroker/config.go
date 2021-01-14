@@ -45,12 +45,14 @@ type ConsumerClientOptions struct {
 	Topic        string
 	Subscription string
 	GroupID      string
+	Partition    int
 }
 
 // ProducerClientOptions holds client specific configuration for producer
 type ProducerClientOptions struct {
-	Topic   string
-	Timeout int64
+	Topic     string
+	Partition int
+	Timeout   int64
 }
 
 // AdminClientOptions holds client specific configuration for admin

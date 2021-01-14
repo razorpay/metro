@@ -2,6 +2,7 @@ package messagebroker
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
@@ -77,9 +78,10 @@ func newPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options
 	}
 
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:               bConfig.Brokers[0],
-		OperationTimeout:  time.Duration(bConfig.OperationTimeout) * time.Second,
-		ConnectionTimeout: time.Duration(bConfig.ConnectionTimeout) * time.Second,
+		URL:                        fmt.Sprintf("pulsar://%v", bConfig.Brokers[0]),
+		TLSAllowInsecureConnection: true,
+		OperationTimeout:           time.Duration(bConfig.OperationTimeout) * time.Second,
+		ConnectionTimeout:          time.Duration(bConfig.ConnectionTimeout) * time.Second,
 	})
 
 	if err != nil {

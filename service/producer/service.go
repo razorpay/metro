@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/razorpay/metro/internal/brokerstore"
+
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/health"
@@ -11,7 +13,6 @@ import (
 	internalserver "github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
-	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
@@ -47,18 +48,14 @@ func (svc *Service) Start() error {
 		return err
 	}
 
-	mb, err := messagebroker.NewProducerClient(context.Background(),
-		messagebroker.Kafka,
-		&svc.config.Broker.BrokerConfig,
-		&messagebroker.ProducerClientOptions{Topic: "dummy-topic"},
-	)
+	r, err := registry.NewRegistry(svc.ctx, &svc.config.Registry)
 	if err != nil {
 		return err
 	}
 
-	r, err := registry.NewRegistry(svc.ctx, &svc.config.Registry)
-	if err != nil {
-		return err
+	brokerStore, berr := brokerstore.NewBrokerStore(svc.config.Broker.Variant, &svc.config.Broker.BrokerConfig)
+	if berr != nil {
+		return berr
 	}
 
 	projectCore := project.NewCore(project.NewRepo(r))
@@ -72,7 +69,7 @@ func (svc *Service) Start() error {
 		svc.config.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-			metrov1.RegisterPublisherServer(server, newPublisherServer(mb, topicCore))
+			metrov1.RegisterPublisherServer(server, newPublisherServer(brokerStore, topicCore))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore))
 			metrov1.RegisterSubscriberServer(server, newSubscriberServer(subscriptionCore))
 			return nil

@@ -122,6 +122,7 @@ func (c *Candidate) Run(ctx context.Context) error {
 	return err
 }
 
+// handler implements the handler calls from registry for events on leader key changes
 func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
 	logger.Ctx(ctx).Info("leader election handler called")
 	if len(result) > 0 && result[0].SessionId != "" {

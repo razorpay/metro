@@ -66,8 +66,6 @@ func (c *Service) Start() error {
 			NodePath:      fmt.Sprintf("registry/nodes/%s", c.nodeID),
 			LockPath:      "leader/election",
 			LeaseDuration: 30 * time.Second,
-			RenewDeadline: 20 * time.Second,
-			RetryPeriod:   5 * time.Second,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) error {
 					return c.lead(ctx)
@@ -209,24 +207,4 @@ func (c *Service) stepDown() {
 
 	// wait for leader go routines to terminate
 	c.leadgrp.Wait()
-}
-
-func (c *Service) registerNode(ctx context.Context) error {
-	// TODO: read from config
-	ttl := 30 * time.Second
-	sid, err := c.registry.Register(c.nodeID, 30*time.Second)
-
-	if err != nil {
-		return err
-	}
-
-	nodePath := fmt.Sprintf("registry/nodes/%s", c.nodeID)
-	acquired := c.registry.Acquire(sid, nodePath, time.Now().String())
-
-	if !acquired {
-		return fmt.Errorf("failed to acquire key : %s", nodePath)
-	}
-
-	// Renew session periodically
-	return c.registry.RenewPeriodic(sid, ttl, ctx.Done())
 }

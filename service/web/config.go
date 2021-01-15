@@ -1,4 +1,4 @@
-package producer
+package web
 
 import (
 	"github.com/razorpay/metro/pkg/messagebroker"

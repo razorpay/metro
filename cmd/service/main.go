@@ -13,7 +13,7 @@ var (
 )
 
 func init() {
-	componentName = flag.String("component", metro.Producer, "component to start")
+	componentName = flag.String("component", metro.Web, "component to start")
 }
 
 func main() {

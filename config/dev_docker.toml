@@ -15,56 +15,39 @@
     mock                  = true
     errorLevel            = 1
 
-[producer]
-    [producer.broker]
+[web]
+    [web.broker]
         variant               = "kafka"
-        [producer.broker.brokerconfig]
+        [web.broker.brokerconfig]
             brokers       = ["kafka-broker:9021"]
-            [producer.broker.brokerconfig.Producer]
-    [producer.registry]
+            [web.broker.brokerconfig.web]
+    [web.registry]
         driver                    = "consul"
-        [producer.registry.consulconfig]
-            [producer.registry.consulconfig.config]
+        [web.registry.consulconfig]
+            [web.registry.consulconfig.config]
                 address               = "consul:8500"
                 scheme                = "http"
-    [producer.interfaces]
-        [producer.interfaces.api]
+    [web.interfaces]
+        [web.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
             HttpServerAddress     = "0.0.0.0:8082"
 
-[pushconsumer]
-    [pushconsumer.broker]
+[worker]
+    [worker.broker]
         variant               = "kafka"
-        [pushconsumer.broker.brokerconfig]
+        [worker.broker.brokerconfig]
             brokers       = ["localhost:9021"]
-            [pushconsumer.broker.brokerconfig.consumer]
-    [pushconsumer.registry]
+            [worker.broker.brokerconfig.consumer]
+    [worker.registry]
         driver                    = "consul"
-        [pushconsumer.registry.consulconfig]
-            [pushconsumer.registry.consulconfig.config]
+        [worker.registry.consulconfig]
+            [worker.registry.consulconfig.config]
                 address               = "consul:8500"
                 scheme                = "http"
-    [pushconsumer.interfaces]
-        [pushconsumer.interfaces.api]
+    [worker.interfaces]
+        [worker.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8083"
             HttpServerAddress     = "0.0.0.0:8084"
-
-[pullconsumer]
-    [pullconsumer.broker]
-        variant               = "kafka"
-        [pullconsumer.broker.brokerconfig]
-            brokers       = ["kafka-broker:9021"]
-            [pullconsumer.broker.brokerconfig.consumer]
-    [pullconsumer.registry]
-        driver                    = "consul"
-        [pullconsumer.registry.consulconfig]
-            [pullconsumer.registry.consulconfig.config]
-                address               = "consul:8500"
-                scheme                = "http"
-    [pullconsumer.interfaces]
-        [pullconsumer.interfaces.api]
-            GrpcServerAddress     = "0.0.0.0:8085"
-            HttpServerAddress     = "0.0.0.0:8086"
 
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"

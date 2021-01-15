@@ -1,6 +1,6 @@
 version: '3.3'
 services:
-  metro-producer:
+  metro-web:
     build:
       context: ../..
       dockerfile: build/docker/Dockerfile
@@ -13,7 +13,7 @@ services:
       - "8082:8082"
     environment:
       - APP_ENV=dev_docker
-      - METRO_COMPONENT=producer
+      - METRO_COMPONENT=web
       - GIT_COMMIT_HASH=dev_docker
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "8081"]
@@ -22,11 +22,11 @@ services:
       retries: 5
     restart: on-failure
 
-  metro-push-consumer:
+  metro-worker:
     build:
       context: ../..
       dockerfile: build/docker/Dockerfile
-    container_name: metro-push-consumer
+    container_name: metro-worker
     networks:
       - dev_app-network
       - monitoring_rzp-dev-monitoring
@@ -35,24 +35,7 @@ services:
       - "8084:8084"
     environment:
       - APP_ENV=dev_docker
-      - METRO_COMPONENT=push-consumer
-      - GIT_COMMIT_HASH=dev
-    restart: on-failure
-
-  metro-pull-consumer:
-    build:
-      context: ../..
-      dockerfile: build/docker/Dockerfile
-    container_name: metro-pull-consumer
-    networks:
-      - dev_app-network
-      - monitoring_rzp-dev-monitoring
-    ports:
-      - "8085:8085"
-      - "8086:8086"
-    environment:
-      - APP_ENV=dev_docker
-      - METRO_COMPONENT=pull-consumer
+      - METRO_COMPONENT=worker
       - GIT_COMMIT_HASH=dev
     restart: on-failure
 

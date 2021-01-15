@@ -1,4 +1,4 @@
-package pushconsumer
+package worker
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Service for push consumer
+// Service for worker
 type Service struct {
 	ctx       context.Context
 	health    *health.Core
@@ -27,7 +27,7 @@ type Service struct {
 	leadgrp   *errgroup.Group
 }
 
-// NewService creates an instance of new push consumer service
+// NewService creates an instance of new worker
 func NewService(ctx context.Context, config *Config) *Service {
 	return &Service{
 		ctx:    ctx,
@@ -38,7 +38,7 @@ func NewService(ctx context.Context, config *Config) *Service {
 	}
 }
 
-// Start implements all the tasks for push-consumer and waits until one of the task fails
+// Start implements all the tasks for worker and waits until one of the task fails
 func (c *Service) Start() error {
 	// close the done channel when this function returns
 	defer close(c.doneCh)
@@ -61,7 +61,7 @@ func (c *Service) Start() error {
 	// Init Leader Election
 	c.candidate, err = leaderelection.New(leaderelection.Config{
 		// TODO: read values from config
-		Name:          "metro-push-consumer",
+		Name:          "metro-worker",
 		Path:          "leader/election",
 		LeaseDuration: 30 * time.Second,
 		RenewDeadline: 20 * time.Second,
@@ -113,7 +113,7 @@ func (c *Service) Start() error {
 		case <-gctx.Done():
 			err = gctx.Err()
 		case <-c.stopCh:
-			err = fmt.Errorf("signal received, stopping push-consumer")
+			err = fmt.Errorf("signal received, stopping worker")
 		}
 
 		if watcher != nil {

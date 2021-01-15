@@ -1,11 +1,11 @@
-package pullconsumer
+package worker
 
 import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 )
 
-// Config for pullconsumer
+// Config for pushconsumer
 type Config struct {
 	Broker     Broker
 	Registry   registry.Config

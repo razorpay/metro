@@ -154,7 +154,7 @@ docs-uml:
 
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
 test-integration-ci:
-	@METRO_TEST_HOST=metro-producer go test ./... -tags=integration,musl
+	@METRO_TEST_HOST=metro-web go test ./... -tags=integration,musl
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration:
@@ -162,7 +162,7 @@ test-integration:
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:
-	@METRO_TEST_HOST=metro-producer PUBSUB_TEST_HOST=pubsub go test ./... -tags=compatibility,musl
+	@METRO_TEST_HOST=metro-web PUBSUB_TEST_HOST=pubsub go test ./... -tags=compatibility,musl
 
 .PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
 test-compat:

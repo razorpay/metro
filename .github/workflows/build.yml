@@ -111,14 +111,14 @@ jobs:
               ports:
                 - "8500:8500"
               options: --health-cmd "nc -z localhost 8500"
-            metro-producer:
+            metro-web:
               image: razorpay/metro:${{ github.sha }}
               ports:
                 - "8081:8081"
                 - "8082:8082"
               env:
                 APP_ENV: dev_docker
-                METRO_COMPONENT: producer
+                METRO_COMPONENT: web
                 GIT_COMMIT_HASH: ${{ github.sha }}
               options: --health-cmd "nc -z localhost 8082"
             pubsub:

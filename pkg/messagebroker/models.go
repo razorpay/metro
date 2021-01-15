@@ -1,9 +1,5 @@
 package messagebroker
 
-import (
-	"time"
-)
-
 // CreateTopicRequest ...
 type CreateTopicRequest struct {
 	Name          string
@@ -20,13 +16,13 @@ type SendMessageToTopicRequest struct {
 	Topic      string
 	Message    []byte
 	Attributes []map[string][]byte
-	Timeout    time.Duration
+	TimeoutSec int
 }
 
 // GetMessagesFromTopicRequest ...
 type GetMessagesFromTopicRequest struct {
 	NumOfMessages int
-	Timeout       time.Duration
+	TimeoutSec    int
 }
 
 // CommitOnTopicRequest ...
@@ -38,8 +34,8 @@ type CommitOnTopicRequest struct {
 
 // GetTopicMetadataRequest ...
 type GetTopicMetadataRequest struct {
-	Topic     string
-	TimeoutMs int
+	Topic      string
+	TimeoutSec int
 }
 
 // CreateTopicResponse ...
@@ -60,8 +56,8 @@ type SendMessageToTopicResponse struct {
 
 // GetMessagesFromTopicResponse ...
 type GetMessagesFromTopicResponse struct {
-	Messages []string
-	Response interface{}
+	OffsetWithMessages map[string]string
+	Response           interface{}
 }
 
 // CommitOnTopicResponse ...

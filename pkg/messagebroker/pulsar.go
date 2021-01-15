@@ -38,8 +38,8 @@ func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options
 
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:               bConfig.Brokers[0],
-		OperationTimeout:  time.Duration(bConfig.OperationTimeout) * time.Second,
-		ConnectionTimeout: time.Duration(bConfig.ConnectionTimeout) * time.Second,
+		OperationTimeout:  time.Duration(bConfig.OperationTimeoutSec) * time.Second,
+		ConnectionTimeout: time.Duration(bConfig.ConnectionTimeoutSec) * time.Second,
 	})
 
 	if err != nil {
@@ -80,8 +80,8 @@ func newPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:                        fmt.Sprintf("pulsar://%v", bConfig.Brokers[0]),
 		TLSAllowInsecureConnection: true,
-		OperationTimeout:           time.Duration(bConfig.OperationTimeout) * time.Second,
-		ConnectionTimeout:          time.Duration(bConfig.ConnectionTimeout) * time.Second,
+		OperationTimeout:           time.Duration(bConfig.OperationTimeoutSec) * time.Second,
+		ConnectionTimeout:          time.Duration(bConfig.ConnectionTimeoutSec) * time.Second,
 	})
 
 	if err != nil {
@@ -152,7 +152,7 @@ func (p PulsarBroker) SendMessages(ctx context.Context, request SendMessageToTop
 // how many ever messages are available
 func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
 
-	msgs := make([]string, request.NumOfMessages)
+	msgs := make(map[string]string, request.NumOfMessages)
 	for i := 0; i < request.NumOfMessages; i++ {
 		msg, err := p.Consumer.Receive(ctx)
 		if err != nil {
@@ -160,11 +160,11 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				Response: err,
 			}, err
 		}
-		msgs = append(msgs, string(msg.ID().Serialize()))
+		msgs[string(msg.ID().Serialize())] = string(msg.Payload())
 	}
 
 	return GetMessagesFromTopicResponse{
-		Messages: msgs,
+		OffsetWithMessages: msgs,
 	}, nil
 }
 

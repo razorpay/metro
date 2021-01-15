@@ -190,7 +190,7 @@ func getAdminClientConfig() *messagebroker.AdminClientOptions {
 
 func getKafkaBrokerConfig() *messagebroker.BrokerConfig {
 	kafKaBroker := fmt.Sprintf("%v:9092", os.Getenv("KAFKA_TEST_HOST"))
-	fmt.Println("using kafKaBroker" , kafKaBroker)
+	fmt.Println("using kafKaBroker", kafKaBroker)
 	return &messagebroker.BrokerConfig{
 		Brokers: []string{kafKaBroker},
 		Consumer: &messagebroker.ConsumerConfig{

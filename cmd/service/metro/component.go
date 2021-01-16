@@ -6,9 +6,8 @@ import (
 	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/service"
 	openapiserver "github.com/razorpay/metro/service/openapi-server"
-	"github.com/razorpay/metro/service/producer"
-	pullconsumer "github.com/razorpay/metro/service/pull-consumer"
-	pushconsumer "github.com/razorpay/metro/service/push-consumer"
+	"github.com/razorpay/metro/service/web"
+	worker "github.com/razorpay/metro/service/worker"
 )
 
 // Component is a holder for a metro's deployable component
@@ -24,15 +23,12 @@ func NewComponent(ctx context.Context, component string, cfg config.Config) (*Co
 	var config interface{}
 
 	switch component {
-	case Producer:
-		svc = producer.NewService(ctx, &cfg.Producer)
-		config = cfg.Producer
-	case PushConsumer:
-		svc = pushconsumer.NewService(ctx, &cfg.PushConsumer)
-		config = cfg.PushConsumer
-	case PullConsumer:
-		svc = pullconsumer.NewService(ctx, &cfg.PullConsumer)
-		config = cfg.PullConsumer
+	case Web:
+		svc = web.NewService(ctx, &cfg.Web)
+		config = cfg.Web
+	case Worker:
+		svc = worker.NewService(ctx, &cfg.Worker)
+		config = cfg.Worker
 	case OpenAPIServer:
 		svc = openapiserver.NewService(ctx, &cfg.OpenAPIServer)
 	}

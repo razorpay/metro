@@ -14,21 +14,19 @@ import (
 )
 
 const (
-	// Producer component to which publishers publish messages
-	Producer = "producer"
-	// PullConsumer component from which subscribers pull messages
-	PullConsumer = "pull-consumer"
-	// PushConsumer component which fires webhooks to subscribers
-	PushConsumer = "push-consumer"
+	// Web component to which exposes APIs
+	Web = "web"
+	// Worker component which fires webhooks to subscribers
+	Worker = "worker"
 	// OpenAPIServer to server swagger docs
 	OpenAPIServer = "openapi-server"
 )
 
-var validComponents = []string{Producer, PullConsumer, PushConsumer, OpenAPIServer}
+var validComponents = []string{Web, Worker, OpenAPIServer}
 var component *Component
 
 // isValidComponent validates if the input component is a valid metro component
-// validComponents : producer, pull-consumer, push-consumer
+// validComponents : producer, pull-consumer, worker
 func isValidComponent(component string) bool {
 	for _, s := range validComponents {
 		if s == component {

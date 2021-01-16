@@ -46,19 +46,14 @@ make dev-docker-datastores-down
 
 Various `metro` components can now be run. `metro` has 4 components, all components are part of same binary and can be ran using a cmd param `component`
 
-Running Metro Producer
+Running Metro Web component
 ```
-bin/metro -component producer
-```
-
-Running Metro Pull Consumer
-```
-bin/metro -component pull-consumer
+bin/metro -component web
 ```
 
-Running Metro Push Consumer
+Running Metro Worker component
 ```
-bin/metro -component push-consumer
+bin/metro -component worker
 ```
 
 Running OpenAPI Server

@@ -23,8 +23,8 @@ type PulsarBroker struct {
 	AOptions *AdminClientOptions
 }
 
-// NewPulsarConsumerClient returns a pulsar consumer
-func NewPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
+// newPulsarConsumerClient returns a pulsar consumer
+func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 
 	err := validatePulsarConsumerBrokerConfig(bConfig)
 	if err != nil {
@@ -38,8 +38,8 @@ func NewPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options
 
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:               bConfig.Brokers[0],
-		OperationTimeout:  time.Duration(bConfig.OperationTimeout) * time.Second,
-		ConnectionTimeout: time.Duration(bConfig.ConnectionTimeout) * time.Second,
+		OperationTimeout:  time.Duration(bConfig.OperationTimeoutSec) * time.Second,
+		ConnectionTimeout: time.Duration(bConfig.ConnectionTimeoutSec) * time.Second,
 	})
 
 	if err != nil {
@@ -64,8 +64,8 @@ func NewPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options
 	}, nil
 }
 
-// NewPulsarProducerClient returns a pulsar producer
-func NewPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
+// newPulsarProducerClient returns a pulsar producer
+func newPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
 
 	err := validatePulsarProducerBrokerConfig(bConfig)
 	if err != nil {
@@ -80,8 +80,8 @@ func NewPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:                        fmt.Sprintf("pulsar://%v", bConfig.Brokers[0]),
 		TLSAllowInsecureConnection: true,
-		OperationTimeout:           time.Duration(bConfig.OperationTimeout) * time.Second,
-		ConnectionTimeout:          time.Duration(bConfig.ConnectionTimeout) * time.Second,
+		OperationTimeout:           time.Duration(bConfig.OperationTimeoutSec) * time.Second,
+		ConnectionTimeout:          time.Duration(bConfig.ConnectionTimeoutSec) * time.Second,
 	})
 
 	if err != nil {
@@ -104,8 +104,8 @@ func NewPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options
 	}, nil
 }
 
-// NewPulsarAdminClient returns a pulsar admin
-func NewPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
+// newPulsarAdminClient returns a pulsar admin
+func newPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
 	err := validatePulsarAdminBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func (p PulsarBroker) SendMessages(ctx context.Context, request SendMessageToTop
 // how many ever messages are available
 func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
 
-	msgs := make([]string, request.NumOfMessages)
+	msgs := make(map[string]string, request.NumOfMessages)
 	for i := 0; i < request.NumOfMessages; i++ {
 		msg, err := p.Consumer.Receive(ctx)
 		if err != nil {
@@ -160,11 +160,11 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				Response: err,
 			}, err
 		}
-		msgs = append(msgs, string(msg.ID().Serialize()))
+		msgs[string(msg.ID().Serialize())] = string(msg.Payload())
 	}
 
 	return GetMessagesFromTopicResponse{
-		Messages: msgs,
+		OffsetWithMessages: msgs,
 	}, nil
 }
 
@@ -172,5 +172,10 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
 func (p PulsarBroker) Commit(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	panic("implement me")
+}
+
+// GetTopicMetadata ...
+func (p PulsarBroker) GetTopicMetadata(ctx context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
 	panic("implement me")
 }

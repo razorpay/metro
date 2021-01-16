@@ -16,9 +16,9 @@ const (
 func NewConsumerClient(ctx context.Context, identifier string, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 	switch identifier {
 	case Kafka:
-		return NewKafkaConsumerClient(ctx, bConfig, options)
+		return newKafkaConsumerClient(ctx, bConfig, options)
 	case Pulsar:
-		return NewPulsarConsumerClient(ctx, bConfig, options)
+		return newPulsarConsumerClient(ctx, bConfig, options)
 	}
 	return nil, fmt.Errorf("unknown Broker identifier, %s", identifier)
 }
@@ -27,9 +27,9 @@ func NewConsumerClient(ctx context.Context, identifier string, bConfig *BrokerCo
 func NewProducerClient(ctx context.Context, identifier string, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
 	switch identifier {
 	case Kafka:
-		return NewKafkaProducerClient(ctx, bConfig, options)
+		return newKafkaProducerClient(ctx, bConfig, options)
 	case Pulsar:
-		return NewPulsarProducerClient(ctx, bConfig, options)
+		return newPulsarProducerClient(ctx, bConfig, options)
 	}
 	return nil, fmt.Errorf("unknown Broker identifier, %s", identifier)
 }
@@ -38,9 +38,9 @@ func NewProducerClient(ctx context.Context, identifier string, bConfig *BrokerCo
 func NewAdminClient(ctx context.Context, identifier string, bConfig *BrokerConfig, options *AdminClientOptions) (Admin, error) {
 	switch identifier {
 	case Kafka:
-		return NewKafkaAdminClient(ctx, bConfig, options)
+		return newKafkaAdminClient(ctx, bConfig, options)
 	case Pulsar:
-		return NewPulsarAdminClient(ctx, bConfig, options)
+		return newPulsarAdminClient(ctx, bConfig, options)
 	}
 	return nil, fmt.Errorf("unknown Broker identifier, %s", identifier)
 }

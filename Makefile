@@ -154,11 +154,11 @@ docs-uml:
 
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
 test-integration-ci:
-	@METRO_TEST_HOST=metro-web go test ./... -tags=integration,musl
+	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test ./... -tags=integration,musl
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration:
-	@METRO_TEST_HOST=localhost go test ./... -tags=integration,musl
+	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test ./... -tags=integration,musl
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:

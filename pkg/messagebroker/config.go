@@ -4,18 +4,18 @@ import "time"
 
 // BrokerConfig holds broker's configuration
 type BrokerConfig struct {
-	Brokers           []string
-	EnableTLS         bool
-	UserCertificate   string
-	UserKey           string
-	CACertificate     string
-	Version           string
-	DebugEnabled      bool
-	OperationTimeout  int
-	ConnectionTimeout int
-	Producer          *ProducerConfig
-	Consumer          *ConsumerConfig
-	Admin             *AdminConfig
+	Brokers              []string
+	EnableTLS            bool
+	UserCertificate      string
+	UserKey              string
+	CACertificate        string
+	Version              string
+	DebugEnabled         bool
+	OperationTimeoutSec  int
+	ConnectionTimeoutSec int
+	Producer             *ProducerConfig
+	Consumer             *ConsumerConfig
+	Admin                *AdminConfig
 }
 
 // ProducerConfig holds producer's configuration'
@@ -32,7 +32,7 @@ type ProducerConfig struct {
 // ConsumerConfig holds consumer's configuration
 type ConsumerConfig struct {
 	SubscriptionType int
-	PollInterval     time.Duration
+	PollIntervalSec  int
 	OffsetReset      string
 	EnableAutoCommit bool
 }
@@ -50,9 +50,9 @@ type ConsumerClientOptions struct {
 
 // ProducerClientOptions holds client specific configuration for producer
 type ProducerClientOptions struct {
-	Topic     string
-	Partition int
-	Timeout   int64
+	Topic      string
+	Partition  int
+	TimeoutSec int64
 }
 
 // AdminClientOptions holds client specific configuration for admin

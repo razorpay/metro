@@ -120,7 +120,7 @@ func (b *BrokerStore) GetOrCreateProducer(ctx context.Context, op messagebroker.
 	newProducer, perr := messagebroker.NewProducerClient(ctx,
 		b.variant,
 		b.bConfig,
-		&messagebroker.ProducerClientOptions{Topic: op.Topic, Timeout: op.Timeout},
+		&messagebroker.ProducerClientOptions{Topic: op.Topic, TimeoutSec: op.TimeoutSec},
 	)
 
 	if perr != nil {

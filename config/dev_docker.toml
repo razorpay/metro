@@ -36,7 +36,7 @@
     [worker.broker]
         variant               = "kafka"
         [worker.broker.brokerconfig]
-            brokers       = ["localhost:9021"]
+            brokers       = ["localhost:9022"]
             [worker.broker.brokerconfig.consumer]
     [worker.registry]
         driver                    = "consul"

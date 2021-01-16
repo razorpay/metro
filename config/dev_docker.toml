@@ -19,7 +19,7 @@
     [producer.broker]
         variant               = "kafka"
         [producer.broker.brokerconfig]
-            brokers       = ["kafka-broker:9021"]
+            brokers       = ["kafka-broker:9092"]
             [producer.broker.brokerconfig.Producer]
     [producer.registry]
         driver                    = "consul"

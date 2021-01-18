@@ -1,5 +1,7 @@
 package messagebroker
 
+import "encoding/json"
+
 // CreateTopicRequest ...
 type CreateTopicRequest struct {
 	Name          string
@@ -8,7 +10,9 @@ type CreateTopicRequest struct {
 
 // DeleteTopicRequest ...
 type DeleteTopicRequest struct {
-	Name string
+	Name         string
+	Force        bool
+	NonPartioned bool
 }
 
 // SendMessageToTopicRequest ...
@@ -30,6 +34,7 @@ type CommitOnTopicRequest struct {
 	Topic     string
 	Partition int32
 	Offset    int64
+	ID        string
 }
 
 // GetTopicMetadataRequest ...
@@ -68,4 +73,13 @@ type CommitOnTopicResponse struct {
 // GetTopicMetadataResponse ...
 type GetTopicMetadataResponse struct {
 	Response interface{}
+}
+
+type pulsarAckMessage struct {
+	ID string
+}
+
+func (pm *pulsarAckMessage) Serialize() []byte {
+	bytes, _ := json.Marshal(pm.ID)
+	return bytes
 }

@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
+	"golang.org/x/sync/errgroup"
 )
 
 // New creates a instance of LeaderElector from a LeaderElection Config
@@ -61,8 +60,6 @@ func (c *Candidate) Run(ctx context.Context) error {
 		logger.Ctx(ctx).Errorw("node registering failed with error", "error", err.Error())
 		return err
 	}
-
-	ctx = context.WithValue(ctx, "registrationId", c.nodeID)
 
 	logger.Ctx(ctx).Infow("acquiring node key", "key", c.config.NodePath)
 	acquired := c.registry.Acquire(c.nodeID, c.config.NodePath, time.Now().String())
@@ -125,7 +122,7 @@ func (c *Candidate) Run(ctx context.Context) error {
 // handler implements the handler calls from registry for events on leader key changes
 func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
 	logger.Ctx(ctx).Info("leader election handler called")
-	if len(result) > 0 && result[0].SessionId != "" {
+	if len(result) > 0 && result[0].SessionID != "" {
 		logger.Ctx(ctx).Info("leader election key already locked")
 		return
 	}

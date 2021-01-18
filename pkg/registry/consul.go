@@ -62,7 +62,7 @@ func (c *ConsulClient) Renew(sessionID string) error {
 	return err
 }
 
-// // Renew renews consul session periodically until doneCh signals done
+// RenewPeriodic renews consul session periodically until doneCh signals done
 func (c *ConsulClient) RenewPeriodic(sessionID string, ttl time.Duration, doneCh <-chan struct{}) error {
 	return c.client.Session().RenewPeriodic(ttl.String(), sessionID, nil, doneCh)
 }

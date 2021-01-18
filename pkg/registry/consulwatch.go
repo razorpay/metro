@@ -56,7 +56,7 @@ func (cwh *ConsulWatcher) handler(index uint64, result interface{}) {
 			results = append(results, Pair{
 				Key:       pairs[i].Key,
 				Value:     pairs[i].Value,
-				SessionId: pairs[i].Session,
+				SessionID: pairs[i].Session,
 			})
 		}
 	}

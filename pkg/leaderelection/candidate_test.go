@@ -63,7 +63,7 @@ func TestLeaderElectionRun(t *testing.T) {
 			{
 				Key:       "leader/election/test",
 				Value:     []byte("aaa"),
-				SessionId: "",
+				SessionID: "",
 			},
 		}
 		c.handler(context.Background(), data)

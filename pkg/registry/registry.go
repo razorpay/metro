@@ -9,7 +9,7 @@ import (
 type Pair struct {
 	Key       string
 	Value     []byte
-	SessionId string
+	SessionID string
 }
 
 // IRegistry implements a generic interface for service discovery

@@ -28,22 +28,40 @@ func NewConsulWatcher(ctx context.Context, watchConfig *WatchConfig, plan *watch
 
 // Handler implements the consul watch handler method and invokes the requester handler
 func (cwh *ConsulWatcher) handler(index uint64, result interface{}) {
-	pairs, ok := result.(api.KVPairs)
-	if !ok {
-		logger.Ctx(cwh.ctx).Errorw("failed to parse consul watch results", "data", result)
-		return
-	}
+	var (
+		pair  *api.KVPair
+		pairs api.KVPairs
+		ok    bool
+	)
 
 	results := []Pair{}
 
-	for i := range pairs {
-		results = append(results, Pair{
-			Key:   pairs[i].Key,
-			Value: pairs[i].Value,
-		})
+	if result != nil {
+		if cwh.plan.Type == "key" {
+			pair, ok = result.(*api.KVPair)
+			pairs = append(pairs, pair)
+		} else if cwh.plan.Type == "keyprefix" {
+			pairs, ok = result.(api.KVPairs)
+		}
+
+		if !ok {
+			logger.Ctx(cwh.ctx).Errorw(
+				"failed to parse consul watch results",
+				"watchType", cwh.plan.Type,
+				"data", result)
+			return
+		}
+
+		for i := range pairs {
+			results = append(results, Pair{
+				Key:       pairs[i].Key,
+				Value:     pairs[i].Value,
+				SessionID: pairs[i].Session,
+			})
+		}
 	}
 
-	cwh.Config.Handler(results)
+	cwh.Config.Handler(cwh.ctx, results)
 }
 
 // StartWatch will start the watch

@@ -1,13 +1,15 @@
 package registry
 
 import (
+	"context"
 	"time"
 )
 
 // Pair is the registry struct returned to watch handler
 type Pair struct {
-	Key   string
-	Value []byte
+	Key       string
+	Value     []byte
+	SessionID string
 }
 
 // IRegistry implements a generic interface for service discovery
@@ -27,6 +29,9 @@ type IRegistry interface {
 	// Renew a regestration using registration_id
 	Renew(string) error
 
+	// RenewPeriodic renews a registration id periodically based on TTL
+	RenewPeriodic(string, time.Duration, <-chan struct{}) error
+
 	// Acquire a lock for a registration_id on a given key and value pair
 	Acquire(string, string, string) bool
 
@@ -34,7 +39,7 @@ type IRegistry interface {
 	Release(string, string, string) bool
 
 	// Watch on a key/keyprefix in registry
-	Watch(wh *WatchConfig) (IWatcher, error)
+	Watch(ctx context.Context, wh *WatchConfig) (IWatcher, error)
 
 	// Put a key value pair
 	Put(key string, value []byte) error

@@ -59,32 +59,30 @@ func (c *Service) Start() error {
 	}
 
 	// Init Leader Election
-	c.candidate, err = leaderelection.New(leaderelection.Config{
-		// TODO: read values from config
-		Name:          "metro-worker",
-		Path:          "leader/election",
-		LeaseDuration: 30 * time.Second,
-		RenewDeadline: 20 * time.Second,
-		RetryPeriod:   5 * time.Second,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(ctx context.Context) error {
-				return c.lead(ctx)
+	c.candidate, err = leaderelection.New(c.nodeID,
+		leaderelection.Config{
+			// TODO: read values from config
+			Name:          "metro-worker",
+			NodePath:      fmt.Sprintf("registry/nodes/%s", c.nodeID),
+			LockPath:      "leader/election",
+			LeaseDuration: 30 * time.Second,
+			Callbacks: leaderelection.LeaderCallbacks{
+				OnStartedLeading: func(ctx context.Context) error {
+					return c.lead(ctx)
+				},
+				OnStoppedLeading: func() {
+					c.stepDown()
+				},
 			},
-			OnStoppedLeading: func() {
-				c.stepDown()
-			},
-		},
-	}, c.registry)
+		}, c.registry)
 
 	if err != nil {
 		return err
 	}
 
-	// Add node to the registry
-	// TODO: use repo to add the node under /registry/nodes/{node_id} path
-
 	// Run leader election
 	c.workgrp.Go(func() error {
+		logger.Ctx(gctx).Info("starting leader election")
 		return c.candidate.Run(gctx)
 	})
 
@@ -94,12 +92,12 @@ func (c *Service) Start() error {
 		wh := registry.WatchConfig{
 			WatchType: "keyprefix",
 			WatchPath: fmt.Sprintf("/registry/nodes/%s/subscriptions", c.nodeID),
-			Handler: func(pairs []registry.Pair) {
-				logger.Ctx(gctx).Infow("node subscriptions", "pairs", pairs)
+			Handler: func(ctx context.Context, pairs []registry.Pair) {
+				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
 			},
 		}
 
-		watcher, err = c.registry.Watch(&wh)
+		watcher, err = c.registry.Watch(gctx, &wh)
 		if err != nil {
 			return err
 		}
@@ -124,7 +122,7 @@ func (c *Service) Start() error {
 	})
 
 	err = c.workgrp.Wait()
-	logger.Ctx(gctx).Errorf("push consumer servicer error: %s", err.Error())
+	logger.Ctx(gctx).Info("push consumer servicer error: %s", err.Error())
 	return err
 }
 
@@ -152,12 +150,12 @@ func (c *Service) lead(ctx context.Context) error {
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
 		WatchPath: "/registry/nodes",
-		Handler: func(pairs []registry.Pair) {
-			logger.Ctx(gctx).Infow("nodes watch handler data", "pairs", pairs)
+		Handler: func(ctx context.Context, pairs []registry.Pair) {
+			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
 		},
 	}
 
-	nodeWatcher, err = c.registry.Watch(&nwh)
+	nodeWatcher, err = c.registry.Watch(gctx, &nwh)
 	if err != nil {
 		return err
 	}
@@ -165,12 +163,12 @@ func (c *Service) lead(ctx context.Context) error {
 	swh := registry.WatchConfig{
 		WatchType: "keyprefix",
 		WatchPath: "/registry/subscriptions",
-		Handler: func(pairs []registry.Pair) {
-			logger.Ctx(gctx).Infow("nodes watch handler data", "pairs", pairs)
+		Handler: func(ctx context.Context, pairs []registry.Pair) {
+			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
 		},
 	}
 
-	subWatcher, err = c.registry.Watch(&swh)
+	subWatcher, err = c.registry.Watch(gctx, &swh)
 	if err != nil {
 		return err
 	}

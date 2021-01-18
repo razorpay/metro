@@ -2,29 +2,27 @@ package leaderelection
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
-	"k8s.io/apimachinery/pkg/util/wait"
-)
-
-const (
-	// JitterFactor used in wait utils
-	JitterFactor = 1.2
+	"golang.org/x/sync/errgroup"
 )
 
 // New creates a instance of LeaderElector from a LeaderElection Config
-func New(c Config, registry registry.IRegistry) (*Candidate, error) {
+func New(id string, c Config, registry registry.IRegistry) (*Candidate, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 
 	le := Candidate{
+		ID:       id,
 		config:   c,
 		registry: registry,
 		nodeID:   "",
 		leader:   false,
+		errCh:    make(chan error),
 	}
 
 	return &le, nil
@@ -32,6 +30,9 @@ func New(c Config, registry registry.IRegistry) (*Candidate, error) {
 
 // Candidate is a leader election candidate.
 type Candidate struct {
+	// ID a unique candidate uuid assigned by system
+	ID string
+
 	// nodeID represents the id assigned by registry
 	nodeID string
 
@@ -43,94 +44,106 @@ type Candidate struct {
 
 	// registry being used for leader election
 	registry registry.IRegistry
+
+	errCh chan error
 }
 
 // Run starts the leader election loop. Run will not return
 // before leader election loop is stopped by ctx or it has
 // stopped holding the leader lease
 func (c *Candidate) Run(ctx context.Context) error {
-	logger.Ctx(ctx).Info("attempting to acquire leader lease")
+	var err error
 
-	leadCtx, leadCancel := context.WithCancel(ctx)
-	// outer wait loop runs when a instance has successfully acquired lease
-	wait.Until(func() {
-		retryCtx, retryCancel := context.WithTimeout(leadCtx, c.config.RenewDeadline)
-		defer retryCancel()
+	logger.Ctx(ctx).Info("registering node with registry")
+	c.nodeID, err = c.registry.Register(c.config.Name, c.config.LeaseDuration)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("node registering failed with error", "error", err.Error())
+		return err
+	}
 
-		// inner wait retry loop for faster retries if failed to acquire lease
-		acquired := false
-		wait.JitterUntil(func() {
-			acquired = c.tryAcquireOrRenew(retryCtx)
+	logger.Ctx(ctx).Infow("acquiring node key", "key", c.config.NodePath)
+	acquired := c.registry.Acquire(c.nodeID, c.config.NodePath, time.Now().String())
 
-			if !acquired {
-				logger.Ctx(retryCtx).Infow("failed to acquire lease, retrying...", "nodeID", c.nodeID)
-				return
-			}
+	if !acquired {
+		return fmt.Errorf("failed to acquire node key : %s", c.config.NodePath)
+	}
 
-			// if succeeded, we can break the inner loop by cancelling context and renew in outer loop
-			logger.Ctx(retryCtx).Infow("successfully acquired lease", "nodeID", c.nodeID)
-			retryCancel()
-		}, c.config.RetryPeriod, JitterFactor, true, retryCtx.Done())
+	grp, gctx := errgroup.WithContext(ctx)
 
-		// OnStartedLeading if new leader
-		if acquired && !c.leader {
-			c.leader = true
-			go func() {
-				err := c.config.Callbacks.OnStartedLeading(leadCtx)
-				if err != nil {
-					logger.Ctx(leadCtx).Errorf("on started leading callback returned with err : %s", err.Error())
-					leadCancel()
-				}
-			}()
+	// Renew session periodically
+	grp.Go(func() error {
+		logger.Ctx(ctx).Infow("staring renew process for node key", "key", c.config.NodePath)
+		return c.registry.RenewPeriodic(c.nodeID, c.config.LeaseDuration, gctx.Done())
+	})
+
+	// watch the leader key
+	var leaderWatch registry.IWatcher
+	grp.Go(func() error {
+		logger.Ctx(ctx).Infow("setting up watch on leader key", "key", c.config.LockPath)
+		leaderWatch, err = c.registry.Watch(gctx, &registry.WatchConfig{
+			WatchType: "key",
+			WatchPath: c.config.LockPath,
+			Handler:   c.handler,
+		})
+
+		if err != nil {
+			logger.Ctx(ctx).Infow("error creating leader watch", "error", err.Error())
+			return err
 		}
-	}, c.config.RenewDeadline, leadCtx.Done())
 
-	// context returned done, release the lease
-	logger.Ctx(leadCtx).Info("context done, releasing lease")
-	c.release(leadCtx)
-	return leadCtx.Err()
+		logger.Ctx(ctx).Infow("starting watch on leader key", "key", c.config.LockPath)
+		return leaderWatch.StartWatch()
+	})
+
+	grp.Go(func() error {
+		select {
+		case <-gctx.Done():
+			logger.Ctx(gctx).Info("leader election context returned done")
+			err = gctx.Err()
+		case err = <-c.errCh:
+			logger.Ctx(gctx).Info("leader election error channel received signal")
+		}
+
+		if leaderWatch != nil {
+			leaderWatch.StopWatch()
+		}
+
+		return err
+	})
+
+	err = grp.Wait()
+	if err != nil {
+		logger.Ctx(gctx).Infow("leader election run exiting with err", "error", err.Error())
+		c.release(gctx)
+	}
+	return err
+}
+
+// handler implements the handler calls from registry for events on leader key changes
+func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
+	logger.Ctx(ctx).Info("leader election handler called")
+	if len(result) > 0 && result[0].SessionID != "" {
+		logger.Ctx(ctx).Info("leader election key already locked")
+		return
+	}
+
+	logger.Ctx(ctx).Info("leader election attempting to acquire key")
+	acquired := c.registry.Acquire(c.nodeID, c.config.LockPath, time.Now().String())
+	if acquired {
+		logger.Ctx(ctx).Info("leader election acquire success")
+		c.leader = true
+		err := c.config.Callbacks.OnStartedLeading(ctx)
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("error from leader callback", "error", err.Error())
+			c.errCh <- err
+		}
+	}
 }
 
 // IsLeader returns true if the last observed leader was this client else returns false.
 func (c *Candidate) IsLeader() bool {
 	return c.leader
-}
-
-// tryAcquire tries to acquire a leader lease if it is not already acquired
-// Returns true on success else returns false.
-func (c *Candidate) tryAcquireOrRenew(ctx context.Context) bool {
-	var err error
-
-	// validate if node is already registered
-	if c.nodeID != "" {
-		// if node is not registred anymore, we will need register it again
-		// it can happen that ttl associated with registration had expired
-		if ok := c.registry.IsRegistered(c.nodeID); !ok {
-			logger.Ctx(ctx).Infof("node %s is unregisterd", c.nodeID)
-			c.nodeID = ""
-		} else {
-			err = c.registry.Renew(c.nodeID)
-			if err != nil {
-				logger.Ctx(ctx).Infof("error while renewing registration: %v", err.Error())
-				return false
-			}
-		}
-	}
-
-	// if not registered, register it
-	if c.nodeID == "" {
-		c.nodeID, err = c.registry.Register(c.config.Name, c.config.LeaseDuration)
-		if err != nil {
-			logger.Ctx(ctx).Errorf("failed to register node with registry: %v", err)
-			return false
-		}
-		logger.Ctx(ctx).Infow("succesfully registered node with registry", "nodeID", c.nodeID)
-	}
-
-	// try acquiring lock
-	acquired := c.registry.Acquire(c.nodeID, c.config.Path, time.Now().String())
-
-	return acquired
 }
 
 // release attempts to release the leader lease if we have acquired it.

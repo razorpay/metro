@@ -15,27 +15,8 @@ func TestConfig(t *testing.T) {
 	}{
 		{
 			config: Config{
-				LeaseDuration: 3 * time.Second,
-				RenewDeadline: 5 * time.Second,
-				RetryPeriod:   3 * time.Second,
-				Path:          "test",
-				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) error {
-						return nil
-					},
-					OnStoppedLeading: func() {
-
-					},
-				},
-			},
-			err: ErrLeaseDurationLessThanRenewDeadline,
-		},
-		{
-			config: Config{
 				LeaseDuration: 0 * time.Second,
-				RenewDeadline: -1 * time.Second,
-				RetryPeriod:   3 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -49,10 +30,7 @@ func TestConfig(t *testing.T) {
 		},
 		{
 			config: Config{
-				LeaseDuration: 1 * time.Second,
-				RenewDeadline: 0 * time.Second,
-				RetryPeriod:   3 * time.Second,
-				Path:          "test",
+				LeaseDuration: 10 * time.Second,
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -62,56 +40,19 @@ func TestConfig(t *testing.T) {
 					},
 				},
 			},
-			err: ErrInvalidRenewDeadline,
+			err: ErrInvalidLockPath,
 		},
 		{
 			config: Config{
 				LeaseDuration: 10 * time.Second,
-				RenewDeadline: 5 * time.Second,
-				RetryPeriod:   0 * time.Second,
-				Path:          "test",
-				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) error {
-						return nil
-					},
-					OnStoppedLeading: func() {
-
-					},
-				},
-			},
-			err: ErrInvalidRetryPeriod,
-		},
-		{
-			config: Config{
-				LeaseDuration: 10 * time.Second,
-				RenewDeadline: 5 * time.Second,
-				RetryPeriod:   1 * time.Second,
-				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) error {
-						return nil
-					},
-					OnStoppedLeading: func() {
-
-					},
-				},
-			},
-			err: ErrInvalidPath,
-		},
-		{
-			config: Config{
-				LeaseDuration: 10 * time.Second,
-				RenewDeadline: 5 * time.Second,
-				RetryPeriod:   1 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 			},
 			err: ErrInvalidOnStartedLeadingCallback,
 		},
 		{
 			config: Config{
 				LeaseDuration: 10 * time.Second,
-				RenewDeadline: 5 * time.Second,
-				RetryPeriod:   1 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -123,9 +64,24 @@ func TestConfig(t *testing.T) {
 		{
 			config: Config{
 				LeaseDuration: 10 * time.Second,
-				RenewDeadline: 5 * time.Second,
-				RetryPeriod:   1 * time.Second,
-				Path:          "test",
+				LockPath:      "test",
+				NodePath:      "",
+				Callbacks: LeaderCallbacks{
+					OnStartedLeading: func(ctx context.Context) error {
+						return nil
+					},
+					OnStoppedLeading: func() {
+
+					},
+				},
+			},
+			err: ErrInvalidNodePath,
+		},
+		{
+			config: Config{
+				LeaseDuration: 10 * time.Second,
+				LockPath:      "test",
+				NodePath:      "test1",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil

@@ -68,7 +68,7 @@ func (cwh *ConsulWatcher) handler(index uint64, result interface{}) {
 func (cwh *ConsulWatcher) StartWatch() error {
 	cwh.plan.Handler = cwh.handler
 
-	return cwh.plan.RunWithClientAndLogger(cwh.client, nil)
+	return cwh.plan.RunWithClientAndHclog(cwh.client, nil)
 }
 
 // StopWatch will cleanup the active consul watches

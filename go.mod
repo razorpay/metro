@@ -5,8 +5,10 @@ go 1.15
 require (
 	cloud.google.com/go/pubsub v1.3.1
 	github.com/apache/pulsar-client-go v0.3.0
+	github.com/armon/go-metrics v0.3.6 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.5.2
+	github.com/fatih/color v1.10.0 // indirect
 	github.com/getsentry/sentry-go v0.8.0
 	github.com/golang/mock v1.4.4
 	github.com/google/go-cmp v0.5.4 // indirect
@@ -14,9 +16,13 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.1
-	github.com/hashicorp/consul/api v1.1.0
+	github.com/hashicorp/consul/api v1.8.1
+	github.com/hashicorp/go-hclog v0.15.0 // indirect
+	github.com/hashicorp/go-immutable-radix v1.3.0 // indirect
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/klauspost/compress v1.11.6 // indirect
 	github.com/magiconair/properties v1.8.1
+	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/prometheus/client_golang v1.7.1
@@ -33,7 +39,7 @@ require (
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 // indirect
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
-	golang.org/x/sys v0.0.0-20201211090839-8ad439b19e0f // indirect
+	golang.org/x/sys v0.0.0-20210113181707-4bcb84eeeb78 // indirect
 	golang.org/x/tools v0.0.0-20201204222352-654352759326 // indirect
 	google.golang.org/api v0.30.0
 	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a

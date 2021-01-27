@@ -162,7 +162,7 @@ func (p *PulsarBroker) DeleteTopic(ctx context.Context, request DeleteTopicReque
 		return DeleteTopicResponse{}, terr
 	}
 
-	err := p.Admin.Topics().Delete(*pulsarTopic, request.Force, request.NonPartioned)
+	err := p.Admin.Topics().Delete(*pulsarTopic, request.Force, request.NonPartitioned)
 	if err != nil {
 		return DeleteTopicResponse{}, err
 	}
@@ -202,11 +202,16 @@ func (p *PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesF
 	}, nil
 }
 
-//Commit Commits messages if any
+//CommitByPartitionAndOffset Commits messages if any
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
-func (p *PulsarBroker) Commit(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+func (p *PulsarBroker) CommitByPartitionAndOffset(_ context.Context, _ CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	// unused for pulsar
+	return CommitOnTopicResponse{}, nil
+}
 
+// CommitByMsgID Commits a message by ID
+func (p *PulsarBroker) CommitByMsgID(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	p.Consumer.AckID(&pulsarAckMessage{
 		ID: request.ID,
 	})

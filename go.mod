@@ -48,16 +48,16 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
+	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
 	golang.org/x/oauth2 v0.0.0-20210113205817-d3ed898aa8a3 // indirect
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
-	golang.org/x/sys v0.0.0-20210113181707-4bcb84eeeb78 // indirect
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
 	golang.org/x/text v0.3.4 // indirect
-	golang.org/x/tools v0.0.0-20201204222352-654352759326 // indirect
+	golang.org/x/tools v0.1.0 // indirect
 	google.golang.org/api v0.30.0
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a
+	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a // indirect
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.1-0.20201208041424-160c7477e0e8
 	gopkg.in/yaml.v2 v2.4.0 // indirect

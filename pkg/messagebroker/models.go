@@ -10,9 +10,9 @@ type CreateTopicRequest struct {
 
 // DeleteTopicRequest ...
 type DeleteTopicRequest struct {
-	Name         string
-	Force        bool
-	NonPartioned bool
+	Name           string
+	Force          bool //  only required for pulsar and ignored for kafka
+	NonPartitioned bool //  only required for pulsar and ignored for kafka
 }
 
 // SendMessageToTopicRequest ...

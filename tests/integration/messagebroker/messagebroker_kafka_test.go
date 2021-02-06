@@ -73,12 +73,13 @@ func Test_CreateDuplicateTopic(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 
+	// creating duplicate topic is noop and shouldn't return error
 	resp, duperr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
 		Name:          topic,
 		NumPartitions: 1,
 	})
 
-	assert.NotNil(t, duperr)
+	assert.Nil(t, duperr)
 }
 
 /*
@@ -180,8 +181,9 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 		TimeoutSec:    2,
 	})
 
-	assert.Nil(t, resp3.OffsetWithMessages)
-	assert.NotNil(t, rerr)
+	assert.NotNil(t, resp3)
+	assert.Equal(t, len(resp3.OffsetWithMessages), 0)
+	assert.Nil(t, rerr)
 }
 
 func getAdminClientConfig() *messagebroker.AdminClientOptions {

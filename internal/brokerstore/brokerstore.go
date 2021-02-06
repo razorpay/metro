@@ -51,6 +51,7 @@ type BrokerStore struct {
 }
 
 // IBrokerStore ...
+//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/mock_brokerstore.go -package=mocks . IBrokerStore
 type IBrokerStore interface {
 
 	// GetOrCreateConsumer returns for an existing consumer instance, if available returns that else creates as new instance

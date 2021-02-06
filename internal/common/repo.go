@@ -13,6 +13,7 @@ type IRepo interface {
 	Create(ctx context.Context, m IModel) error
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteTree(ctx context.Context, m IModel) error
+	Get(ctx context.Context, key string, m IModel) error
 }
 
 // BaseRepo implements base repo methods
@@ -38,4 +39,17 @@ func (r BaseRepo) Exists(ctx context.Context, key string) (bool, error) {
 // DeleteTree deletes all keys under a prefix
 func (r BaseRepo) DeleteTree(ctx context.Context, m IModel) error {
 	return r.Registry.DeleteTree(m.Key())
+}
+
+// Get populates m with value corresponding to key
+func (r BaseRepo) Get(ctx context.Context, key string, m IModel) error {
+	b, err := r.Registry.Get(ctx, key)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(b, m)
+	if err != nil {
+		return err
+	}
+	return nil
 }

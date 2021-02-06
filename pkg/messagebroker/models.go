@@ -1,5 +1,7 @@
 package messagebroker
 
+import "time"
+
 // CreateTopicRequest ...
 type CreateTopicRequest struct {
 	Name          string
@@ -13,10 +15,11 @@ type DeleteTopicRequest struct {
 
 // SendMessageToTopicRequest ...
 type SendMessageToTopicRequest struct {
-	Topic      string
-	Message    []byte
-	Attributes []map[string][]byte
-	TimeoutSec int
+	Topic       string
+	Message     []byte
+	OrderingKey string
+	Attributes  []map[string][]byte
+	TimeoutSec  int
 }
 
 // GetMessagesFromTopicRequest ...
@@ -51,13 +54,18 @@ type DeleteTopicResponse struct {
 // SendMessageToTopicResponse ...
 type SendMessageToTopicResponse struct {
 	MessageID string
-	Response  interface{}
 }
 
 // GetMessagesFromTopicResponse ...
 type GetMessagesFromTopicResponse struct {
-	OffsetWithMessages map[string]string
-	Response           interface{}
+	OffsetWithMessages map[string]ReceivedMessage
+}
+
+// ReceivedMessage ...
+type ReceivedMessage struct {
+	Data        []byte
+	MessageID   string
+	PublishTime time.Time
 }
 
 // CommitOnTopicResponse ...

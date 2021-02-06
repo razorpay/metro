@@ -4,7 +4,6 @@ package compatibility
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -20,25 +19,29 @@ func Test_Pubsub(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, topic)
 
-		r := topic.Publish(context.Background(), &pubsub.Message{Data: []byte("payload")})
-
-		r.Get(context.Background())
-		topic.Stop()
-
 		sub, err := client.CreateSubscription(context.Background(), "sub-name",
 			pubsub.SubscriptionConfig{Topic: topic})
-		fmt.Println(k)
 
 		assert.Nil(t, err)
 
-		sub.ReceiveSettings.Synchronous = true
 		ctx, cancelFunc := context.WithCancel(context.Background())
 
+		//sub1.ReceiveSettings.Synchronous = true
+
 		go sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
-			//m.Ack()
+			t.Logf("[%d] Got message: %q\n", k, string(m.Data))
+			m.Ack()
 		})
 
-		time.Sleep(20 * time.Millisecond)
+		for i := 0; i < 10; i++ {
+			r := topic.Publish(context.Background(), &pubsub.Message{Data: []byte("payload")})
+			r.Get(context.Background())
+		}
+
+		topic.Stop()
+
+		// some sleep to receive messages
+		time.Sleep(5 * time.Second)
 
 		// cleanup
 		err = topic.Delete(ctx)

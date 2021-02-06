@@ -5,11 +5,10 @@ import (
 	"log"
 
 	"github.com/razorpay/metro/internal/brokerstore"
-
 	"github.com/razorpay/metro/internal/merror"
+	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
-	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -17,35 +16,22 @@ import (
 type publisherServer struct {
 	brokerStore brokerstore.IBrokerStore
 	topicCore   topic.ICore
+	publisher   publisher.IPublisher
 }
 
-func newPublisherServer(brokerStore brokerstore.IBrokerStore, topicCore topic.ICore) *publisherServer {
-	return &publisherServer{brokerStore: brokerStore, topicCore: topicCore}
+func newPublisherServer(brokerStore brokerstore.IBrokerStore, topicCore topic.ICore, publisher publisher.IPublisher) *publisherServer {
+	return &publisherServer{brokerStore: brokerStore, topicCore: topicCore, publisher: publisher}
 }
 
 // Produce messages to a topic
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
-
 	log.Println("produce request received")
-
-	producer, err := s.brokerStore.GetOrCreateProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic})
+	msgIDs, err := s.publisher.Publish(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
-
-	msgIds := make([]string, 0)
-
-	for _, msg := range req.Messages {
-		msgResp, _ := producer.SendMessages(ctx, messagebroker.SendMessageToTopicRequest{
-			Topic:   req.Topic,
-			Message: msg.Data,
-		})
-		msgIds = append(msgIds, msgResp.MessageID)
-	}
-
 	log.Println("produce request completed")
-
-	return &metrov1.PublishResponse{MessageIds: msgIds}, nil
+	return &metrov1.PublishResponse{MessageIds: msgIDs}, nil
 }
 
 // CreateTopic creates a new topic

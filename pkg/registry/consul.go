@@ -134,6 +134,15 @@ func (c *ConsulClient) Put(key string, value []byte) error {
 	return err
 }
 
+// Get returns a value for a key
+func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
+	kv, _, err := c.client.KV().Get(key, nil)
+	if err != nil {
+		return nil, err
+	}
+	return kv.Value, nil
+}
+
 // Exists checks the existence of a key
 func (c *ConsulClient) Exists(key string) (bool, error) {
 	kvp, _, err := c.client.KV().Get(key, nil)

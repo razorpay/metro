@@ -3,10 +3,12 @@ package topic
 import (
 	"context"
 
+	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
 // ICore is an interface over topic core
@@ -22,11 +24,12 @@ type ICore interface {
 type Core struct {
 	repo        IRepo
 	projectCore project.ICore
+	brokerStore brokerstore.IBrokerStore
 }
 
 // NewCore returns an instance of Core
-func NewCore(repo IRepo, projectCore project.ICore) *Core {
-	return &Core{repo, projectCore}
+func NewCore(repo IRepo, projectCore project.ICore, brokerStore brokerstore.IBrokerStore) *Core {
+	return &Core{repo, projectCore, brokerStore}
 }
 
 // CreateTopic implements topic creation
@@ -44,7 +47,16 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 	if ok {
 		return merror.New(merror.AlreadyExists, "Topic already exists")
 	}
-	// TODO: Add topic creation in messagebroker
+	admin, err := c.brokerStore.GetOrCreateAdmin(ctx, messagebroker.AdminClientOptions{})
+	if err != nil {
+		return err
+	}
+	// TODO: take number of partitions as input
+	_, err = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{m.Name, 1})
+	if err != nil {
+		logger.Ctx(ctx).Errorw("error in creating topic in broker", "msg", err.Error())
+		return err
+	}
 	return c.repo.Create(ctx, m)
 }
 

@@ -32,7 +32,6 @@ type ProducerConfig struct {
 // ConsumerConfig holds consumer's configuration
 type ConsumerConfig struct {
 	SubscriptionType int
-	PollIntervalSec  int
 	OffsetReset      string
 	EnableAutoCommit bool
 }

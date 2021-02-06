@@ -44,9 +44,9 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}
 
 	c, err := kafkapkg.NewConsumer(&kafkapkg.ConfigMap{
-		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
-		"group.id":           options.GroupID,
-		"auto.offset.reset":  "earliest",
+		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
+		"group.id":          options.GroupID,
+		"auto.offset.reset": "earliest",
 		//"enable.auto.commit":     false,
 	})
 
@@ -77,7 +77,7 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}
 
 	p, err := kafkapkg.NewProducer(&kafkapkg.ConfigMap{
-		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
+		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
 	})
 	if err != nil {
 		return nil, err

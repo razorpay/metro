@@ -15,7 +15,11 @@ func Test_Pubsub(t *testing.T) {
 	// This is just a placeholder test.
 	// TODO: fix it with more tests and better structure
 	for k, client := range []*pubsub.Client{metroClient, emulatorClient} {
+		t.Logf("running index %d", k)
 		topic, err := client.CreateTopic(context.Background(), "topic-name")
+		if err != nil {
+			t.Logf("error creating topic %s", err.Error())
+		}
 		assert.Nil(t, err)
 		assert.NotNil(t, topic)
 

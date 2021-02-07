@@ -11,7 +11,6 @@ import (
 )
 
 // ICore is an interface over subscription core
-//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/core/mock_core.go -package=mocks . ICore
 type ICore interface {
 	CreateSubscription(ctx context.Context, subscription *Model) error
 	Exists(ctx context.Context, key string) (bool, error)

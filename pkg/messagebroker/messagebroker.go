@@ -10,7 +10,6 @@ type Broker interface {
 }
 
 // Admin for admin operations on topics, partitions, updating schema registry etc
-//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/mock_admin.go -package=mocks . Admin
 type Admin interface {
 	// creates a new topic if not available
 	CreateTopic(context.Context, CreateTopicRequest) (CreateTopicResponse, error)

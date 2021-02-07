@@ -12,7 +12,6 @@ import (
 )
 
 // ICore is an interface over topic core
-//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/core/mock_core.go -package=mocks . ICore
 type ICore interface {
 	CreateTopic(ctx context.Context, topic *Model) error
 	Exists(ctx context.Context, key string) (bool, error)

@@ -1,6 +1,9 @@
 package messagebroker
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // CreateTopicRequest ...
 type CreateTopicRequest struct {
@@ -10,7 +13,9 @@ type CreateTopicRequest struct {
 
 // DeleteTopicRequest ...
 type DeleteTopicRequest struct {
-	Name string
+	Name           string
+	Force          bool //  only required for pulsar and ignored for kafka
+	NonPartitioned bool //  only required for pulsar and ignored for kafka
 }
 
 // SendMessageToTopicRequest ...
@@ -33,6 +38,7 @@ type CommitOnTopicRequest struct {
 	Topic     string
 	Partition int32
 	Offset    int64
+	ID        string
 }
 
 // GetTopicMetadataRequest ...
@@ -76,4 +82,13 @@ type CommitOnTopicResponse struct {
 // GetTopicMetadataResponse ...
 type GetTopicMetadataResponse struct {
 	Response interface{}
+}
+
+type pulsarAckMessage struct {
+	ID string
+}
+
+func (pm *pulsarAckMessage) Serialize() []byte {
+	bytes, _ := json.Marshal(pm.ID)
+	return bytes
 }

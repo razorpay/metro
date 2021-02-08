@@ -36,5 +36,8 @@ type Consumer interface {
 	//Commits messages if any
 	//This func will commit the message consumed
 	//by all the previous calls to GetMessages
-	Commit(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
+	CommitByPartitionAndOffset(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
+
+	// Commits a message by ID
+	CommitByMsgID(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
 }

@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/streamnative/pulsarctl/pkg/pulsar/common"
+	"github.com/streamnative/pulsarctl/pkg/pulsar/utils"
+
 	"github.com/apache/pulsar-client-go/pulsar"
+	pulsarctl "github.com/streamnative/pulsarctl/pkg/pulsar"
 )
 
 // PulsarBroker for pulsar
@@ -13,6 +17,7 @@ type PulsarBroker struct {
 	Ctx      context.Context
 	Consumer pulsar.Consumer
 	Producer pulsar.Producer
+	Admin    pulsarctl.Client
 
 	// holds the broker config
 	Config *BrokerConfig
@@ -116,24 +121,53 @@ func newPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *A
 		return nil, err
 	}
 
-	// admin client init
-	// Need to write an Admin wrapper over http://pulsar.apache.org/docs/v2.0.1-incubating/reference/RestApi/
-	// https://streamnative.io/en/blog/tech/2019-11-26-introduction-pulsarctl
+	admin, err := pulsarctl.New(&common.Config{
+		WebServiceURL:              fmt.Sprintf("http://%v", bConfig.Brokers[0]),
+		TLSAllowInsecureConnection: true,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &PulsarBroker{
 		Ctx:      ctx,
 		Config:   bConfig,
 		AOptions: options,
+		Admin:    admin,
 	}, nil
 }
 
 // CreateTopic creates a new topic if not available
-func (p PulsarBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
-	panic("implement me")
+func (p *PulsarBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
+
+	pulsarTopic, terr := utils.GetTopicName(request.Name)
+	if terr != nil {
+		return CreateTopicResponse{}, terr
+	}
+
+	err := p.Admin.Topics().Create(*pulsarTopic, request.NumPartitions)
+	if err != nil {
+		return CreateTopicResponse{}, err
+	}
+
+	return CreateTopicResponse{}, nil
 }
 
 // DeleteTopic deletes an existing topic
-func (p PulsarBroker) DeleteTopic(ctx context.Context, request DeleteTopicRequest) (DeleteTopicResponse, error) {
-	panic("implement me")
+func (p *PulsarBroker) DeleteTopic(ctx context.Context, request DeleteTopicRequest) (DeleteTopicResponse, error) {
+
+	pulsarTopic, terr := utils.GetTopicName(request.Name)
+	if terr != nil {
+		return DeleteTopicResponse{}, terr
+	}
+
+	err := p.Admin.Topics().Delete(*pulsarTopic, request.Force, request.NonPartitioned)
+	if err != nil {
+		return DeleteTopicResponse{}, err
+	}
+
+	return DeleteTopicResponse{}, nil
 }
 
 // SendMessages sends a message on the topic
@@ -151,7 +185,6 @@ func (p PulsarBroker) SendMessages(ctx context.Context, request SendMessageToTop
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
-
 	msgs := make(map[string]ReceivedMessage, request.NumOfMessages)
 	for i := 0; i < request.NumOfMessages; i++ {
 		msg, err := p.Consumer.Receive(ctx)
@@ -166,14 +199,36 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	}, nil
 }
 
-//Commit Commits messages if any
+//CommitByPartitionAndOffset Commits messages if any
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
-func (p PulsarBroker) Commit(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
-	panic("implement me")
+func (p *PulsarBroker) CommitByPartitionAndOffset(_ context.Context, _ CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	// unused for pulsar
+	return CommitOnTopicResponse{}, nil
+}
+
+// CommitByMsgID Commits a message by ID
+func (p *PulsarBroker) CommitByMsgID(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	p.Consumer.AckID(&pulsarAckMessage{
+		ID: request.ID,
+	})
+
+	return CommitOnTopicResponse{}, nil
 }
 
 // GetTopicMetadata ...
-func (p PulsarBroker) GetTopicMetadata(ctx context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
-	panic("implement me")
+func (p *PulsarBroker) GetTopicMetadata(ctx context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	pulsarTopic, terr := utils.GetTopicName(request.Topic)
+	if terr != nil {
+		return GetTopicMetadataResponse{}, terr
+	}
+
+	stats, err := p.Admin.Topics().GetInternalStats(*pulsarTopic)
+	if err != nil {
+		return GetTopicMetadataResponse{}, err
+	}
+
+	return GetTopicMetadataResponse{
+		Response: stats,
+	}, nil
 }

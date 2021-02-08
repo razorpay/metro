@@ -258,10 +258,10 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
 }
 
-// Commit Commits messages if any
+// CommitByPartitionAndOffset Commits messages if any
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
-func (k *KafkaBroker) Commit(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	tp := kafkapkg.TopicPartition{
 		Topic: &request.Topic,
 		//Partition: request.Partition,
@@ -275,4 +275,10 @@ func (k *KafkaBroker) Commit(ctx context.Context, request CommitOnTopicRequest) 
 	return CommitOnTopicResponse{
 		Response: resp,
 	}, err
+}
+
+// CommitByMsgID Commits a message by ID
+func (k *KafkaBroker) CommitByMsgID(_ context.Context, _ CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	// unused for kafka
+	return CommitOnTopicResponse{}, nil
 }

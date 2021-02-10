@@ -90,46 +90,36 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 func (b *BrokerStore) GetOrCreateConsumer(ctx context.Context, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
 	key := NewKey(b.variant, op.Partition)
 
-	if consumer, exists := b.consumerMap.Load(key.String()); exists {
-		return consumer.(messagebroker.Consumer), nil
-	}
-
 	newConsumer, perr := messagebroker.NewConsumerClient(ctx,
 		b.variant,
 		b.bConfig,
 		&messagebroker.ConsumerClientOptions{Topic: op.Topic, Subscription: op.Subscription, GroupID: op.GroupID},
 	)
-
 	if perr != nil {
 		return nil, perr
 	}
 
-	b.consumerMap.Store(key, newConsumer)
+	consumer, _ := b.consumerMap.LoadOrStore(key.String(), newConsumer)
 
-	return newConsumer, nil
+	return consumer.(messagebroker.Consumer), nil
 }
 
 // GetOrCreateProducer returns for an existing producer instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetOrCreateProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error) {
 	key := NewKey(b.variant, op.Partition)
 
-	if producer, exists := b.producerMap.Load(key.String()); exists {
-		return producer.(messagebroker.Producer), nil
-	}
-
 	newProducer, perr := messagebroker.NewProducerClient(ctx,
 		b.variant,
 		b.bConfig,
 		&messagebroker.ProducerClientOptions{Topic: op.Topic, TimeoutSec: op.TimeoutSec},
 	)
-
 	if perr != nil {
 		return nil, perr
 	}
 
-	b.producerMap.Store(key, newProducer)
+	producer, _ := b.producerMap.LoadOrStore(key.String(), newProducer)
 
-	return newProducer, nil
+	return producer.(messagebroker.Producer), nil
 }
 
 // GetOrCreateAdmin returns for an existing admin instance, if available returns that else creates as new instance

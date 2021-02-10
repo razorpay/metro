@@ -44,10 +44,10 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}
 
 	c, err := kafkapkg.NewConsumer(&kafkapkg.ConfigMap{
-		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
-		"group.id":          options.GroupID,
-		"auto.offset.reset": "earliest",
-		//"enable.auto.commit":     false,
+		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
+		"group.id":           options.GroupID,
+		"auto.offset.reset":  "earliest",
+		"enable.auto.commit": false,
 	})
 
 	if err != nil {

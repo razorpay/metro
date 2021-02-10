@@ -92,17 +92,17 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 		if err != nil {
 			return merror.ToGRPCError(err)
 		}
-		res, err := s.subscriberCore.Pull(ctx, pullReq, 2)
+		res, err := s.subscriberCore.Pull(ctx, pullReq, 10)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("pull response errored", "msg", err.Error())
 			return merror.ToGRPCError(err)
 		}
 		err = server.Send(&metrov1.StreamingPullResponse{ReceivedMessages: res.ReceivedMessages})
 		if err != nil {
-			logger.Ctx(ctx).Errorw("error in send")
+			logger.Ctx(ctx).Errorw("error in send", "msg", err.Error())
 			return merror.ToGRPCError(err)
 		}
-		logger.Ctx(ctx).Infow("StreamingPullResponse sent")
+		logger.Ctx(ctx).Infow("StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages))
 	}
 
 	return nil

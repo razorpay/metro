@@ -34,7 +34,7 @@ func (c *Core) Pull(ctx context.Context, req *PullRequest, timeoutInSec int) (me
 		return metrov1.PullResponse{}, err
 	}
 	// TODO: take number of messages as arg
-	r, err := consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{10, timeoutInSec})
+	r, err := consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{5, timeoutInSec})
 	if err != nil {
 		return metrov1.PullResponse{}, err
 	}

@@ -3,7 +3,7 @@ module github.com/razorpay/metro
 go 1.15
 
 require (
-	cloud.google.com/go/pubsub v1.3.1
+	cloud.google.com/go/pubsub v1.9.0
 	github.com/apache/pulsar-client-go v0.3.0
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20210115012126-2456729a54ca // indirect
 	github.com/armon/go-metrics v0.3.6 // indirect
@@ -15,7 +15,6 @@ require (
 	github.com/getsentry/sentry-go v0.8.0
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.4.3
-	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -46,7 +45,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/uber/jaeger-client-go v2.24.0+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
-	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
@@ -55,13 +53,14 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210113205817-d3ed898aa8a3 // indirect
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
-	golang.org/x/text v0.3.4 // indirect
 	golang.org/x/tools v0.1.0 // indirect
-	google.golang.org/api v0.30.0
-	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/api v0.36.0
 	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.1-0.20201208041424-160c7477e0e8
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
+
+// https://github.com/99designs/keyring/issues/64#issuecomment-742903794
+replace github.com/keybase/go-keychain => github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4

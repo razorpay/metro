@@ -24,10 +24,10 @@ func NewComponent(ctx context.Context, component string, cfg config.Config) (*Co
 
 	switch component {
 	case Web:
-		svc = web.NewService(ctx, &cfg.Web)
+		svc = web.NewService(ctx, &cfg.Web, &cfg.Registry)
 		config = cfg.Web
 	case Worker:
-		svc = worker.NewService(ctx, &cfg.Worker)
+		svc = worker.NewService(ctx, &cfg.Worker, &cfg.Registry)
 		config = cfg.Worker
 	case OpenAPIServer:
 		svc = openapiserver.NewService(ctx, &cfg.OpenAPIServer)

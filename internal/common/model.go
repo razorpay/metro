@@ -2,7 +2,7 @@ package common
 
 const (
 	// BasePrefix is the base prefix for all keys
-	BasePrefix = "registry/"
+	BasePrefix = "metro/registry/"
 )
 
 // IModel interface which all models should implement

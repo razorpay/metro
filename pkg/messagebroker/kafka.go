@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/razorpay/metro/pkg/logger"
+
 	kakfapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
@@ -37,13 +39,28 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
-	c, err := kakfapkg.NewConsumer(&kakfapkg.ConfigMap{
+	configMap := &kakfapkg.ConfigMap{
 		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
 		"group.id":           options.GroupID,
 		"auto.offset.reset":  "earliest",
 		"session.timeout.ms": 6000,
 		//"enable.auto.commit":     false,
-	})
+	}
+
+	if bConfig.EnableTLS {
+		certs, err := readKafkaCerts()
+		if err != nil {
+			return nil, err
+		}
+
+		// Refer : https://github.com/edenhill/librdkafka/wiki/Using-SSL-with-librdkafka#configure-librdkafka-client
+		configMap.SetKey("security.protocol", "ssl")
+		configMap.SetKey("ssl.ca.location", certs.caCertPath)
+		configMap.SetKey("ssl.certificate.location", certs.userCertPath)
+		configMap.SetKey("ssl.key.location", certs.userKeyPath)
+	}
+
+	c, err := kakfapkg.NewConsumer(configMap)
 
 	if err != nil {
 		return nil, err
@@ -71,9 +88,23 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
-	p, err := kakfapkg.NewProducer(&kakfapkg.ConfigMap{
+	configMap := &kakfapkg.ConfigMap{
 		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
-	})
+	}
+
+	if bConfig.EnableTLS {
+		certs, err := readKafkaCerts()
+		if err != nil {
+			return nil, err
+		}
+
+		configMap.SetKey("security.protocol", "ssl")
+		configMap.SetKey("ssl.ca.location", certs.caCertPath)
+		configMap.SetKey("ssl.certificate.location", certs.userCertPath)
+		configMap.SetKey("ssl.key.location", certs.userKeyPath)
+	}
+
+	p, err := kakfapkg.NewProducer(configMap)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +129,23 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 		return nil, err
 	}
 
-	a, err := kakfapkg.NewAdminClient(&kakfapkg.ConfigMap{
+	configMap := &kakfapkg.ConfigMap{
 		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
-	})
+	}
+
+	if bConfig.EnableTLS {
+		certs, err := readKafkaCerts()
+		if err != nil {
+			return nil, err
+		}
+
+		configMap.SetKey("security.protocol", "ssl")
+		configMap.SetKey("ssl.ca.location", certs.caCertPath)
+		configMap.SetKey("ssl.certificate.location", certs.userCertPath)
+		configMap.SetKey("ssl.key.location", certs.userKeyPath)
+	}
+
+	a, err := kakfapkg.NewAdminClient(configMap)
 
 	if err != nil {
 		return nil, err
@@ -114,10 +159,34 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 	}, nil
 }
 
+type kafkaCerts struct {
+	caCertPath   string
+	userCertPath string
+	userKeyPath  string
+}
+
+func readKafkaCerts() (*kafkaCerts, error) {
+	caCertPath, err := getCertificatePath("ca-cert.pem")
+	userCertPath, err := getCertificatePath("user-cert.pem")
+	userKeyPath, err := getCertificatePath("user.key")
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &kafkaCerts{
+		caCertPath:   caCertPath,
+		userCertPath: userCertPath,
+		userKeyPath:  userKeyPath,
+	}, nil
+}
+
 // CreateTopic creates a new topic if not available
 func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
 
 	tp := normalizeTopicName(request.Name)
+	logger.Ctx(ctx).Infow("received request to create kafka topic", "request", request, "normalizedTopicName", tp)
+
 	topics := make([]kakfapkg.TopicSpecification, 0)
 	ts := kakfapkg.TopicSpecification{
 		Topic:             tp,
@@ -129,11 +198,14 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 
 	for _, tp := range topicsResp {
 		if tp.Error.Code() != kakfapkg.ErrNoError {
+			logger.Ctx(ctx).Error("kafka topic creation failed", "error", tp.Error.Error())
 			return CreateTopicResponse{
 				Response: topicsResp,
 			}, fmt.Errorf("kafka: %v", tp.Error.String())
 		}
 	}
+
+	logger.Ctx(ctx).Infow("kafka topic creation successfully completed", "response", topicsResp)
 
 	return CreateTopicResponse{
 		Response: topicsResp,

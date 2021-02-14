@@ -1,13 +1,28 @@
 #!/usr/bin/dumb-init /bin/sh
 set -euo pipefail
 
+initialize()
+{
+    echo "Initializing metro"
+
+    if [ "$APP_ENV" == "dev_docker" ]
+    then
+      return
+    fi
+
+    mkdir -p /app/configs
+    touch /app/configs/ca-cert.pem
+    touch /app/configs/user-cert.pem
+    touch /app/configs/user.key
+
+    printf '%s\n' "$KAFKA_CA_CERT" | sed 's/- /-\n/g; s/ -/\n-/g' | sed '/CERTIFICATE/! s/ /\n/g' > /app/configs/ca-cert.pem
+    printf '%s\n' "$KAFKA_USER_CERT" | sed 's/- /-\n/g; s/ -/\n-/g' | sed '/CERTIFICATE/! s/ /\n/g' > /app/configs/user-cert.pem
+    printf '%s\n' "$KAFKA_USER_KEY" | sed 's/- /-\n/g; s/ -/\n-/g' | sed '/PRIVATE/! s/ /\n/g' > /app/configs/user.key
+}
+
 start_application()
 {
-    if [[ -n "${GIT_COMMIT_HASH}" ]]; then
-      echo "${GIT_COMMIT_HASH}" > /app/public/commit.txt
-    fi
-    echo "su-exec appuser $WORKDIR/"$appName" -component=${METRO_COMPONENT} &"
-    su-exec appuser $WORKDIR/"$appName" -component=${METRO_COMPONENT} &
+    su-exec appuser $WORKDIR/"$appName" -component=${COMPONENT} &
 
     # Get pid for app
     APP_PID=$!
@@ -29,5 +44,6 @@ shutdown_application()
 
 appName="$1"
 trap shutdown_application SIGTERM SIGINT
+initialize
 start_application
 

@@ -4,6 +4,9 @@ FROM golang:1.15.5-alpine3.12 as proto-builder
 
 ENV CGO_ENABLED 1
 
+ARG GIT_COMMIT_HASH
+ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
+
 RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
 
 RUN mkdir -p /src/scripts
@@ -27,6 +30,8 @@ RUN make proto-generate
 FROM golang:1.15.5-alpine3.12 as builder
 
 ENV CGO_ENABLED 1
+ARG GIT_COMMIT_HASH
+ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
 
 RUN mkdir /src
 WORKDIR /src
@@ -62,14 +67,17 @@ COPY build/docker/entrypoint.sh /app/
 
 ENV WORKDIR=/app
 ENV DUMB_INIT_SETSID=0
-#ENV METRO_COMPONENT=${METRO_COMPONENT}
+
+ARG GIT_COMMIT_HASH
+ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
+ENV COMPONENT=${COMPONENT}
 
 WORKDIR /app
 
 RUN apk add --update --no-cache dumb-init su-exec ca-certificates curl
 RUN mkdir -p /app/public
 
-EXPOSE 8081
+EXPOSE 8081 8082
 
 RUN chmod +x entrypoint.sh probe.sh
 ENTRYPOINT ["/app/entrypoint.sh", "metro"]

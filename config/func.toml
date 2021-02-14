@@ -19,7 +19,8 @@
     [web.broker]
         variant               = "kafka"
         [web.broker.brokerconfig]
-            brokers       = ["kafka-broker:9092"]
+            brokers       = ["localhost:9092"]
+            enableTLS     = true
             [web.broker.brokerconfig.web]
     [web.interfaces]
         [web.interfaces.api]
@@ -30,7 +31,8 @@
     [worker.broker]
         variant               = "kafka"
         [worker.broker.brokerconfig]
-            brokers       = ["kafka-broker:9092"]
+            brokers       = ["localhost:9092"]
+            enableTLS     = true
             [worker.broker.brokerconfig.consumer]
     [worker.interfaces]
         [worker.interfaces.api]
@@ -42,7 +44,9 @@
     [registry.consulconfig]
         [registry.consulconfig.config]
             address            = "localhost:8500"
-            scheme             = "http"
+            token              = ""
+            scheme             = "https"
+            caPem              = ""
 
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"

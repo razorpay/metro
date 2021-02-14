@@ -2,7 +2,6 @@ package leaderelection
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/razorpay/metro/pkg/logger"
@@ -62,10 +61,11 @@ func (c *Candidate) Run(ctx context.Context) error {
 	}
 
 	logger.Ctx(ctx).Infow("acquiring node key", "key", c.config.NodePath)
-	acquired := c.registry.Acquire(c.nodeID, c.config.NodePath, time.Now().String())
+	acquired, aerr := c.registry.Acquire(c.nodeID, c.config.NodePath, time.Now().String())
 
-	if !acquired {
-		return fmt.Errorf("failed to acquire node key : %s", c.config.NodePath)
+	if aerr != nil || !acquired {
+		logger.Ctx(ctx).Errorw("failed to acquire node key", "key", c.config.NodePath, "error", aerr.Error())
+		return aerr
 	}
 
 	grp, gctx := errgroup.WithContext(ctx)
@@ -128,7 +128,12 @@ func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
 	}
 
 	logger.Ctx(ctx).Info("leader election attempting to acquire key")
-	acquired := c.registry.Acquire(c.nodeID, c.config.LockPath, time.Now().String())
+	acquired, aerr := c.registry.Acquire(c.nodeID, c.config.LockPath, time.Now().String())
+	if aerr != nil {
+		logger.Ctx(ctx).Errorw("failed to acquire node key", "key", c.config.NodePath, "error", aerr.Error())
+		c.errCh <- aerr
+	}
+
 	if acquired {
 		logger.Ctx(ctx).Info("leader election acquire success")
 		c.leader = true

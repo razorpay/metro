@@ -45,8 +45,8 @@ func TestLeaderElectionRun(t *testing.T) {
 	registryMock.EXPECT().Register("leaderelection-test", 30*time.Second).Return("id", nil).Times(1)
 	registryMock.EXPECT().IsRegistered("id").Return(true).AnyTimes()
 	registryMock.EXPECT().Deregister("id").Return(nil).Times(1)
-	registryMock.EXPECT().Acquire("id", "registry/nodes/node01", gomock.Any()).Return(true).AnyTimes()
-	registryMock.EXPECT().Acquire("id", "leader/election/test", gomock.Any()).Return(true).AnyTimes()
+	registryMock.EXPECT().Acquire("id", "registry/nodes/node01", gomock.Any()).Return(true, nil).AnyTimes()
+	registryMock.EXPECT().Acquire("id", "leader/election/test", gomock.Any()).Return(true, nil).AnyTimes()
 	registryMock.EXPECT().RenewPeriodic(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	registryMock.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(watcherMock, nil).AnyTimes()
 

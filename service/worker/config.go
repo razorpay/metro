@@ -2,13 +2,11 @@ package worker
 
 import (
 	"github.com/razorpay/metro/pkg/messagebroker"
-	"github.com/razorpay/metro/pkg/registry"
 )
 
 // Config for pushconsumer
 type Config struct {
 	Broker     Broker
-	Registry   registry.Config
 	Interfaces struct {
 		API NetworkInterfaces
 	}

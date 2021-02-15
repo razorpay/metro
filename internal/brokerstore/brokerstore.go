@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/razorpay/metro/pkg/messagebroker"
+	"github.com/razorpay/metro/pkg/partitionlocker"
 )
 
 // Key ...
@@ -40,6 +41,9 @@ type BrokerStore struct {
 	// stores active consumer clients for a key
 	consumerMap sync.Map
 
+	// lock to instantiate a consumer for a key
+	partitionLock *partitionlocker.PartitionLocker
+
 	// stores an active admin client
 	admin messagebroker.Admin
 
@@ -54,7 +58,7 @@ type BrokerStore struct {
 type IBrokerStore interface {
 
 	// GetOrCreateConsumer returns for an existing consumer instance, if available returns that else creates as new instance
-	GetOrCreateConsumer(ctx context.Context, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
+	GetOrCreateConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
 
 	// GetOrCreateProducer returns for an existing producer instance, if available returns that else creates as new instance
 	GetOrCreateProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error)
@@ -81,26 +85,35 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 	}
 
 	return &BrokerStore{
-		variant: variant,
-		bConfig: config,
+		variant:       variant,
+		bConfig:       config,
+		partitionLock: partitionlocker.NewPartitionLocker(&sync.Mutex{}),
 	}, nil
 }
 
 // GetOrCreateConsumer returns for an existing consumer instance, if available returns that else creates as new instance
-func (b *BrokerStore) GetOrCreateConsumer(ctx context.Context, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
+func (b *BrokerStore) GetOrCreateConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
 	key := NewKey(b.variant, op.Partition)
-
+	consumer, ok := b.consumerMap.Load(key.String())
+	if ok {
+		return consumer.(messagebroker.Consumer), nil
+	}
+	b.partitionLock.Lock(key.String())              // lock
+	consumer, ok = b.consumerMap.Load(key.String()) // double-check
+	if ok {
+		return consumer.(messagebroker.Consumer), nil
+	}
 	newConsumer, perr := messagebroker.NewConsumerClient(ctx,
 		b.variant,
+		id,
 		b.bConfig,
 		&messagebroker.ConsumerClientOptions{Topic: op.Topic, Subscription: op.Subscription, GroupID: op.GroupID},
 	)
 	if perr != nil {
 		return nil, perr
 	}
-
-	consumer, _ := b.consumerMap.LoadOrStore(key.String(), newConsumer)
-
+	consumer, _ = b.consumerMap.LoadOrStore(key.String(), newConsumer)
+	b.partitionLock.Unlock(key.String()) // unlock
 	return consumer.(messagebroker.Consumer), nil
 }
 

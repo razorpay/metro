@@ -24,12 +24,12 @@ func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) *
 }
 
 // Pull to pull messages
-func (c *Core) Pull(ctx context.Context, req *PullRequest, timeoutInSec int) (metrov1.PullResponse, error) {
+func (c *Core) Pull(ctx context.Context, req *PullRequest, timeoutInSec int, id string) (metrov1.PullResponse, error) {
 	t, err := c.subscriptionCore.GetTopicFromSubscriptionName(ctx, req.Subscription)
 	if err != nil {
 		return metrov1.PullResponse{}, err
 	}
-	consumer, err := c.bs.GetOrCreateConsumer(ctx, messagebroker.ConsumerClientOptions{Topic: strings.Replace(t, "/", "_", -1), GroupID: req.Subscription})
+	consumer, err := c.bs.GetOrCreateConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: strings.Replace(t, "/", "_", -1), GroupID: req.Subscription})
 	if err != nil {
 		return metrov1.PullResponse{}, err
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	"github.com/rs/xid"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -44,7 +45,7 @@ func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.Acknowle
 // Pull messages
 func (s subscriberserver) Pull(ctx context.Context, req *metrov1.PullRequest) (*metrov1.PullResponse, error) {
 	logger.Ctx(ctx).Infow("received request to pull messages")
-	res, err := s.subscriberCore.Pull(ctx, &subscriber.PullRequest{req.Subscription, 0, 0}, 2)
+	res, err := s.subscriberCore.Pull(ctx, &subscriber.PullRequest{req.Subscription, 0, 0}, 2, xid.New().String()) // TODO: fix
 	if err != nil {
 		logger.Ctx(ctx).Errorw("pull response errored", "msg", err.Error())
 		return nil, merror.ToGRPCError(err)
@@ -92,7 +93,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 		if err != nil {
 			return merror.ToGRPCError(err)
 		}
-		res, err := s.subscriberCore.Pull(ctx, pullReq, 10)
+		res, err := s.subscriberCore.Pull(ctx, pullReq, 10, req.ClientId+"-random-string") // TODO: fix
 		if err != nil {
 			logger.Ctx(ctx).Errorw("pull response errored", "msg", err.Error())
 			return merror.ToGRPCError(err)

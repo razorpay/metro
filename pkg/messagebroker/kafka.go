@@ -32,7 +32,7 @@ type KafkaBroker struct {
 }
 
 // newKafkaConsumerClient returns a kafka consumer
-func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
+func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id string, options *ConsumerClientOptions) (Consumer, error) {
 	err := validateKafkaConsumerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
@@ -48,6 +48,7 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"group.id":           options.GroupID,
 		"auto.offset.reset":  "earliest",
 		"enable.auto.commit": false,
+		"group.instance.id":  id,
 	})
 
 	if err != nil {

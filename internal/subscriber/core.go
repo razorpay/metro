@@ -4,13 +4,16 @@ import (
 	"context"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// ICore is interface over subscribers core
+type ICore interface {
+	NewSubscriber(ctx context.Context, id string, subscription string, timeoutInSec int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error)
+}
 
 // Core implements ISubscriber
 type Core struct {
@@ -23,45 +26,29 @@ func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) *
 	return &Core{bs, subscriptionCore}
 }
 
-// Pull to pull messages
-func (c *Core) Pull(ctx context.Context, req *PullRequest, timeoutInSec int, id string) (metrov1.PullResponse, error) {
-	t, err := c.subscriptionCore.GetTopicFromSubscriptionName(ctx, req.Subscription)
+// NewSubscriber initiates a new subscriber for a given topic
+func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string, timeoutInSec int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error) {
+	t, err := c.subscriptionCore.GetTopicFromSubscriptionName(ctx, subscription)
 	if err != nil {
-		return metrov1.PullResponse{}, err
+		return nil, err
 	}
-	consumer, err := c.bs.GetOrCreateConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: strings.Replace(t, "/", "_", -1), GroupID: req.Subscription})
+	consumer, err := c.bs.GetOrCreateConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: strings.Replace(t, "/", "_", -1), GroupID: subscription})
 	if err != nil {
-		return metrov1.PullResponse{}, err
+		return nil, err
 	}
-	// TODO: take number of messages as arg
-	r, err := consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{5, timeoutInSec})
-	if err != nil {
-		return metrov1.PullResponse{}, err
+	subsCtx, cancelFunc := context.WithCancel(ctx)
+	s := &Subscriber{c.bs,
+		c.subscriptionCore,
+		make(chan *PullRequest),
+		make(chan metrov1.PullResponse),
+		make(chan error),
+		make(chan struct{}),
+		timeoutInSec,
+		consumer,
+		cancelFunc,
+		maxOutstandingMessages,
+		maxOutstandingBytes,
 	}
-	sm := make([]*metrov1.ReceivedMessage, 0)
-	for _, msg := range r.OffsetWithMessages {
-		protoMsg := &metrov1.PubsubMessage{}
-		err = proto.Unmarshal(msg.Data, protoMsg)
-		if err != nil {
-			return metrov1.PullResponse{}, err
-		}
-		// set messageID and publish time
-		protoMsg.MessageId = msg.MessageID
-		ts := &timestamppb.Timestamp{}
-		ts.Seconds = msg.PublishTime.Unix() // test this
-		protoMsg.PublishTime = ts
-		// TODO: fix delivery attempt
-		sm = append(sm, &metrov1.ReceivedMessage{AckId: msg.MessageID, Message: protoMsg, DeliveryAttempt: 1})
-	}
-	return metrov1.PullResponse{ReceivedMessages: sm}, nil
-}
-
-// Acknowledge messages
-func (c *Core) Acknowledge(ctx context.Context, req *AcknowledgeRequest) error {
-	return nil
-}
-
-// ModifyAckDeadline for messages
-func (c *Core) ModifyAckDeadline(ctx context.Context, req *ModifyAckDeadlineRequest) error {
-	return nil
+	go s.Run(subsCtx)
+	return s, nil
 }

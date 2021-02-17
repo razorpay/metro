@@ -186,8 +186,9 @@ func (p PulsarBroker) SendMessages(ctx context.Context, request SendMessageToTop
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
+	var i int32
 	msgs := make(map[string]ReceivedMessage, request.NumOfMessages)
-	for i := 0; i < request.NumOfMessages; i++ {
+	for i = 0; i < request.NumOfMessages; i++ {
 		msg, err := p.Consumer.Receive(ctx)
 		if err != nil {
 			return nil, err

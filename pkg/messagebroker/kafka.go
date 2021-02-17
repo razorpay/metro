@@ -245,7 +245,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				}
 			}
 			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, msg.Timestamp}
-			if len(msgs) == request.NumOfMessages {
+			if int32(len(msgs)) == request.NumOfMessages {
 				return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
 			}
 		} else if err.(kafkapkg.Error).Code() == kafkapkg.ErrTimedOut {

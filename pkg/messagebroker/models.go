@@ -29,7 +29,7 @@ type SendMessageToTopicRequest struct {
 
 // GetMessagesFromTopicRequest ...
 type GetMessagesFromTopicRequest struct {
-	NumOfMessages int
+	NumOfMessages int32
 	TimeoutSec    int
 }
 

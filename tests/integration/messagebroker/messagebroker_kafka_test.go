@@ -153,7 +153,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	// first receive without commit
 	resp, err := consumer1.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
-		NumOfMessages: msgsToSend,
+		NumOfMessages: int32(msgsToSend),
 		TimeoutSec:    10,
 	})
 
@@ -177,7 +177,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.NotNil(t, consumer3)
 
 	resp3, rerr := consumer3.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
-		NumOfMessages: msgsToSend,
+		NumOfMessages: int32(msgsToSend),
 		TimeoutSec:    2,
 	})
 

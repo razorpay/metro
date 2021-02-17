@@ -6,9 +6,7 @@ import (
 
 // PullRequest ...
 type PullRequest struct {
-	Subscription           string
-	MaxOutstandingMessages int64
-	MaxOutstandingBytes    int64
+	MaxNumOfMessages int32
 }
 
 // AcknowledgeRequest ...
@@ -27,12 +25,7 @@ type ModifyAckDeadlineRequest struct {
 }
 
 // FromProto returns different structs for pull, ack and modack
-func FromProto(req *metrov1.StreamingPullRequest) (*PullRequest, *AcknowledgeRequest, *ModifyAckDeadlineRequest, error) {
-	pr := &PullRequest{
-		req.Subscription,
-		req.MaxOutstandingMessages,
-		req.MaxOutstandingBytes,
-	}
+func FromProto(req *metrov1.StreamingPullRequest) (*AcknowledgeRequest, *ModifyAckDeadlineRequest) {
 	ar := &AcknowledgeRequest{
 		req.Subscription,
 		req.AckIds,
@@ -42,5 +35,5 @@ func FromProto(req *metrov1.StreamingPullRequest) (*PullRequest, *AcknowledgeReq
 		req.ModifyDeadlineSeconds,
 		req.ModifyDeadlineAckIds,
 	}
-	return pr, ar, mr, nil
+	return ar, mr
 }

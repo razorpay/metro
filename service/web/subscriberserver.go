@@ -77,12 +77,20 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 		select {
 		case <-ctx.Done():
 			logger.Ctx(ctx).Infow("returning after context is done")
+			if pullStream != nil {
+				pullStream.stop()
+			}
 			return ctx.Err()
 		// stream ack deadline
 		case <-timeout.C:
-			pullStream.stop()
+			if pullStream != nil {
+				pullStream.stop()
+			}
 			return fmt.Errorf("stream ack deadline seconds crossed")
 		case err := <-errChan:
+			if pullStream != nil {
+				pullStream.stop()
+			}
 			if err == io.EOF {
 				// return will close stream from server side
 				logger.Ctx(ctx).Info("EOF received from client")

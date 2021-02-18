@@ -4,17 +4,21 @@ package compatibility
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Topic_DeleteTopic(t *testing.T) {
+	topic := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+
 	ctx := context.Background()
-	metroTopic, err := metroClient.CreateTopic(ctx, "topic-name-a")
+	metroTopic, err := metroClient.CreateTopic(ctx, topic)
 	assert.Nil(t, err)
 
-	emulatorTopic, err := emulatorClient.CreateTopic(ctx, "topic-name-a")
+	emulatorTopic, err := emulatorClient.CreateTopic(ctx, topic)
 	assert.Nil(t, err)
 
 	err = metroTopic.Delete(ctx)
@@ -25,13 +29,15 @@ func Test_Topic_DeleteTopic(t *testing.T) {
 }
 
 func Test_Topic_DeleteTopic_NotFound(t *testing.T) {
+	topic := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+
 	ctx := context.Background()
 	// happy case
-	metroTopic, err := metroClient.CreateTopic(ctx, "topic-name-a")
+	metroTopic, err := metroClient.CreateTopic(ctx, topic)
 	assert.Nil(t, err)
 
 	// happy case
-	emulatorTopic, err := emulatorClient.CreateTopic(ctx, "topic-name-a")
+	emulatorTopic, err := emulatorClient.CreateTopic(ctx, topic)
 	assert.Nil(t, err)
 
 	// happy case

@@ -18,7 +18,7 @@ func TestCore_CreateTopic(t *testing.T) {
 	ctx := context.Background()
 	dTopic := getDummyTopicModel()
 	mockProjectCore.EXPECT().ExistsWithID(ctx, dTopic.ExtractedProjectID).Return(true, nil)
-	mockTopicRepo.EXPECT().Exists(ctx, "metro/registry/projects/test-project/topics/test-topic")
+	mockTopicRepo.EXPECT().Exists(ctx, "metro/projects/test-project/topics/test-topic")
 	mockTopicRepo.EXPECT().Create(ctx, dTopic)
 	err := topicCore.CreateTopic(ctx, dTopic)
 	assert.Nil(t, err)

@@ -140,7 +140,6 @@ func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
 		err := c.config.Callbacks.OnStartedLeading(ctx)
 
 		if err != nil {
-			logger.Ctx(ctx).Errorw("error from leader callback", "error", err.Error())
 			c.errCh <- err
 		}
 	}

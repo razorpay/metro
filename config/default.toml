@@ -33,11 +33,12 @@
         [worker.broker.brokerconfig]
             brokers       = ["localhost:9092"]
             enableTLS     = false
+            certDir       = "/app/configs/"
             [worker.broker.brokerconfig.consumer]
     [worker.interfaces]
         [worker.interfaces.api]
-            GrpcServerAddress     = "0.0.0.0:8081"
-            HttpServerAddress     = "0.0.0.0:8082"
+            GrpcServerAddress     = "0.0.0.0:8083"
+            HttpServerAddress     = "0.0.0.0:8084"
 
 [registry]
     driver                    = "consul"
@@ -50,5 +51,5 @@
 
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"
-    grpcGatewayAddress    = "localhost:8082"
+    grpcGatewayAddress    = "localhost:8085"
     scheme                = "http"

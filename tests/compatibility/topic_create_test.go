@@ -4,17 +4,21 @@ package compatibility
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Topic_CreateTopic(t *testing.T) {
+	topic := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+
 	ctx := context.Background()
-	metroTopic, err := metroClient.CreateTopic(ctx, "topic-name-a")
+	metroTopic, err := metroClient.CreateTopic(ctx, topic)
 	assert.Nil(t, err)
 
-	emulatorTopic, err := emulatorClient.CreateTopic(ctx, "topic-name-a")
+	emulatorTopic, err := emulatorClient.CreateTopic(ctx, topic)
 	assert.Nil(t, err)
 
 	assert.Equal(t, metroTopic.ID(), emulatorTopic.ID())
@@ -30,18 +34,20 @@ func Test_Topic_CreateTopic(t *testing.T) {
 }
 
 func Test_Topic_CreateTopic_AlreadyExists(t *testing.T) {
+	topic := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+
 	ctx := context.Background()
-	metroTopicA, errA := metroClient.CreateTopic(ctx, "topic-name-a")
+	metroTopicA, errA := metroClient.CreateTopic(ctx, topic)
 	assert.Nil(t, errA)
 
-	emulatorTopicA, errB := emulatorClient.CreateTopic(ctx, "topic-name-a")
+	emulatorTopicA, errB := emulatorClient.CreateTopic(ctx, topic)
 	assert.Nil(t, errB)
 
-	metroTopicB, errC := metroClient.CreateTopic(ctx, "topic-name-a")
+	metroTopicB, errC := metroClient.CreateTopic(ctx, topic)
 	assert.NotNil(t, errC)
 	assert.Nil(t, metroTopicB)
 
-	emulatorTopicB, errD := emulatorClient.CreateTopic(ctx, "topic-name-a")
+	emulatorTopicB, errD := emulatorClient.CreateTopic(ctx, topic)
 	assert.NotNil(t, errD)
 	assert.Nil(t, emulatorTopicB)
 

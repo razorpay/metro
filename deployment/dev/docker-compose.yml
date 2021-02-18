@@ -34,8 +34,8 @@ services:
       - dev_app-network
       - monitoring_rzp-dev-monitoring
     ports:
-      - "8081:8081"
-      - "8082:8082"
+      - "8083:8083"
+      - "8084:8084"
     environment:
       - APP_ENV=dev_docker
       - COMPONENT=worker

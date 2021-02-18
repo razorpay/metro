@@ -16,7 +16,6 @@ type KafkaBroker struct {
 	Producer *kakfapkg.Producer
 	Consumer *kakfapkg.Consumer
 	Admin    *kakfapkg.AdminClient
-	Ctx      context.Context
 
 	// holds the broker config
 	Config *BrokerConfig
@@ -48,7 +47,7 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}
 
 	if bConfig.EnableTLS {
-		certs, err := readKafkaCerts()
+		certs, err := readKafkaCerts(bConfig.CertDir)
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +69,6 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 
 	return &KafkaBroker{
 		Consumer: c,
-		Ctx:      ctx,
 		Config:   bConfig,
 		COptions: options,
 	}, nil
@@ -93,7 +91,7 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}
 
 	if bConfig.EnableTLS {
-		certs, err := readKafkaCerts()
+		certs, err := readKafkaCerts(bConfig.CertDir)
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +109,6 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 
 	return &KafkaBroker{
 		Producer: p,
-		Ctx:      ctx,
 		Config:   bConfig,
 		POptions: options,
 	}, nil
@@ -134,7 +131,7 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 	}
 
 	if bConfig.EnableTLS {
-		certs, err := readKafkaCerts()
+		certs, err := readKafkaCerts(bConfig.CertDir)
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +150,6 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 
 	return &KafkaBroker{
 		Admin:    a,
-		Ctx:      ctx,
 		Config:   bConfig,
 		AOptions: options,
 	}, nil
@@ -165,10 +161,10 @@ type kafkaCerts struct {
 	userKeyPath  string
 }
 
-func readKafkaCerts() (*kafkaCerts, error) {
-	caCertPath, err := getCertificatePath("ca-cert.pem")
-	userCertPath, err := getCertificatePath("user-cert.pem")
-	userKeyPath, err := getCertificatePath("user.key")
+func readKafkaCerts(certDir string) (*kafkaCerts, error) {
+	caCertPath, err := getCertFile(certDir, "ca-cert.pem")
+	userCertPath, err := getCertFile(certDir, "user-cert.pem")
+	userKeyPath, err := getCertFile(certDir, "user.key")
 
 	if err != nil {
 		return nil, err
@@ -194,7 +190,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 		ReplicationFactor: 1,
 	}
 	topics = append(topics, ts)
-	topicsResp, err := k.Admin.CreateTopics(k.Ctx, topics, nil)
+	topicsResp, tErr := k.Admin.CreateTopics(ctx, topics, nil)
 
 	for _, tp := range topicsResp {
 		if tp.Error.Code() != kakfapkg.ErrNoError {
@@ -209,7 +205,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 
 	return CreateTopicResponse{
 		Response: topicsResp,
-	}, err
+	}, tErr
 }
 
 // DeleteTopic deletes an existing topic
@@ -217,7 +213,7 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 
 	topics := make([]string, 0)
 	topics = append(topics, request.Name)
-	resp, err := k.Admin.DeleteTopics(k.Ctx, topics)
+	resp, err := k.Admin.DeleteTopics(ctx, topics)
 	return DeleteTopicResponse{
 		Response: resp,
 	}, err

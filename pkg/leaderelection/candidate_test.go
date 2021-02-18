@@ -45,8 +45,8 @@ func TestLeaderElectionRun(t *testing.T) {
 	registryMock.EXPECT().Register("leaderelection-test", 30*time.Second).Return("id", nil).Times(1)
 	registryMock.EXPECT().IsRegistered("id").Return(true).AnyTimes()
 	registryMock.EXPECT().Deregister("id").Return(nil).Times(1)
-	registryMock.EXPECT().Acquire("id", "registry/nodes/node01", gomock.Any()).Return(true, nil).AnyTimes()
-	registryMock.EXPECT().Acquire("id", "leader/election/test", gomock.Any()).Return(true, nil).AnyTimes()
+	registryMock.EXPECT().Acquire("id", "metro/nodes/node01", gomock.Any()).Return(true, nil).AnyTimes()
+	registryMock.EXPECT().Acquire("id", "metro/leader/election/test", gomock.Any()).Return(true, nil).AnyTimes()
 	registryMock.EXPECT().RenewPeriodic(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	registryMock.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(watcherMock, nil).AnyTimes()
 
@@ -61,7 +61,7 @@ func TestLeaderElectionRun(t *testing.T) {
 	watcherMock.EXPECT().StartWatch().Do(func() {
 		data := []registry.Pair{
 			{
-				Key:       "leader/election/test",
+				Key:       "metro/leader/election/test",
 				Value:     []byte("aaa"),
 				SessionID: "",
 			},
@@ -97,8 +97,8 @@ func TestDeregisterNodeUnregistered(t *testing.T) {
 
 func getConfig() Config {
 	return Config{
-		LockPath:      "leader/election/test",
-		NodePath:      "registry/nodes/node01",
+		LockPath:      "metro/leader/election/test",
+		NodePath:      "metro/nodes/node01",
 		LeaseDuration: 30 * time.Second,
 		Name:          "leaderelection-test",
 		Callbacks: LeaderCallbacks{

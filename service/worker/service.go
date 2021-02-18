@@ -79,7 +79,7 @@ func (c *Service) Start() error {
 		leaderelection.Config{
 			// TODO: read values from workerConfig
 			Name:          "metro/metro-worker",
-			NodePath:      fmt.Sprintf("metro/registry/nodes/%s", c.nodeID),
+			NodePath:      fmt.Sprintf("metro/nodes/%s", c.nodeID),
 			LockPath:      "metro/leader/election",
 			LeaseDuration: 30 * time.Second,
 			Callbacks: leaderelection.LeaderCallbacks{
@@ -107,7 +107,7 @@ func (c *Service) Start() error {
 	c.workgrp.Go(func() error {
 		wh := registry.WatchConfig{
 			WatchType: "keyprefix",
-			WatchPath: fmt.Sprintf("metro/registry/nodes/%s/subscriptions", c.nodeID),
+			WatchPath: fmt.Sprintf("metro/nodes/%s/subscriptions", c.nodeID),
 			Handler: func(ctx context.Context, pairs []registry.Pair) {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
 			},
@@ -201,7 +201,7 @@ func (c *Service) lead(ctx context.Context) error {
 
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
-		WatchPath: "metro/registry/nodes",
+		WatchPath: "metro/nodes",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
 		},
@@ -214,7 +214,7 @@ func (c *Service) lead(ctx context.Context) error {
 
 	swh := registry.WatchConfig{
 		WatchType: "keyprefix",
-		WatchPath: "metro/registry/subscriptions",
+		WatchPath: "metro/subscriptions",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
 		},

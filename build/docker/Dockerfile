@@ -77,7 +77,7 @@ WORKDIR /app
 RUN apk add --update --no-cache dumb-init su-exec ca-certificates curl
 RUN mkdir -p /app/public
 
-EXPOSE 8081 8082
+EXPOSE 8081 8082 8083 8084
 
 RUN chmod +x entrypoint.sh probe.sh
 ENTRYPOINT ["/app/entrypoint.sh", "metro"]

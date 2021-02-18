@@ -44,7 +44,6 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 	if ok {
 		return merror.New(merror.AlreadyExists, "Topic already exists")
 	}
-	// TODO: Add topic creation in messagebroker
 	return c.repo.Create(ctx, m)
 }
 

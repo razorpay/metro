@@ -13,6 +13,7 @@ type BrokerConfig struct {
 	UserCertificate      string
 	UserKey              string
 	CACertificate        string
+	CertDir              string
 	Version              string
 	DebugEnabled         bool
 	OperationTimeoutSec  int
@@ -62,16 +63,10 @@ type ProducerClientOptions struct {
 // AdminClientOptions holds client specific configuration for admin
 type AdminClientOptions struct{}
 
-func getCertificatePath(filename string) (string, error) {
-	return getCertFile(filename)
-}
-
-func getCertFile(filename string) (string, error) {
-	//appBasePath
-	configPath := "/app/configs/" + filename
+func getCertFile(certDir, filename string) (string, error) {
+	configPath := certDir + filename
 
 	_, err := os.Stat(configPath)
-
 	if err == nil {
 		return filepath.Abs(configPath)
 	}

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/razorpay/metro/internal/merror"
-	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -42,15 +41,13 @@ func ExtractTopicMetaAndValidate(ctx context.Context, name string) (projectID st
 	match := topicNameRegex.FindStringSubmatch(name)
 	if len(match) != 3 {
 		err = fmt.Errorf("invalid topic name")
-		logger.Ctx(ctx).Error(err.Error())
-		return
+		return "", "", err
 	}
 	projectID = topicNameRegex.FindStringSubmatch(name)[1]
 	topicName = topicNameRegex.FindStringSubmatch(name)[2]
 	if strings.HasPrefix(topicName, "goog") {
 		err = fmt.Errorf("topic name cannot start with goog")
-		logger.Ctx(ctx).Error(err.Error())
-		return
+		return "", "", err
 	}
-	return
+	return projectID, topicName, nil
 }

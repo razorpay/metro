@@ -11,6 +11,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"cloud.google.com/go/pubsub"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -18,12 +20,15 @@ import (
 
 var emulatorClient *pubsub.Client
 var metroClient *pubsub.Client
+var projectId string
 
 func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
 }
 
 func testMain(m *testing.M) int {
+	projectId = fmt.Sprintf("project-%s", uuid.New().String()[0:4])
+
 	setup()
 	defer teardown()
 
@@ -33,21 +38,23 @@ func testMain(m *testing.M) int {
 func setup() {
 	var err error
 	emulatorHost := fmt.Sprintf("%s:8085", os.Getenv("PUBSUB_TEST_HOST"))
-	emulatorClient, err = pubsub.NewClient(context.Background(), "project-id",
+	emulatorClient, err = pubsub.NewClient(context.Background(), projectId,
 		option.WithEndpoint(emulatorHost),
 		option.WithoutAuthentication(),
 		option.WithGRPCDialOption(grpc.WithInsecure()),
 	)
 	if err != nil {
+		fmt.Println("error 1 ", err)
 		os.Exit(1)
 	}
 	metroHost := fmt.Sprintf("%s:8081", os.Getenv("METRO_TEST_HOST"))
-	metroClient, err = pubsub.NewClient(context.Background(), "project-id",
+	metroClient, err = pubsub.NewClient(context.Background(), projectId,
 		option.WithEndpoint(metroHost),
 		option.WithoutAuthentication(),
 		option.WithGRPCDialOption(grpc.WithInsecure()),
 	)
 	if err != nil {
+		fmt.Println("error 2 ", err)
 		os.Exit(2)
 	}
 	// create project in metro
@@ -56,16 +63,20 @@ func setup() {
 
 func createProjectInMetro() {
 	url := fmt.Sprintf("http://%s:8082/v1/projects", os.Getenv("METRO_TEST_HOST"))
-	r, err := http.Post(url, "application/json", bytes.NewBuffer([]byte("{\"name\": \"project-id\",\"projectId\": \"project-id\"}")))
+	payload := bytes.NewBuffer([]byte("{\"name\": \"" + projectId + "\",\"projectId\": \"" + projectId + "\"}"))
+	fmt.Println("payload", payload)
+	r, err := http.Post(url, "application/json", payload)
 	if err != nil || r.StatusCode != 200 {
+		fmt.Println("error 3", err)
 		os.Exit(3)
 	}
 }
 
 func teardown() {
 	// delete project from metro
-	url, err := url.Parse(fmt.Sprintf("http://%s:8082/v1/projects/project-id", os.Getenv("METRO_TEST_HOST")))
+	url, err := url.Parse(fmt.Sprintf("http://%s:8082/v1/projects/%s", os.Getenv("METRO_TEST_HOST"), projectId))
 	if err != nil {
+		fmt.Println("error 4", err)
 		os.Exit(4)
 	}
 	req := &http.Request{
@@ -74,6 +85,7 @@ func teardown() {
 	}
 	r, err := http.DefaultClient.Do(req)
 	if err != nil || r.StatusCode != 200 {
+		fmt.Println("error 5", err)
 		os.Exit(5)
 	}
 }

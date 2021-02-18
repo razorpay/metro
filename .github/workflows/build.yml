@@ -152,8 +152,8 @@ jobs:
               go mod vendor
           - name: integration tests
             run: |
-#              make test-integration-ci
+              make test-integration-ci
           - name: compatibility tests
             run: |
-#              make test-compat-ci
+              make test-compat-ci
 

@@ -5,7 +5,7 @@ FROM golang:1.15.5-alpine3.12 as proto-builder
 ENV CGO_ENABLED 1
 
 ARG GIT_COMMIT_HASH
-ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
+ENV METRO_APP_GITCOMMITHASH=${GIT_COMMIT_HASH}
 
 RUN apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
 
@@ -31,7 +31,7 @@ FROM golang:1.15.5-alpine3.12 as builder
 
 ENV CGO_ENABLED 1
 ARG GIT_COMMIT_HASH
-ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
+ENV METRO_APP_GITCOMMITHASH=${GIT_COMMIT_HASH}
 
 RUN mkdir /src
 WORKDIR /src
@@ -69,7 +69,7 @@ ENV WORKDIR=/app
 ENV DUMB_INIT_SETSID=0
 
 ARG GIT_COMMIT_HASH
-ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
+ENV METRO_APP_GITCOMMITHASH=${GIT_COMMIT_HASH}
 ENV COMPONENT=${COMPONENT}
 
 WORKDIR /app

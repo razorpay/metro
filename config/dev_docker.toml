@@ -41,7 +41,7 @@
     driver                    = "consul"
     [registry.consulconfig]
         [registry.consulconfig.config]
-            address            = "localhost:8500"
+            address            = "consul:8500"
             scheme             = "http"
 
 [openAPIServer]

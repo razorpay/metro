@@ -44,7 +44,6 @@ func setup() {
 		option.WithGRPCDialOption(grpc.WithInsecure()),
 	)
 	if err != nil {
-		fmt.Println("error 1 ", err)
 		os.Exit(1)
 	}
 	metroHost := fmt.Sprintf("%s:8081", os.Getenv("METRO_TEST_HOST"))
@@ -54,7 +53,6 @@ func setup() {
 		option.WithGRPCDialOption(grpc.WithInsecure()),
 	)
 	if err != nil {
-		fmt.Println("error 2 ", err)
 		os.Exit(2)
 	}
 	// create project in metro
@@ -64,10 +62,8 @@ func setup() {
 func createProjectInMetro() {
 	url := fmt.Sprintf("http://%s:8082/v1/projects", os.Getenv("METRO_TEST_HOST"))
 	payload := bytes.NewBuffer([]byte("{\"name\": \"" + projectId + "\",\"projectId\": \"" + projectId + "\"}"))
-	fmt.Println("payload", payload)
 	r, err := http.Post(url, "application/json", payload)
 	if err != nil || r.StatusCode != 200 {
-		fmt.Println("error 3", err)
 		os.Exit(3)
 	}
 }
@@ -76,7 +72,6 @@ func teardown() {
 	// delete project from metro
 	url, err := url.Parse(fmt.Sprintf("http://%s:8082/v1/projects/%s", os.Getenv("METRO_TEST_HOST"), projectId))
 	if err != nil {
-		fmt.Println("error 4", err)
 		os.Exit(4)
 	}
 	req := &http.Request{
@@ -85,7 +80,6 @@ func teardown() {
 	}
 	r, err := http.DefaultClient.Do(req)
 	if err != nil || r.StatusCode != 200 {
-		fmt.Println("error 5", err)
 		os.Exit(5)
 	}
 }

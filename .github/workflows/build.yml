@@ -54,10 +54,9 @@ jobs:
             repository: razorpay/metro
             tags: ${{ github.sha }}
             dockerfile: build/docker/Dockerfile
-            build_args: GIT_COMMIT_HASH=${{ github.sha }},GIT_TOKEN=${{ secrets.GIT_TOKEN }}
+            build_args: GIT_COMMIT_HASH=${{ github.sha }}
           env:
             GIT_COMMIT_HASH: ${{ github.sha }}
-            COMPONENT: web
     integration-tests:
         runs-on: ubuntu-latest
         container: golang:1.15.5-alpine3.12

@@ -43,7 +43,7 @@ func InitMonitoring(env string, app config.App, sentry sentry.Config, tracing tr
 	servicekv := map[string]interface{}{
 		"appEnv":        app.Env,
 		"serviceName":   app.ServiceName,
-		"gitCommitHash": os.Getenv("GIT_COMMIT_HASH"),
+		"gitCommitHash": app.GitCommitHash,
 	}
 	logger, err := logpkg.NewLogger(env, servicekv, s)
 	if err != nil {

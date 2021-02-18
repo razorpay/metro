@@ -4,25 +4,30 @@ package compatibility
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Subscription_DeleteSubscription(t *testing.T) {
+	topic := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+	subscription := fmt.Sprintf("sub-%s", uuid.New().String()[0:4])
+
 	ctx := context.Background()
-	metroTopic, err := metroClient.CreateTopic(ctx, "topic-name-b")
+	metroTopic, err := metroClient.CreateTopic(ctx, topic)
 	assert.Nil(t, err)
 
-	emulatorTopic, err := emulatorClient.CreateTopic(ctx, "topic-name-b")
+	emulatorTopic, err := emulatorClient.CreateTopic(ctx, topic)
 	assert.Nil(t, err)
 
-	metroSub, err := metroClient.CreateSubscription(context.Background(), "sub-name-a",
+	metroSub, err := metroClient.CreateSubscription(context.Background(), subscription,
 		pubsub.SubscriptionConfig{Topic: metroTopic})
 	assert.Nil(t, err)
 
-	emulatorSub, err := emulatorClient.CreateSubscription(context.Background(), "sub-name-a",
+	emulatorSub, err := emulatorClient.CreateSubscription(context.Background(), subscription,
 		pubsub.SubscriptionConfig{Topic: emulatorTopic})
 	assert.Nil(t, err)
 

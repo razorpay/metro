@@ -166,7 +166,7 @@ test-compat-ci:
 
 .PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
 test-compat:
-	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test ./... -tags=compatibility,musl
+	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test -v ./... -tags=compatibility,musl
 
 .PHONY: test-unit-prepare
 test-unit-prepare:

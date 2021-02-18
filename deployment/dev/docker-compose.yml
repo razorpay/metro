@@ -13,8 +13,11 @@ services:
       - "8082:8082"
     environment:
       - APP_ENV=dev_docker
-      - METRO_COMPONENT=web
+      - COMPONENT=web
       - GIT_COMMIT_HASH=dev_docker
+      - KAFKA_CA_CERT=dummy_kafka_ca_cert
+      - KAFKA_USER_CERT=dummy_kafka_user_cert
+      - KAFKA_USER_KEY=dummy_kafka_user_key
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "8081"]
       interval: 30s
@@ -35,8 +38,11 @@ services:
       - "8084:8084"
     environment:
       - APP_ENV=dev_docker
-      - METRO_COMPONENT=worker
+      - COMPONENT=worker
       - GIT_COMMIT_HASH=dev
+      - KAFKA_CA_CERT=dummy_kafka_ca_cert
+      - KAFKA_USER_CERT=dummy_kafka_user_cert
+      - KAFKA_USER_KEY=dummy_kafka_user_key
     restart: on-failure
 
 networks:

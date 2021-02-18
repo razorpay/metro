@@ -22,18 +22,20 @@ import (
 
 // Service for producer
 type Service struct {
-	ctx        context.Context
-	grpcServer *grpc.Server
-	httpServer *http.Server
-	health     *health.Core
-	config     *Config
+	ctx            context.Context
+	grpcServer     *grpc.Server
+	httpServer     *http.Server
+	health         *health.Core
+	webConfig      *Config
+	registryConfig *registry.Config
 }
 
 // NewService creates an instance of new producer service
-func NewService(ctx context.Context, config *Config) *Service {
+func NewService(ctx context.Context, webConfig *Config, registryConfig *registry.Config) *Service {
 	return &Service{
-		ctx:    ctx,
-		config: config,
+		ctx:            ctx,
+		webConfig:      webConfig,
+		registryConfig: registryConfig,
 	}
 }
 
@@ -48,12 +50,12 @@ func (svc *Service) Start() error {
 		return err
 	}
 
-	r, err := registry.NewRegistry(svc.ctx, &svc.config.Registry)
+	r, err := registry.NewRegistry(svc.ctx, svc.registryConfig)
 	if err != nil {
 		return err
 	}
 
-	brokerStore, berr := brokerstore.NewBrokerStore(svc.config.Broker.Variant, &svc.config.Broker.BrokerConfig)
+	brokerStore, berr := brokerstore.NewBrokerStore(svc.webConfig.Broker.Variant, &svc.webConfig.Broker.BrokerConfig)
 	if berr != nil {
 		return berr
 	}
@@ -66,7 +68,7 @@ func (svc *Service) Start() error {
 
 	grpcServer, err := internalserver.StartGRPCServer(
 		grp,
-		svc.config.Interfaces.API.GrpcServerAddress,
+		svc.webConfig.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 			metrov1.RegisterPublisherServer(server, newPublisherServer(brokerStore, topicCore))
@@ -82,24 +84,24 @@ func (svc *Service) Start() error {
 
 	httpServer, err := internalserver.StartHTTPServer(
 		grp,
-		svc.config.Interfaces.API.HTTPServerAddress,
+		svc.webConfig.Interfaces.API.HTTPServerAddress,
 		func(mux *runtime.ServeMux) error {
-			err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(gctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(gctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 			if err != nil {
 				return err
 			}
 
-			err = metrov1.RegisterPublisherHandlerFromEndpoint(gctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			err = metrov1.RegisterPublisherHandlerFromEndpoint(gctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 			if err != nil {
 				return err
 			}
 
-			err = metrov1.RegisterAdminServiceHandlerFromEndpoint(gctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			err = metrov1.RegisterAdminServiceHandlerFromEndpoint(gctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 			if err != nil {
 				return err
 			}
 
-			err = metrov1.RegisterSubscriberHandlerFromEndpoint(svc.ctx, mux, svc.config.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			err = metrov1.RegisterSubscriberHandlerFromEndpoint(svc.ctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 			if err != nil {
 				return err
 			}

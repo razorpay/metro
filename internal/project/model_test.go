@@ -8,12 +8,12 @@ import (
 
 func TestModel_Prefix(t *testing.T) {
 	project := getDummyProjectModel()
-	assert.Equal(t, project.Prefix(), "registry/projects/")
+	assert.Equal(t, project.Prefix(), "metro/projects/")
 }
 
 func TestModel_Key(t *testing.T) {
 	project := getDummyProjectModel()
-	assert.Equal(t, project.Key(), "registry/projects/"+project.ProjectID)
+	assert.Equal(t, project.Key(), "metro/projects/"+project.ProjectID)
 }
 
 func getDummyProjectModel() *Model {

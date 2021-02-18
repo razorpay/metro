@@ -54,6 +54,7 @@ jobs:
             repository: razorpay/metro
             tags: ${{ github.sha }}
             dockerfile: build/docker/Dockerfile
+            build_args: GIT_COMMIT_HASH=${{ github.sha }}
           env:
             GIT_COMMIT_HASH: ${{ github.sha }}
     integration-tests:
@@ -119,7 +120,7 @@ jobs:
                 - "8082:8082"
               env:
                 APP_ENV: dev_docker
-                METRO_COMPONENT: web
+                COMPONENT: web
                 GIT_COMMIT_HASH: ${{ github.sha }}
               options: --health-cmd "nc -z localhost 8082"
             pubsub:

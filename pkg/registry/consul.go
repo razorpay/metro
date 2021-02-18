@@ -75,7 +75,7 @@ func (c *ConsulClient) Deregister(sessionID string) error {
 }
 
 // Acquire a lock
-func (c *ConsulClient) Acquire(sessionID string, key string, value string) bool {
+func (c *ConsulClient) Acquire(sessionID string, key string, value string) (bool, error) {
 	isAcquired, _, err := c.client.KV().Acquire(&api.KVPair{
 		Key:     key,
 		Value:   []byte(value),
@@ -83,10 +83,10 @@ func (c *ConsulClient) Acquire(sessionID string, key string, value string) bool 
 	}, nil)
 
 	if err != nil {
-		return false
+		return false, err
 	}
 
-	return isAcquired
+	return isAcquired, nil
 }
 
 // Release a lock

@@ -55,10 +55,26 @@ func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
+
 	err = s.topicCore.CreateTopic(ctx, m)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
+
+	admin, aerr := s.brokerStore.GetOrCreateAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return nil, merror.ToGRPCError(aerr)
+	}
+
+	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
+		Name:          req.GetName(),
+		NumPartitions: 1,
+	})
+
+	if terr != nil {
+		return nil, merror.ToGRPCError(terr)
+	}
+
 	return req, nil
 }
 

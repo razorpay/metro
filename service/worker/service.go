@@ -3,7 +3,14 @@ package worker
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
+
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	internalserver "github.com/razorpay/metro/internal/server"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	"google.golang.org/grpc"
 
 	"github.com/google/uuid"
 	"github.com/razorpay/metro/internal/health"
@@ -15,26 +22,30 @@ import (
 
 // Service for worker
 type Service struct {
-	ctx       context.Context
-	health    *health.Core
-	config    *Config
-	registry  registry.IRegistry
-	candidate *leaderelection.Candidate
-	nodeID    string
-	doneCh    chan struct{}
-	stopCh    chan struct{}
-	workgrp   *errgroup.Group
-	leadgrp   *errgroup.Group
+	ctx            context.Context
+	grpcServer     *grpc.Server
+	httpServer     *http.Server
+	health         *health.Core
+	workerConfig   *Config
+	registryConfig *registry.Config
+	registry       registry.IRegistry
+	candidate      *leaderelection.Candidate
+	nodeID         string
+	doneCh         chan struct{}
+	stopCh         chan struct{}
+	workgrp        *errgroup.Group
+	leadgrp        *errgroup.Group
 }
 
 // NewService creates an instance of new worker
-func NewService(ctx context.Context, config *Config) *Service {
+func NewService(ctx context.Context, workerConfig *Config, registryConfig *registry.Config) *Service {
 	return &Service{
-		ctx:    ctx,
-		config: config,
-		nodeID: uuid.New().String(),
-		doneCh: make(chan struct{}),
-		stopCh: make(chan struct{}),
+		ctx:            ctx,
+		workerConfig:   workerConfig,
+		registryConfig: registryConfig,
+		nodeID:         uuid.New().String(),
+		doneCh:         make(chan struct{}),
+		stopCh:         make(chan struct{}),
 	}
 }
 
@@ -50,10 +61,15 @@ func (c *Service) Start() error {
 
 	c.workgrp, gctx = errgroup.WithContext(c.ctx)
 
+	// Define server handlers
+	healthCore, err := health.NewCore(nil) //TODO: Add checkers
+	if err != nil {
+		return err
+	}
+
 	// Init the Registry
 	// TODO: move to component init ?
-	c.registry, err = registry.NewRegistry(c.ctx, &c.config.Registry)
-
+	c.registry, err = registry.NewRegistry(c.ctx, c.registryConfig)
 	if err != nil {
 		return err
 	}
@@ -61,10 +77,10 @@ func (c *Service) Start() error {
 	// Init Leader Election
 	c.candidate, err = leaderelection.New(c.nodeID,
 		leaderelection.Config{
-			// TODO: read values from config
-			Name:          "metro-worker",
-			NodePath:      fmt.Sprintf("registry/nodes/%s", c.nodeID),
-			LockPath:      "leader/election",
+			// TODO: read values from workerConfig
+			Name:          "metro/metro-worker",
+			NodePath:      fmt.Sprintf("metro/nodes/%s", c.nodeID),
+			LockPath:      "metro/leader/election",
 			LeaseDuration: 30 * time.Second,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) error {
@@ -91,7 +107,7 @@ func (c *Service) Start() error {
 	c.workgrp.Go(func() error {
 		wh := registry.WatchConfig{
 			WatchType: "keyprefix",
-			WatchPath: fmt.Sprintf("/registry/nodes/%s/subscriptions", c.nodeID),
+			WatchPath: fmt.Sprintf("metro/nodes/%s/subscriptions", c.nodeID),
 			Handler: func(ctx context.Context, pairs []registry.Pair) {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
 			},
@@ -121,8 +137,44 @@ func (c *Service) Start() error {
 		return err
 	})
 
+	grpcServer, err := internalserver.StartGRPCServer(
+		c.workgrp,
+		c.workerConfig.Interfaces.API.GrpcServerAddress,
+		func(server *grpc.Server) error {
+			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
+			return nil
+		},
+		getInterceptors()...,
+	)
+	if err != nil {
+		return err
+	}
+
+	httpServer, err := internalserver.StartHTTPServer(
+		c.workgrp,
+		c.workerConfig.Interfaces.API.HTTPServerAddress,
+		func(mux *runtime.ServeMux) error {
+			err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(gctx, mux, c.workerConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			if err != nil {
+				return err
+			}
+
+			mux.Handle("GET", runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "metrics"}, "")), func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+				promhttp.Handler().ServeHTTP(w, r)
+			})
+			return nil
+		})
+
+	if err != nil {
+		return err
+	}
+
+	c.grpcServer = grpcServer
+	c.httpServer = httpServer
+	c.health = healthCore
+
 	err = c.workgrp.Wait()
-	logger.Ctx(gctx).Info("push consumer servicer error: %s", err.Error())
+	logger.Ctx(gctx).Info("worker service error: %s", err.Error())
 	return err
 }
 
@@ -149,7 +201,7 @@ func (c *Service) lead(ctx context.Context) error {
 
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
-		WatchPath: "/registry/nodes",
+		WatchPath: "metro/nodes",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
 		},
@@ -162,7 +214,7 @@ func (c *Service) lead(ctx context.Context) error {
 
 	swh := registry.WatchConfig{
 		WatchType: "keyprefix",
-		WatchPath: "/registry/subscriptions",
+		WatchPath: "metro/subscriptions",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
 		},
@@ -207,4 +259,8 @@ func (c *Service) stepDown() {
 
 	// wait for leader go routines to terminate
 	c.leadgrp.Wait()
+}
+
+func getInterceptors() []grpc.UnaryServerInterceptor {
+	return []grpc.UnaryServerInterceptor{}
 }

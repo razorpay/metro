@@ -43,14 +43,28 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 		return nil, err
 	}
 
-	c, err := kafkapkg.NewConsumer(&kafkapkg.ConfigMap{
+	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
 		"group.id":           options.GroupID,
 		"auto.offset.reset":  "earliest",
 		"enable.auto.commit": false,
 		"group.instance.id":  id,
-	})
+	}
 
+	if bConfig.EnableTLS {
+		certs, err := readKafkaCerts(bConfig.CertDir)
+		if err != nil {
+			return nil, err
+		}
+
+		// Refer : https://github.com/edenhill/librdkafka/wiki/Using-SSL-with-librdkafka#configure-librdkafka-client
+		configMap.SetKey("security.protocol", "ssl")
+		configMap.SetKey("ssl.ca.location", certs.caCertPath)
+		configMap.SetKey("ssl.certificate.location", certs.userCertPath)
+		configMap.SetKey("ssl.key.location", certs.userKeyPath)
+	}
+
+	c, err := kafkapkg.NewConsumer(configMap)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +73,6 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 
 	return &KafkaBroker{
 		Consumer: c,
-		Ctx:      ctx,
 		Config:   bConfig,
 		COptions: options,
 	}, nil
@@ -77,16 +90,29 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
-	p, err := kafkapkg.NewProducer(&kafkapkg.ConfigMap{
+	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
-	})
+	}
+
+	if bConfig.EnableTLS {
+		certs, err := readKafkaCerts(bConfig.CertDir)
+		if err != nil {
+			return nil, err
+		}
+
+		configMap.SetKey("security.protocol", "ssl")
+		configMap.SetKey("ssl.ca.location", certs.caCertPath)
+		configMap.SetKey("ssl.certificate.location", certs.userCertPath)
+		configMap.SetKey("ssl.key.location", certs.userKeyPath)
+	}
+
+	p, err := kafkapkg.NewProducer(configMap)
 	if err != nil {
 		return nil, err
 	}
 
 	return &KafkaBroker{
 		Producer: p,
-		Ctx:      ctx,
 		Config:   bConfig,
 		POptions: options,
 	}, nil
@@ -104,9 +130,23 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 		return nil, err
 	}
 
-	a, err := kafkapkg.NewAdminClient(&kafkapkg.ConfigMap{
+	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
-	})
+	}
+
+	if bConfig.EnableTLS {
+		certs, err := readKafkaCerts(bConfig.CertDir)
+		if err != nil {
+			return nil, err
+		}
+
+		configMap.SetKey("security.protocol", "ssl")
+		configMap.SetKey("ssl.ca.location", certs.caCertPath)
+		configMap.SetKey("ssl.certificate.location", certs.userCertPath)
+		configMap.SetKey("ssl.key.location", certs.userKeyPath)
+	}
+
+	a, err := kafkapkg.NewAdminClient(configMap)
 
 	if err != nil {
 		return nil, err
@@ -114,9 +154,30 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 
 	return &KafkaBroker{
 		Admin:    a,
-		Ctx:      ctx,
 		Config:   bConfig,
 		AOptions: options,
+	}, nil
+}
+
+type kafkaCerts struct {
+	caCertPath   string
+	userCertPath string
+	userKeyPath  string
+}
+
+func readKafkaCerts(certDir string) (*kafkaCerts, error) {
+	caCertPath, err := getCertFile(certDir, "ca-cert.pem")
+	userCertPath, err := getCertFile(certDir, "user-cert.pem")
+	userKeyPath, err := getCertFile(certDir, "user.key")
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &kafkaCerts{
+		caCertPath:   caCertPath,
+		userCertPath: userCertPath,
+		userKeyPath:  userKeyPath,
 	}, nil
 }
 
@@ -124,6 +185,8 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
 
 	tp := normalizeTopicName(request.Name)
+	logger.Ctx(ctx).Infow("received request to create kafka topic", "request", request, "normalizedTopicName", tp)
+
 	topics := make([]kafkapkg.TopicSpecification, 0)
 	ts := kafkapkg.TopicSpecification{
 		Topic:             tp,
@@ -146,6 +209,8 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 		}
 	}
 
+	logger.Ctx(ctx).Infow("kafka topic creation successfully completed", "response", topicsResp)
+
 	return CreateTopicResponse{
 		Response: topicsResp,
 	}, nil
@@ -156,7 +221,7 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 
 	topics := make([]string, 0)
 	topics = append(topics, request.Name)
-	resp, err := k.Admin.DeleteTopics(k.Ctx, topics)
+	resp, err := k.Admin.DeleteTopics(ctx, topics)
 	return DeleteTopicResponse{
 		Response: resp,
 	}, err

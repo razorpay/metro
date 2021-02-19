@@ -26,7 +26,7 @@ var validComponents = []string{Web, Worker, OpenAPIServer}
 var component *Component
 
 // isValidComponent validates if the input component is a valid metro component
-// validComponents : producer, pull-consumer, worker
+// validComponents : web, worker
 func isValidComponent(component string) bool {
 	for _, s := range validComponents {
 		if s == component {
@@ -41,7 +41,7 @@ func Init(ctx context.Context, env string, componentName string) {
 	// componentName validation
 	ok := isValidComponent(componentName)
 	if !ok {
-		log.Fatalf("invalid componentName name input : %v", componentName)
+		log.Fatalf("invalid componentName given as input: [%v]", componentName)
 	}
 
 	log.Printf("starting component : [%v]", componentName)

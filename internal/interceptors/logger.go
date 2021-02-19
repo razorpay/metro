@@ -16,9 +16,8 @@ func UnaryServerLoggerInterceptor() grpc.UnaryServerInterceptor {
 		ctx = context.WithValue(ctx, logger.CtxKey, l)
 		resp, err := handler(ctx, req)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("error in grpc handler", "msg", err.Error())
+			l.Errorw("error in grpc handler", "info", info, "payload", req, "error", err.Error())
 		}
-
 		return resp, err
 	}
 }

@@ -12,25 +12,25 @@ import (
 
 // Key ...
 type Key struct {
-	partition int    // topic partition
-	topic     string // topic name
+	name string // subscription name
+	id   string // unique id
 }
 
 // NewKey creates a new key for broker map
-func NewKey(topic string, partition int) *Key {
+func NewKey(name string, id string) *Key {
 	return &Key{
-		partition: partition,
-		topic:     topic,
+		name: name,
+		id:   id,
 	}
 }
 
 // Prefix returns only the topic name to run a match all query
 func (key *Key) Prefix() string {
-	return key.topic
+	return key.name
 }
 
 func (key *Key) String() string {
-	return fmt.Sprintf("%v-%v", key.topic, key.partition)
+	return fmt.Sprintf("%v-%v", key.name, key.id)
 }
 
 // BrokerStore holds broker clients
@@ -65,12 +65,6 @@ type IBrokerStore interface {
 
 	// GetOrCreateAdmin returns for an existing admin instance, if available returns that else creates as new instance
 	GetOrCreateAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
-
-	// GetActiveConsumers returns all existing consumers. Will filter on topic name if provided else return all
-	GetActiveConsumers(ctx context.Context, op messagebroker.ConsumerClientOptions) []messagebroker.Consumer
-
-	// GetActiveProducers returns all existing producers. Will filter on topic name if provided else return all
-	GetActiveProducers(ctx context.Context, op messagebroker.ProducerClientOptions) []messagebroker.Producer
 }
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
@@ -93,7 +87,7 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 
 // GetOrCreateConsumer returns for an existing consumer instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetOrCreateConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
-	key := NewKey(b.variant, op.Partition)
+	key := NewKey(op.GroupID, id)
 	consumer, ok := b.consumerMap.Load(key.String())
 	if ok {
 		return consumer.(messagebroker.Consumer), nil
@@ -119,7 +113,7 @@ func (b *BrokerStore) GetOrCreateConsumer(ctx context.Context, id string, op mes
 
 // GetOrCreateProducer returns for an existing producer instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetOrCreateProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error) {
-	key := NewKey(b.variant, op.Partition)
+	key := NewKey(b.variant, "")
 
 	newProducer, perr := messagebroker.NewProducerClient(ctx,
 		b.variant,
@@ -151,40 +145,6 @@ func (b *BrokerStore) GetOrCreateAdmin(ctx context.Context, options messagebroke
 	b.admin = admin
 
 	return admin, err
-}
-
-// GetActiveConsumers returns all existing consumers. Will filter on topic name if provided else return all
-func (b *BrokerStore) GetActiveConsumers(ctx context.Context, op messagebroker.ConsumerClientOptions) []messagebroker.Consumer {
-
-	var prefix string
-	if op.Topic != "" {
-		prefix = NewKey(op.Topic, op.Partition).Prefix()
-	}
-
-	consumers := make([]messagebroker.Consumer, 0)
-	values := findAllMatchingKeyPrefix(&b.consumerMap, prefix)
-	for _, value := range values {
-		consumers = append(consumers, value.(messagebroker.Consumer))
-	}
-
-	return consumers
-}
-
-// GetActiveProducers returns for an existing producer instance, if available returns that else creates as new instance
-func (b *BrokerStore) GetActiveProducers(ctx context.Context, op messagebroker.ProducerClientOptions) []messagebroker.Producer {
-
-	var prefix string
-	if op.Topic != "" {
-		prefix = NewKey(op.Topic, op.Partition).Prefix()
-	}
-
-	producers := make([]messagebroker.Producer, 0)
-	values := findAllMatchingKeyPrefix(&b.producerMap, prefix)
-	for _, value := range values {
-		producers = append(producers, value.(messagebroker.Producer))
-	}
-
-	return producers
 }
 
 // iterates over the sync.Map and looks for all keys matching the given prefix

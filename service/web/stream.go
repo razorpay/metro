@@ -53,5 +53,6 @@ func newPullStream(ctx context.Context, clientID string, subscription string, su
 	if err != nil {
 		return nil, err
 	}
-	return &pullStream{clientID: clientID, subscriberCore: subscriberCore, subscriptionSubscriber: subs, responseChan: responseChan, ctx: ctx}, nil
+	nCtx, cancelFunc := context.WithCancel(ctx)
+	return &pullStream{clientID: clientID, subscriberCore: subscriberCore, subscriptionSubscriber: subs, responseChan: responseChan, ctx: nCtx, cancelFunc: cancelFunc}, nil
 }

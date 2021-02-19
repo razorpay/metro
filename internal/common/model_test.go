@@ -7,5 +7,5 @@ import (
 )
 
 func TestBaseModel_Prefix(t *testing.T) {
-	assert.Equal(t, "registry/", BasePrefix)
+	assert.Equal(t, "metro/", BasePrefix)
 }

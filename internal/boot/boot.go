@@ -38,6 +38,7 @@ func InitMonitoring(env string, app config.App, sentry sentry.Config, tracing tr
 	if err != nil {
 		return err
 	}
+
 	// Initializes logging driver.
 	servicekv := map[string]interface{}{
 		"appEnv":        app.Env,

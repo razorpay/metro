@@ -8,7 +8,6 @@ import (
 
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
-	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -62,15 +61,13 @@ func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (proje
 	match := subscriptionNameRegex.FindStringSubmatch(name)
 	if len(match) != 3 {
 		err = fmt.Errorf("invalid subscription name")
-		logger.Ctx(ctx).Error(err.Error())
-		return
+		return "", "", err
 	}
 	projectID = subscriptionNameRegex.FindStringSubmatch(name)[1]
 	subscriptionName = subscriptionNameRegex.FindStringSubmatch(name)[2]
 	if strings.HasPrefix(subscriptionName, "goog") {
 		err = fmt.Errorf("subscription name cannot start with goog")
-		logger.Ctx(ctx).Error(err.Error())
-		return
+		return "", "", err
 	}
-	return
+	return projectID, subscriptionName, nil
 }

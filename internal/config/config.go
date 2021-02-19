@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
+	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/tracing"
 	openapiserver "github.com/razorpay/metro/service/openapi-server"
 	"github.com/razorpay/metro/service/web"
@@ -15,6 +16,7 @@ type Config struct {
 	Sentry        sentry.Config
 	Web           web.Config
 	Worker        worker.Config
+	Registry      registry.Config
 	OpenAPIServer openapiserver.Config
 }
 

@@ -1,6 +1,10 @@
 package messagebroker
 
-import "time"
+import (
+	"os"
+	"path/filepath"
+	"time"
+)
 
 // BrokerConfig holds broker's configuration
 type BrokerConfig struct {
@@ -9,6 +13,7 @@ type BrokerConfig struct {
 	UserCertificate      string
 	UserKey              string
 	CACertificate        string
+	CertDir              string
 	Version              string
 	DebugEnabled         bool
 	OperationTimeoutSec  int
@@ -56,3 +61,13 @@ type ProducerClientOptions struct {
 
 // AdminClientOptions holds client specific configuration for admin
 type AdminClientOptions struct{}
+
+func getCertFile(certDir, filename string) (string, error) {
+	configPath := certDir + filename
+
+	_, err := os.Stat(configPath)
+	if err == nil {
+		return filepath.Abs(configPath)
+	}
+	return "", err
+}

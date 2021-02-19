@@ -9,24 +9,24 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Pubsub(t *testing.T) {
+	topicName := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+	subscription := fmt.Sprintf("sub-%s", uuid.New().String()[0:4])
+
 	// This is just a placeholder test.
 	// TODO: fix it with more tests and better structure
 	for k, client := range []*pubsub.Client{metroClient, emulatorClient} {
 		t.Logf("running index %d", k)
-		topic, err := client.CreateTopic(context.Background(), "topic-name")
-		if err != nil {
-			t.Logf("error creating topic %s", err.Error())
-		}
+		topic, err := client.CreateTopic(context.Background(), topicName)
 		assert.Nil(t, err)
 		assert.NotNil(t, topic)
 
-		sub, err := client.CreateSubscription(context.Background(), "sub-name",
+		sub, err := client.CreateSubscription(context.Background(), subscription,
 			pubsub.SubscriptionConfig{Topic: topic})
-
 		assert.Nil(t, err)
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
@@ -45,7 +45,6 @@ func Test_Pubsub(t *testing.T) {
 
 		topic.Stop()
 
-		// some sleep to receive messages
 		time.Sleep(5 * time.Second)
 
 		// cleanup

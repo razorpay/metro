@@ -19,14 +19,9 @@
     [web.broker]
         variant               = "kafka"
         [web.broker.brokerconfig]
-            brokers       = ["localhost:9021"]
+            brokers       = ["localhost:9092"]
+            enableTLS     = false
             [web.broker.brokerconfig.web]
-    [web.registry]
-        driver                    = "consul"
-        [web.registry.consulconfig]
-            [web.registry.consulconfig.config]
-                address               = "localhost:8500"
-                scheme                = "http"
     [web.interfaces]
         [web.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
@@ -36,20 +31,25 @@
     [worker.broker]
         variant               = "kafka"
         [worker.broker.brokerconfig]
-            brokers       = ["localhost:9021"]
+            brokers       = ["localhost:9092"]
+            enableTLS     = false
+            certDir       = "/app/configs/"
             [worker.broker.brokerconfig.consumer]
-    [worker.registry]
-        driver                    = "consul"
-        [worker.registry.consulconfig]
-            [worker.registry.consulconfig.config]
-                address               = "localhost:8500"
-                scheme                = "http"
     [worker.interfaces]
         [worker.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8083"
             HttpServerAddress     = "0.0.0.0:8084"
 
+[registry]
+    driver                    = "consul"
+    [registry.consulconfig]
+        [registry.consulconfig.config]
+            address            = "localhost:8500"
+            token              = ""
+            scheme             = "http"
+            caPem              = ""
+
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"
-    grpcGatewayAddress    = "localhost:8082"
+    grpcGatewayAddress    = "localhost:8085"
     scheme                = "http"

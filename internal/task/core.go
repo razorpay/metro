@@ -8,10 +8,10 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
-// ICore is an interface over subscription core
+// ICore is an interface over task core
 //go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/core/mock_core.go -package=mocks . ICore
 type ICore interface {
-	CreateTask(ctx context.Context, subscription *Model) error
+	CreateTask(ctx context.Context, m *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteTask(ctx context.Context, m *Model) error
 }

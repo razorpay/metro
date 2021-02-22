@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func getDummySubscriptionModel() *Model {
+func getDummyTaskModel() *Model {
 	return &Model{
 		ID:               uuid.New().String(),
 		TaskGroupID:      uuid.New().String(),
@@ -22,11 +22,11 @@ func getDummySubscriptionModel() *Model {
 }
 
 func TestModel_Prefix(t *testing.T) {
-	dTask := getDummySubscriptionModel()
+	dTask := getDummyTaskModel()
 	assert.Equal(t, "registry/tasks/", dTask.Prefix())
 }
 
 func TestModel_Key(t *testing.T) {
-	dTask := getDummySubscriptionModel()
+	dTask := getDummyTaskModel()
 	assert.Equal(t, "registry/tasks/"+dTask.ID, dTask.Key())
 }

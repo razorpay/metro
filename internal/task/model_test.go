@@ -23,10 +23,10 @@ func getDummyTaskModel() *Model {
 
 func TestModel_Prefix(t *testing.T) {
 	dTask := getDummyTaskModel()
-	assert.Equal(t, "registry/tasks/", dTask.Prefix())
+	assert.Equal(t, "metro/tasks/", dTask.Prefix())
 }
 
 func TestModel_Key(t *testing.T) {
 	dTask := getDummyTaskModel()
-	assert.Equal(t, "registry/tasks/"+dTask.ID, dTask.Key())
+	assert.Equal(t, "metro/tasks/"+dTask.ID, dTask.Key())
 }

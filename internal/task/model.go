@@ -29,5 +29,5 @@ func (m *Model) Key() string {
 
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
-	return common.BasePrefix + "/" + Prefix
+	return common.BasePrefix + Prefix
 }

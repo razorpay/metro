@@ -20,10 +20,10 @@ func getDummyTaskGroupModel() *Model {
 
 func TestModel_Prefix(t *testing.T) {
 	dTaskGroup := getDummyTaskGroupModel()
-	assert.Equal(t, "metro/registry/taskgroups/", dTaskGroup.Prefix())
+	assert.Equal(t, "metro/taskgroups/", dTaskGroup.Prefix())
 }
 
 func TestModel_Key(t *testing.T) {
 	dTaskGroup := getDummyTaskGroupModel()
-	assert.Equal(t, "metro/registry/taskgroups/"+dTaskGroup.ID, dTaskGroup.Key())
+	assert.Equal(t, "metro/taskgroups/"+dTaskGroup.ID, dTaskGroup.Key())
 }

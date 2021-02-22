@@ -64,7 +64,6 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 	var pullStream *pullStream
 	var req *metrov1.StreamingPullRequest
 	var timeout *time.Ticker
-	var err error
 	timeout = time.NewTicker(5 * time.Second) // init with some sane value
 	streamResponseChan := make(chan metrov1.PullResponse)
 	reqChan := make(chan *metrov1.StreamingPullRequest)
@@ -104,13 +103,20 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 			// reset stream ack deadline seconds
 			timeout.Stop()
 			timeout = time.NewTicker(time.Duration(req.StreamAckDeadlineSeconds) * time.Second)
-			// ping request received with empty payload
-			if req.Subscription == "" {
+			ackReq, modAckReq, err := subscriber.FromProto(req)
+			if err != nil {
+				return merror.ToGRPCError(err)
+			}
+			// TODO: check and add if error is returned when subscription is changed in subsequent requests
+			// continue on ping request
+			if ackReq.IsEmpty() && modAckReq.IsEmpty() {
 				continue
 			}
-			ackReq, ModAckReq := subscriber.FromProto(req)
 			// if its the first req and subscriber is not yet initialised
 			if pullStream == nil {
+				if req.Subscription == "" {
+					return fmt.Errorf("subscription name empty")
+				}
 				pullStream, err = newPullStream(ctx,
 					req.ClientId,
 					req.Subscription,
@@ -120,7 +126,6 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 				if err != nil {
 					return merror.ToGRPCError(err)
 				}
-				go pullStream.run()
 				go func() {
 					for {
 						select {
@@ -138,11 +143,11 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 					}
 				}()
 			}
-			err := pullStream.acknowledge(ctx, ackReq)
+			err = pullStream.acknowledge(ctx, ackReq)
 			if err != nil {
 				return merror.ToGRPCError(err)
 			}
-			err = pullStream.modifyAckDeadline(ctx, ModAckReq)
+			err = pullStream.modifyAckDeadline(ctx, modAckReq)
 			if err != nil {
 				return merror.ToGRPCError(err)
 			}

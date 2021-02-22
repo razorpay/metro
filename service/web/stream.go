@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/razorpay/metro/internal/subscriber"
-	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -13,22 +12,20 @@ type pullStream struct {
 	subscriberCore         subscriber.ICore
 	subscriptionSubscriber subscriber.ISubscriber
 	responseChan           chan<- metrov1.PullResponse
-	ctx                    context.Context
 	cancelFunc             func()
 	stopChan               chan struct{}
 }
 
-func (s pullStream) run() {
+func (s pullStream) run(ctx context.Context) {
 	for {
 		select {
-		case <-s.ctx.Done():
+		case <-ctx.Done():
 			s.subscriptionSubscriber.Stop()
 			s.stopChan <- struct{}{}
 		default:
 			s.subscriptionSubscriber.GetRequestChannel() <- &subscriber.PullRequest{10}
 			select {
 			case res := <-s.subscriptionSubscriber.GetResponseChannel():
-				logger.Ctx(s.ctx).Info("got msgs")
 				s.responseChan <- res
 			}
 		}
@@ -49,10 +46,12 @@ func (s pullStream) stop() {
 }
 
 func newPullStream(ctx context.Context, clientID string, subscription string, subscriberCore subscriber.ICore, responseChan chan<- metrov1.PullResponse) (*pullStream, error) {
-	subs, err := subscriberCore.NewSubscriber(ctx, clientID, subscription, 10, 0, 0)
+	nCtx, cancelFunc := context.WithCancel(ctx)
+	subs, err := subscriberCore.NewSubscriber(nCtx, clientID, subscription, 10, 0, 0)
 	if err != nil {
 		return nil, err
 	}
-	nCtx, cancelFunc := context.WithCancel(ctx)
-	return &pullStream{clientID: clientID, subscriberCore: subscriberCore, subscriptionSubscriber: subs, responseChan: responseChan, ctx: nCtx, cancelFunc: cancelFunc}, nil
+	pr := &pullStream{clientID: clientID, subscriberCore: subscriberCore, subscriptionSubscriber: subs, responseChan: responseChan, cancelFunc: cancelFunc}
+	go pr.run(nCtx)
+	return pr, nil
 }

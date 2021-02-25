@@ -171,8 +171,8 @@ func (p *PulsarBroker) DeleteTopic(ctx context.Context, request DeleteTopicReque
 	return DeleteTopicResponse{}, nil
 }
 
-// SendMessages sends a message on the topic
-func (p PulsarBroker) SendMessages(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
+// SendMessage sends a message on the topic
+func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
 	msgID, err := p.Producer.Send(ctx, &pulsar.ProducerMessage{
 		Payload: request.Message,
 	})

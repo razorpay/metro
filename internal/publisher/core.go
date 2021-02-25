@@ -23,7 +23,7 @@ func NewCore(bs brokerstore.IBrokerStore) *Core {
 
 // Publish messages
 func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]string, error) {
-	producer, err := p.bs.GetOrCreateProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutSec: 50})
+	producer, err := p.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutSec: 50})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in getting producer", "msg", err.Error())
 		return nil, err
@@ -33,6 +33,7 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 
 	for _, msg := range req.Messages {
 		// unset message id and publishtime if set
+		// TODO: check how pubsub
 		msg.MessageId = ""
 		msg.PublishTime = nil
 		// marshal proto with all attributes for publishing
@@ -42,7 +43,7 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 			return nil, fmt.Errorf("unable to marshal message")
 		}
 		// TODO: rationalise TimeoutSec
-		msgResp, err := producer.SendMessages(ctx, messagebroker.SendMessageToTopicRequest{
+		msgResp, err := producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 			Topic:       req.Topic,
 			Message:     dataWithMeta,
 			OrderingKey: msg.OrderingKey,

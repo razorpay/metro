@@ -23,7 +23,7 @@ type Admin interface {
 // Producer for produce operations
 type Producer interface {
 	// sends a message on the topic
-	SendMessages(context.Context, SendMessageToTopicRequest) (*SendMessageToTopicResponse, error)
+	SendMessage(context.Context, SendMessageToTopicRequest) (*SendMessageToTopicResponse, error)
 }
 
 // Consumer interface for consuming messages

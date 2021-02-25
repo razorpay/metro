@@ -46,7 +46,7 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 	if ok {
 		return merror.New(merror.AlreadyExists, "Topic already exists")
 	}
-	admin, err := c.brokerStore.GetOrCreateAdmin(ctx, messagebroker.AdminClientOptions{})
+	admin, err := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	if err != nil {
 		return err
 	}

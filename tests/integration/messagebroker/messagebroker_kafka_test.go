@@ -134,7 +134,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 		}
 
 		// send the message
-		resp, rerr := producer.SendMessages(context.Background(), msg)
+		resp, rerr := producer.SendMessage(context.Background(), msg)
 		assert.Nil(t, rerr)
 		assert.NotNil(t, resp.MessageID)
 

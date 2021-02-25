@@ -48,7 +48,7 @@ func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*
 		return nil, merror.ToGRPCError(err)
 	}
 
-	admin, aerr := s.brokerStore.GetOrCreateAdmin(ctx, messagebroker.AdminClientOptions{})
+	admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	if aerr != nil {
 		return nil, merror.ToGRPCError(aerr)
 	}

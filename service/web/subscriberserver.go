@@ -61,6 +61,7 @@ func (s subscriberserver) Pull(ctx context.Context, req *metrov1.PullRequest) (*
 
 // StreamingPull ...
 func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullServer) error {
+	// TODO: check if the requested subscription is push based and handle it the way pubsub does
 	var pullStream *pullStream
 	var req *metrov1.StreamingPullRequest
 	var timeout *time.Ticker

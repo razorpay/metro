@@ -57,14 +57,14 @@ type BrokerStore struct {
 // IBrokerStore ...
 type IBrokerStore interface {
 
-	// GetOrCreateConsumer returns for an existing consumer instance, if available returns that else creates as new instance
-	GetOrCreateConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
+	// GetConsumer returns for an existing consumer instance, if available returns that else creates as new instance
+	GetConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
 
-	// GetOrCreateProducer returns for an existing producer instance, if available returns that else creates as new instance
-	GetOrCreateProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error)
+	// GetProducer returns for an existing producer instance, if available returns that else creates as new instance
+	GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error)
 
-	// GetOrCreateAdmin returns for an existing admin instance, if available returns that else creates as new instance
-	GetOrCreateAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
+	// GetAdmin returns for an existing admin instance, if available returns that else creates as new instance
+	GetAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
 }
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
@@ -85,8 +85,8 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 	}, nil
 }
 
-// GetOrCreateConsumer returns for an existing consumer instance, if available returns that else creates as new instance
-func (b *BrokerStore) GetOrCreateConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
+// GetConsumer returns for an existing consumer instance, if available returns that else creates as new instance
+func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
 	key := NewKey(op.GroupID, id)
 	consumer, ok := b.consumerMap.Load(key.String())
 	if ok {
@@ -111,10 +111,19 @@ func (b *BrokerStore) GetOrCreateConsumer(ctx context.Context, id string, op mes
 	return consumer.(messagebroker.Consumer), nil
 }
 
-// GetOrCreateProducer returns for an existing producer instance, if available returns that else creates as new instance
-func (b *BrokerStore) GetOrCreateProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error) {
-	key := NewKey(b.variant, "")
-
+// GetProducer returns for an existing producer instance, if available returns that else creates as new instance
+func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error) {
+	// TODO: perf and check if single producer for a topic works
+	key := NewKey(b.variant, op.Topic)
+	producer, ok := b.producerMap.Load(key.String())
+	if ok {
+		return producer.(messagebroker.Producer), nil
+	}
+	b.partitionLock.Lock(key.String())              // lock
+	producer, ok = b.producerMap.Load(key.String()) // double-check
+	if ok {
+		return producer.(messagebroker.Producer), nil
+	}
 	newProducer, perr := messagebroker.NewProducerClient(ctx,
 		b.variant,
 		b.bConfig,
@@ -123,14 +132,13 @@ func (b *BrokerStore) GetOrCreateProducer(ctx context.Context, op messagebroker.
 	if perr != nil {
 		return nil, perr
 	}
-
-	producer, _ := b.producerMap.LoadOrStore(key.String(), newProducer)
-
+	producer, _ = b.producerMap.LoadOrStore(key.String(), newProducer)
+	b.partitionLock.Unlock(key.String()) // unlock
 	return producer.(messagebroker.Producer), nil
 }
 
-// GetOrCreateAdmin returns for an existing admin instance, if available returns that else creates as new instance
-func (b *BrokerStore) GetOrCreateAdmin(ctx context.Context, options messagebroker.AdminClientOptions) (messagebroker.Admin, error) {
+// GetAdmin returns for an existing admin instance, if available returns that else creates as new instance
+func (b *BrokerStore) GetAdmin(ctx context.Context, options messagebroker.AdminClientOptions) (messagebroker.Admin, error) {
 
 	if b.admin != nil {
 		return b.admin, nil

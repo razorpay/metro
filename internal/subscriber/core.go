@@ -32,7 +32,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	if err != nil {
 		return nil, err
 	}
-	consumer, err := c.bs.GetOrCreateConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: strings.Replace(t, "/", "_", -1), GroupID: subscription})
+	consumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: strings.Replace(t, "/", "_", -1), GroupID: subscription})
 	if err != nil {
 		return nil, err
 	}

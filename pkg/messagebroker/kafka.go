@@ -243,8 +243,8 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, req GetTopicMetadata
 	}, err
 }
 
-// SendMessages sends a message on the topic
-func (k *KafkaBroker) SendMessages(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
+// SendMessage sends a message on the topic
+func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
 
 	var kHeaders []kafkapkg.Header
 	if request.Attributes != nil {

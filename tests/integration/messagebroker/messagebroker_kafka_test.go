@@ -73,12 +73,13 @@ func Test_CreateDuplicateTopic(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 
+	// creating duplicate topic is noop and shouldn't return error
 	resp, duperr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
 		Name:          topic,
 		NumPartitions: 1,
 	})
 
-	assert.NotNil(t, duperr)
+	assert.Nil(t, duperr)
 }
 
 /*
@@ -133,7 +134,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 		}
 
 		// send the message
-		resp, rerr := producer.SendMessages(context.Background(), msg)
+		resp, rerr := producer.SendMessage(context.Background(), msg)
 		assert.Nil(t, rerr)
 		assert.NotNil(t, resp.MessageID)
 
@@ -142,7 +143,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	}
 
 	// now consume the messages and assert the message ids generated in the previous step
-	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-1", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
 		Topic:   topic,
 		GroupID: "dummy-group-1",
 	})
@@ -152,7 +153,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	// first receive without commit
 	resp, err := consumer1.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
-		NumOfMessages: msgsToSend,
+		NumOfMessages: int32(msgsToSend),
 		TimeoutSec:    10,
 	})
 
@@ -167,7 +168,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.Equal(t, msgsToSend, len(resp.OffsetWithMessages))
 
 	// spwan a new consumer and try to re-receive after commit and make sure no new messages are available
-	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-2", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
 		Topic:   topic,
 		GroupID: "dummy-group-1",
 	})
@@ -176,12 +177,13 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.NotNil(t, consumer3)
 
 	resp3, rerr := consumer3.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
-		NumOfMessages: msgsToSend,
+		NumOfMessages: int32(msgsToSend),
 		TimeoutSec:    2,
 	})
 
-	assert.Nil(t, resp3.OffsetWithMessages)
-	assert.NotNil(t, rerr)
+	assert.NotNil(t, resp3)
+	assert.Equal(t, len(resp3.OffsetWithMessages), 0)
+	assert.Nil(t, rerr)
 }
 
 func getAdminClientConfig() *messagebroker.AdminClientOptions {

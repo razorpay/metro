@@ -13,14 +13,14 @@ const (
 )
 
 // NewConsumerClient returns an instance of a consumer, kafka or pulsar
-func NewConsumerClient(ctx context.Context, identifier string, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
-	switch identifier {
+func NewConsumerClient(ctx context.Context, variant string, id string, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
+	switch variant {
 	case Kafka:
-		return newKafkaConsumerClient(ctx, bConfig, options)
+		return newKafkaConsumerClient(ctx, bConfig, id, options)
 	case Pulsar:
-		return newPulsarConsumerClient(ctx, bConfig, options)
+		return newPulsarConsumerClient(ctx, bConfig, id, options)
 	}
-	return nil, fmt.Errorf("unknown Broker identifier, %s", identifier)
+	return nil, fmt.Errorf("unknown Broker variant, %s", variant)
 }
 
 // NewProducerClient returns an instance of a producer, kafka or pulsar

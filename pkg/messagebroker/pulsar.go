@@ -29,7 +29,7 @@ type PulsarBroker struct {
 }
 
 // newPulsarConsumerClient returns a pulsar consumer
-func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
+func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, id string, options *ConsumerClientOptions) (Consumer, error) {
 
 	err := validatePulsarConsumerBrokerConfig(bConfig)
 	if err != nil {
@@ -55,6 +55,7 @@ func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, options
 		Topic:            options.Topic,
 		SubscriptionName: options.Subscription,
 		Type:             pulsar.SubscriptionType(bConfig.Consumer.SubscriptionType),
+		Name:             id,
 	})
 
 	if err != nil {
@@ -170,13 +171,13 @@ func (p *PulsarBroker) DeleteTopic(ctx context.Context, request DeleteTopicReque
 	return DeleteTopicResponse{}, nil
 }
 
-// SendMessages sends a message on the topic
-func (p *PulsarBroker) SendMessages(ctx context.Context, request SendMessageToTopicRequest) (SendMessageToTopicResponse, error) {
+// SendMessage sends a message on the topic
+func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
 	msgID, err := p.Producer.Send(ctx, &pulsar.ProducerMessage{
 		Payload: request.Message,
 	})
 
-	return SendMessageToTopicResponse{
+	return &SendMessageToTopicResponse{
 		MessageID: string(msgID.Serialize()),
 	}, err
 }
@@ -184,20 +185,18 @@ func (p *PulsarBroker) SendMessages(ctx context.Context, request SendMessageToTo
 //ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
-func (p *PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (GetMessagesFromTopicResponse, error) {
-
-	msgs := make(map[string]string, request.NumOfMessages)
-	for i := 0; i < request.NumOfMessages; i++ {
+func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
+	var i int32
+	msgs := make(map[string]ReceivedMessage, request.NumOfMessages)
+	for i = 0; i < request.NumOfMessages; i++ {
 		msg, err := p.Consumer.Receive(ctx)
 		if err != nil {
-			return GetMessagesFromTopicResponse{
-				Response: err,
-			}, err
+			return nil, err
 		}
-		msgs[string(msg.ID().Serialize())] = string(msg.Payload())
+		msgs[string(msg.ID().Serialize())] = ReceivedMessage{msg.Payload(), string(msg.ID().Serialize()), msg.PublishTime()}
 	}
 
-	return GetMessagesFromTopicResponse{
+	return &GetMessagesFromTopicResponse{
 		OffsetWithMessages: msgs,
 	}, nil
 }

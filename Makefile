@@ -143,6 +143,14 @@ docker-build-metro:
 .PHONY: mock-gen ## Generates mocks
 mock-gen:
 	@go generate ./...
+	@mockgen --build_flags='--tags=musl' -destination=internal/brokerstore/mocks/mock_brokerstore.go -package=mocks github.com/razorpay/metro/internal/brokerstore IBrokerStore
+	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_admin.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Admin
+	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/topic ICore
+	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/topic IRepo
+	@mockgen --build_flags='--tags=musl' -destination=internal/subscription/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscription ICore
+	@mockgen --build_flags='--tags=musl' -destination=internal/subscription/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/subscription IRepo
+	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/project ICore
+	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/project IRepo
 
 .PHONY: mock-gen-clean ## Clean up all mockgen generated mocks directories
 mock-gen-clean:
@@ -162,7 +170,7 @@ test-integration:
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:
-	@METRO_TEST_HOST=metro-web PUBSUB_TEST_HOST=pubsub go test ./... -tags=compatibility,musl
+	@METRO_TEST_HOST=metro-web PUBSUB_TEST_HOST=pubsub go test -v ./... -tags=compatibility,musl
 
 .PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
 test-compat:
@@ -174,8 +182,7 @@ test-unit-prepare:
 	@go list ./... > $(TMP_DIR)/$(PKG_LIST_TMP_FILE)
 
 .PHONY: test-unit ## Run unit tests
-test-unit: test-unit-prepare mock-gen-clean mock-gen
-	@go generate ./...
+test-unit: test-unit-prepare
 	@APP_ENV=dev_docker go test -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
 	@go tool cover -func=$(TMP_DIR)/$(COVERAGE_TMP_FILE)
 

@@ -3,6 +3,7 @@ package subscription
 import (
 	"context"
 
+	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/topic"
@@ -10,11 +11,11 @@ import (
 )
 
 // ICore is an interface over subscription core
-//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/core/mock_core.go -package=mocks . ICore
 type ICore interface {
 	CreateSubscription(ctx context.Context, subscription *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteSubscription(ctx context.Context, m *Model) error
+	GetTopicFromSubscriptionName(ctx context.Context, subscription string) (string, error)
 }
 
 // Core implements all business logic for a subscription
@@ -91,4 +92,22 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 		return merror.Newf(merror.NotFound, "Subscription does not exist")
 	}
 	return c.repo.DeleteTree(ctx, m)
+}
+
+// GetTopicFromSubscriptionName returns topic from subscription
+func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription string) (string, error) {
+	if ok, err := c.repo.Exists(ctx, common.BasePrefix+subscription); !ok {
+		if err != nil {
+			return "", err
+		}
+		err = merror.Newf(merror.NotFound, "subscription not found %s", common.BasePrefix+subscription)
+		logger.Ctx(ctx).Error(err.Error())
+		return "", err
+	}
+	m := &Model{}
+	err := c.repo.Get(ctx, common.BasePrefix+subscription, m)
+	if err != nil {
+		return "", err
+	}
+	return m.Topic, nil
 }

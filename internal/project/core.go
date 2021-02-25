@@ -9,7 +9,6 @@ import (
 )
 
 // ICore is an interface over project core
-//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/core/mock_core.go -package=mocks . ICore
 type ICore interface {
 	CreateProject(ctx context.Context, m *Model) error
 	Exists(ctx context.Context, key string) (bool, error)

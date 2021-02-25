@@ -44,6 +44,9 @@ type IRegistry interface {
 	// Put a key value pair
 	Put(key string, value []byte) error
 
+	// Get returns a value for a key
+	Get(ctx context.Context, key string) ([]byte, error)
+
 	// Exists checks the existence of a key
 	Exists(key string) (bool, error)
 

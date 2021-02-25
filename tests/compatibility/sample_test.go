@@ -20,29 +20,32 @@ func Test_Pubsub(t *testing.T) {
 	// This is just a placeholder test.
 	// TODO: fix it with more tests and better structure
 	for k, client := range []*pubsub.Client{metroClient, emulatorClient} {
+		t.Logf("running index %d", k)
 		topic, err := client.CreateTopic(context.Background(), topicName)
 		assert.Nil(t, err)
 		assert.NotNil(t, topic)
 
-		r := topic.Publish(context.Background(), &pubsub.Message{Data: []byte("payload")})
-
-		r.Get(context.Background())
-		topic.Stop()
-
 		sub, err := client.CreateSubscription(context.Background(), subscription,
 			pubsub.SubscriptionConfig{Topic: topic})
-		fmt.Println(k)
-
 		assert.Nil(t, err)
 
-		sub.ReceiveSettings.Synchronous = true
 		ctx, cancelFunc := context.WithCancel(context.Background())
 
+		//sub1.ReceiveSettings.Synchronous = true
+		sub.ReceiveSettings.NumGoroutines = 1
 		go sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
-			//m.Ack()
+			t.Logf("[%d] Got message: %q\n", k, string(m.Data))
+			m.Ack()
 		})
+		//topic.EnableMessageOrdering = true
+		for i := 0; i < 10; i++ {
+			r := topic.Publish(context.Background(), &pubsub.Message{Data: []byte(fmt.Sprintf("payload %d", i))})
+			r.Get(context.Background())
+		}
 
-		time.Sleep(7 * time.Millisecond)
+		topic.Stop()
+
+		time.Sleep(5 * time.Second)
 
 		// cleanup
 		err = topic.Delete(ctx)

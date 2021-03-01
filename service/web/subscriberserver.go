@@ -68,6 +68,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 	reqChan := make(chan *metrov1.StreamingPullRequest)
 	errChan := make(chan error)
 	streamResponseChan := make(chan metrov1.PullResponse)
+	timeout := time.NewTicker(5 * time.Second) // init with some sane value
 
 	for {
 		// read messages off the pull stream server
@@ -75,6 +76,8 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 
 		select {
 		case req := <-reqChan:
+			timeout.Stop()
+			timeout = time.NewTicker(time.Duration(req.StreamAckDeadlineSeconds) * time.Second)
 			parsedReq, parseErr := newParsedStreamingPullRequest(req)
 			if parseErr != nil {
 				logger.Ctx(ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
@@ -87,13 +90,17 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 				if err != nil {
 					return merror.ToGRPCError(err)
 				}
-			} else if parsedReq.HasModifyAcknowledgement() {
+			}
+
+			if parsedReq.HasModifyAcknowledgement() {
 				// request to modify acknowledgement deadlines
 				err := s.psm.ModifyAcknowledgement(server, parsedReq)
 				if err != nil {
 					return merror.ToGRPCError(err)
 				}
-			} else if parsedReq.HasAcknowledgement() {
+			}
+
+			if parsedReq.HasAcknowledgement() {
 				// request to acknowledge existing messages
 				err := s.psm.Acknowledge(server, parsedReq)
 				if err != nil {
@@ -105,8 +112,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 
 	var pullStream *pullStream
 	var req *metrov1.StreamingPullRequest
-	var timeout *time.Ticker
-	timeout = time.NewTicker(5 * time.Second) // init with some sane value
+	//var timeout *time.Ticker
 
 	for {
 		// receive request in a goroutine, to timeout on stream ack deadline seconds
@@ -156,7 +162,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 				if req.Subscription == "" {
 					return fmt.Errorf("subscription name empty")
 				}
-				pullStream, err = newPullStream(ctx,
+				pullStream, err = newPullStream(server,
 					req.ClientId,
 					req.Subscription,
 					nil,
@@ -183,14 +189,14 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 					}
 				}()
 			}
-			err = pullStream.acknowledge(ctx, ackReq)
-			if err != nil {
-				return merror.ToGRPCError(err)
-			}
-			err = pullStream.modifyAckDeadline(ctx, modAckReq)
-			if err != nil {
-				return merror.ToGRPCError(err)
-			}
+			//err = pullStream.acknowledge(ctx, ackReq)
+			//if err != nil {
+			//	return merror.ToGRPCError(err)
+			//}
+			//err = pullStream.modifyAckDeadline(ctx, modAckReq)
+			//if err != nil {
+			//	return merror.ToGRPCError(err)
+			//}
 		}
 	}
 	return nil

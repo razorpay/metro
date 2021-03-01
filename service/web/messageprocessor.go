@@ -42,16 +42,18 @@ func NewStreamManager(subscriptionCore subscription.ICore) IStreamManger {
 
 // CreateNewStream ...
 func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
-	// query allow concurrency for subscription from DB
-	var allowedSubscriptionConcurrency uint32
-	// query active streams for subscription
-	var activeSubscriptionStreamsCount uint32
+	var (
+		// query allow concurrency for subscription from DB
+		allowedSubscriptionConcurrency uint32
+		// query active streams for subscription
+		activeSubscriptionStreamsCount uint32
+	)
 
 	if activeSubscriptionStreamsCount+1 > allowedSubscriptionConcurrency {
 		return errors.New("reached max active stream limit for subscription")
 	}
 
-	pullStream, err := newPullStream(server.Context(),
+	pullStream, err := newPullStream(server,
 		req.ClientID,
 		req.Subscription,
 		subscriber.NewCore(s.bs, s.subscriptionCore),
@@ -69,9 +71,9 @@ func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullSe
 
 // Acknowledge ...
 func (s *StreamManger) Acknowledge(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
-	// find active stream
 	for _, ackMsg := range req.AckMessages {
 		if ackMsg.MatchesOriginatingMessageServer() {
+			// find active stream
 			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
 				pullStream.acknowledge(server.Context(), ackMsg)
 			}
@@ -85,9 +87,9 @@ func (s *StreamManger) Acknowledge(server metrov1.Subscriber_StreamingPullServer
 
 // ModifyAcknowledgement ...
 func (s *StreamManger) ModifyAcknowledgement(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
-	// find active stream
 	for _, ackMsg := range req.AckMessages {
 		if ackMsg.MatchesOriginatingMessageServer() {
+			// find active stream
 			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
 				pullStream.modifyAckDeadline(server.Context(), ackMsg)
 			}

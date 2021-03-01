@@ -1,7 +1,12 @@
 package subscriber
 
 import (
+	"encoding/base64"
 	"fmt"
+	"net"
+	"os"
+	"strconv"
+	"strings"
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
@@ -53,4 +58,113 @@ func FromProto(req *metrov1.StreamingPullRequest) (*AcknowledgeRequest, *ModifyA
 		req.ModifyDeadlineAckIds,
 	}
 	return ar, mr, nil
+}
+
+// IAckMessage ...
+type IAckMessage interface {
+	BuildAckID() string
+
+	// return true if ack_id has originated from this server
+	MatchMessageServer() bool
+}
+
+// AckMessage ...
+type AckMessage struct {
+	ServerAddress string
+	SubscriberID  string
+	Topic         string
+	Partition     int32
+	Offset        int32
+	MessageID     string
+	AckID         string
+}
+
+const ackIDSeparator = "_"
+
+// NewAckMessage ...
+func NewAckMessage(subscriberID, topic string, partition, offset int32, messageID string) IAckMessage {
+	// TODO: add needed validations on all fields
+	return &AckMessage{
+		SubscriberID: subscriberID,
+		Topic:        topic,
+		Partition:    partition,
+		MessageID:    messageID,
+	}
+}
+
+// BuildAckID ...
+func (a *AckMessage) BuildAckID() string {
+	builder := strings.Builder{}
+
+	// append server host
+	builder.WriteString(encode(lookupIP()))
+	builder.WriteString(ackIDSeparator)
+
+	// append subscriber id
+	builder.WriteString(encode(a.SubscriberID))
+	builder.WriteString(ackIDSeparator)
+
+	// append topic name
+	builder.WriteString(encode(a.Topic))
+	builder.WriteString(ackIDSeparator)
+
+	// append topic partition
+	builder.WriteString(encode(fmt.Sprintf("%v", a.Partition)))
+	builder.WriteString(ackIDSeparator)
+
+	// append partition offset
+	builder.WriteString(encode(fmt.Sprintf("%v", a.Offset)))
+	builder.WriteString(ackIDSeparator)
+
+	// append message id
+	builder.WriteString(encode(a.MessageID))
+
+	a.AckID = builder.String()
+
+	return builder.String()
+}
+
+// MatchMessageServer ...
+func (a *AckMessage) MatchMessageServer() bool {
+	return lookupIP() == a.ServerAddress
+}
+
+// ParseAckID ...
+func ParseAckID(ackID string) *AckMessage {
+	// split the message and parse tokens
+	parts := strings.Split(ackID, ackIDSeparator)
+
+	// TODO : add validations
+	partition, _ := strconv.ParseInt(decode(parts[3]), 10, 0)
+	offset, _ := strconv.ParseInt(decode(parts[4]), 10, 0)
+
+	return &AckMessage{
+		ServerAddress: decode(parts[0]),
+		SubscriberID:  decode(parts[1]),
+		Topic:         decode(parts[2]),
+		Partition:     int32(partition),
+		Offset:        int32(offset),
+		MessageID:     decode(parts[5]),
+		AckID:         ackID,
+	}
+}
+
+func lookupIP() string {
+	host, _ := os.Hostname()
+	addrs, _ := net.LookupIP(host)
+	for _, addr := range addrs {
+		if ipv4 := addr.To4(); ipv4 != nil {
+			return ipv4.String()
+		}
+	}
+	return ""
+}
+
+func encode(input string) string {
+	return base64.StdEncoding.EncodeToString([]byte(input))
+}
+
+func decode(input string) string {
+	decoded, _ := base64.StdEncoding.DecodeString(input)
+	return string(decoded)
 }

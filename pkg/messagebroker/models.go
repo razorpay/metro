@@ -37,7 +37,7 @@ type GetMessagesFromTopicRequest struct {
 type CommitOnTopicRequest struct {
 	Topic     string
 	Partition int32
-	Offset    int64
+	Offset    int32
 	ID        string
 }
 
@@ -71,6 +71,8 @@ type GetMessagesFromTopicResponse struct {
 type ReceivedMessage struct {
 	Data        []byte
 	MessageID   string
+	Partition   int32
+	Offset      int32
 	PublishTime time.Time
 }
 

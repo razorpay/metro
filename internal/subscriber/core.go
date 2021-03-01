@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -32,23 +34,29 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	if err != nil {
 		return nil, err
 	}
-	consumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: strings.Replace(t, "/", "_", -1), GroupID: subscription})
+
+	topic := strings.Replace(t, "/", "_", -1)
+	consumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: topic, GroupID: subscription})
 	if err != nil {
 		return nil, err
 	}
 	subsCtx, cancelFunc := context.WithCancel(ctx)
-	s := &Subscriber{c.bs,
-		c.subscriptionCore,
-		make(chan *PullRequest),
-		make(chan metrov1.PullResponse),
-		make(chan error),
-		make(chan struct{}),
-		timeoutInSec,
-		consumer,
-		cancelFunc,
-		maxOutstandingMessages,
-		maxOutstandingBytes,
+	s := &Subscriber{subscription: subscription,
+		topic:                  topic,
+		subscriberID:           uuid.New().String()[0:4],
+		bs:                     c.bs,
+		subscriptionCore:       c.subscriptionCore,
+		requestChan:            make(chan *PullRequest),
+		responseChan:           make(chan metrov1.PullResponse),
+		errChan:                make(chan error),
+		closeChan:              make(chan struct{}),
+		timeoutInSec:           timeoutInSec,
+		consumer:               consumer,
+		cancelFunc:             cancelFunc,
+		maxOutstandingMessages: maxOutstandingMessages,
+		maxOutstandingBytes:    maxOutstandingBytes,
 	}
+
 	go s.Run(subsCtx)
 	return s, nil
 }

@@ -15,12 +15,13 @@ import (
 )
 
 type subscriberserver struct {
-	subscriptionCore subscription.ICore
-	subscriberCore   subscriber.ICore
+	subscriptionCore *subscription.Core
+
+	psm IStreamManger
 }
 
-func newSubscriberServer(subscriptionCore subscription.ICore, subscriberCore subscriber.ICore) *subscriberserver {
-	return &subscriberserver{subscriptionCore, subscriberCore}
+func newSubscriberServer(subscriptionCore *subscription.Core, psm IStreamManger) *subscriberserver {
+	return &subscriberserver{subscriptionCore, psm}
 }
 
 // CreateSubscription to create a new subscription
@@ -62,17 +63,48 @@ func (s subscriberserver) Pull(ctx context.Context, req *metrov1.PullRequest) (*
 // StreamingPull ...
 func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullServer) error {
 	// TODO: check if the requested subscription is push based and handle it the way pubsub does
+	ctx := server.Context()
+
+	reqChan := make(chan *metrov1.StreamingPullRequest)
+	errChan := make(chan error)
+	streamResponseChan := make(chan metrov1.PullResponse)
+
+	for {
+		// read messages off the pull stream server
+		go receive(server, reqChan, errChan)
+
+		select {
+		case req := <-reqChan:
+			parsedReq, parseErr := newParsedStreamingPullRequest(req)
+			if parseErr != nil {
+				logger.Ctx(ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
+				return nil
+			}
+
+			// request to init a new stream
+			if parsedReq.HasSubscription() {
+				err := s.psm.CreateNewStream(server, parsedReq)
+				if err != nil {
+					return merror.ToGRPCError(err)
+				}
+			} else if parsedReq.HasAcknowledgement() {
+				// request to acknowledge existing messages
+				err := s.psm.Acknowledge(server, parsedReq)
+				if err != nil {
+					return merror.ToGRPCError(err)
+				}
+			}
+		}
+	}
+
 	var pullStream *pullStream
 	var req *metrov1.StreamingPullRequest
 	var timeout *time.Ticker
 	timeout = time.NewTicker(5 * time.Second) // init with some sane value
-	streamResponseChan := make(chan metrov1.PullResponse)
-	reqChan := make(chan *metrov1.StreamingPullRequest)
-	errChan := make(chan error)
-	ctx := server.Context()
+
 	for {
 		// receive request in a goroutine, to timeout on stream ack deadline seconds
-		go receive(server, reqChan, errChan)
+
 		logger.Ctx(ctx).Info("loop")
 		select {
 		case <-ctx.Done():
@@ -121,7 +153,8 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 				pullStream, err = newPullStream(ctx,
 					req.ClientId,
 					req.Subscription,
-					s.subscriberCore,
+					nil,
+					//s.subscriberCore,
 					streamResponseChan,
 				)
 				if err != nil {

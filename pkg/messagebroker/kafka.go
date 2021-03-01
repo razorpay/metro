@@ -309,7 +309,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 					msgID = string(v.Value)
 				}
 			}
-			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, msg.Timestamp}
+			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, msg.TopicPartition.Partition, int32(msg.TopicPartition.Offset), msg.Timestamp}
 			if int32(len(msgs)) == request.NumOfMessages {
 				return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
 			}

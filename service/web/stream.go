@@ -3,12 +3,15 @@ package web
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/razorpay/metro/internal/subscriber"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 type pullStream struct {
 	clientID               string
+	subscriberID           string
 	subscriberCore         subscriber.ICore
 	subscriptionSubscriber subscriber.ISubscriber
 	responseChan           chan<- metrov1.PullResponse
@@ -32,11 +35,11 @@ func (s pullStream) run(ctx context.Context) {
 	}
 }
 
-func (s pullStream) acknowledge(ctx context.Context, req *subscriber.AcknowledgeRequest) error {
+func (s pullStream) acknowledge(ctx context.Context, req *subscriber.AckMessage) error {
 	return s.subscriptionSubscriber.Acknowledge(ctx, req)
 }
 
-func (s pullStream) modifyAckDeadline(ctx context.Context, req *subscriber.ModifyAckDeadlineRequest) error {
+func (s pullStream) modifyAckDeadline(ctx context.Context, req *subscriber.AckMessage) error {
 	return s.subscriptionSubscriber.ModifyAckDeadline(ctx, req)
 }
 
@@ -51,7 +54,7 @@ func newPullStream(ctx context.Context, clientID string, subscription string, su
 	if err != nil {
 		return nil, err
 	}
-	pr := &pullStream{clientID: clientID, subscriberCore: subscriberCore, subscriptionSubscriber: subs, responseChan: responseChan, cancelFunc: cancelFunc}
+	pr := &pullStream{clientID: clientID, subscriberCore: subscriberCore, subscriptionSubscriber: subs, responseChan: responseChan, cancelFunc: cancelFunc, subscriberID: uuid.New().String()}
 	go pr.run(nCtx)
 	return pr, nil
 }

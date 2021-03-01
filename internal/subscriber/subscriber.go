@@ -14,6 +14,7 @@ import (
 
 // ISubscriber is interface over high level subscriber
 type ISubscriber interface {
+	GetId() string
 	Acknowledge(ctx context.Context, req *AckMessage) error
 	ModifyAckDeadline(ctx context.Context, req *AckMessage) error
 	// the grpc proto is used here as well, to optimise for serialization
@@ -59,6 +60,11 @@ type Subscriber struct {
 // CanConsumeMore ...
 func (s *Subscriber) CanConsumeMore() bool {
 	return len(s.consumedMessages) <= int(s.maxOutstandingMessages)
+}
+
+// GetId
+func (c *Subscriber) GetId() string {
+	return c.subscriberID
 }
 
 // Acknowledge messages

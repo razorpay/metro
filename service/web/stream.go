@@ -3,8 +3,6 @@ package web
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/razorpay/metro/internal/subscriber"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
@@ -54,7 +52,7 @@ func newPullStream(ctx context.Context, clientID string, subscription string, su
 	if err != nil {
 		return nil, err
 	}
-	pr := &pullStream{clientID: clientID, subscriberCore: subscriberCore, subscriptionSubscriber: subs, responseChan: responseChan, cancelFunc: cancelFunc, subscriberID: uuid.New().String()}
+	pr := &pullStream{clientID: clientID, subscriberCore: subscriberCore, subscriptionSubscriber: subs, responseChan: responseChan, cancelFunc: cancelFunc, subscriberID: subs.GetId()}
 	go pr.run(nCtx)
 	return pr, nil
 }

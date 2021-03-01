@@ -65,7 +65,7 @@ type IAckMessage interface {
 	BuildAckID() string
 
 	// return true if ack_id has originated from this server
-	MatchMessageServer() bool
+	MatchesOriginatingMessageServer() bool
 }
 
 // AckMessage ...
@@ -125,7 +125,7 @@ func (a *AckMessage) BuildAckID() string {
 }
 
 // MatchMessageServer ...
-func (a *AckMessage) MatchMessageServer() bool {
+func (a *AckMessage) MatchesOriginatingMessageServer() bool {
 	return lookupIP() == a.ServerAddress
 }
 
@@ -149,15 +149,21 @@ func ParseAckID(ackID string) *AckMessage {
 	}
 }
 
+var currentHostIP string
+
 func lookupIP() string {
+	if currentHostIP != "" {
+		return currentHostIP
+	}
+
 	host, _ := os.Hostname()
 	addrs, _ := net.LookupIP(host)
 	for _, addr := range addrs {
 		if ipv4 := addr.To4(); ipv4 != nil {
-			return ipv4.String()
+			currentHostIP = ipv4.String()
 		}
 	}
-	return ""
+	return currentHostIP
 }
 
 func encode(input string) string {

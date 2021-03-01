@@ -71,8 +71,12 @@ func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullSe
 func (s *StreamManger) Acknowledge(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
 	// find active stream
 	for _, ackMsg := range req.AckMessages {
-		if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
-			pullStream.acknowledge(server.Context(), ackMsg)
+		if ackMsg.MatchesOriginatingMessageServer() {
+			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
+				pullStream.acknowledge(server.Context(), ackMsg)
+			}
+		} else {
+			// proxy request to the correct server
 		}
 	}
 
@@ -83,9 +87,14 @@ func (s *StreamManger) Acknowledge(server metrov1.Subscriber_StreamingPullServer
 func (s *StreamManger) ModifyAcknowledgement(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
 	// find active stream
 	for _, ackMsg := range req.AckMessages {
-		if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
-			pullStream.modifyAckDeadline(server.Context(), ackMsg)
+		if ackMsg.MatchesOriginatingMessageServer() {
+			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
+				pullStream.modifyAckDeadline(server.Context(), ackMsg)
+			}
+		} else {
+			// proxy request to the correct server
 		}
+
 	}
 
 	return nil

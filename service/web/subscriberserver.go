@@ -87,6 +87,12 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 				if err != nil {
 					return merror.ToGRPCError(err)
 				}
+			} else if parsedReq.HasModifyAcknowledgement() {
+				// request to modify acknowledgement deadlines
+				err := s.psm.ModifyAcknowledgement(server, parsedReq)
+				if err != nil {
+					return merror.ToGRPCError(err)
+				}
 			} else if parsedReq.HasAcknowledgement() {
 				// request to acknowledge existing messages
 				err := s.psm.Acknowledge(server, parsedReq)

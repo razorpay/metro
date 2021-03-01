@@ -14,6 +14,7 @@ import (
 type IStreamManger interface {
 	CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error
 	Acknowledge(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error
+	ModifyAcknowledgement(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error
 }
 
 // StreamManger ...
@@ -78,6 +79,18 @@ func (s *StreamManger) Acknowledge(server metrov1.Subscriber_StreamingPullServer
 	return nil
 }
 
+// ModifyAcknowledgement ...
+func (s *StreamManger) ModifyAcknowledgement(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
+	// find active stream
+	for _, ackMsg := range req.AckMessages {
+		if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
+			pullStream.modifyAckDeadline(server.Context(), ackMsg)
+		}
+	}
+
+	return nil
+}
+
 // ParsedStreamingPullRequest ...
 type ParsedStreamingPullRequest struct {
 	ClientID                     string
@@ -95,6 +108,10 @@ func (r *ParsedStreamingPullRequest) HasSubscription() bool {
 // HasAcknowledgement ...
 func (r *ParsedStreamingPullRequest) HasAcknowledgement() bool {
 	return r.AckMessages != nil && len(r.AckMessages) > 0
+}
+
+func (r *ParsedStreamingPullRequest) HasModifyAcknowledgement() bool {
+	return r.ModifyDeadlineMsgIdsWithSecs != nil && len(r.ModifyDeadlineMsgIdsWithSecs) > 0
 }
 
 func newParsedStreamingPullRequest(req *metrov1.StreamingPullRequest) (*ParsedStreamingPullRequest, error) {

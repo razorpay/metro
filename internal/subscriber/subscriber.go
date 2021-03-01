@@ -44,12 +44,21 @@ type Subscriber struct {
 	maxOutstandingBytes    int64
 
 	// data structures to hold messages in-memory
+
+	// hold all consumed messages. this will help throttle based on maxOutstandingMessages and maxOutstandingBytes
+	consumedMessages map[string]interface{}
+
 	// TODO : temp code. add proper DS
 	offsetBasedMinHeap map[int32]*AckMessage
 
 	// TODO: need a way to identify the last committed offset on a topic partition when a new subscriber is created
 	// our counter will init to that value initially
 	maxCommittedOffset int32
+}
+
+// CanConsumeMore ...
+func (s *Subscriber) CanConsumeMore() bool {
+	return len(s.consumedMessages) <= int(s.maxOutstandingMessages)
 }
 
 // Acknowledge messages
@@ -61,11 +70,13 @@ func (c *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
 
 	// call heapify on offsets
 
+	evictedMsgs := make([]*AckMessage, 0)
 	offsetMarker := c.maxCommittedOffset + 1
 	// check root node offset and compare with maxCommittedOffset
 	for offsetMarker == c.offsetBasedMinHeap[0].Offset {
 
 		// remove the root node
+		evictedMsgs = append(evictedMsgs, c.offsetBasedMinHeap[0])
 		delete(c.offsetBasedMinHeap, offsetMarker)
 
 		// call heapify
@@ -88,6 +99,13 @@ func (c *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
 	// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
 	c.maxCommittedOffset = offsetMarker
 
+	// cleanup consumedMessages map to make space for more incoming messages
+	if len(evictedMsgs) > 0 {
+		for _, msg := range evictedMsgs {
+			delete(c.consumedMessages, msg.MessageID)
+		}
+	}
+
 	return nil
 }
 
@@ -101,6 +119,12 @@ func (c *Subscriber) Run(ctx context.Context) {
 	for {
 		select {
 		case req := <-c.requestChan:
+
+			if c.CanConsumeMore() == false {
+				logger.Ctx(ctx).Infow("reached max limit of consumed messages. please ack messages before proceeding")
+				return
+			}
+
 			//c.consumer.Resume()
 			r, err := c.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{req.MaxNumOfMessages, c.timeoutInSec})
 			if err != nil {
@@ -121,6 +145,8 @@ func (c *Subscriber) Run(ctx context.Context) {
 				protoMsg.PublishTime = ts
 				// TODO: fix delivery attempt
 
+				// store the processed messages in a map for limit checks
+				c.consumedMessages[msg.MessageID] = msg
 				// instead of passing msgId as is, construct a proper ackId using pre-defined fields
 				ackID := NewAckMessage(c.subscriberID, c.topic, msg.Partition, msg.Offset, msg.MessageID).BuildAckID()
 				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})

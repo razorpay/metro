@@ -76,9 +76,14 @@ func (s *pullStream) run() {
 			logger.Ctx(s.ctx).Infow("StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages))
 		default:
 			timeout.Stop()
-			timeout = time.NewTicker(5 * time.Second)
-			// send back empty request on stream to keep the stream open
-			s.subscriptionSubscriber.GetRequestChannel() <- &subscriber.PullRequest{0}
+			timeout = time.NewTicker(5 * time.Second) // TODO: decide a value here
+
+			// once stream is established, we can continuously send messages over it
+			s.subscriptionSubscriber.GetRequestChannel() <- &subscriber.PullRequest{DefaultNumMessagesToReadOffStream}
+			select {
+			case res := <-s.subscriptionSubscriber.GetResponseChannel():
+				s.responseChan <- res
+			}
 		}
 	}
 }

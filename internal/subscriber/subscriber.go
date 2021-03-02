@@ -162,6 +162,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 			s.closeChan <- struct{}{}
 			return
 		}
+
+		// TODO: see if we can handle ack / modack in this for{} itself. That way we can avoid taking locks on in-memory DSs
 	}
 }
 

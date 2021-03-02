@@ -2,13 +2,15 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
-	"github.com/razorpay/metro/pkg/logger"
-
+	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscriber"
+	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	"golang.org/x/sync/errgroup"
 )
 
 type pullStream struct {
@@ -16,8 +18,6 @@ type pullStream struct {
 	subscriberID           string
 	subscriberCore         subscriber.ICore
 	subscriptionSubscriber subscriber.ISubscriber
-	cancelFunc             func()
-	stopChan               chan struct{}
 
 	// stream server constructs below
 	ctx          context.Context
@@ -30,22 +30,21 @@ type pullStream struct {
 // DefaultNumMessagesToReadOffStream ...
 var DefaultNumMessagesToReadOffStream int32 = 10
 
-func (s *pullStream) run() {
-	go s.receive()
-
+func (s *pullStream) run() error {
 	// stream ack timeout
-	timeout := time.NewTicker(5 * time.Second)
-
+	streamAckDeadlineSecs := int32(5) // init with some sane value
+	timeout := time.NewTicker(time.Duration(streamAckDeadlineSecs) * time.Second)
+	go s.receive()
 	for {
 		select {
 		case <-s.ctx.Done():
 			s.stop()
-			s.server.SendMsg(s.ctx.Err())
+			return s.ctx.Err()
 		case <-timeout.C:
 			s.stop()
+			return fmt.Errorf("stream ack deadline seconds crossed")
 		case err := <-s.errChan:
 			s.stop()
-
 			if err == io.EOF {
 				// return will close stream from server side
 				logger.Ctx(s.ctx).Errorw("EOF received from client")
@@ -53,36 +52,45 @@ func (s *pullStream) run() {
 			if err != nil {
 				logger.Ctx(s.ctx).Errorw("error received from client", "msg", err.Error())
 			}
-
-			s.server.SendMsg(err.Error())
+			return nil
 		case req := <-s.reqChan:
+			parsedReq, parseErr := newParsedStreamingPullRequest(req)
+			if parseErr != nil {
+				logger.Ctx(s.ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
+				return parseErr
+			}
+			if parsedReq.HasAcknowledgement() {
+				// request to ack messages
+				for _, v := range parsedReq.AckMessages {
+					err := s.modifyAckDeadline(s.ctx, v)
+					if err != nil {
+						return merror.ToGRPCError(err)
+					}
+				}
+			}
+			if parsedReq.HasModifyAcknowledgement() {
+				// TODO: implement
+			}
 			// reset stream ack deadline seconds
-			timeout.Stop()
-			timeout = time.NewTicker(time.Duration(req.StreamAckDeadlineSeconds) * time.Second)
-
-			s.subscriptionSubscriber.GetRequestChannel() <- &subscriber.PullRequest{DefaultNumMessagesToReadOffStream}
-			select {
-			case res := <-s.subscriptionSubscriber.GetResponseChannel():
-				s.responseChan <- res
+			if req.StreamAckDeadlineSeconds != 0 {
+				timeout.Stop()
+				streamAckDeadlineSecs = req.StreamAckDeadlineSeconds
+				timeout = time.NewTicker(time.Duration(streamAckDeadlineSecs) * time.Second)
 			}
-
-		case res := <-s.responseChan:
-			err := s.server.Send(&metrov1.StreamingPullResponse{ReceivedMessages: res.ReceivedMessages})
-			if err != nil {
-				logger.Ctx(s.ctx).Errorw("error in send", "msg", err.Error())
-				s.stop()
-				return
-			}
-			logger.Ctx(s.ctx).Infow("StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages))
 		default:
-			timeout.Stop()
-			timeout = time.NewTicker(5 * time.Second) // TODO: decide a value here
-
 			// once stream is established, we can continuously send messages over it
 			s.subscriptionSubscriber.GetRequestChannel() <- &subscriber.PullRequest{DefaultNumMessagesToReadOffStream}
 			select {
 			case res := <-s.subscriptionSubscriber.GetResponseChannel():
-				s.responseChan <- res
+				if len(res.ReceivedMessages) > 0 {
+					err := s.server.Send(&metrov1.StreamingPullResponse{ReceivedMessages: res.ReceivedMessages})
+					if err != nil {
+						logger.Ctx(s.ctx).Errorw("error in send", "msg", err.Error())
+						s.stop()
+						return nil
+					}
+					logger.Ctx(s.ctx).Infow("StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages))
+				}
 			}
 		}
 	}
@@ -102,18 +110,17 @@ func (s *pullStream) acknowledge(ctx context.Context, req *subscriber.AckMessage
 }
 
 func (s *pullStream) modifyAckDeadline(ctx context.Context, req *subscriber.AckMessage) error {
-	return s.subscriptionSubscriber.ModifyAckDeadline(ctx, req)
+	// TODO: implement
+	return nil
 }
 
 func (s *pullStream) stop() {
 	s.subscriptionSubscriber.Stop()
-	s.cancelFunc()
-	<-s.stopChan
 }
 
-func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore) (*pullStream, error) {
-	nCtx, cancelFunc := context.WithCancel(server.Context())
-	subs, err := subscriberCore.NewSubscriber(nCtx, clientID, subscription, 10, 0, 0)
+func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group) (*pullStream, error) {
+	//nCtx, cancelFunc := context.WithCancel(server.Context())
+	subs, err := subscriberCore.NewSubscriber(server.Context(), clientID, subscription, 10, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -124,12 +131,11 @@ func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID strin
 		subscriberCore:         subscriberCore,
 		subscriptionSubscriber: subs,
 		responseChan:           make(chan metrov1.PullResponse),
-		cancelFunc:             cancelFunc,
 		subscriberID:           subs.GetID(),
 		reqChan:                make(chan *metrov1.StreamingPullRequest),
 		errChan:                make(chan error),
 	}
 
-	go pr.run()
+	errGroup.Go(pr.run)
 	return pr, nil
 }

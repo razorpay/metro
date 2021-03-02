@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -16,6 +17,7 @@ import (
 type ISubscriber interface {
 	GetID() string
 	Acknowledge(ctx context.Context, req *AckMessage) error
+	// TODO: fix ModifyAckDeadline definition and implementation
 	ModifyAckDeadline(ctx context.Context, req *AckMessage) error
 	// the grpc proto is used here as well, to optimise for serialization
 	// and deserialisation, a little unclean but optimal
@@ -128,9 +130,11 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 			if s.CanConsumeMore() == false {
 				logger.Ctx(ctx).Infow("reached max limit of consumed messages. please ack messages before proceeding")
-				return
+				s.responseChan <- metrov1.PullResponse{}
+				// TODO: remove this sleep and implement pause and resume
+				time.Sleep(500 * time.Millisecond)
+				continue
 			}
-
 			//s.consumer.Resume()
 			r, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{req.MaxNumOfMessages, s.timeoutInSec})
 			if err != nil {

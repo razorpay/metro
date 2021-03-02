@@ -8,11 +8,12 @@ import (
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	"golang.org/x/sync/errgroup"
 )
 
 // IStreamManger ...
 type IStreamManger interface {
-	CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error
+	CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest, errGroup *errgroup.Group) error
 	Acknowledge(ctx context.Context, req *ParsedStreamingPullRequest) error
 	ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error
 }
@@ -42,7 +43,7 @@ func NewStreamManager(subscriptionCore subscription.ICore, bs brokerstore.IBroke
 }
 
 // CreateNewStream ...
-func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
+func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest, errGroup *errgroup.Group) error {
 	var (
 		// query allow concurrency for subscription from DB
 		allowedSubscriptionConcurrency uint32
@@ -59,6 +60,7 @@ func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullSe
 		req.ClientID,
 		req.Subscription,
 		subscriber.NewCore(s.bs, s.subscriptionCore),
+		errGroup,
 	)
 	if err != nil {
 		return err
@@ -89,18 +91,7 @@ func (s *StreamManger) Acknowledge(ctx context.Context, req *ParsedStreamingPull
 
 // ModifyAcknowledgement ...
 func (s *StreamManger) ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error {
-	for _, ackMsg := range req.AckMessages {
-		if ackMsg.MatchesOriginatingMessageServer() {
-			// find active stream
-			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
-				pullStream.modifyAckDeadline(ctx, ackMsg)
-			}
-		} else {
-			// proxy request to the correct server
-		}
-
-	}
-
+	// TODO: implement
 	return nil
 }
 

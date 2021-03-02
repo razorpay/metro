@@ -2,18 +2,19 @@ package web
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type subscriberserver struct {
 	subscriptionCore *subscription.Core
-
-	psm IStreamManger
+	psm              IStreamManger
 }
 
 func newSubscriberServer(subscriptionCore *subscription.Core, psm IStreamManger) *subscriberserver {
@@ -72,6 +73,7 @@ func (s subscriberserver) Pull(ctx context.Context, req *metrov1.PullRequest) (*
 func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullServer) error {
 	// TODO: check if the requested subscription is push based and handle it the way pubsub does
 	ctx := server.Context()
+	errGroup := new(errgroup.Group)
 
 	// the first request reaching this server path would always be to establish a new stream.
 	// once established the active stream server instance will be held in pullstream and
@@ -89,14 +91,20 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 
 	// request to init a new stream
 	if parsedReq.HasSubscription() {
-		err := s.psm.CreateNewStream(server, parsedReq)
+		err := s.psm.CreateNewStream(server, parsedReq, errGroup)
 		if err != nil {
 			return merror.ToGRPCError(err)
 		}
+	} else {
+		return merror.ToGRPCError(fmt.Errorf("subscription name empty"))
 	}
 
+	// ack and modack here for the first time
+	// later it happens in stream handler
 	if parsedReq.HasModifyAcknowledgement() {
 		// request to modify acknowledgement deadlines
+		// Nack indicated by modifying the deadline to zero
+		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
 		err := s.psm.ModifyAcknowledgement(ctx, parsedReq)
 		if err != nil {
 			return merror.ToGRPCError(err)
@@ -110,7 +118,9 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 			return merror.ToGRPCError(err)
 		}
 	}
-
+	if err := errGroup.Wait(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -135,11 +145,9 @@ func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.Mo
 		logger.Ctx(ctx).Errorw("error is parsing modack request", "request", req, "error", parseErr.Error())
 		return nil, parseErr
 	}
-
 	err := s.psm.ModifyAcknowledgement(ctx, parsedReq)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
-
 	return new(emptypb.Empty), nil
 }

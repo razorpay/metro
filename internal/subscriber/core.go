@@ -55,6 +55,8 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		cancelFunc:             cancelFunc,
 		maxOutstandingMessages: maxOutstandingMessages,
 		maxOutstandingBytes:    maxOutstandingBytes,
+		consumedMessages:       make(map[string]interface{}),
+		offsetBasedMinHeap:     make(map[int32]*AckMessage),
 	}
 
 	go s.Run(subsCtx)

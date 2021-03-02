@@ -43,7 +43,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	s := &Subscriber{subscription: subscription,
 		topic:                  topic,
-		subscriberID:           uuid.New().String()[0:4],
+		subscriberID:           uuid.New().String(),
 		bs:                     c.bs,
 		subscriptionCore:       c.subscriptionCore,
 		requestChan:            make(chan *PullRequest),

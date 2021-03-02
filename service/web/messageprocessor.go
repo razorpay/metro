@@ -63,6 +63,7 @@ func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullSe
 		return err
 	}
 
+	// store all active pull streams in a map
 	s.pullStreams[pullStream.subscriberID] = pullStream
 
 	return nil

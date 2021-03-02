@@ -68,7 +68,7 @@ func (svc *Service) Start() error {
 
 	publisher := publisher.NewCore(brokerStore)
 
-	streamManager := NewStreamManager(subscriptionCore)
+	streamManager := NewStreamManager(subscriptionCore, brokerStore)
 
 	grpcServer, err := internalserver.StartGRPCServer(
 		grp,

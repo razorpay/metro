@@ -32,11 +32,12 @@ type StreamManger struct {
 }
 
 // NewStreamManager ...
-func NewStreamManager(subscriptionCore subscription.ICore) IStreamManger {
+func NewStreamManager(subscriptionCore subscription.ICore, bs brokerstore.IBrokerStore) IStreamManger {
 	return &StreamManger{
 		pullStreams:       make(map[string]*pullStream),
 		subscriptionCore:  subscriptionCore,
 		activeStreamCount: make(map[string]uint32),
+		bs:                bs,
 	}
 }
 

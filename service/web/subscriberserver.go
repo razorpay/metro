@@ -2,12 +2,8 @@ package web
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"time"
 
 	"github.com/razorpay/metro/internal/merror"
-	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -41,6 +37,18 @@ func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.S
 // Acknowledge a message
 func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("received request to ack messages")
+
+	parsedReq, parseErr := newParsedAcknowledgeRequest(req)
+	if parseErr != nil {
+		logger.Ctx(ctx).Errorw("error is parsing ack request", "request", req, "error", parseErr.Error())
+		return nil, parseErr
+	}
+
+	err := s.psm.Acknowledge(ctx, parsedReq)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
 	return new(emptypb.Empty), nil
 }
 
@@ -65,140 +73,44 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 	// TODO: check if the requested subscription is push based and handle it the way pubsub does
 	ctx := server.Context()
 
-	reqChan := make(chan *metrov1.StreamingPullRequest)
-	errChan := make(chan error)
-	streamResponseChan := make(chan metrov1.PullResponse)
-	timeout := time.NewTicker(5 * time.Second) // init with some sane value
+	// the first request reaching this server path would always be to establish a new stream.
+	// once established the active stream server instance will be held in pullstream and
+	// periodically polled for new requests
+	req, err := server.Recv()
+	if err != nil {
+		return err
+	}
 
-	for {
-		// read messages off the pull stream server
-		go receive(server, reqChan, errChan)
+	parsedReq, parseErr := newParsedStreamingPullRequest(req)
+	if parseErr != nil {
+		logger.Ctx(ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
+		return nil
+	}
 
-		select {
-		case req := <-reqChan:
-			timeout.Stop()
-			timeout = time.NewTicker(time.Duration(req.StreamAckDeadlineSeconds) * time.Second)
-			parsedReq, parseErr := newParsedStreamingPullRequest(req)
-			if parseErr != nil {
-				logger.Ctx(ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
-				return nil
-			}
-
-			// request to init a new stream
-			if parsedReq.HasSubscription() {
-				err := s.psm.CreateNewStream(server, parsedReq)
-				if err != nil {
-					return merror.ToGRPCError(err)
-				}
-			}
-
-			if parsedReq.HasModifyAcknowledgement() {
-				// request to modify acknowledgement deadlines
-				err := s.psm.ModifyAcknowledgement(server, parsedReq)
-				if err != nil {
-					return merror.ToGRPCError(err)
-				}
-			}
-
-			if parsedReq.HasAcknowledgement() {
-				// request to acknowledge existing messages
-				err := s.psm.Acknowledge(server, parsedReq)
-				if err != nil {
-					return merror.ToGRPCError(err)
-				}
-			}
+	// request to init a new stream
+	if parsedReq.HasSubscription() {
+		err := s.psm.CreateNewStream(server, parsedReq)
+		if err != nil {
+			return merror.ToGRPCError(err)
 		}
 	}
 
-	var pullStream *pullStream
-	var req *metrov1.StreamingPullRequest
-	//var timeout *time.Ticker
-
-	for {
-		// receive request in a goroutine, to timeout on stream ack deadline seconds
-
-		logger.Ctx(ctx).Info("loop")
-		select {
-		case <-ctx.Done():
-			logger.Ctx(ctx).Infow("returning after context is done")
-			if pullStream != nil {
-				pullStream.stop()
-			}
-			return ctx.Err()
-		// stream ack deadline
-		case <-timeout.C:
-			if pullStream != nil {
-				pullStream.stop()
-			}
-			return fmt.Errorf("stream ack deadline seconds crossed")
-		case err := <-errChan:
-			if pullStream != nil {
-				pullStream.stop()
-			}
-			if err == io.EOF {
-				// return will close stream from server side
-				logger.Ctx(ctx).Info("EOF received from client")
-				return nil
-			}
-			if err != nil {
-				logger.Ctx(ctx).Infow("error received from client", "msg", err.Error())
-				return nil
-			}
-		case req = <-reqChan:
-			// reset stream ack deadline seconds
-			timeout.Stop()
-			timeout = time.NewTicker(time.Duration(req.StreamAckDeadlineSeconds) * time.Second)
-			ackReq, modAckReq, err := subscriber.FromProto(req)
-			if err != nil {
-				return merror.ToGRPCError(err)
-			}
-			// TODO: check and add if error is returned when subscription is changed in subsequent requests
-			// continue on ping request
-			if ackReq.IsEmpty() && modAckReq.IsEmpty() {
-				continue
-			}
-			// if its the first req and subscriber is not yet initialised
-			if pullStream == nil {
-				if req.Subscription == "" {
-					return fmt.Errorf("subscription name empty")
-				}
-				pullStream, err = newPullStream(server,
-					req.ClientId,
-					req.Subscription,
-					nil,
-					//s.subscriberCore,
-					streamResponseChan,
-				)
-				if err != nil {
-					return merror.ToGRPCError(err)
-				}
-				go func() {
-					for {
-						select {
-						case res := <-streamResponseChan:
-							err := server.Send(&metrov1.StreamingPullResponse{ReceivedMessages: res.ReceivedMessages})
-							if err != nil {
-								logger.Ctx(ctx).Errorw("error in send", "msg", err.Error())
-								pullStream.stop()
-								return
-							}
-							logger.Ctx(ctx).Infow("StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages))
-						case <-ctx.Done():
-							return
-						}
-					}
-				}()
-			}
-			//err = pullStream.acknowledge(ctx, ackReq)
-			//if err != nil {
-			//	return merror.ToGRPCError(err)
-			//}
-			//err = pullStream.modifyAckDeadline(ctx, modAckReq)
-			//if err != nil {
-			//	return merror.ToGRPCError(err)
-			//}
+	if parsedReq.HasModifyAcknowledgement() {
+		// request to modify acknowledgement deadlines
+		err := s.psm.ModifyAcknowledgement(ctx, parsedReq)
+		if err != nil {
+			return merror.ToGRPCError(err)
 		}
 	}
+
+	if parsedReq.HasAcknowledgement() {
+		// request to acknowledge existing messages
+		err := s.psm.Acknowledge(ctx, parsedReq)
+		if err != nil {
+			return merror.ToGRPCError(err)
+		}
+	}
+
 	return nil
 }
 
@@ -216,15 +128,18 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 	return &emptypb.Empty{}, nil
 }
 
-func (s subscriberserver) ModifyAckDeadline(ctx context.Context, in *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
+func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("received request to modack messages")
-	return &emptypb.Empty{}, nil
-}
-
-func receive(server metrov1.Subscriber_StreamingPullServer, requestChan chan *metrov1.StreamingPullRequest, errChan chan error) {
-	req, err := server.Recv()
-	if err != nil {
-		errChan <- err
+	parsedReq, parseErr := newParsedModifyAckDeadlineRequest(req)
+	if parseErr != nil {
+		logger.Ctx(ctx).Errorw("error is parsing modack request", "request", req, "error", parseErr.Error())
+		return nil, parseErr
 	}
-	requestChan <- req
+
+	err := s.psm.ModifyAcknowledgement(ctx, parsedReq)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	return new(emptypb.Empty), nil
 }

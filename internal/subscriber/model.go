@@ -97,7 +97,7 @@ func (a *AckMessage) BuildAckID() string {
 	builder := strings.Builder{}
 
 	// append server host
-	builder.WriteString(encode(lookupIP()))
+	builder.WriteString(encode(currentHostIP))
 	builder.WriteString(ackIDSeparator)
 
 	// append subscriber id
@@ -124,9 +124,9 @@ func (a *AckMessage) BuildAckID() string {
 	return builder.String()
 }
 
-// MatchMessageServer ...
+// MatchesOriginatingMessageServer ...
 func (a *AckMessage) MatchesOriginatingMessageServer() bool {
-	return lookupIP() == a.ServerAddress
+	return currentHostIP == a.ServerAddress
 }
 
 // ParseAckID ...
@@ -151,19 +151,23 @@ func ParseAckID(ackID string) *AckMessage {
 
 var currentHostIP string
 
-func lookupIP() string {
-	if currentHostIP != "" {
-		return currentHostIP
-	}
+func init() {
+	lookupAndSetIP()
+}
 
+func lookupAndSetIP() {
 	host, _ := os.Hostname()
 	addrs, _ := net.LookupIP(host)
 	for _, addr := range addrs {
 		if ipv4 := addr.To4(); ipv4 != nil {
 			currentHostIP = ipv4.String()
+			break
 		}
 	}
-	return currentHostIP
+
+	if currentHostIP == "" {
+		panic("failed to lookup host ip")
+	}
 }
 
 func encode(input string) string {

@@ -14,7 +14,7 @@ import (
 
 // ISubscriber is interface over high level subscriber
 type ISubscriber interface {
-	GetId() string
+	GetID() string
 	Acknowledge(ctx context.Context, req *AckMessage) error
 	ModifyAckDeadline(ctx context.Context, req *AckMessage) error
 	// the grpc proto is used here as well, to optimise for serialization
@@ -62,28 +62,28 @@ func (s *Subscriber) CanConsumeMore() bool {
 	return len(s.consumedMessages) <= int(s.maxOutstandingMessages)
 }
 
-// GetId
-func (c *Subscriber) GetId() string {
-	return c.subscriberID
+// GetID ...
+func (s *Subscriber) GetID() string {
+	return s.subscriberID
 }
 
 // Acknowledge messages
-func (c *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
+func (s *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
 	// need to make this operation thread-safe
 
 	// add to DS directly
-	c.offsetBasedMinHeap[req.Offset] = req
+	s.offsetBasedMinHeap[req.Offset] = req
 
 	// call heapify on offsets
 
 	evictedMsgs := make([]*AckMessage, 0)
-	offsetMarker := c.maxCommittedOffset + 1
+	offsetMarker := s.maxCommittedOffset + 1
 	// check root node offset and compare with maxCommittedOffset
-	for offsetMarker == c.offsetBasedMinHeap[0].Offset {
+	for offsetMarker == s.offsetBasedMinHeap[0].Offset {
 
 		// remove the root node
-		evictedMsgs = append(evictedMsgs, c.offsetBasedMinHeap[0])
-		delete(c.offsetBasedMinHeap, offsetMarker)
+		evictedMsgs = append(evictedMsgs, s.offsetBasedMinHeap[0])
+		delete(s.offsetBasedMinHeap, offsetMarker)
 
 		// call heapify
 
@@ -92,7 +92,7 @@ func (c *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
 	}
 
 	// after the above loop breaks we would have the committable offset identified
-	_, err := c.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
+	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 		Topic:     req.Topic,
 		Partition: req.Partition,
 		Offset:    offsetMarker,
@@ -103,12 +103,12 @@ func (c *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
 	}
 
 	// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
-	c.maxCommittedOffset = offsetMarker
+	s.maxCommittedOffset = offsetMarker
 
 	// cleanup consumedMessages map to make space for more incoming messages
 	if len(evictedMsgs) > 0 {
 		for _, msg := range evictedMsgs {
-			delete(c.consumedMessages, msg.MessageID)
+			delete(s.consumedMessages, msg.MessageID)
 		}
 	}
 
@@ -116,33 +116,33 @@ func (c *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
 }
 
 // ModifyAckDeadline for messages
-func (c *Subscriber) ModifyAckDeadline(ctx context.Context, req *AckMessage) error {
+func (s *Subscriber) ModifyAckDeadline(ctx context.Context, req *AckMessage) error {
 	return nil
 }
 
 // Run loop
-func (c *Subscriber) Run(ctx context.Context) {
+func (s *Subscriber) Run(ctx context.Context) {
 	for {
 		select {
-		case req := <-c.requestChan:
+		case req := <-s.requestChan:
 
-			if c.CanConsumeMore() == false {
+			if s.CanConsumeMore() == false {
 				logger.Ctx(ctx).Infow("reached max limit of consumed messages. please ack messages before proceeding")
 				return
 			}
 
-			//c.consumer.Resume()
-			r, err := c.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{req.MaxNumOfMessages, c.timeoutInSec})
+			//s.consumer.Resume()
+			r, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{req.MaxNumOfMessages, s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
-				c.errChan <- err
+				s.errChan <- err
 			}
 			sm := make([]*metrov1.ReceivedMessage, 0)
 			for _, msg := range r.OffsetWithMessages {
 				protoMsg := &metrov1.PubsubMessage{}
 				err = proto.Unmarshal(msg.Data, protoMsg)
 				if err != nil {
-					c.errChan <- err
+					s.errChan <- err
 				}
 				// set messageID and publish time
 				protoMsg.MessageId = msg.MessageID
@@ -152,36 +152,36 @@ func (c *Subscriber) Run(ctx context.Context) {
 				// TODO: fix delivery attempt
 
 				// store the processed messages in a map for limit checks
-				c.consumedMessages[msg.MessageID] = msg
+				s.consumedMessages[msg.MessageID] = msg
 				// instead of passing msgId as is, construct a proper ackId using pre-defined fields
-				ackID := NewAckMessage(c.subscriberID, c.topic, msg.Partition, msg.Offset, msg.MessageID).BuildAckID()
+				ackID := NewAckMessage(s.subscriberID, s.topic, msg.Partition, msg.Offset, msg.MessageID).BuildAckID()
 				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
 			}
-			c.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
+			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
 		case <-ctx.Done():
-			c.closeChan <- struct{}{}
+			s.closeChan <- struct{}{}
 			return
 		}
 	}
 }
 
 // GetRequestChannel returns the chan from where request is received
-func (c *Subscriber) GetRequestChannel() chan *PullRequest {
-	return c.requestChan
+func (s *Subscriber) GetRequestChannel() chan *PullRequest {
+	return s.requestChan
 }
 
 // GetResponseChannel returns the chan where response is written
-func (c *Subscriber) GetResponseChannel() chan metrov1.PullResponse {
-	return c.responseChan
+func (s *Subscriber) GetResponseChannel() chan metrov1.PullResponse {
+	return s.responseChan
 }
 
 // GetErrorChannel returns the channel where error is written
-func (c *Subscriber) GetErrorChannel() chan error {
-	return c.errChan
+func (s *Subscriber) GetErrorChannel() chan error {
+	return s.errChan
 }
 
 // Stop the subscriber
-func (c *Subscriber) Stop() {
-	c.cancelFunc()
-	<-c.closeChan
+func (s *Subscriber) Stop() {
+	s.cancelFunc()
+	<-s.closeChan
 }

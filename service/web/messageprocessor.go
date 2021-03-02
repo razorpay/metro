@@ -1,7 +1,7 @@
 package web
 
 import (
-	"errors"
+	"context"
 	"strings"
 
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -13,8 +13,8 @@ import (
 // IStreamManger ...
 type IStreamManger interface {
 	CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error
-	Acknowledge(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error
-	ModifyAcknowledgement(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error
+	Acknowledge(ctx context.Context, req *ParsedStreamingPullRequest) error
+	ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error
 }
 
 // StreamManger ...
@@ -50,14 +50,14 @@ func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullSe
 	)
 
 	if activeSubscriptionStreamsCount+1 > allowedSubscriptionConcurrency {
-		return errors.New("reached max active stream limit for subscription")
+		// TODO : uncomment later on
+		//return errors.New("reached max active stream limit for subscription")
 	}
 
 	pullStream, err := newPullStream(server,
 		req.ClientID,
 		req.Subscription,
 		subscriber.NewCore(s.bs, s.subscriptionCore),
-		make(chan metrov1.PullResponse),
 	)
 	if err != nil {
 		return err
@@ -70,12 +70,12 @@ func (s *StreamManger) CreateNewStream(server metrov1.Subscriber_StreamingPullSe
 }
 
 // Acknowledge ...
-func (s *StreamManger) Acknowledge(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
+func (s *StreamManger) Acknowledge(ctx context.Context, req *ParsedStreamingPullRequest) error {
 	for _, ackMsg := range req.AckMessages {
 		if ackMsg.MatchesOriginatingMessageServer() {
 			// find active stream
 			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
-				pullStream.acknowledge(server.Context(), ackMsg)
+				pullStream.acknowledge(ctx, ackMsg)
 			}
 		} else {
 			// proxy request to the correct server
@@ -86,12 +86,12 @@ func (s *StreamManger) Acknowledge(server metrov1.Subscriber_StreamingPullServer
 }
 
 // ModifyAcknowledgement ...
-func (s *StreamManger) ModifyAcknowledgement(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest) error {
+func (s *StreamManger) ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error {
 	for _, ackMsg := range req.AckMessages {
 		if ackMsg.MatchesOriginatingMessageServer() {
 			// find active stream
 			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
-				pullStream.modifyAckDeadline(server.Context(), ackMsg)
+				pullStream.modifyAckDeadline(ctx, ackMsg)
 			}
 		} else {
 			// proxy request to the correct server
@@ -121,6 +121,7 @@ func (r *ParsedStreamingPullRequest) HasAcknowledgement() bool {
 	return r.AckMessages != nil && len(r.AckMessages) > 0
 }
 
+// HasModifyAcknowledgement ...
 func (r *ParsedStreamingPullRequest) HasModifyAcknowledgement() bool {
 	return r.ModifyDeadlineMsgIdsWithSecs != nil && len(r.ModifyDeadlineMsgIdsWithSecs) > 0
 }
@@ -138,6 +139,47 @@ func newParsedStreamingPullRequest(req *metrov1.StreamingPullRequest) (*ParsedSt
 			ackMessage := subscriber.ParseAckID(ackID)
 			ackMessages = append(ackMessages, ackMessage)
 			modifyDeadlineMsgIdsWithSecs[ackMessage.MessageID] = req.ModifyDeadlineSeconds[index]
+		}
+		parsedReq.AckIDs = req.AckIds
+		parsedReq.AckMessages = ackMessages
+		parsedReq.ModifyDeadlineMsgIdsWithSecs = modifyDeadlineMsgIdsWithSecs
+	}
+
+	return parsedReq, nil
+}
+
+func newParsedAcknowledgeRequest(req *metrov1.AcknowledgeRequest) (*ParsedStreamingPullRequest, error) {
+	parsedReq := &ParsedStreamingPullRequest{}
+
+	// TODO : add validations and throw error
+	parsedReq.Subscription = req.Subscription
+	if req.AckIds != nil && len(req.AckIds) > 0 {
+		ackMessages := make([]*subscriber.AckMessage, 0)
+		parsedReq.AckIDs = req.AckIds
+		for _, ackID := range req.AckIds {
+			ackMessage := subscriber.ParseAckID(ackID)
+			ackMessages = append(ackMessages, ackMessage)
+		}
+		parsedReq.AckIDs = req.AckIds
+		parsedReq.AckMessages = ackMessages
+	}
+
+	return parsedReq, nil
+}
+
+func newParsedModifyAckDeadlineRequest(req *metrov1.ModifyAckDeadlineRequest) (*ParsedStreamingPullRequest, error) {
+	parsedReq := &ParsedStreamingPullRequest{}
+
+	// TODO : add validations and throw error
+	parsedReq.Subscription = req.Subscription
+	if req.AckIds != nil && len(req.AckIds) > 0 {
+		ackMessages := make([]*subscriber.AckMessage, 0)
+		modifyDeadlineMsgIdsWithSecs := make(map[string]int32)
+		parsedReq.AckIDs = req.AckIds
+		for _, ackID := range req.AckIds {
+			ackMessage := subscriber.ParseAckID(ackID)
+			ackMessages = append(ackMessages, ackMessage)
+			modifyDeadlineMsgIdsWithSecs[ackMessage.MessageID] = req.AckDeadlineSeconds
 		}
 		parsedReq.AckIDs = req.AckIds
 		parsedReq.AckMessages = ackMessages

@@ -1,4 +1,4 @@
-package web
+package stream
 
 import (
 	"context"
@@ -12,6 +12,14 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"golang.org/x/sync/errgroup"
 )
+
+type IStream interface {
+	run() error
+	Acknowledge(ctx context.Context, req *subscriber.AckMessage) error
+	ModifyAckDeadline(ctx context.Context, req *subscriber.AckMessage) error
+	stop()
+	receive()
+}
 
 type pullStream struct {
 	clientID               string
@@ -54,7 +62,7 @@ func (s *pullStream) run() error {
 			}
 			return nil
 		case req := <-s.reqChan:
-			parsedReq, parseErr := newParsedStreamingPullRequest(req)
+			parsedReq, parseErr := NewParsedStreamingPullRequest(req)
 			if parseErr != nil {
 				logger.Ctx(s.ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
 				return parseErr
@@ -62,7 +70,7 @@ func (s *pullStream) run() error {
 			if parsedReq.HasAcknowledgement() {
 				// request to ack messages
 				for _, v := range parsedReq.AckMessages {
-					err := s.modifyAckDeadline(s.ctx, v)
+					err := s.ModifyAckDeadline(s.ctx, v)
 					if err != nil {
 						return merror.ToGRPCError(err)
 					}
@@ -105,11 +113,11 @@ func (s *pullStream) receive() {
 	s.reqChan <- req
 }
 
-func (s *pullStream) acknowledge(ctx context.Context, req *subscriber.AckMessage) error {
+func (s *pullStream) Acknowledge(ctx context.Context, req *subscriber.AckMessage) error {
 	return s.subscriptionSubscriber.Acknowledge(ctx, req)
 }
 
-func (s *pullStream) modifyAckDeadline(ctx context.Context, req *subscriber.AckMessage) error {
+func (s *pullStream) ModifyAckDeadline(ctx context.Context, req *subscriber.AckMessage) error {
 	// TODO: implement
 	return nil
 }

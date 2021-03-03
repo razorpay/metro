@@ -51,7 +51,7 @@ type Subscriber struct {
 	// hold all consumed messages. this will help throttle based on maxOutstandingMessages and maxOutstandingBytes
 	consumedMessages map[string]interface{}
 
-	// TODO : temp code. add proper DS
+	// TODO : heap code. add proper DS
 	offsetBasedMinHeap map[int32]*AckMessage
 
 	// TODO: need a way to identify the last committed offset on a topic partition when a new subscriber is created

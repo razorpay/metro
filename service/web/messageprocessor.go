@@ -28,7 +28,7 @@ type StreamManger struct {
 
 	bs brokerstore.IBrokerStore
 
-	// TODO: temp code. will remove. maintain a distributed counter for active streams per subscription
+	// TODO: heap code. will remove. maintain a distributed counter for active streams per subscription
 	activeStreamCount map[string]uint32
 }
 

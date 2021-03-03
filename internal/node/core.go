@@ -54,7 +54,7 @@ func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
 	return c.Exists(ctx, common.BasePrefix+Prefix+id)
 }
 
-// List gets all nodes
+// ListKeys gets all node keys
 func (c *Core) ListKeys(ctx context.Context) ([]string, error) {
 	return c.repo.ListKeys(ctx, Prefix)
 }

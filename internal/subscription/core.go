@@ -113,6 +113,7 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 	return m.Topic, nil
 }
 
+// ListKeys returns list of subscription keys
 func (c *Core) ListKeys(ctx context.Context) ([]string, error) {
 	return c.repo.ListKeys(ctx, Prefix)
 }

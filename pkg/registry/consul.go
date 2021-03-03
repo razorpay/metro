@@ -143,7 +143,7 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 	return kv.Value, nil
 }
 
-// List returns a value for a key
+// ListKeys returns a value for a key
 func (c *ConsulClient) ListKeys(ctx context.Context, key string) ([]string, error) {
 	kv, _, err := c.client.KV().List(key, nil)
 	if err != nil {

@@ -55,16 +55,11 @@ func (r BaseRepo) Get(ctx context.Context, key string, m IModel) error {
 	return nil
 }
 
-// List populates keys with key list corresponding to prefix
+// ListKeys populates keys with key list corresponding to prefix
 func (r BaseRepo) ListKeys(ctx context.Context, prefix string) ([]string, error) {
-	pairs, err := r.Registry.ListKeys(ctx, prefix)
+	keys, err := r.Registry.ListKeys(ctx, prefix)
 	if err != nil {
 		return nil, err
-	}
-
-	var keys []string
-	for _, pair := range pairs {
-		keys = append(keys, pair.Key)
 	}
 
 	return keys, nil

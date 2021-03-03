@@ -18,7 +18,6 @@ func TestModel_Key(t *testing.T) {
 
 func getDummyNodeModel() *Model {
 	return &Model{
-		Name: "metro-worker",
-		ID:   "testID",
+		ID: "testID",
 	}
 }

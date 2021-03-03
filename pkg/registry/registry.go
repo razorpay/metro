@@ -47,6 +47,9 @@ type IRegistry interface {
 	// Get returns a value for a key
 	Get(ctx context.Context, key string) ([]byte, error)
 
+	// List returns a keys with matching key prefix
+	ListKeys(ctx context.Context, prefix string) ([]string, error)
+
 	// Exists checks the existence of a key
 	Exists(key string) (bool, error)
 

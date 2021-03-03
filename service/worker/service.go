@@ -6,18 +6,26 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	internalserver "github.com/razorpay/metro/internal/server"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"google.golang.org/grpc"
+	"github.com/razorpay/metro/internal/brokerstore"
+
+	"github.com/razorpay/metro/internal/topic"
+
+	"github.com/razorpay/metro/internal/project"
+
+	"github.com/razorpay/metro/internal/subscription"
 
 	"github.com/google/uuid"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/health"
+	"github.com/razorpay/metro/internal/node"
+	internalserver "github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/pkg/leaderelection"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 )
 
 // Service for worker
@@ -30,11 +38,13 @@ type Service struct {
 	registryConfig *registry.Config
 	registry       registry.IRegistry
 	candidate      *leaderelection.Candidate
-	nodeID         string
+	node           *node.Model
 	doneCh         chan struct{}
 	stopCh         chan struct{}
 	workgrp        *errgroup.Group
 	leadgrp        *errgroup.Group
+	nodeCache      []string
+	subCache       []string
 }
 
 // NewService creates an instance of new worker
@@ -43,9 +53,11 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		ctx:            ctx,
 		workerConfig:   workerConfig,
 		registryConfig: registryConfig,
-		nodeID:         uuid.New().String(),
-		doneCh:         make(chan struct{}),
-		stopCh:         make(chan struct{}),
+		node: &node.Model{
+			ID: uuid.New().String(),
+		},
+		doneCh: make(chan struct{}),
+		stopCh: make(chan struct{}),
 	}
 }
 
@@ -69,17 +81,47 @@ func (c *Service) Start() error {
 
 	// Init the Registry
 	// TODO: move to component init ?
-	c.registry, err = registry.NewRegistry(c.ctx, c.registryConfig)
+	reg, err := registry.NewRegistry(c.ctx, c.registryConfig)
+	if err != nil {
+		return err
+	}
+	c.registry = reg
+
+	brokerStore, berr := brokerstore.NewBrokerStore(c.workerConfig.Broker.Variant, &c.workerConfig.Broker.BrokerConfig)
+	if berr != nil {
+		return berr
+	}
+
+	projectCore := project.NewCore(project.NewRepo(reg))
+
+	topicCore := topic.NewCore(topic.NewRepo(reg), projectCore, brokerStore)
+
+	subscriptionCore := subscription.NewCore(subscription.NewRepo(reg), projectCore, topicCore)
+
+	// Register Node with registry
+	nodeRepo := node.NewRepo(c.registry)
+	nodeCore := node.NewCore(nodeRepo)
+	err = nodeCore.CreateNode(c.ctx, c.node)
+	if err != nil {
+		return err
+	}
+
+	// create nodeCache
+	c.nodeCache, err = nodeCore.ListKeys(c.ctx)
+	if err != nil {
+		return err
+	}
+
+	c.subCache, err = subscriptionCore.ListKeys(c.ctx)
 	if err != nil {
 		return err
 	}
 
 	// Init Leader Election
-	c.candidate, err = leaderelection.New(c.nodeID,
+	c.candidate, err = leaderelection.New(c.node.ID,
 		leaderelection.Config{
-			// TODO: read values from workerConfig
 			Name:          "metro/metro-worker",
-			NodePath:      fmt.Sprintf("metro/nodes/%s", c.nodeID),
+			NodePath:      c.node.Key(),
 			LockPath:      "metro/leader/election",
 			LeaseDuration: 30 * time.Second,
 			Callbacks: leaderelection.LeaderCallbacks{
@@ -107,7 +149,7 @@ func (c *Service) Start() error {
 	c.workgrp.Go(func() error {
 		wh := registry.WatchConfig{
 			WatchType: "keyprefix",
-			WatchPath: fmt.Sprintf("metro/nodes/%s/subscriptions", c.nodeID),
+			WatchPath: fmt.Sprintf("metro/nodebinding/%s/", c.node.ID),
 			Handler: func(ctx context.Context, pairs []registry.Pair) {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
 			},
@@ -190,7 +232,7 @@ func (c *Service) Stop() error {
 }
 
 func (c *Service) lead(ctx context.Context) error {
-	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.nodeID)
+	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.node.ID)
 
 	var (
 		nodeWatcher, subWatcher registry.IWatcher
@@ -255,7 +297,7 @@ func (c *Service) lead(ctx context.Context) error {
 }
 
 func (c *Service) stepDown() {
-	logger.Ctx(c.ctx).Infof("Node %s stepping down from leader", c.nodeID)
+	logger.Ctx(c.ctx).Infof("Node %s stepping down from leader", c.node.ID)
 
 	// wait for leader go routines to terminate
 	c.leadgrp.Wait()

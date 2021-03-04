@@ -218,6 +218,16 @@ func (svc *Service) Stop() error {
 	// signal to stop all go routines
 	close(svc.stopCh)
 
+	// signal the grpc server go routine
+	svc.grpcServer.GracefulStop()
+
+	// signal http server go routine
+	err := svc.httpServer.Shutdown(svc.ctx)
+
+	if err != nil {
+		return err
+	}
+
 	// wait until all goroutines are done
 	<-svc.doneCh
 

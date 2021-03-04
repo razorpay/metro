@@ -14,6 +14,7 @@ type ICore interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithID(ctx context.Context, id string) (bool, error)
 	DeleteNode(ctx context.Context, m *Model) error
+	ListKeys(ctx context.Context) ([]string, error)
 }
 
 // Core implements all business logic for node

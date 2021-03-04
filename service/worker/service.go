@@ -30,21 +30,26 @@ import (
 
 // Service for worker
 type Service struct {
-	ctx            context.Context
-	grpcServer     *grpc.Server
-	httpServer     *http.Server
-	health         *health.Core
-	workerConfig   *Config
-	registryConfig *registry.Config
-	registry       registry.IRegistry
-	candidate      *leaderelection.Candidate
-	node           *node.Model
-	doneCh         chan struct{}
-	stopCh         chan struct{}
-	workgrp        *errgroup.Group
-	leadgrp        *errgroup.Group
-	nodeCache      []string
-	subCache       []string
+	ctx              context.Context
+	grpcServer       *grpc.Server
+	httpServer       *http.Server
+	health           *health.Core
+	workerConfig     *Config
+	registryConfig   *registry.Config
+	registry         registry.IRegistry
+	candidate        *leaderelection.Candidate
+	node             *node.Model
+	doneCh           chan struct{}
+	stopCh           chan struct{}
+	workgrp          *errgroup.Group
+	leadgrp          *errgroup.Group
+	brokerStore      brokerstore.IBrokerStore
+	projectCore      project.ICore
+	nodeCore         node.ICore
+	topicCore        topic.ICore
+	subscriptionCore subscription.ICore
+	nodeCache        []string
+	subCache         []string
 }
 
 // NewService creates an instance of new worker
@@ -62,16 +67,16 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 }
 
 // Start implements all the tasks for worker and waits until one of the task fails
-func (c *Service) Start() error {
+func (svc *Service) Start() error {
 	// close the done channel when this function returns
-	defer close(c.doneCh)
+	defer close(svc.doneCh)
 
 	var (
 		err  error
 		gctx context.Context
 	)
 
-	c.workgrp, gctx = errgroup.WithContext(c.ctx)
+	svc.workgrp, gctx = errgroup.WithContext(svc.ctx)
 
 	// Define server handlers
 	healthCore, err := health.NewCore(nil) //TODO: Add checkers
@@ -81,81 +86,69 @@ func (c *Service) Start() error {
 
 	// Init the Registry
 	// TODO: move to component init ?
-	reg, err := registry.NewRegistry(c.ctx, c.registryConfig)
+	svc.registry, err = registry.NewRegistry(svc.ctx, svc.registryConfig)
 	if err != nil {
 		return err
 	}
-	c.registry = reg
 
-	brokerStore, berr := brokerstore.NewBrokerStore(c.workerConfig.Broker.Variant, &c.workerConfig.Broker.BrokerConfig)
-	if berr != nil {
-		return berr
+	svc.brokerStore, err = brokerstore.NewBrokerStore(svc.workerConfig.Broker.Variant, &svc.workerConfig.Broker.BrokerConfig)
+	if err != nil {
+		return err
 	}
 
-	projectCore := project.NewCore(project.NewRepo(reg))
+	svc.projectCore = project.NewCore(project.NewRepo(svc.registry))
 
-	topicCore := topic.NewCore(topic.NewRepo(reg), projectCore, brokerStore)
+	svc.topicCore = topic.NewCore(topic.NewRepo(svc.registry), svc.projectCore, svc.brokerStore)
 
-	subscriptionCore := subscription.NewCore(subscription.NewRepo(reg), projectCore, topicCore)
+	svc.subscriptionCore = subscription.NewCore(subscription.NewRepo(svc.registry), svc.projectCore, svc.topicCore)
+
+	svc.nodeCore = node.NewCore(node.NewRepo(svc.registry))
 
 	// Register Node with registry
-	nodeRepo := node.NewRepo(c.registry)
-	nodeCore := node.NewCore(nodeRepo)
-	err = nodeCore.CreateNode(c.ctx, c.node)
-	if err != nil {
-		return err
-	}
-
-	// create nodeCache
-	c.nodeCache, err = nodeCore.ListKeys(c.ctx)
-	if err != nil {
-		return err
-	}
-
-	c.subCache, err = subscriptionCore.ListKeys(c.ctx)
+	err = svc.nodeCore.CreateNode(svc.ctx, svc.node)
 	if err != nil {
 		return err
 	}
 
 	// Init Leader Election
-	c.candidate, err = leaderelection.New(c.node.ID,
+	svc.candidate, err = leaderelection.New(svc.node.ID,
 		leaderelection.Config{
 			Name:          "metro/metro-worker",
-			NodePath:      c.node.Key(),
+			NodePath:      svc.node.Key(),
 			LockPath:      "metro/leader/election",
 			LeaseDuration: 30 * time.Second,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) error {
-					return c.lead(ctx)
+					return svc.lead(ctx)
 				},
 				OnStoppedLeading: func() {
-					c.stepDown()
+					svc.stepDown()
 				},
 			},
-		}, c.registry)
+		}, svc.registry)
 
 	if err != nil {
 		return err
 	}
 
 	// Run leader election
-	c.workgrp.Go(func() error {
+	svc.workgrp.Go(func() error {
 		logger.Ctx(gctx).Info("starting leader election")
-		return c.candidate.Run(gctx)
+		return svc.candidate.Run(gctx)
 	})
 
 	// Watch for the subscription assignment changes
 	var watcher registry.IWatcher
-	c.workgrp.Go(func() error {
+	svc.workgrp.Go(func() error {
 		wh := registry.WatchConfig{
 			WatchType: "keyprefix",
-			WatchPath: fmt.Sprintf("metro/nodebinding/%s/", c.node.ID),
+			WatchPath: fmt.Sprintf("metro/nodebinding/%s/", svc.node.ID),
 			Handler: func(ctx context.Context, pairs []registry.Pair) {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
 			},
 		}
 
-		watcher, err = c.registry.Watch(gctx, &wh)
+		watcher, err = svc.registry.Watch(gctx, &wh)
 		if err != nil {
 			return err
 		}
@@ -163,12 +156,12 @@ func (c *Service) Start() error {
 		return watcher.StartWatch()
 	})
 
-	c.workgrp.Go(func() error {
+	svc.workgrp.Go(func() error {
 		var err error
 		select {
 		case <-gctx.Done():
 			err = gctx.Err()
-		case <-c.stopCh:
+		case <-svc.stopCh:
 			err = fmt.Errorf("signal received, stopping worker")
 		}
 
@@ -180,8 +173,8 @@ func (c *Service) Start() error {
 	})
 
 	grpcServer, err := internalserver.StartGRPCServer(
-		c.workgrp,
-		c.workerConfig.Interfaces.API.GrpcServerAddress,
+		svc.workgrp,
+		svc.workerConfig.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 			return nil
@@ -193,10 +186,10 @@ func (c *Service) Start() error {
 	}
 
 	httpServer, err := internalserver.StartHTTPServer(
-		c.workgrp,
-		c.workerConfig.Interfaces.API.HTTPServerAddress,
+		svc.workgrp,
+		svc.workerConfig.Interfaces.API.HTTPServerAddress,
 		func(mux *runtime.ServeMux) error {
-			err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(gctx, mux, c.workerConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(gctx, mux, svc.workerConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 			if err != nil {
 				return err
 			}
@@ -211,45 +204,63 @@ func (c *Service) Start() error {
 		return err
 	}
 
-	c.grpcServer = grpcServer
-	c.httpServer = httpServer
-	c.health = healthCore
+	svc.grpcServer = grpcServer
+	svc.httpServer = httpServer
+	svc.health = healthCore
 
-	err = c.workgrp.Wait()
+	err = svc.workgrp.Wait()
 	logger.Ctx(gctx).Info("worker service error: %s", err.Error())
 	return err
 }
 
 // Stop the service
-func (c *Service) Stop() error {
+func (svc *Service) Stop() error {
 	// signal to stop all go routines
-	close(c.stopCh)
+	close(svc.stopCh)
 
 	// wait until all goroutines are done
-	<-c.doneCh
+	<-svc.doneCh
 
 	return nil
 }
 
-func (c *Service) lead(ctx context.Context) error {
-	logger.Ctx(ctx).Infof("Node %s elected as new leader", c.node.ID)
+func (svc *Service) lead(ctx context.Context) error {
+	logger.Ctx(ctx).Infof("Node %s elected as new leader", svc.node.ID)
 
 	var (
 		nodeWatcher, subWatcher registry.IWatcher
 		err                     error
 		gctx                    context.Context
 	)
-	c.leadgrp, gctx = errgroup.WithContext(ctx)
+
+	// create nodeCache
+	logger.Ctx(ctx).Infof("getting active nodes for cache")
+	svc.nodeCache, err = svc.nodeCore.ListKeys(svc.ctx)
+	if err != nil {
+		return err
+	}
+
+	// create subscription cache
+	logger.Ctx(ctx).Infof("getting active subscriptions for cache")
+	svc.subCache, err = svc.subscriptionCore.ListKeys(svc.ctx)
+	if err != nil {
+		return err
+	}
+
+	svc.leadgrp, gctx = errgroup.WithContext(ctx)
 
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
 		WatchPath: "metro/nodes",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
+			newNodes := registry.GetKeys(pairs)
+			svc.handleNodeUpdates(newNodes)
 		},
 	}
 
-	nodeWatcher, err = c.registry.Watch(gctx, &nwh)
+	logger.Ctx(ctx).Infof("setting watch on nodes")
+	nodeWatcher, err = svc.registry.Watch(gctx, &nwh)
 	if err != nil {
 		return err
 	}
@@ -259,26 +270,29 @@ func (c *Service) lead(ctx context.Context) error {
 		WatchPath: "metro/subscriptions",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
+			newSubs := registry.GetKeys(pairs)
+			svc.handleSubUpdates(newSubs)
 		},
 	}
 
-	subWatcher, err = c.registry.Watch(gctx, &swh)
+	logger.Ctx(ctx).Infof("setting watch on subscriptions")
+	subWatcher, err = svc.registry.Watch(gctx, &swh)
 	if err != nil {
 		return err
 	}
 
 	// watch for nodes addition/deletion, for any changes a rebalance might be required
-	c.leadgrp.Go(func() error {
+	svc.leadgrp.Go(func() error {
 		return nodeWatcher.StartWatch()
 	})
 
 	// watch the Subscriptions path for new subscriptions and rebalance
-	c.leadgrp.Go(func() error {
+	svc.leadgrp.Go(func() error {
 		return subWatcher.StartWatch()
 	})
 
 	// wait for done channel to be closed and stop watches if received done
-	c.leadgrp.Go(func() error {
+	svc.leadgrp.Go(func() error {
 		<-gctx.Done()
 
 		if nodeWatcher != nil {
@@ -296,11 +310,81 @@ func (c *Service) lead(ctx context.Context) error {
 	return nil
 }
 
-func (c *Service) stepDown() {
-	logger.Ctx(c.ctx).Infof("Node %s stepping down from leader", c.node.ID)
+func (svc *Service) stepDown() {
+	logger.Ctx(svc.ctx).Infof("Node %s stepping down from leader", svc.node.ID)
 
 	// wait for leader go routines to terminate
-	c.leadgrp.Wait()
+	svc.leadgrp.Wait()
+}
+
+func (svc *Service) handleSubUpdates(newSubs []string) error {
+	oldSubs := svc.subCache
+	for _, old := range oldSubs {
+		found := false
+		for _, new := range newSubs {
+			if old == new {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			logger.Ctx(svc.ctx).Infow("sub removed", "sub_key", old)
+		}
+	}
+
+	for _, new := range newSubs {
+		found := false
+		for _, old := range oldSubs {
+			if old == new {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			logger.Ctx(svc.ctx).Infow("sub added", "sub_key", new)
+		}
+	}
+
+	svc.subCache = newSubs
+	return nil
+}
+
+func (svc *Service) handleNodeUpdates(newNodes []string) error {
+	oldNodes := svc.nodeCache
+
+	for _, old := range oldNodes {
+		found := false
+		for _, new := range newNodes {
+			if old == new {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			logger.Ctx(svc.ctx).Infow("node removed", "node_key", old)
+		}
+	}
+
+	for _, new := range newNodes {
+		found := false
+		for _, old := range oldNodes {
+			if old == new {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			logger.Ctx(svc.ctx).Infow("node added", "node_key", new)
+		}
+	}
+
+	svc.nodeCache = newNodes
+
+	return nil
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {

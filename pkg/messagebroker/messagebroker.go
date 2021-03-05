@@ -40,4 +40,10 @@ type Consumer interface {
 
 	// Commits a message by ID
 	CommitByMsgID(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
+
+	// pause the consumer
+	Pause(context.Context, PauseOnTopicRequest) error
+
+	// resume the consumer
+	Resume(context.Context, ResumeOnTopicRequest) error
 }

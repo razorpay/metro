@@ -329,9 +329,9 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 //by all the previous calls to GetMessages
 func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	tp := kafkapkg.TopicPartition{
-		Topic: &request.Topic,
-		//Partition: request.Partition,
-		Offset: kafkapkg.Offset(request.Offset),
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+		Offset:    kafkapkg.Offset(request.Offset),
 	}
 
 	tps := make([]kafkapkg.TopicPartition, 0)
@@ -347,4 +347,30 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 func (k *KafkaBroker) CommitByMsgID(_ context.Context, _ CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	// unused for kafka
 	return CommitOnTopicResponse{}, nil
+}
+
+// Pause pause the consumer
+func (k *KafkaBroker) Pause(_ context.Context, request PauseOnTopicRequest) error {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	return k.Consumer.Pause(tps)
+}
+
+// Resume resume the consumer
+func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) error {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	return k.Consumer.Resume(tps)
 }

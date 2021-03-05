@@ -234,3 +234,15 @@ func (p *PulsarBroker) GetTopicMetadata(ctx context.Context, request GetTopicMet
 		Response: stats,
 	}, nil
 }
+
+// Pause pause the consumer
+func (p *PulsarBroker) Pause(_ context.Context, _ PauseOnTopicRequest) error {
+	// unused for pulsar
+	return nil
+}
+
+// Resume resume the consumer
+func (p *PulsarBroker) Resume(_ context.Context, _ ResumeOnTopicRequest) error {
+	// unused for pulsar
+	return nil
+}

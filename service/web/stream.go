@@ -61,15 +61,21 @@ func (s *pullStream) run() error {
 			}
 			if parsedReq.HasAcknowledgement() {
 				// request to ack messages
-				for _, v := range parsedReq.AckMessages {
-					err := s.modifyAckDeadline(s.ctx, v)
+				for _, ackMsg := range parsedReq.AckMessages {
+					err := s.acknowledge(s.ctx, ackMsg)
 					if err != nil {
 						return merror.ToGRPCError(err)
 					}
 				}
 			}
 			if parsedReq.HasModifyAcknowledgement() {
-				// TODO: implement
+				// request to ack messages
+				for _, modAckMsg := range parsedReq.AckMessages {
+					err := s.modifyAckDeadline(s.ctx, subscriber.NewModAckMessage(modAckMsg, parsedReq.ModifyDeadlineMsgIdsWithSecs[modAckMsg.MessageID]))
+					if err != nil {
+						return merror.ToGRPCError(err)
+					}
+				}
 			}
 			// reset stream ack deadline seconds
 			if req.StreamAckDeadlineSeconds != 0 {
@@ -105,12 +111,13 @@ func (s *pullStream) receive() {
 	s.reqChan <- req
 }
 
-func (s *pullStream) acknowledge(ctx context.Context, req *subscriber.AckMessage) error {
-	return s.subscriptionSubscriber.Acknowledge(ctx, req)
+func (s *pullStream) acknowledge(_ context.Context, req *subscriber.AckMessage) error {
+	s.subscriptionSubscriber.GetAckChannel() <- req
+	return nil
 }
 
-func (s *pullStream) modifyAckDeadline(ctx context.Context, req *subscriber.AckMessage) error {
-	// TODO: implement
+func (s *pullStream) modifyAckDeadline(_ context.Context, req *subscriber.ModAckMessage) error {
+	s.subscriptionSubscriber.GetModAckChannel() <- req
 	return nil
 }
 

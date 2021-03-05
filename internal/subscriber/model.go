@@ -1,12 +1,16 @@
 package subscriber
 
 import (
+	"container/heap"
 	"encoding/base64"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/razorpay/metro/internal/subscriber/customheap"
+	"github.com/razorpay/metro/pkg/messagebroker"
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
@@ -77,18 +81,20 @@ type AckMessage struct {
 	Offset        int32
 	MessageID     string
 	AckID         string
+	Deadline      int32
 }
 
 const ackIDSeparator = "_"
 
 // NewAckMessage ...
-func NewAckMessage(subscriberID, topic string, partition, offset int32, messageID string) IAckMessage {
+func NewAckMessage(subscriberID, topic string, partition, offset, deadline int32, messageID string) IAckMessage {
 	// TODO: add needed validations on all fields
 	return &AckMessage{
 		SubscriberID: subscriberID,
 		Topic:        topic,
 		Partition:    partition,
 		MessageID:    messageID,
+		Deadline:     deadline,
 	}
 }
 
@@ -116,6 +122,10 @@ func (a *AckMessage) BuildAckID() string {
 	builder.WriteString(encode(fmt.Sprintf("%v", a.Offset)))
 	builder.WriteString(ackIDSeparator)
 
+	// append ack deadline
+	builder.WriteString(encode(fmt.Sprintf("%v", a.Deadline)))
+	builder.WriteString(ackIDSeparator)
+
 	// append message id
 	builder.WriteString(encode(a.MessageID))
 
@@ -137,6 +147,7 @@ func ParseAckID(ackID string) *AckMessage {
 	// TODO : add validations
 	partition, _ := strconv.ParseInt(decode(parts[3]), 10, 0)
 	offset, _ := strconv.ParseInt(decode(parts[4]), 10, 0)
+	deadline, _ := strconv.ParseInt(decode(parts[5]), 10, 0)
 
 	return &AckMessage{
 		ServerAddress: decode(parts[0]),
@@ -144,7 +155,8 @@ func ParseAckID(ackID string) *AckMessage {
 		Topic:         decode(parts[2]),
 		Partition:     int32(partition),
 		Offset:        int32(offset),
-		MessageID:     decode(parts[5]),
+		Deadline:      int32(deadline),
+		MessageID:     decode(parts[6]),
 		AckID:         ackID,
 	}
 }
@@ -178,4 +190,87 @@ func encode(input string) string {
 func decode(input string) string {
 	decoded, _ := base64.StdEncoding.DecodeString(input)
 	return string(decoded)
+}
+
+// ToTopicPartition ...
+func (a *AckMessage) ToTopicPartition() TopicPartition {
+	return TopicPartition{
+		topic:     a.Topic,
+		partition: a.Partition,
+	}
+}
+
+// ConsumptionMetadata ...
+type ConsumptionMetadata struct {
+	// data structures to hold messages in-memory
+	consumedMessages     map[string]interface{} // hold all consumed messages. this will help throttle based on maxOutstandingMessages and maxOutstandingBytes
+	offsetBasedMinHeap   customheap.OffsetBasedPriorityQueue
+	deadlineBasedMinHeap customheap.DeadlineBasedPriorityQueue
+	maxCommittedOffset   int32 // our counter will init to that value initially
+	isPaused             bool
+}
+
+// NewConsumptionMetadata ...
+func NewConsumptionMetadata() *ConsumptionMetadata {
+	cm := &ConsumptionMetadata{
+		consumedMessages:     make(map[string]interface{}),
+		offsetBasedMinHeap:   customheap.OffsetBasedPriorityQueue{},
+		deadlineBasedMinHeap: customheap.DeadlineBasedPriorityQueue{},
+		maxCommittedOffset:   0,
+	}
+
+	// init the heaps as well
+	heap.Init(&cm.offsetBasedMinHeap)
+	heap.Init(&cm.deadlineBasedMinHeap)
+
+	return cm
+}
+
+// Store updates all the internal data structures with the consumed message metadata
+func (cm *ConsumptionMetadata) Store(msg *messagebroker.ReceivedMessage, deadline int64) {
+	cm.consumedMessages[msg.MessageID] = msg
+
+	msg1 := &customheap.AckMessageWithOffset{
+		MsgID:  msg.MessageID,
+		Offset: msg.Offset,
+	}
+	cm.offsetBasedMinHeap.Indices = append(cm.offsetBasedMinHeap.Indices, msg1)
+
+	msg2 := &customheap.AckMessageWithDeadline{
+		MsgID:       msg.MessageID,
+		AckDeadline: int32(deadline),
+	}
+	cm.deadlineBasedMinHeap.Indices = append(cm.deadlineBasedMinHeap.Indices, msg2)
+}
+
+// TopicPartition ...
+type TopicPartition struct {
+	topic     string
+	partition int32
+}
+
+// NewTopicPartition ...
+func NewTopicPartition(topic string, partition int32) TopicPartition {
+	return TopicPartition{
+		topic:     topic,
+		partition: partition,
+	}
+}
+
+func (tp TopicPartition) String() string {
+	return fmt.Sprintf("%v-%v", tp.topic, tp.partition)
+}
+
+// ModAckMessage ...
+type ModAckMessage struct {
+	ackMessage  *AckMessage
+	ackDeadline int32
+}
+
+// NewModAckMessage ...
+func NewModAckMessage(ackMessage *AckMessage, ackDeadline int32) *ModAckMessage {
+	return &ModAckMessage{
+		ackMessage:  ackMessage,
+		ackDeadline: ackDeadline,
+	}
 }

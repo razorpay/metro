@@ -28,7 +28,7 @@ type StreamManger struct {
 
 	bs brokerstore.IBrokerStore
 
-	// TODO: heap code. will remove. maintain a distributed counter for active streams per subscription
+	// TODO: custom code. will remove. maintain a distributed counter for active streams per subscription
 	activeStreamCount map[string]uint32
 }
 
@@ -91,7 +91,17 @@ func (s *StreamManger) Acknowledge(ctx context.Context, req *ParsedStreamingPull
 
 // ModifyAcknowledgement ...
 func (s *StreamManger) ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error {
-	// TODO: implement
+	for _, ackMsg := range req.AckMessages {
+		if ackMsg.MatchesOriginatingMessageServer() {
+			// find active stream
+			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
+				pullStream.modifyAckDeadline(ctx, subscriber.NewModAckMessage(ackMsg, req.ModifyDeadlineMsgIdsWithSecs[ackMsg.MessageID]))
+			}
+		} else {
+			// proxy request to the correct server
+		}
+	}
+
 	return nil
 }
 

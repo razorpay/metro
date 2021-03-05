@@ -1,8 +1,11 @@
 package subscriber
 
 import (
+	"container/heap"
 	"context"
 	"time"
+
+	"github.com/razorpay/metro/internal/subscriber/customheap"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -18,12 +21,14 @@ type ISubscriber interface {
 	GetID() string
 	Acknowledge(ctx context.Context, req *AckMessage) error
 	// TODO: fix ModifyAckDeadline definition and implementation
-	ModifyAckDeadline(ctx context.Context, req *AckMessage) error
+	ModifyAckDeadline(ctx context.Context, req *ModAckMessage) error
 	// the grpc proto is used here as well, to optimise for serialization
 	// and deserialisation, a little unclean but optimal
 	// TODO: figure a better way out
 	GetResponseChannel() chan metrov1.PullResponse
 	GetRequestChannel() chan *PullRequest
+	GetAckChannel() chan *AckMessage
+	GetModAckChannel() chan *ModAckMessage
 	GetErrorChannel() chan error
 	Stop()
 	Run(ctx context.Context)
@@ -38,30 +43,22 @@ type Subscriber struct {
 	subscriptionCore       subscription.ICore
 	requestChan            chan *PullRequest
 	responseChan           chan metrov1.PullResponse
+	ackChan                chan *AckMessage
+	modAckChan             chan *ModAckMessage
 	errChan                chan error
 	closeChan              chan struct{}
+	deadlineTickerChan     chan bool
 	timeoutInSec           int
 	consumer               messagebroker.Consumer
 	cancelFunc             func()
 	maxOutstandingMessages int64
 	maxOutstandingBytes    int64
-
-	// data structures to hold messages in-memory
-
-	// hold all consumed messages. this will help throttle based on maxOutstandingMessages and maxOutstandingBytes
-	consumedMessages map[string]interface{}
-
-	// TODO : heap code. add proper DS
-	offsetBasedMinHeap map[int32]*AckMessage
-
-	// TODO: need a way to identify the last committed offset on a topic partition when a new subscriber is created
-	// our counter will init to that value initially
-	maxCommittedOffset int32
+	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
 }
 
 // CanConsumeMore ...
-func (s *Subscriber) CanConsumeMore() bool {
-	return len(s.consumedMessages) <= int(s.maxOutstandingMessages)
+func (s *Subscriber) CanConsumeMore(tp TopicPartition) bool {
+	return len(s.consumedMessageStats[tp].consumedMessages) <= int(s.maxOutstandingMessages)
 }
 
 // GetID ...
@@ -71,76 +68,116 @@ func (s *Subscriber) GetID() string {
 
 // Acknowledge messages
 func (s *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
-	// need to make this operation thread-safe
 
-	// add to DS directly
-	s.offsetBasedMinHeap[req.Offset] = req
+	tp := req.ToTopicPartition()
+	stats := s.consumedMessageStats[tp]
 
-	// call heapify on offsets
-
-	evictedMsgs := make([]*AckMessage, 0)
-	offsetMarker := s.maxCommittedOffset + 1
-	// check root node offset and compare with maxCommittedOffset
-	for offsetMarker == s.offsetBasedMinHeap[0].Offset {
-
-		// remove the root node
-		evictedMsgs = append(evictedMsgs, s.offsetBasedMinHeap[0])
-		delete(s.offsetBasedMinHeap, offsetMarker)
-
-		// call heapify
-
-		// increment offsetMarker to next offset
-		offsetMarker++
-	}
-
-	// after the above loop breaks we would have the committable offset identified
 	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 		Topic:     req.Topic,
 		Partition: req.Partition,
-		Offset:    offsetMarker,
+		Offset:    req.Offset,
 	})
-
 	if err != nil {
 		return err
 	}
 
-	// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
-	s.maxCommittedOffset = offsetMarker
+	// NOTE: do below in-memory operations only after a successful commit to broker
+	delete(stats.consumedMessages, req.MessageID)
 
-	// cleanup consumedMessages map to make space for more incoming messages
-	if len(evictedMsgs) > 0 {
-		for _, msg := range evictedMsgs {
-			delete(s.consumedMessages, msg.MessageID)
-		}
+	// remove message from offsetBasedMinHeap
+	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[req.MessageID]
+	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(customheap.AckMessageWithOffset)
+	heap.Init(&stats.offsetBasedMinHeap)
+
+	// remove same message from deadlineBasedMinHeap
+	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
+	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
+	heap.Init(&stats.deadlineBasedMinHeap)
+
+	// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
+	heapIndices := stats.offsetBasedMinHeap.Indices
+	if len(heapIndices) > 0 {
+		stats.maxCommittedOffset = heapIndices[0].Offset
 	}
 
 	return nil
 }
 
 // ModifyAckDeadline for messages
-func (s *Subscriber) ModifyAckDeadline(ctx context.Context, req *AckMessage) error {
+func (s *Subscriber) ModifyAckDeadline(_ context.Context, req *ModAckMessage) error {
+
+	tp := req.ackMessage.ToTopicPartition()
+	stats := s.consumedMessageStats[tp]
+
+	if req.ackDeadline == 0 {
+		// modAck with deadline = 0 means nack
+		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
+		// TODO : remove from both heaps and push to retry queue
+	}
+
+	deadlineBasedHeap := stats.deadlineBasedMinHeap
+	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.ackMessage.MessageID]
+
+	// update the deadline of the identified message
+	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
+	heap.Init(&deadlineBasedHeap)
+
 	return nil
 }
 
+func (s *Subscriber) checkAndEvictBasedOnAckDeadline(_ context.Context) error {
+
+	// do a deadline based eviction for all active topic-partition heaps
+	for _, metadata := range s.consumedMessageStats {
+
+		deadlineBasedHeap := metadata.deadlineBasedMinHeap
+
+		// peek deadline heap
+		peek := deadlineBasedHeap.Indices[0]
+
+		// check eligibility for eviction
+		if peek.HasHitDeadline() {
+			evictedMsg1 := heap.Pop(&deadlineBasedHeap).(*customheap.AckMessageWithDeadline)
+
+			offsetBasedHeap := metadata.offsetBasedMinHeap
+			evictedMsg2 := heap.Remove(&offsetBasedHeap, offsetBasedHeap.MsgIDToIndexMapping[evictedMsg1.MsgID]).(*customheap.AckMessageWithOffset)
+
+			delete(offsetBasedHeap.MsgIDToIndexMapping, evictedMsg1.MsgID)
+			delete(deadlineBasedHeap.MsgIDToIndexMapping, evictedMsg2.MsgID)
+
+			heap.Init(&offsetBasedHeap)
+			heap.Init(&deadlineBasedHeap)
+		}
+	}
+
+	return nil
+}
+
+var minAckDeadline = 10 * time.Minute
+
 // Run loop
 func (s *Subscriber) Run(ctx context.Context) {
+
+	go func(deadlineChan chan bool) {
+		ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
+		for {
+			select {
+			case <-ticker.C:
+				deadlineChan <- true
+			}
+		}
+	}(s.deadlineTickerChan)
+
 	for {
 		select {
 		case req := <-s.requestChan:
 
-			if s.CanConsumeMore() == false {
-				logger.Ctx(ctx).Infow("reached max limit of consumed messages. please ack messages before proceeding")
-				s.responseChan <- metrov1.PullResponse{}
-				// TODO: remove this sleep and implement pause and resume
-				time.Sleep(500 * time.Millisecond)
-				continue
-			}
-			//s.consumer.Resume()
 			r, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{req.MaxNumOfMessages, s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
 				s.errChan <- err
 			}
+
 			sm := make([]*metrov1.ReceivedMessage, 0)
 			for _, msg := range r.OffsetWithMessages {
 				protoMsg := &metrov1.PubsubMessage{}
@@ -156,18 +193,29 @@ func (s *Subscriber) Run(ctx context.Context) {
 				// TODO: fix delivery attempt
 
 				// store the processed messages in a map for limit checks
-				s.consumedMessages[msg.MessageID] = msg
-				// instead of passing msgId as is, construct a proper ackId using pre-defined fields
-				ackID := NewAckMessage(s.subscriberID, s.topic, msg.Partition, msg.Offset, msg.MessageID).BuildAckID()
+				tp := NewTopicPartition(s.topic, msg.Partition)
+				if _, ok := s.consumedMessageStats[tp]; !ok {
+					// init the stats data store before updating
+					s.consumedMessageStats[tp] = NewConsumptionMetadata()
+				}
+
+				ackDeadline := time.Now().Add(minAckDeadline).Unix()
+				s.consumedMessageStats[tp].Store(&msg, ackDeadline)
+
+				ackID := NewAckMessage(s.subscriberID, s.topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
 				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
 			}
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
+		case ackRequest := <-s.ackChan:
+			s.Acknowledge(ctx, ackRequest)
+		case modAckRequest := <-s.modAckChan:
+			s.ModifyAckDeadline(ctx, modAckRequest)
+		case <-s.deadlineTickerChan:
+			s.checkAndEvictBasedOnAckDeadline(ctx)
 		case <-ctx.Done():
 			s.closeChan <- struct{}{}
 			return
 		}
-
-		// TODO: see if we can handle ack / modack in this for{} itself. That way we can avoid taking locks on in-memory DSs
 	}
 }
 
@@ -184,6 +232,16 @@ func (s *Subscriber) GetResponseChannel() chan metrov1.PullResponse {
 // GetErrorChannel returns the channel where error is written
 func (s *Subscriber) GetErrorChannel() chan error {
 	return s.errChan
+}
+
+// GetAckChannel returns the chan from where ack is received
+func (s *Subscriber) GetAckChannel() chan *AckMessage {
+	return s.ackChan
+}
+
+// GetModAckChannel returns the chan where mod ack is written
+func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
+	return s.modAckChan
 }
 
 // Stop the subscriber

@@ -86,6 +86,18 @@ type GetTopicMetadataResponse struct {
 	Response interface{}
 }
 
+// PauseOnTopicRequest ...
+type PauseOnTopicRequest struct {
+	Topic     string
+	Partition int32
+}
+
+// ResumeOnTopicRequest ...
+type ResumeOnTopicRequest struct {
+	Topic     string
+	Partition int32
+}
+
 type pulsarAckMessage struct {
 	ID string
 }

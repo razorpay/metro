@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/razorpay/metro/service/web/stream"
+
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
@@ -14,10 +16,10 @@ import (
 
 type subscriberserver struct {
 	subscriptionCore *subscription.Core
-	psm              IStreamManger
+	psm              stream.IManager
 }
 
-func newSubscriberServer(subscriptionCore *subscription.Core, psm IStreamManger) *subscriberserver {
+func newSubscriberServer(subscriptionCore *subscription.Core, psm stream.IManager) *subscriberserver {
 	return &subscriberserver{subscriptionCore, psm}
 }
 
@@ -39,7 +41,7 @@ func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.S
 func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("received request to ack messages")
 
-	parsedReq, parseErr := newParsedAcknowledgeRequest(req)
+	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	if parseErr != nil {
 		logger.Ctx(ctx).Errorw("error is parsing ack request", "request", req, "error", parseErr.Error())
 		return nil, parseErr
@@ -83,7 +85,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 		return err
 	}
 
-	parsedReq, parseErr := newParsedStreamingPullRequest(req)
+	parsedReq, parseErr := stream.NewParsedStreamingPullRequest(req)
 	if parseErr != nil {
 		logger.Ctx(ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
 		return nil
@@ -140,7 +142,7 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 
 func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("received request to modack messages")
-	parsedReq, parseErr := newParsedModifyAckDeadlineRequest(req)
+	parsedReq, parseErr := stream.NewParsedModifyAckDeadlineRequest(req)
 	if parseErr != nil {
 		logger.Ctx(ctx).Errorw("error is parsing modack request", "request", req, "error", parseErr.Error())
 		return nil, parseErr

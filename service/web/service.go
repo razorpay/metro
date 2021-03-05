@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/razorpay/metro/service/web/stream"
+
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -68,7 +70,7 @@ func (svc *Service) Start() error {
 
 	publisher := publisher.NewCore(brokerStore)
 
-	streamManager := NewStreamManager(subscriptionCore, brokerStore)
+	streamManager := stream.NewStreamManager(subscriptionCore, brokerStore)
 
 	grpcServer, err := internalserver.StartGRPCServer(
 		grp,

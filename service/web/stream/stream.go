@@ -1,4 +1,4 @@
-package web
+package stream
 
 import (
 	"context"
@@ -6,12 +6,20 @@ import (
 	"io"
 	"time"
 
-	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"golang.org/x/sync/errgroup"
 )
+
+// IStream ...
+type IStream interface {
+	run() error
+	stop()
+	receive()
+	acknowledge(ctx context.Context, req *subscriber.AckMessage)
+	modifyAckDeadline(ctx context.Context, req *subscriber.ModAckMessage)
+}
 
 type pullStream struct {
 	clientID               string
@@ -54,27 +62,23 @@ func (s *pullStream) run() error {
 			}
 			return nil
 		case req := <-s.reqChan:
-			parsedReq, parseErr := newParsedStreamingPullRequest(req)
+			parsedReq, parseErr := NewParsedStreamingPullRequest(req)
 			if parseErr != nil {
 				logger.Ctx(s.ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
 				return parseErr
 			}
+
 			if parsedReq.HasAcknowledgement() {
 				// request to ack messages
 				for _, ackMsg := range parsedReq.AckMessages {
-					err := s.acknowledge(s.ctx, ackMsg)
-					if err != nil {
-						return merror.ToGRPCError(err)
-					}
+					s.acknowledge(s.ctx, ackMsg)
 				}
 			}
+
 			if parsedReq.HasModifyAcknowledgement() {
 				// request to ack messages
 				for _, modAckMsg := range parsedReq.AckMessages {
-					err := s.modifyAckDeadline(s.ctx, subscriber.NewModAckMessage(modAckMsg, parsedReq.ModifyDeadlineMsgIdsWithSecs[modAckMsg.MessageID]))
-					if err != nil {
-						return merror.ToGRPCError(err)
-					}
+					s.modifyAckDeadline(s.ctx, subscriber.NewModAckMessage(modAckMsg, parsedReq.ModifyDeadlineMsgIdsWithSecs[modAckMsg.MessageID]))
 				}
 			}
 			// reset stream ack deadline seconds
@@ -111,14 +115,12 @@ func (s *pullStream) receive() {
 	s.reqChan <- req
 }
 
-func (s *pullStream) acknowledge(_ context.Context, req *subscriber.AckMessage) error {
+func (s *pullStream) acknowledge(_ context.Context, req *subscriber.AckMessage) {
 	s.subscriptionSubscriber.GetAckChannel() <- req
-	return nil
 }
 
-func (s *pullStream) modifyAckDeadline(_ context.Context, req *subscriber.ModAckMessage) error {
+func (s *pullStream) modifyAckDeadline(_ context.Context, req *subscriber.ModAckMessage) {
 	s.subscriptionSubscriber.GetModAckChannel() <- req
-	return nil
 }
 
 func (s *pullStream) stop() {

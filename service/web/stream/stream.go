@@ -71,16 +71,17 @@ func (s *pullStream) run() error {
 			if parsedReq.HasAcknowledgement() {
 				// request to ack messages
 				for _, ackMsg := range parsedReq.AckMessages {
-					s.acknowledge(s.ctx, ackMsg)
+					s.subscriptionSubscriber.GetAckChannel() <- ackMsg
 				}
 			}
 
 			if parsedReq.HasModifyAcknowledgement() {
-				// request to ack messages
+				// request to mod ack messages
 				for _, modAckMsg := range parsedReq.AckMessages {
-					s.modifyAckDeadline(s.ctx, subscriber.NewModAckMessage(modAckMsg, parsedReq.ModifyDeadlineMsgIdsWithSecs[modAckMsg.MessageID]))
+					s.subscriptionSubscriber.GetModAckChannel() <- subscriber.NewModAckMessage(modAckMsg, parsedReq.ModifyDeadlineMsgIdsWithSecs[modAckMsg.MessageID])
 				}
 			}
+
 			// reset stream ack deadline seconds
 			if req.StreamAckDeadlineSeconds != 0 {
 				timeout.Stop()

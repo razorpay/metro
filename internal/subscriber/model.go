@@ -168,6 +168,11 @@ func init() {
 }
 
 func lookupAndSetIP() {
+	if os.Getenv("APP_ENV") == "dev_docker" {
+		currentHostIP = "1.2.3.4"
+		return
+	}
+
 	// TODO: check if this works on pods
 	host, _ := os.Hostname()
 	addrs, _ := net.LookupIP(host)

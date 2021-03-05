@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	topic2 "github.com/razorpay/metro/internal/topic"
+
 	"github.com/google/uuid"
 
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -40,6 +42,14 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	if err != nil {
 		return nil, err
 	}
+
+	// make sure retry topic creation is taken care during the primary topic creation flow
+	retryTopic := topic + topic2.RetryTopicSuffix
+	retryConsumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: retryTopic, GroupID: subscription})
+	if err != nil {
+		return nil, err
+	}
+
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	s := &Subscriber{subscription: subscription,
 		topic:                  topic,
@@ -52,6 +62,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		closeChan:              make(chan struct{}),
 		timeoutInSec:           timeoutInSec,
 		consumer:               consumer,
+		retryConsumer:          retryConsumer,
 		cancelFunc:             cancelFunc,
 		maxOutstandingMessages: maxOutstandingMessages,
 		maxOutstandingBytes:    maxOutstandingBytes,

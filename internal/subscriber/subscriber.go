@@ -38,6 +38,7 @@ type ISubscriber interface {
 type Subscriber struct {
 	subscription           string
 	topic                  string
+	retryTopic             string
 	subscriberID           string
 	bs                     brokerstore.IBrokerStore
 	subscriptionCore       subscription.ICore
@@ -50,6 +51,7 @@ type Subscriber struct {
 	deadlineTickerChan     chan bool
 	timeoutInSec           int
 	consumer               messagebroker.Consumer
+	retryConsumer          messagebroker.Consumer
 	cancelFunc             func()
 	maxOutstandingMessages int64
 	maxOutstandingBytes    int64
@@ -176,39 +178,53 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 			// TODO : discuss pause / resume on maxOutstanding!
 
-			r, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
+			resp1, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
 				s.errChan <- err
 			}
 
-			sm := make([]*metrov1.ReceivedMessage, 0)
-			for _, msg := range r.OffsetWithMessages {
-				protoMsg := &metrov1.PubsubMessage{}
-				err = proto.Unmarshal(msg.Data, protoMsg)
-				if err != nil {
-					s.errChan <- err
-				}
-				// set messageID and publish time
-				protoMsg.MessageId = msg.MessageID
-				ts := &timestamppb.Timestamp{}
-				ts.Seconds = msg.PublishTime.Unix() // test this
-				protoMsg.PublishTime = ts
-				// TODO: fix delivery attempt
-
-				// store the processed messages in a map for limit checks
-				tp := NewTopicPartition(s.topic, msg.Partition)
-				if _, ok := s.consumedMessageStats[tp]; !ok {
-					// init the stats data store before updating
-					s.consumedMessageStats[tp] = NewConsumptionMetadata()
-				}
-
-				ackDeadline := time.Now().Add(minAckDeadline).Unix()
-				s.consumedMessageStats[tp].Store(&msg, ackDeadline)
-
-				ackID := NewAckMessage(s.subscriberID, s.topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
-				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
+			resp2, err := s.retryConsumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
+			if err != nil {
+				logger.Ctx(ctx).Errorw("error in receiving retryable messages", "msg", err.Error())
+				s.errChan <- err
 			}
+
+			// merge response from both the consumers
+			responses := make([]*messagebroker.GetMessagesFromTopicResponse, 0)
+			responses = append(responses, resp1)
+			responses = append(responses, resp2)
+
+			sm := make([]*metrov1.ReceivedMessage, 0)
+			for _, resp := range responses {
+				for _, msg := range resp.OffsetWithMessages {
+					protoMsg := &metrov1.PubsubMessage{}
+					err = proto.Unmarshal(msg.Data, protoMsg)
+					if err != nil {
+						s.errChan <- err
+					}
+					// set messageID and publish time
+					protoMsg.MessageId = msg.MessageID
+					ts := &timestamppb.Timestamp{}
+					ts.Seconds = msg.PublishTime.Unix() // test this
+					protoMsg.PublishTime = ts
+					// TODO: fix delivery attempt
+
+					// store the processed r1 in a map for limit checks
+					tp := NewTopicPartition(s.topic, msg.Partition)
+					if _, ok := s.consumedMessageStats[tp]; !ok {
+						// init the stats data store before updating
+						s.consumedMessageStats[tp] = NewConsumptionMetadata()
+					}
+
+					ackDeadline := time.Now().Add(minAckDeadline).Unix()
+					s.consumedMessageStats[tp].Store(&msg, ackDeadline)
+
+					ackID := NewAckMessage(s.subscriberID, s.topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
+					sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
+				}
+			}
+
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
 		case ackRequest := <-s.ackChan:
 			s.Acknowledge(ctx, ackRequest)

@@ -147,6 +147,8 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(_ context.Context) error {
 
 			heap.Init(&offsetBasedHeap)
 			heap.Init(&deadlineBasedHeap)
+
+			// TODO : nack the evicted message as well
 		}
 	}
 
@@ -172,7 +174,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 		select {
 		case req := <-s.requestChan:
 
-			r, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{req.MaxNumOfMessages, s.timeoutInSec})
+			// TODO : discuss pause / resume on maxOutstanding!
+
+			r, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
 				s.errChan <- err

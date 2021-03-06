@@ -226,8 +226,8 @@ type ConsumptionMetadata struct {
 func NewConsumptionMetadata() *ConsumptionMetadata {
 	cm := &ConsumptionMetadata{
 		consumedMessages:     make(map[string]interface{}),
-		offsetBasedMinHeap:   customheap.OffsetBasedPriorityQueue{},
-		deadlineBasedMinHeap: customheap.DeadlineBasedPriorityQueue{},
+		offsetBasedMinHeap:   customheap.NewOffsetBasedPriorityQueue(),
+		deadlineBasedMinHeap: customheap.NewDeadlineBasedPriorityQueue(),
 		maxCommittedOffset:   0,
 	}
 

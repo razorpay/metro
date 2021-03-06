@@ -57,6 +57,7 @@ jobs:
             build_args: GIT_COMMIT_HASH=${{ github.sha }}
           env:
             GIT_COMMIT_HASH: ${{ github.sha }}
+            APP_ENV: dev_docker
     integration-tests:
         runs-on: ubuntu-latest
         container: golang:1.15.5-alpine3.12

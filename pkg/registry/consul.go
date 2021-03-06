@@ -143,6 +143,22 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 	return kv.Value, nil
 }
 
+// ListKeys returns a value for a key
+func (c *ConsulClient) ListKeys(ctx context.Context, key string) ([]string, error) {
+	kv, _, err := c.client.KV().List(key, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	keys := []string{}
+
+	for _, pair := range kv {
+		keys = append(keys, pair.Key)
+	}
+
+	return keys, nil
+}
+
 // Exists checks the existence of a key
 func (c *ConsulClient) Exists(key string) (bool, error) {
 	kvp, _, err := c.client.KV().Get(key, nil)

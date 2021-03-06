@@ -168,7 +168,8 @@ func init() {
 }
 
 func lookupAndSetIP() {
-	if os.Getenv("APP_ENV") == "dev_docker" {
+	env := os.Getenv("APP_ENV")
+	if env == "dev_docker" || env == "" {
 		currentHostIP = "1.2.3.4"
 		return
 	}

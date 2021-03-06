@@ -16,7 +16,7 @@ type OffsetBasedPriorityQueue struct {
 // NewOffsetBasedPriorityQueue ...
 func NewOffsetBasedPriorityQueue() OffsetBasedPriorityQueue {
 	return OffsetBasedPriorityQueue{
-		Indices:             []*AckMessageWithOffset{},
+		Indices:             make([]*AckMessageWithOffset, 0),
 		MsgIDToIndexMapping: make(map[string]int),
 	}
 }

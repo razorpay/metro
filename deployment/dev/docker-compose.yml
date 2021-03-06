@@ -24,7 +24,6 @@ services:
       timeout: 10s
       retries: 5
     restart: on-failure
-
   metro-worker:
     build:
       context: ../..

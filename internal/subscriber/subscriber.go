@@ -23,9 +23,10 @@ const (
 // ISubscriber is interface over high level subscriber
 type ISubscriber interface {
 	GetID() string
-	Acknowledge(ctx context.Context, req *AckMessage) error
-	// TODO: fix ModifyAckDeadline definition and implementation
-	ModifyAckDeadline(ctx context.Context, req *ModAckMessage) error
+	// not exporting acknowledge() and  modifyAckDeadline() intentionally so that
+	// all operations happen over the channel
+	acknowledge(ctx context.Context, req *AckMessage) error
+	modifyAckDeadline(ctx context.Context, req *ModAckMessage) error
 	// the grpc proto is used here as well, to optimise for serialization
 	// and deserialisation, a little unclean but optimal
 	// TODO: figure a better way out
@@ -62,9 +63,13 @@ type Subscriber struct {
 	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
 }
 
-// CanConsumeMore ...
-func (s *Subscriber) CanConsumeMore(tp TopicPartition) bool {
-	return len(s.consumedMessageStats[tp].consumedMessages) <= int(s.maxOutstandingMessages)
+// canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
+func (s *Subscriber) canConsumeMore() bool {
+	totalConsumedMsgsForTopic := 0
+	for _, cm := range s.consumedMessageStats {
+		totalConsumedMsgsForTopic += len(cm.consumedMessages)
+	}
+	return totalConsumedMsgsForTopic <= int(s.maxOutstandingMessages)
 }
 
 // GetID ...
@@ -72,8 +77,8 @@ func (s *Subscriber) GetID() string {
 	return s.subscriberID
 }
 
-// Acknowledge messages
-func (s *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
+// acknowledge messages
+func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 
 	tp := req.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
@@ -109,8 +114,8 @@ func (s *Subscriber) Acknowledge(ctx context.Context, req *AckMessage) error {
 	return nil
 }
 
-// ModifyAckDeadline for messages
-func (s *Subscriber) ModifyAckDeadline(_ context.Context, req *ModAckMessage) error {
+// modifyAckDeadline for messages
+func (s *Subscriber) modifyAckDeadline(_ context.Context, req *ModAckMessage) error {
 
 	tp := req.ackMessage.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
@@ -177,7 +182,12 @@ func (s *Subscriber) Run(ctx context.Context) {
 	for {
 		select {
 		case req := <-s.requestChan:
-			// TODO : discuss pause / resume on maxOutstanding!
+
+			if s.canConsumeMore() {
+				// TODO: add pause resume consumer
+				// TODO: use getTopicStats from broker and identify active topic partitions
+				//s.consumer.Resume()
+			}
 
 			// TODO: run receive request in another goroutine?
 			resp1, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
@@ -226,9 +236,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 			}
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
 		case ackRequest := <-s.ackChan:
-			s.Acknowledge(ctx, ackRequest)
+			s.acknowledge(ctx, ackRequest)
 		case modAckRequest := <-s.modAckChan:
-			s.ModifyAckDeadline(ctx, modAckRequest)
+			s.modifyAckDeadline(ctx, modAckRequest)
 		case <-s.deadlineTickerChan:
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 		case <-ctx.Done():

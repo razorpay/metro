@@ -23,7 +23,7 @@ type DeadlineBasedPriorityQueue struct {
 // NewDeadlineBasedPriorityQueue ...
 func NewDeadlineBasedPriorityQueue() DeadlineBasedPriorityQueue {
 	return DeadlineBasedPriorityQueue{
-		Indices:             []*AckMessageWithDeadline{},
+		Indices:             make([]*AckMessageWithDeadline, 0),
 		MsgIDToIndexMapping: make(map[string]int),
 	}
 }

@@ -19,8 +19,8 @@ func Test_Pubsub(t *testing.T) {
 
 	// This is just a placeholder test.
 	// TODO: fix it with more tests and better structure
-	for k, client := range []*pubsub.Client{metroClient, emulatorClient} {
-		t.Logf("running index %d", k)
+	index := 0
+	for _, client := range []*pubsub.Client{metroClient, emulatorClient} {
 		topic, err := client.CreateTopic(context.Background(), topicName)
 		assert.Nil(t, err)
 		assert.NotNil(t, topic)
@@ -34,7 +34,8 @@ func Test_Pubsub(t *testing.T) {
 		//sub1.ReceiveSettings.Synchronous = true
 		sub.ReceiveSettings.NumGoroutines = 1
 		go sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
-			t.Logf("[%d] Got message: %q\n", k, string(m.Data))
+			index++
+			t.Logf("[%d] Got message: %q\n", index, string(m.Data))
 			m.Ack()
 		})
 		//topic.EnableMessageOrdering = true

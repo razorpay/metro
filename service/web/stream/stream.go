@@ -90,7 +90,7 @@ func (s *pullStream) run() error {
 			}
 		default:
 			// once stream is established, we can continuously send messages over it
-			s.subscriptionSubscriber.GetRequestChannel() <- &subscriber.PullRequest{DefaultNumMessagesToReadOffStream}
+			s.subscriptionSubscriber.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
 			select {
 			case res := <-s.subscriptionSubscriber.GetResponseChannel():
 				if len(res.ReceivedMessages) > 0 {

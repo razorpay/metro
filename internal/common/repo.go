@@ -14,6 +14,7 @@ type IRepo interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteTree(ctx context.Context, m IModel) error
 	Get(ctx context.Context, key string, m IModel) error
+	ListKeys(ctx context.Context, prefix string) ([]string, error)
 }
 
 // BaseRepo implements base repo methods
@@ -52,4 +53,14 @@ func (r BaseRepo) Get(ctx context.Context, key string, m IModel) error {
 		return err
 	}
 	return nil
+}
+
+// ListKeys populates keys with key list corresponding to prefix
+func (r BaseRepo) ListKeys(ctx context.Context, prefix string) ([]string, error) {
+	keys, err := r.Registry.ListKeys(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	return keys, nil
 }

@@ -69,7 +69,6 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 	s.pullStreams[pullStream.subscriberID] = pullStream
 
 	return nil
-
 }
 
 // Acknowledge ...

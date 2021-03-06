@@ -95,6 +95,7 @@ func NewAckMessage(subscriberID, topic string, partition, offset, deadline int32
 		Partition:    partition,
 		MessageID:    messageID,
 		Deadline:     deadline,
+		Offset:       offset,
 	}
 }
 

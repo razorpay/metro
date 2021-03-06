@@ -161,7 +161,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	fmt.Printf("\n\nmsg received from topic : %v", topic)
 	for offset, msg := range resp.OffsetWithMessages {
-		fmt.Printf("\noffset [%v], message [%v]", offset, msg)
+		fmt.Printf("\noffset [%v], message [%v]", offset, msg.String())
 	}
 
 	// message produced count should match the number of message ids generated in response
@@ -192,7 +192,7 @@ func getAdminClientConfig() *messagebroker.AdminClientOptions {
 
 func getKafkaBrokerConfig() *messagebroker.BrokerConfig {
 	kafKaBroker := fmt.Sprintf("%v:9092", os.Getenv("KAFKA_TEST_HOST"))
-	fmt.Println("using kafKaBroker", kafKaBroker)
+	fmt.Println("\nusing kafKaBroker", kafKaBroker)
 	return &messagebroker.BrokerConfig{
 		Brokers: []string{kafKaBroker},
 		Consumer: &messagebroker.ConsumerConfig{

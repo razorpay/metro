@@ -2,6 +2,7 @@ package messagebroker
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -74,6 +75,11 @@ type ReceivedMessage struct {
 	Partition   int32
 	Offset      int32
 	PublishTime time.Time
+}
+
+func (rm ReceivedMessage) String() string {
+	return fmt.Sprintf("data=[%v], msgId=[%v], partition=[%v], offset=[%v], publishTime=[%v]",
+		string(rm.Data), rm.MessageID, rm.Partition, rm.Offset, rm.PublishTime.Unix())
 }
 
 // CommitOnTopicResponse ...

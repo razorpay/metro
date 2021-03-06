@@ -66,6 +66,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		cancelFunc:             cancelFunc,
 		maxOutstandingMessages: maxOutstandingMessages,
 		maxOutstandingBytes:    maxOutstandingBytes,
+		consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
 	}
 
 	go s.Run(subsCtx)

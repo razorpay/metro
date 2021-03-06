@@ -39,7 +39,7 @@ func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.S
 
 // Acknowledge a message
 func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
-	logger.Ctx(ctx).Infow("received request to ack messages")
+	logger.Ctx(ctx).Infow("received request to ack messages", "ack_req", req.String())
 
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	if parseErr != nil {
@@ -57,7 +57,7 @@ func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.Acknowle
 
 // Pull messages
 func (s subscriberserver) Pull(ctx context.Context, req *metrov1.PullRequest) (*metrov1.PullResponse, error) {
-	logger.Ctx(ctx).Infow("received request to pull messages")
+	logger.Ctx(ctx).Infow("received request to pull messages", "pull_req", req.String())
 	// non streaming pull not to be supported
 	/*
 		res, err := s.subscriberCore.Pull(ctx, &subscriber.PullRequest{req.Subscription, 0, 0}, 2, xid.New().String()) // TODO: fix
@@ -141,7 +141,7 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 }
 
 func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
-	logger.Ctx(ctx).Infow("received request to modack messages")
+	logger.Ctx(ctx).Infow("received request to modack messages", "mod_ack_req", req.String())
 	parsedReq, parseErr := stream.NewParsedModifyAckDeadlineRequest(req)
 	if parseErr != nil {
 		logger.Ctx(ctx).Errorw("error is parsing modack request", "request", req, "error", parseErr.Error())

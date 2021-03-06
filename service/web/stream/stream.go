@@ -62,6 +62,7 @@ func (s *pullStream) run() error {
 			}
 			return nil
 		case req := <-s.reqChan:
+			logger.Ctx(s.ctx).Infow("got pull request", "request", req.String())
 			parsedReq, parseErr := NewParsedStreamingPullRequest(req)
 			if parseErr != nil {
 				logger.Ctx(s.ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
@@ -90,7 +91,9 @@ func (s *pullStream) run() error {
 			}
 		default:
 			// once stream is established, we can continuously send messages over it
-			s.subscriptionSubscriber.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
+			req := &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
+			s.subscriptionSubscriber.GetRequestChannel() <- req
+			logger.Ctx(s.ctx).Infow("sending default pull request over stream", "req", req)
 			select {
 			case res := <-s.subscriptionSubscriber.GetResponseChannel():
 				if len(res.ReceivedMessages) > 0 {

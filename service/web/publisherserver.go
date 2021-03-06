@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"log"
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/merror"
@@ -26,12 +25,12 @@ func newPublisherServer(brokerStore brokerstore.IBrokerStore, topicCore topic.IC
 
 // Produce messages to a topic
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
-	log.Println("produce request received")
+	logger.Ctx(ctx).Infow("produce request received", "req", req.Topic)
 	msgIDs, err := s.publisher.Publish(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
-	log.Println("produce request completed")
+	logger.Ctx(ctx).Infow("produce request completed", "req", req.Topic)
 	return &metrov1.PublishResponse{MessageIds: msgIDs}, nil
 }
 

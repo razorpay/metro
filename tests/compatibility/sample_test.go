@@ -38,6 +38,7 @@ func Test_Pubsub(t *testing.T) {
 			t.Logf("[%d] Got message: %q\n", index, string(m.Data))
 			m.Ack()
 		})
+
 		//topic.EnableMessageOrdering = true
 		for i := 0; i < 10; i++ {
 			r := topic.Publish(context.Background(), &pubsub.Message{Data: []byte(fmt.Sprintf("payload %d", i))})

@@ -80,8 +80,8 @@ type AckMessage struct {
 	Partition     int32
 	Offset        int32
 	MessageID     string
-	AckID         string
 	Deadline      int32
+	AckID         string
 }
 
 const ackIDSeparator = "_"
@@ -96,6 +96,11 @@ func NewAckMessage(subscriberID, topic string, partition, offset, deadline int32
 		MessageID:    messageID,
 		Deadline:     deadline,
 	}
+}
+
+func (a *AckMessage) String() string {
+	return fmt.Sprintf("serverAddress:[%v], subscriberId:[%v], topic:[%v], partition:[%v], offset:[%v], msgId:[%v], deadline:[%v], ack_id:[%v]",
+		a.ServerAddress, a.SubscriberID, a.Topic, a.Partition, a.Offset, a.MessageID, a.Deadline, a.AckID)
 }
 
 // BuildAckID ...
@@ -271,6 +276,10 @@ func (tp TopicPartition) String() string {
 type ModAckMessage struct {
 	ackMessage  *AckMessage
 	ackDeadline int32
+}
+
+func (a *ModAckMessage) String() string {
+	return fmt.Sprintf("ackMessage:[%v], ackDeadline:[%v]", a.ackMessage, a.ackDeadline)
 }
 
 // NewModAckMessage ...

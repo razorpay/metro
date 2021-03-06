@@ -80,6 +80,8 @@ func (s *Subscriber) GetID() string {
 // acknowledge messages
 func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 
+	logger.Ctx(ctx).Infow("got ack request", "ack_request", req.String())
+
 	tp := req.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
 
@@ -115,7 +117,9 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 }
 
 // modifyAckDeadline for messages
-func (s *Subscriber) modifyAckDeadline(_ context.Context, req *ModAckMessage) error {
+func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) error {
+
+	logger.Ctx(ctx).Infow("got mod ack request", "mod_ack_request", req.String())
 
 	tp := req.ackMessage.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]

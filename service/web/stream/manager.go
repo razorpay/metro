@@ -3,6 +3,8 @@ package stream
 import (
 	"context"
 
+	"github.com/razorpay/metro/pkg/logger"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
@@ -21,14 +23,10 @@ type IManager interface {
 type Manager struct {
 	// manage active streams by stream_id / subscriber_id
 	// in case of graceful shutdown nack all messages held in these streams
-	pullStreams map[string]IStream
-
-	subscriptionCore subscription.ICore
-
-	bs brokerstore.IBrokerStore
-
-	// TODO: will remove. maintain a distributed counter for active streams per subscription
-	activeStreamCount map[string]uint32
+	pullStreams       map[string]IStream
+	subscriptionCore  subscription.ICore
+	bs                brokerstore.IBrokerStore
+	activeStreamCount map[string]uint32 // TODO: will remove. maintain a distributed counter for active streams per subscription
 }
 
 // NewStreamManager ...
@@ -65,6 +63,8 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 		return err
 	}
 
+	logger.Ctx(server.Context()).Infow("created new pull stream", "stream_id", pullStream.subscriberID)
+
 	// store all active pull streams in a map
 	s.pullStreams[pullStream.subscriberID] = pullStream
 
@@ -74,6 +74,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 
 // Acknowledge ...
 func (s *Manager) Acknowledge(ctx context.Context, req *ParsedStreamingPullRequest) error {
+	logger.Ctx(ctx).Infow("got ack request", "subscription", req.Subscription, "num_of_msgs", len(req.AckMessages), "ack_ids", req.AckIDs)
 	for _, ackMsg := range req.AckMessages {
 		if ackMsg.MatchesOriginatingMessageServer() {
 			// find active stream

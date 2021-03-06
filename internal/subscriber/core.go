@@ -51,7 +51,8 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	}
 
 	subsCtx, cancelFunc := context.WithCancel(ctx)
-	s := &Subscriber{subscription: subscription,
+	s := &Subscriber{
+		subscription:           subscription,
 		topic:                  topic,
 		subscriberID:           uuid.New().String(),
 		bs:                     c.bs,
@@ -60,6 +61,8 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		responseChan:           make(chan metrov1.PullResponse),
 		errChan:                make(chan error),
 		closeChan:              make(chan struct{}),
+		ackChan:                make(chan *AckMessage),
+		modAckChan:             make(chan *ModAckMessage),
 		timeoutInSec:           timeoutInSec,
 		consumer:               consumer,
 		retryConsumer:          retryConsumer,

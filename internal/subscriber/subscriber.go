@@ -16,6 +16,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const (
+	minAckDeadline = 10 * time.Minute
+)
+
 // ISubscriber is interface over high level subscriber
 type ISubscriber interface {
 	GetID() string
@@ -157,39 +161,35 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(_ context.Context) error {
 	return nil
 }
 
-var minAckDeadline = 10 * time.Minute
-
 // Run loop
 func (s *Subscriber) Run(ctx context.Context) {
-
-	go func(deadlineChan chan bool) {
+	go func(ctx context.Context, deadlineChan chan bool) {
 		ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
 		for {
 			select {
 			case <-ticker.C:
 				deadlineChan <- true
+			case <-ctx.Done():
+				return
 			}
 		}
-	}(s.deadlineTickerChan)
-
+	}(ctx, s.deadlineTickerChan)
 	for {
 		select {
 		case req := <-s.requestChan:
-
 			// TODO : discuss pause / resume on maxOutstanding!
 
+			// TODO: run receive request in another goroutine?
 			resp1, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
 				s.errChan <- err
 			}
-
 			resp2, err := s.retryConsumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error in receiving retryable messages", "msg", err.Error())
 				s.errChan <- err
 			}
-
 			// merge response from both the consumers
 			responses := make([]*messagebroker.GetMessagesFromTopicResponse, 0)
 			responses = append(responses, resp1)
@@ -224,7 +224,6 @@ func (s *Subscriber) Run(ctx context.Context) {
 					sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
 				}
 			}
-
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
 		case ackRequest := <-s.ackChan:
 			s.Acknowledge(ctx, ackRequest)

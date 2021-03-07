@@ -240,6 +240,18 @@ func (s *Subscriber) Run(ctx context.Context) {
 					if _, ok := s.consumedMessageStats[tp]; !ok {
 						// init the stats data store before updating
 						s.consumedMessageStats[tp] = NewConsumptionMetadata()
+
+						// query and set the max committed offset for each topic partition
+						resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
+							Topic:     s.topic,
+							Partition: msg.Partition,
+						})
+
+						if err != nil {
+							s.errChan <- err
+
+						}
+						s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
 					}
 
 					ackDeadline := time.Now().Add(minAckDeadline).Unix()

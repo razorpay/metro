@@ -16,8 +16,6 @@ type Admin interface {
 
 	// deletes an existing topic
 	DeleteTopic(context.Context, DeleteTopicRequest) (DeleteTopicResponse, error)
-
-	GetTopicMetadata(context.Context, GetTopicMetadataRequest) (GetTopicMetadataResponse, error)
 }
 
 // Producer for produce operations
@@ -40,6 +38,8 @@ type Consumer interface {
 
 	// Commits a message by ID
 	CommitByMsgID(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
+
+	GetTopicMetadata(context.Context, GetTopicMetadataRequest) (GetTopicMetadataResponse, error)
 
 	// pause the consumer
 	Pause(context.Context, PauseOnTopicRequest) error

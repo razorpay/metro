@@ -231,7 +231,8 @@ func (p *PulsarBroker) GetTopicMetadata(ctx context.Context, request GetTopicMet
 	}
 
 	return GetTopicMetadataResponse{
-		Response: stats,
+		Topic:  request.Topic,
+		Offset: int32(stats.Cursors[request.Topic].MessagesConsumedCounter),
 	}, nil
 }
 

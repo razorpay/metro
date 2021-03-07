@@ -44,8 +44,8 @@ type CommitOnTopicRequest struct {
 
 // GetTopicMetadataRequest ...
 type GetTopicMetadataRequest struct {
-	Topic      string
-	TimeoutSec int
+	Topic     string
+	Partition int32
 }
 
 // CreateTopicResponse ...
@@ -89,7 +89,9 @@ type CommitOnTopicResponse struct {
 
 // GetTopicMetadataResponse ...
 type GetTopicMetadataResponse struct {
-	Response interface{}
+	Topic     string
+	Partition int32
+	Offset    int32
 }
 
 // PauseOnTopicRequest ...

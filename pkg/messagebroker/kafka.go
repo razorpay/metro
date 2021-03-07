@@ -3,6 +3,7 @@ package messagebroker
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -228,18 +229,26 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 }
 
 // GetTopicMetadata fetches the given topics metadata stored in the broker
-func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, req GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
-	metadata, err := k.Admin.GetMetadata(&req.Topic, false, req.TimeoutSec*1000)
-	if err != nil {
+func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	resp, err := k.Consumer.Committed(tps, 5000)
+	if err != nil || resp == nil || len(resp) == 0 {
 		return GetTopicMetadataResponse{}, err
 	}
 
+	tpStats := resp[0]
+	offset, _ := strconv.ParseInt(tpStats.Offset.String(), 10, 0)
 	return GetTopicMetadataResponse{
-		Response: map[string]interface{}{
-			"brokers":           metadata.Brokers,
-			"originatingBroker": metadata.Brokers,
-			"topics":            metadata.Topics,
-		},
+		Topic:     request.Topic,
+		Partition: request.Partition,
+		Offset:    int32(offset),
 	}, err
 }
 

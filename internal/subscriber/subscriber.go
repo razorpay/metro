@@ -85,33 +85,40 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 	tp := req.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
 
-	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
-		Topic:     req.Topic,
-		Partition: req.Partition,
-		Offset:    req.Offset,
-	})
-	if err != nil {
-		return err
+	shouldCommit := false
+	peek := stats.offsetBasedMinHeap.Indices[0]
+	if req.Offset == peek.Offset {
+		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
+		shouldCommit = true
 	}
 
-	// NOTE: do below in-memory operations only after a successful commit to broker
 	delete(stats.consumedMessages, req.MessageID)
 
 	// remove message from offsetBasedMinHeap
 	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[req.MessageID]
 	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
+	delete(stats.offsetBasedMinHeap.MsgIDToIndexMapping, req.MessageID)
 	heap.Init(&stats.offsetBasedMinHeap)
 
 	// remove same message from deadlineBasedMinHeap
 	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
 	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
+	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, req.MessageID)
 	heap.Init(&stats.deadlineBasedMinHeap)
 
-	// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
-	heapIndices := stats.offsetBasedMinHeap.Indices
-	if len(heapIndices) > 0 {
-		stats.maxCommittedOffset = heapIndices[0].Offset
+	if shouldCommit {
+		_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
+			Topic:     req.Topic,
+			Partition: req.Partition,
+			Offset:    req.Offset,
+		})
+		if err != nil {
+			return err
+		}
 	}
+
+	// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
+	stats.maxCommittedOffset = req.Offset
 
 	return nil
 }
@@ -124,13 +131,17 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	tp := req.ackMessage.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
 
+	deadlineBasedHeap := stats.deadlineBasedMinHeap
+	if len(deadlineBasedHeap.Indices) == 0 {
+		return nil
+	}
+
 	if req.ackDeadline == 0 {
 		// modAck with deadline = 0 means nack
 		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
 		// TODO : remove from both heaps and push to retry queue
 	}
 
-	deadlineBasedHeap := stats.deadlineBasedMinHeap
 	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.ackMessage.MessageID]
 
 	// update the deadline of the identified message

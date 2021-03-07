@@ -328,6 +328,8 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
 func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	logger.Ctx(ctx).Infow("kafka CommitByPartitionAndOffset request received", "request", request)
+
 	tp := kafkapkg.TopicPartition{
 		Topic:     &request.Topic,
 		Partition: request.Partition,

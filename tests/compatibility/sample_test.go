@@ -35,7 +35,12 @@ func Test_Pubsub(t *testing.T) {
 		sub.ReceiveSettings.NumGoroutines = 1
 		go sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
 			index++
-			t.Logf("[%d] Got message: %q\n", index, string(m.Data))
+			da := 0
+			if m.DeliveryAttempt != nil {
+				da = *m.DeliveryAttempt
+			}
+
+			t.Logf("[%d] Got message: id=[%v], deliveryAttempt=[%v], data=[%v]", index, m.ID, da, string(m.Data))
 			m.Ack()
 		})
 
@@ -47,7 +52,7 @@ func Test_Pubsub(t *testing.T) {
 
 		topic.Stop()
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 
 		// cleanup
 		err = topic.Delete(ctx)

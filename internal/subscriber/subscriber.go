@@ -99,7 +99,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 
 	// remove message from offsetBasedMinHeap
 	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[req.MessageID]
-	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(customheap.AckMessageWithOffset)
+	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
 	heap.Init(&stats.offsetBasedMinHeap)
 
 	// remove same message from deadlineBasedMinHeap

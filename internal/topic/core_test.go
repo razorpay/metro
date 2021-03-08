@@ -18,7 +18,7 @@ func TestCore_CreateTopic(t *testing.T) {
 	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
 	mockProjectCore := projectcoremock.NewMockICore(ctrl)
 	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
-	mockAdmin := messagebrokermock.NewMockAdmin(ctrl)
+	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
 	topicCore := NewCore(mockTopicRepo, mockProjectCore, mockBrokerStore)
 	ctx := context.Background()
 	dTopic := getDummyTopicModel()

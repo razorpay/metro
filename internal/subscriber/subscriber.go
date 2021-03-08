@@ -55,8 +55,9 @@ type Subscriber struct {
 	closeChan              chan struct{}
 	deadlineTickerChan     chan bool
 	timeoutInSec           int
-	consumer               messagebroker.Consumer
-	retryConsumer          messagebroker.Consumer
+	consumer               messagebroker.Consumer // consume messages from primary topic
+	retryConsumer          messagebroker.Consumer // consume messages from retry topic
+	retryProducer          messagebroker.Producer // produce messages to retry topic
 	cancelFunc             func()
 	maxOutstandingMessages int64
 	maxOutstandingBytes    int64
@@ -92,19 +93,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 		shouldCommit = true
 	}
 
-	delete(stats.consumedMessages, req.MessageID)
-
-	// remove message from offsetBasedMinHeap
-	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[req.MessageID]
-	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
-	delete(stats.offsetBasedMinHeap.MsgIDToIndexMapping, req.MessageID)
-	heap.Init(&stats.offsetBasedMinHeap)
-
-	// remove same message from deadlineBasedMinHeap
-	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
-	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
-	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, req.MessageID)
-	heap.Init(&stats.deadlineBasedMinHeap)
+	removeMessageFromMemory(stats, req.MessageID)
 
 	if shouldCommit {
 		_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
@@ -123,6 +112,23 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 	return nil
 }
 
+// cleans up all occurrences for a given msgId from the internal data-structures
+func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
+	delete(stats.consumedMessages, msgID)
+
+	// remove message from offsetBasedMinHeap
+	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[msgID]
+	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
+	delete(stats.offsetBasedMinHeap.MsgIDToIndexMapping, msgID)
+	heap.Init(&stats.offsetBasedMinHeap)
+
+	// remove same message from deadlineBasedMinHeap
+	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
+	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
+	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
+	heap.Init(&stats.deadlineBasedMinHeap)
+}
+
 // modifyAckDeadline for messages
 func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) error {
 
@@ -139,7 +145,25 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	if req.ackDeadline == 0 {
 		// modAck with deadline = 0 means nack
 		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
-		// TODO : remove from both heaps and push to retry queue
+
+		msgID := req.ackMessage.MessageID
+		msg := stats.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
+
+		// cleanup message from memory
+		removeMessageFromMemory(stats, msgID)
+
+		// push to retry queue
+		_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
+			Topic:      s.retryTopic,
+			Message:    msg.Data,
+			TimeoutSec: 1,
+		})
+
+		if err != nil {
+			s.errChan <- err
+		}
+
+		return nil
 	}
 
 	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.ackMessage.MessageID]
@@ -151,7 +175,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	return nil
 }
 
-func (s *Subscriber) checkAndEvictBasedOnAckDeadline(_ context.Context) error {
+func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error {
 
 	// do a deadline based eviction for all active topic-partition heaps
 	for _, metadata := range s.consumedMessageStats {
@@ -163,18 +187,23 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(_ context.Context) error {
 
 		// check eligibility for eviction
 		if peek.HasHitDeadline() {
-			evictedMsg1 := heap.Pop(&deadlineBasedHeap).(*customheap.AckMessageWithDeadline)
 
-			offsetBasedHeap := metadata.offsetBasedMinHeap
-			evictedMsg2 := heap.Remove(&offsetBasedHeap, offsetBasedHeap.MsgIDToIndexMapping[evictedMsg1.MsgID]).(*customheap.AckMessageWithOffset)
+			msgID := peek.MsgID
+			msg := metadata.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
 
-			delete(offsetBasedHeap.MsgIDToIndexMapping, evictedMsg1.MsgID)
-			delete(deadlineBasedHeap.MsgIDToIndexMapping, evictedMsg2.MsgID)
+			// cleanup message from memory
+			removeMessageFromMemory(metadata, peek.MsgID)
 
-			heap.Init(&offsetBasedHeap)
-			heap.Init(&deadlineBasedHeap)
+			// push to retry queue
+			_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
+				Topic:      s.retryTopic,
+				Message:    msg.Data,
+				TimeoutSec: 1,
+			})
 
-			// TODO : nack the evicted message as well
+			if err != nil {
+				s.errChan <- err
+			}
 		}
 	}
 

@@ -50,6 +50,11 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		return nil, err
 	}
 
+	retryProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: retryTopic, TimeoutSec: 1})
+	if err != nil {
+		return nil, err
+	}
+
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	s := &Subscriber{
 		subscription:           subscription,
@@ -66,6 +71,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		timeoutInSec:           timeoutInSec,
 		consumer:               consumer,
 		retryConsumer:          retryConsumer,
+		retryProducer:          retryProducer,
 		cancelFunc:             cancelFunc,
 		maxOutstandingMessages: maxOutstandingMessages,
 		maxOutstandingBytes:    maxOutstandingBytes,

@@ -31,7 +31,12 @@ func Test_CreateValidTopic(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 
-	metadata, merr := admin.GetTopicMetadata(context.Background(), messagebroker.GetTopicMetadataRequest{Topic: topic, TimeoutSec: 2})
+	// create consumer to fetch topic metadata
+	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-1", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+		Topic:   topic,
+		GroupID: "dummy-group-2",
+	})
+	metadata, merr := consumer1.GetTopicMetadata(context.Background(), messagebroker.GetTopicMetadataRequest{Topic: topic})
 
 	assert.Nil(t, merr)
 	assert.NotNil(t, metadata)

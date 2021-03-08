@@ -219,7 +219,6 @@ type ConsumptionMetadata struct {
 	offsetBasedMinHeap   customheap.OffsetBasedPriorityQueue
 	deadlineBasedMinHeap customheap.DeadlineBasedPriorityQueue
 	maxCommittedOffset   int32 // our counter will init to that value initially
-	isPaused             bool
 }
 
 // NewConsumptionMetadata ...

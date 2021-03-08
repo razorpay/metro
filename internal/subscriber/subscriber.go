@@ -62,6 +62,7 @@ type Subscriber struct {
 	maxOutstandingMessages int64
 	maxOutstandingBytes    int64
 	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
+	isPaused               bool
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
@@ -227,10 +228,28 @@ func (s *Subscriber) Run(ctx context.Context) {
 		select {
 		case req := <-s.requestChan:
 
-			if s.canConsumeMore() {
-				// TODO: add pause resume consumer
-				// TODO: use getTopicStats from broker and identify active topic partitions
-				//s.consumer.Resume()
+			if s.canConsumeMore() == false {
+				// check if consumer is paused once maxOutstanding messages limit is hit
+				if s.isPaused == false {
+					// if not, pause all topic-partitions for consumer
+					for tp := range s.consumedMessageStats {
+						s.consumer.Pause(ctx, messagebroker.PauseOnTopicRequest{
+							Topic:     tp.topic,
+							Partition: tp.partition,
+						})
+					}
+				}
+			} else {
+				// resume consumer if paused and is allowed to consume more messages
+				if s.isPaused {
+					s.isPaused = false
+					for tp := range s.consumedMessageStats {
+						s.consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{
+							Topic:     tp.topic,
+							Partition: tp.partition,
+						})
+					}
+				}
 			}
 
 			// TODO: run receive request in another goroutine?

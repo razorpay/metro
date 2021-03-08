@@ -133,7 +133,7 @@ func (s *pullStream) stop() {
 
 func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group) (*pullStream, error) {
 	//nCtx, cancelFunc := context.WithCancel(server.Context())
-	subs, err := subscriberCore.NewSubscriber(server.Context(), clientID, subscription, 1, 0, 0)
+	subs, err := subscriberCore.NewSubscriber(server.Context(), clientID, subscription, 1, 50, 5000)
 	if err != nil {
 		return nil, err
 	}

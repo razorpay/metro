@@ -143,6 +143,25 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 	return kv.Value, nil
 }
 
+// List returns a slice of pairs for a key prefix
+func (c *ConsulClient) List(ctx context.Context, prefix string) ([]Pair, error) {
+	kvs, _, err := c.client.KV().List(prefix, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs := []Pair{}
+
+	for _, kv := range kvs {
+		pairs = append(pairs, Pair{
+			Key:   kv.Key,
+			Value: kv.Value,
+		})
+	}
+
+	return pairs, nil
+}
+
 // ListKeys returns a value for a key
 func (c *ConsulClient) ListKeys(ctx context.Context, key string) ([]string, error) {
 	kv, _, err := c.client.KV().List(key, nil)

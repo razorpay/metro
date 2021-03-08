@@ -50,6 +50,9 @@ type IRegistry interface {
 	// List returns a keys with matching key prefix
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 
+	// List returns a slice of pairs with matching key prefix
+	List(ctx context.Context, prefix string) ([]Pair, error)
+
 	// Exists checks the existence of a key
 	Exists(key string) (bool, error)
 

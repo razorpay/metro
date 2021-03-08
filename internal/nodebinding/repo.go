@@ -1,4 +1,4 @@
-package node
+package nodebinding
 
 import (
 	"context"
@@ -26,8 +26,9 @@ func NewRepo(registry registry.IRegistry) IRepo {
 	}
 }
 
-// List returns a slice of Nodes matching prefix
+// List returns a slice of NodeBindings matching prefix
 func (r *Repo) List(ctx context.Context, prefix string) ([]Model, error) {
+	prefix = Prefix + prefix
 	pairs, err := r.Registry.List(ctx, prefix)
 	if err != nil {
 		return nil, err

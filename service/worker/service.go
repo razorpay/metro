@@ -2,24 +2,24 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/razorpay/metro/internal/brokerstore"
-
-	"github.com/razorpay/metro/internal/topic"
-
-	"github.com/razorpay/metro/internal/project"
-
-	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/scheduler"
 
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/node"
+	"github.com/razorpay/metro/internal/nodebinding"
+	"github.com/razorpay/metro/internal/project"
 	internalserver "github.com/razorpay/metro/internal/server"
+	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/leaderelection"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
@@ -48,8 +48,12 @@ type Service struct {
 	nodeCore         node.ICore
 	topicCore        topic.ICore
 	subscriptionCore subscription.ICore
-	nodeCache        []string
-	subCache         []string
+	nodeBindingCore  nodebinding.ICore
+	nodeCache        []node.Model
+	subCache         []subscription.Model
+	nodebindingCache []nodebinding.Model
+	pushHandlers     map[string]pushsubscriber
+	scheduler        *scheduler.Scheduler
 }
 
 // NewService creates an instance of new worker
@@ -61,8 +65,11 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		node: &node.Model{
 			ID: uuid.New().String(),
 		},
-		doneCh: make(chan struct{}),
-		stopCh: make(chan struct{}),
+		doneCh:           make(chan struct{}),
+		stopCh:           make(chan struct{}),
+		nodeCache:        []node.Model{},
+		subCache:         []subscription.Model{},
+		nodebindingCache: []nodebinding.Model{},
 	}
 }
 
@@ -104,6 +111,13 @@ func (svc *Service) Start() error {
 
 	svc.nodeCore = node.NewCore(node.NewRepo(svc.registry))
 
+	svc.nodeBindingCore = nodebinding.NewCore(nodebinding.NewRepo(svc.registry))
+
+	svc.scheduler, err = scheduler.New(scheduler.LoadBalance)
+	if err != nil {
+		return err
+	}
+
 	// Register Node with registry
 	err = svc.nodeCore.CreateNode(svc.ctx, svc.node)
 	if err != nil {
@@ -137,6 +151,12 @@ func (svc *Service) Start() error {
 		return svc.candidate.Run(gctx)
 	})
 
+	// Build NodeBinding Cache
+	svc.nodebindingCache, err = svc.nodeBindingCore.List(svc.ctx, svc.node.ID)
+	if err != nil {
+		return nil
+	}
+
 	// Watch for the subscription assignment changes
 	var watcher registry.IWatcher
 	svc.workgrp.Go(func() error {
@@ -145,6 +165,7 @@ func (svc *Service) Start() error {
 			WatchPath: fmt.Sprintf("metro/nodebinding/%s/", svc.node.ID),
 			Handler: func(ctx context.Context, pairs []registry.Pair) {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
+				svc.handleNodeBindingUpdates(pairs)
 			},
 		}
 
@@ -245,14 +266,14 @@ func (svc *Service) lead(ctx context.Context) error {
 
 	// create nodeCache
 	logger.Ctx(ctx).Infof("getting active nodes for cache")
-	svc.nodeCache, err = svc.nodeCore.ListKeys(svc.ctx)
+	svc.nodeCache, err = svc.nodeCore.List(svc.ctx, "")
 	if err != nil {
 		return err
 	}
 
 	// create subscription cache
 	logger.Ctx(ctx).Infof("getting active subscriptions for cache")
-	svc.subCache, err = svc.subscriptionCore.ListKeys(svc.ctx)
+	svc.subCache, err = svc.subscriptionCore.List(svc.ctx, "")
 	if err != nil {
 		return err
 	}
@@ -264,8 +285,7 @@ func (svc *Service) lead(ctx context.Context) error {
 		WatchPath: "metro/nodes",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
-			newNodes := registry.GetKeys(pairs)
-			svc.handleNodeUpdates(newNodes)
+			svc.handleNodeUpdates(pairs)
 		},
 	}
 
@@ -280,8 +300,7 @@ func (svc *Service) lead(ctx context.Context) error {
 		WatchPath: "metro/subscriptions",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
-			newSubs := registry.GetKeys(pairs)
-			svc.handleSubUpdates(newSubs)
+			svc.handleSubUpdates(pairs)
 		},
 	}
 
@@ -327,11 +346,22 @@ func (svc *Service) stepDown() {
 	svc.leadgrp.Wait()
 }
 
-func (svc *Service) handleSubUpdates(newSubs []string) error {
-	oldSubs := svc.subCache
-	for _, old := range oldSubs {
+func (svc *Service) handleNodeBindingUpdates(newBindingPairs []registry.Pair) error {
+	oldBindings := svc.nodebindingCache
+	newBindings := []nodebinding.Model{}
+
+	for _, pair := range newBindingPairs {
+		var nodebinding nodebinding.Model
+		err := json.Unmarshal(pair.Value, &nodebinding)
+		if err != nil {
+			return err
+		}
+		newBindings = append(newBindings, nodebinding)
+	}
+
+	for _, old := range oldBindings {
 		found := false
-		for _, new := range newSubs {
+		for _, new := range newBindings {
 			if old == new {
 				found = true
 				break
@@ -339,21 +369,93 @@ func (svc *Service) handleSubUpdates(newSubs []string) error {
 		}
 
 		if !found {
-			logger.Ctx(svc.ctx).Infow("sub removed", "sub_key", old)
+			logger.Ctx(svc.ctx).Infow("binding removed", "key", old.Key())
+			handler := svc.pushHandlers[old.Key()]
+			err := handler.Stop()
+			if err != nil {
+				return err
+			}
+			delete(svc.pushHandlers, old.Key())
+		}
+	}
+
+	for _, new := range newBindings {
+		found := false
+		for _, old := range oldBindings {
+			if old == new {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			logger.Ctx(svc.ctx).Infow("binding added", "key", new.Key())
+			handler := pushsubscriber{
+				SubcriptionKey: new.SubscriptionID,
+				Broker:         svc.workerConfig.Broker.Variant,
+				BrokerConfig:   svc.workerConfig.Broker.BrokerConfig,
+			}
+			svc.workgrp.Go(handler.Start)
+			svc.pushHandlers[new.Key()] = handler
+		}
+	}
+
+	svc.nodebindingCache = newBindings
+	return nil
+}
+
+func (svc *Service) handleSubUpdates(newSubsPairs []registry.Pair) error {
+	oldSubs := svc.subCache
+	newSubs := []subscription.Model{}
+
+	for _, pair := range newSubsPairs {
+		var sub subscription.Model
+		err := json.Unmarshal(pair.Value, &sub)
+		if err != nil {
+			return err
+		}
+		newSubs = append(newSubs, sub)
+	}
+
+	for _, old := range oldSubs {
+		found := false
+		for _, new := range newSubs {
+			if old.Key() == new.Key() {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			logger.Ctx(svc.ctx).Infow("sub removed", "key", old.Key())
+			for _, nodebinding := range svc.nodebindingCache {
+				if nodebinding.SubscriptionID == old.Key() {
+					svc.nodeBindingCore.DeleteNodeBinding(svc.ctx, &nodebinding)
+				}
+			}
 		}
 	}
 
 	for _, new := range newSubs {
 		found := false
 		for _, old := range oldSubs {
-			if old == new {
+			if old.Key() == new.Key() {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			logger.Ctx(svc.ctx).Infow("sub added", "sub_key", new)
+			logger.Ctx(svc.ctx).Infow("sub added", "key", new.Key())
+			nb, err := svc.scheduler.Schedule(new, svc.nodebindingCache, svc.nodeCache)
+			if err != nil {
+				return err
+			}
+
+			err = svc.nodeBindingCore.CreateNodeBinding(svc.ctx, nb)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -361,34 +463,52 @@ func (svc *Service) handleSubUpdates(newSubs []string) error {
 	return nil
 }
 
-func (svc *Service) handleNodeUpdates(newNodes []string) error {
+func (svc *Service) handleNodeUpdates(newNodePairs []registry.Pair) error {
 	oldNodes := svc.nodeCache
+	newNodes := []node.Model{}
+
+	for _, pair := range newNodePairs {
+		var node node.Model
+		err := json.Unmarshal(pair.Value, &node)
+		if err != nil {
+			return err
+		}
+		newNodes = append(newNodes, node)
+	}
 
 	for _, old := range oldNodes {
 		found := false
 		for _, new := range newNodes {
-			if old == new {
+			if old.Key() == new.Key() {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			logger.Ctx(svc.ctx).Infow("node removed", "node_key", old)
+			logger.Ctx(svc.ctx).Infow("node removed", "key", old.Key())
+
+			for _, nodebinding := range svc.nodebindingCache {
+				if nodebinding.NodeID == old.ID {
+					svc.nodeBindingCore.DeleteNodeBinding(svc.ctx, &nodebinding)
+				}
+			}
+
 		}
 	}
 
 	for _, new := range newNodes {
 		found := false
 		for _, old := range oldNodes {
-			if old == new {
+			if old.Key() == new.Key() {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			logger.Ctx(svc.ctx).Infow("node added", "node_key", new)
+			logger.Ctx(svc.ctx).Infow("node added", "key", new.Key())
+			// Do nothing for now
 		}
 	}
 

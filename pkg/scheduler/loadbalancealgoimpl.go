@@ -52,7 +52,7 @@ func (algo *LoadBalanceAlgoImpl) GetNode(nodebindings []*nodebinding.Model, node
 	sort.Sort(nodeCountList)
 
 	for _, node := range nodes {
-		if node.Key() == nodeCountList[0].Key {
+		if node.ID == nodeCountList[0].Key {
 			return node, nil
 		}
 	}

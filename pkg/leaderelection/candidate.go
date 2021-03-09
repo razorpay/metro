@@ -2,7 +2,10 @@ package leaderelection
 
 import (
 	"context"
+	"encoding/json"
 	"time"
+
+	"github.com/razorpay/metro/internal/node"
 
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
@@ -10,18 +13,18 @@ import (
 )
 
 // New creates a instance of LeaderElector from a LeaderElection Config
-func New(id string, c Config, registry registry.IRegistry) (*Candidate, error) {
+func New(model *node.Model, c Config, registry registry.IRegistry) (*Candidate, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 
 	le := Candidate{
-		ID:       id,
-		config:   c,
-		registry: registry,
-		nodeID:   "",
-		leader:   false,
-		errCh:    make(chan error),
+		node:      model,
+		config:    c,
+		registry:  registry,
+		sessionID: "",
+		leader:    false,
+		errCh:     make(chan error),
 	}
 
 	return &le, nil
@@ -29,11 +32,11 @@ func New(id string, c Config, registry registry.IRegistry) (*Candidate, error) {
 
 // Candidate is a leader election candidate.
 type Candidate struct {
-	// ID a unique candidate uuid assigned by system
-	ID string
+	// node with unique uuid assigned by system
+	node *node.Model
 
-	// nodeID represents the id assigned by registry
-	nodeID string
+	// sessionID registered with registered for current session
+	sessionID string
 
 	// leader stores true if current node is leader
 	leader bool
@@ -54,17 +57,22 @@ func (c *Candidate) Run(ctx context.Context) error {
 	var err error
 
 	logger.Ctx(ctx).Info("registering node with registry")
-	c.nodeID, err = c.registry.Register(c.config.Name, c.config.LeaseDuration)
+	c.sessionID, err = c.registry.Register(c.config.Name, c.config.LeaseDuration)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("node registering failed with error", "error", err.Error())
 		return err
 	}
 
-	logger.Ctx(ctx).Infow("acquiring node key", "key", c.config.NodePath)
-	acquired, aerr := c.registry.Acquire(c.nodeID, c.config.NodePath, time.Now().String())
+	logger.Ctx(ctx).Infow("acquiring node key", "key", c.node.Key())
+
+	value, merr := json.Marshal(c.node)
+	if merr != nil {
+		logger.Ctx(ctx).Errorw("error converting node model to json", "error", err.Error())
+	}
+	acquired, aerr := c.registry.Acquire(c.sessionID, c.node.Key(), value)
 
 	if aerr != nil || !acquired {
-		logger.Ctx(ctx).Errorw("failed to acquire node key", "key", c.config.NodePath, "error", aerr.Error())
+		logger.Ctx(ctx).Errorw("failed to acquire node key", "key", c.node.Key(), "error", aerr.Error())
 		return aerr
 	}
 
@@ -72,8 +80,8 @@ func (c *Candidate) Run(ctx context.Context) error {
 
 	// Renew session periodically
 	grp.Go(func() error {
-		logger.Ctx(ctx).Infow("staring renew process for node key", "key", c.config.NodePath)
-		return c.registry.RenewPeriodic(c.nodeID, c.config.LeaseDuration, gctx.Done())
+		logger.Ctx(ctx).Infow("staring renew process for node key", "key", c.node.Key())
+		return c.registry.RenewPeriodic(c.sessionID, c.config.LeaseDuration, gctx.Done())
 	})
 
 	// watch the leader key
@@ -128,9 +136,9 @@ func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
 	}
 
 	logger.Ctx(ctx).Info("leader election attempting to acquire key")
-	acquired, aerr := c.registry.Acquire(c.nodeID, c.config.LockPath, time.Now().String())
+	acquired, aerr := c.registry.Acquire(c.sessionID, c.config.LockPath, []byte(time.Now().String()))
 	if aerr != nil {
-		logger.Ctx(ctx).Errorw("failed to acquire node key", "key", c.config.NodePath, "error", aerr.Error())
+		logger.Ctx(ctx).Errorw("failed to acquire node key", "key", c.node.Key(), "error", aerr.Error())
 		c.errCh <- aerr
 	}
 
@@ -152,12 +160,12 @@ func (c *Candidate) IsLeader() bool {
 
 // release attempts to release the leader lease if we have acquired it.
 func (c *Candidate) release(ctx context.Context) bool {
-	if c.nodeID == "" {
+	if c.sessionID == "" {
 		return true
 	}
 
 	// deregister node, which releases lock as well
-	if err := c.registry.Deregister(c.nodeID); err != nil {
+	if err := c.registry.Deregister(c.sessionID); err != nil {
 		logger.Ctx(ctx).Error("Failed to deregister node: %v", err)
 		return false
 	}
@@ -167,8 +175,8 @@ func (c *Candidate) release(ctx context.Context) bool {
 		c.config.Callbacks.OnStoppedLeading()
 	}
 
-	// reset nodeId as current node id is deregistered
-	c.nodeID = ""
+	// reset sessionID as current session is expired
+	c.sessionID = ""
 	c.leader = false
 
 	logger.Ctx(ctx).Info("successfully released lease")

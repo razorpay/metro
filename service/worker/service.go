@@ -52,7 +52,7 @@ type Service struct {
 	nodeCache        []*node.Model
 	subCache         []*subscription.Model
 	nodebindingCache []*nodebinding.Model
-	pushHandlers     map[string]pushsubscriber
+	pushHandlers     map[string]*pushsubscriber
 	scheduler        *scheduler.Scheduler
 }
 
@@ -70,6 +70,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
+		pushHandlers:     map[string]*pushsubscriber{},
 	}
 }
 
@@ -125,10 +126,9 @@ func (svc *Service) Start() error {
 	}
 
 	// Init Leader Election
-	svc.candidate, err = leaderelection.New(svc.node.ID,
+	svc.candidate, err = leaderelection.New(svc.node,
 		leaderelection.Config{
 			Name:          "metro/metro-worker",
-			NodePath:      svc.node.Key(),
 			LockPath:      "metro/leader/election",
 			LeaseDuration: 30 * time.Second,
 			Callbacks: leaderelection.LeaderCallbacks{
@@ -167,7 +167,7 @@ func (svc *Service) Start() error {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
 				err = svc.handleNodeBindingUpdates(pairs)
 				if err != nil {
-
+					logger.Ctx(ctx).Errorw("error processing nodebinding updates", "error", err)
 				}
 			},
 		}
@@ -290,7 +290,10 @@ func (svc *Service) lead(ctx context.Context) error {
 		WatchPath: "metro/nodes",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
-			svc.handleNodeUpdates(pairs)
+			err = svc.handleNodeUpdates(pairs)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("error processing node updates", "error", err)
+			}
 		},
 	}
 
@@ -304,8 +307,11 @@ func (svc *Service) lead(ctx context.Context) error {
 		WatchType: "keyprefix",
 		WatchPath: "metro/subscriptions",
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
-			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
-			svc.handleSubUpdates(pairs)
+			logger.Ctx(ctx).Infow("subscriptions watch handler data", "pairs", pairs)
+			err = svc.handleSubUpdates(pairs)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("error processing subscription updates", "error", err)
+			}
 		},
 	}
 
@@ -360,12 +366,12 @@ func (svc *Service) handleNodeBindingUpdates(newBindingPairs []registry.Pair) er
 	var newBindings []*nodebinding.Model
 
 	for _, pair := range newBindingPairs {
-		var nb *nodebinding.Model
-		err := json.Unmarshal(pair.Value, nb)
+		nb := nodebinding.Model{}
+		err := json.Unmarshal(pair.Value, &nb)
 		if err != nil {
 			return err
 		}
-		newBindings = append(newBindings, nb)
+		newBindings = append(newBindings, &nb)
 	}
 
 	for _, old := range oldBindings {
@@ -399,7 +405,7 @@ func (svc *Service) handleNodeBindingUpdates(newBindingPairs []registry.Pair) er
 
 		if !found {
 			logger.Ctx(svc.ctx).Infow("binding added", "key", newBinding.Key())
-			handler := pushsubscriber{
+			handler := &pushsubscriber{
 				SubcriptionKey: newBinding.SubscriptionID,
 				Broker:         svc.workerConfig.Broker.Variant,
 				BrokerConfig:   svc.workerConfig.Broker.BrokerConfig,
@@ -418,12 +424,12 @@ func (svc *Service) handleSubUpdates(newSubsPairs []registry.Pair) error {
 	var newSubs []*subscription.Model
 
 	for _, pair := range newSubsPairs {
-		var sub *subscription.Model
-		err := json.Unmarshal(pair.Value, sub)
+		sub := subscription.Model{}
+		err := json.Unmarshal(pair.Value, &sub)
 		if err != nil {
 			return err
 		}
-		newSubs = append(newSubs, sub)
+		newSubs = append(newSubs, &sub)
 	}
 
 	for _, old := range oldSubs {
@@ -439,7 +445,10 @@ func (svc *Service) handleSubUpdates(newSubsPairs []registry.Pair) error {
 			logger.Ctx(svc.ctx).Infow("sub removed", "key", old.Key())
 			for _, nb := range svc.nodebindingCache {
 				if nb.SubscriptionID == old.Key() {
-					svc.nodeBindingCore.DeleteNodeBinding(svc.ctx, nb)
+					err := svc.nodeBindingCore.DeleteNodeBinding(svc.ctx, nb)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -456,6 +465,9 @@ func (svc *Service) handleSubUpdates(newSubsPairs []registry.Pair) error {
 
 		if !found {
 			logger.Ctx(svc.ctx).Infow("sub added", "key", newSub.Key())
+
+			logger.Ctx(svc.ctx).Infow("scheduling subscription on nodes", "key", newSub.Key(), "nodecache", svc.nodeCache, "bindings", svc.nodebindingCache)
+
 			nb, err := svc.scheduler.Schedule(newSub, svc.nodebindingCache, svc.nodeCache)
 			if err != nil {
 				return err
@@ -477,12 +489,12 @@ func (svc *Service) handleNodeUpdates(newNodePairs []registry.Pair) error {
 	var newNodes []*node.Model
 
 	for _, pair := range newNodePairs {
-		var model *node.Model
-		err := json.Unmarshal(pair.Value, model)
+		model := node.Model{}
+		err := json.Unmarshal(pair.Value, &model)
 		if err != nil {
 			return err
 		}
-		newNodes = append(newNodes, model)
+		newNodes = append(newNodes, &model)
 	}
 
 	for _, old := range oldNodes {
@@ -499,7 +511,10 @@ func (svc *Service) handleNodeUpdates(newNodePairs []registry.Pair) error {
 
 			for _, nb := range svc.nodebindingCache {
 				if nb.NodeID == old.ID {
-					svc.nodeBindingCore.DeleteNodeBinding(svc.ctx, nb)
+					err := svc.nodeBindingCore.DeleteNodeBinding(svc.ctx, nb)
+					if err != nil {
+						return err
+					}
 				}
 			}
 

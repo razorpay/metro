@@ -33,7 +33,7 @@ type IRegistry interface {
 	RenewPeriodic(string, time.Duration, <-chan struct{}) error
 
 	// Acquire a lock for a registration_id on a given key and value pair
-	Acquire(string, string, string) (bool, error)
+	Acquire(string, string, []byte) (bool, error)
 
 	// Release a lock for a restration_id on a given key and value pair
 	Release(string, string, string) bool

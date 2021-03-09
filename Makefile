@@ -154,7 +154,7 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/node ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/node IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/nodebinding ICore
-    @mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/nodebinding IRepo
+	@mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/nodebinding IRepo
 
 .PHONY: mock-gen-clean ## Clean up all mockgen generated mocks directories
 mock-gen-clean:

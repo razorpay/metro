@@ -13,7 +13,7 @@ func TestModel_Prefix(t *testing.T) {
 
 func TestModel_Key(t *testing.T) {
 	nodebinding := getDummyNodeBindingModel()
-	assert.Equal(t, nodebinding.Key(), "metro/nodes/"+nodebinding.NodeID+"/"+nodebinding.SubscriptionID)
+	assert.Equal(t, nodebinding.Key(), "metro/nodebinding/"+nodebinding.NodeID+"/"+nodebinding.SubscriptionID)
 }
 
 func getDummyNodeBindingModel() *Model {

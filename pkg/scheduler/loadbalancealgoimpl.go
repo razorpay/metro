@@ -26,7 +26,7 @@ type LoadBalanceAlgoImpl struct {
 }
 
 // GetNode method returns the selected node for scheduling based on current load
-func (algo *LoadBalanceAlgoImpl) GetNode(nodebindings []nodebinding.Model, nodes []node.Model) (*node.Model, error) {
+func (algo *LoadBalanceAlgoImpl) GetNode(nodebindings []*nodebinding.Model, nodes []*node.Model) (*node.Model, error) {
 	if len(nodes) <= 0 {
 		return nil, fmt.Errorf("no node available for scheduling")
 	}
@@ -53,7 +53,7 @@ func (algo *LoadBalanceAlgoImpl) GetNode(nodebindings []nodebinding.Model, nodes
 
 	for _, node := range nodes {
 		if node.Key() == nodeCountList[0].Key {
-			return &node, nil
+			return node, nil
 		}
 	}
 

@@ -13,7 +13,7 @@ type ICore interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteNodeBinding(ctx context.Context, m *Model) error
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
-	List(ctx context.Context, prefix string) ([]Model, error)
+	List(ctx context.Context, prefix string) ([]*Model, error)
 }
 
 // Core implements all business logic for nodebinding
@@ -56,9 +56,19 @@ func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 }
 
 // List gets all nodebinding keys starting with given prefix
-func (c *Core) List(ctx context.Context, prefix string) ([]Model, error) {
+func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	prefix = Prefix + prefix
-	return c.repo.List(ctx, prefix)
+
+	out := []*Model{}
+	ret, err := c.repo.List(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, obj := range ret {
+		out = append(out, obj.(*Model))
+	}
+	return out, nil
 }
 
 // DeleteNodeBinding deletes a nodebinding and all resources in it

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	mocks "github.com/razorpay/metro/internal/node/mocks/repo"
+	mocks "github.com/razorpay/metro/internal/nodebinding/mocks/repo"
 	"github.com/stretchr/testify/assert"
 )
 

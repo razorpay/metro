@@ -11,7 +11,7 @@ import (
 // IRepo interface over database repository
 type IRepo interface {
 	common.IRepo
-	List(ctx context.Context, prefix string) ([]Model, error)
+	List(ctx context.Context, prefix string) ([]common.IModel, error)
 }
 
 // Repo implements various repository methods
@@ -27,21 +27,20 @@ func NewRepo(registry registry.IRegistry) IRepo {
 }
 
 // List returns a slice of NodeBindings matching prefix
-func (r *Repo) List(ctx context.Context, prefix string) ([]Model, error) {
-	prefix = Prefix + prefix
+func (r *Repo) List(ctx context.Context, prefix string) ([]common.IModel, error) {
 	pairs, err := r.Registry.List(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
 
-	models := []Model{}
+	models := []common.IModel{}
 	for _, pair := range pairs {
 		var m Model
 		err = json.Unmarshal(pair.Value, &m)
 		if err != nil {
 			return nil, err
 		}
-		models = append(models, m)
+		models = append(models, &m)
 	}
 	return models, nil
 }

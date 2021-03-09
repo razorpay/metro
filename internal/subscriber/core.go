@@ -50,7 +50,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		return nil, err
 	}
 
-	retryProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: retryTopic, TimeoutSec: 1})
+	retryProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: retryTopic, TimeoutSec: 50})
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +59,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	s := &Subscriber{
 		subscription:           subscription,
 		topic:                  topic,
+		retryTopic:             retryTopic,
 		subscriberID:           uuid.New().String(),
 		bs:                     c.bs,
 		subscriptionCore:       c.subscriptionCore,

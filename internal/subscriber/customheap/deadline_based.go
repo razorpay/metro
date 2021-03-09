@@ -11,7 +11,7 @@ type AckMessageWithDeadline struct {
 
 // HasHitDeadline ...
 func (ackMsg *AckMessageWithDeadline) HasHitDeadline() bool {
-	return int64(ackMsg.AckDeadline) > time.Now().Unix()
+	return time.Now().Unix() > int64(ackMsg.AckDeadline)
 }
 
 // DeadlineBasedPriorityQueue ...

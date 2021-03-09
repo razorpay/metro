@@ -161,7 +161,9 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		})
 
 		if err != nil {
-			s.errChan <- err
+			logger.Ctx(ctx).Errorw("mod ack: push to retry topic failed", "queue", s.retryTopic, "err", err.Error())
+			// not sending the error over the errChan as this would stop the subscriber
+			return nil
 		}
 
 		return nil
@@ -192,10 +194,8 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error 
 			msgID := peek.MsgID
 			msg := metadata.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
 
-			// cleanup message from memory
-			removeMessageFromMemory(metadata, peek.MsgID)
-
-			// push to retry queue
+			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
+			// this way the message is eligible to be retried
 			_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 				Topic:      s.retryTopic,
 				Message:    msg.Data,
@@ -203,8 +203,15 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error 
 			})
 
 			if err != nil {
-				s.errChan <- err
+				logger.Ctx(ctx).Errorw("deadline eviction: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
+				// not sending the error over the errChan as this would stop the subscriber
+				return nil
 			}
+
+			// cleanup message from memory only after a successful push to retry topic
+			removeMessageFromMemory(metadata, peek.MsgID)
+
+			logger.Ctx(ctx).Infow("deadline eviction: message evicted", "msgId", peek.MsgID)
 		}
 	}
 
@@ -213,8 +220,8 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error 
 
 // Run loop
 func (s *Subscriber) Run(ctx context.Context) {
+	ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
 	go func(ctx context.Context, deadlineChan chan bool) {
-		ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
 		for {
 			select {
 			case <-ticker.C:
@@ -227,7 +234,6 @@ func (s *Subscriber) Run(ctx context.Context) {
 	for {
 		select {
 		case req := <-s.requestChan:
-
 			if s.canConsumeMore() == false {
 				// check if consumer is paused once maxOutstanding messages limit is hit
 				if s.isPaused == false {

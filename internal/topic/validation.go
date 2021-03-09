@@ -33,7 +33,7 @@ func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) 
 	m.Labels = req.GetLabels()
 	m.ExtractedProjectID = p
 	m.ExtractedTopicName = t
-	m.RetryTopicName = t + RetryTopicSuffix
+	m.RetryTopicName = req.GetName() + RetryTopicSuffix
 	return m, nil
 }
 

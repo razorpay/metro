@@ -292,7 +292,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
 	case <-time.After(time.Duration(request.TimeoutSec) * time.Second):
-		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", &request.Topic, k.POptions.TimeoutSec)
+		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutSec)
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {

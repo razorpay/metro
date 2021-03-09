@@ -3,14 +3,13 @@
 package compatibility
 
 import (
+	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
-	"testing"
-	"time"
-
-	"cloud.google.com/go/pubsub"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"sync"
+	"testing"
 )
 
 func Test_Pubsub(t *testing.T) {
@@ -31,6 +30,9 @@ func Test_Pubsub(t *testing.T) {
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
 
+		var wg sync.WaitGroup
+		wg.Add(10)
+
 		//sub1.ReceiveSettings.Synchronous = true
 		sub.ReceiveSettings.NumGoroutines = 1
 		go sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
@@ -42,6 +44,8 @@ func Test_Pubsub(t *testing.T) {
 
 			t.Logf("[%d] Got message: id=[%v], deliveryAttempt=[%v], data=[%v]", index, m.ID, da, string(m.Data))
 			m.Ack()
+
+			wg.Done()
 		})
 
 		//topic.EnableMessageOrdering = true
@@ -52,7 +56,7 @@ func Test_Pubsub(t *testing.T) {
 
 		topic.Stop()
 
-		time.Sleep(10 * time.Second)
+		wg.Wait()
 
 		// cleanup
 		err = topic.Delete(ctx)

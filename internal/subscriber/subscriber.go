@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	minAckDeadline = 10 * time.Minute
+	minAckDeadline = 1 * time.Second
 )
 
 // ISubscriber is interface over high level subscriber
@@ -195,6 +195,8 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error 
 			// cleanup message from memory
 			removeMessageFromMemory(metadata, peek.MsgID)
 
+			logger.Ctx(ctx).Infow("evicting due to deadline", "msg", msg)
+
 			// push to retry queue
 			_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 				Topic:      s.retryTopic,
@@ -213,8 +215,8 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error 
 
 // Run loop
 func (s *Subscriber) Run(ctx context.Context) {
+	ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
 	go func(ctx context.Context, deadlineChan chan bool) {
-		ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
 		for {
 			select {
 			case <-ticker.C:

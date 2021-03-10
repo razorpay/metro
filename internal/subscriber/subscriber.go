@@ -79,6 +79,20 @@ func (s *Subscriber) GetID() string {
 	return s.subscriberID
 }
 
+// pushes message to the pre-defined retry topic
+func (s *Subscriber) retry(ctx context.Context, data []byte) {
+	_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
+		Topic:      s.retryTopic,
+		Message:    data,
+		TimeoutSec: 1,
+	})
+
+	if err != nil {
+		logger.Ctx(ctx).Errorw("push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
+		// not sending the error over the errChan as this would stop the subscriber
+	}
+}
+
 // acknowledge messages
 func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 
@@ -89,12 +103,25 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
+
+	// if somehow an ack request comes for a message that has met deadline eviction threshold
+	if req.HasHitDeadline() {
+
+		msgID := req.MessageID
+		msg := stats.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
+
+		// push to retry queue
+		s.retry(ctx, msg.Data)
+
+		removeMessageFromMemory(stats, req.MessageID)
+
+		return nil
+	}
+
 	if req.Offset == peek.Offset {
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
 		shouldCommit = true
 	}
-
-	removeMessageFromMemory(stats, req.MessageID)
 
 	if shouldCommit {
 		_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
@@ -106,6 +133,8 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 			return err
 		}
 	}
+
+	removeMessageFromMemory(stats, req.MessageID)
 
 	// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
 	stats.maxCommittedOffset = req.Offset
@@ -150,21 +179,11 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		msgID := req.ackMessage.MessageID
 		msg := stats.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
 
+		// push to retry queue
+		s.retry(ctx, msg.Data)
+
 		// cleanup message from memory
 		removeMessageFromMemory(stats, msgID)
-
-		// push to retry queue
-		_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-			Topic:      s.retryTopic,
-			Message:    msg.Data,
-			TimeoutSec: 1,
-		})
-
-		if err != nil {
-			logger.Ctx(ctx).Errorw("mod ack: push to retry topic failed", "queue", s.retryTopic, "err", err.Error())
-			// not sending the error over the errChan as this would stop the subscriber
-			return nil
-		}
 
 		return nil
 	}

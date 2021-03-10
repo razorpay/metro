@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -143,6 +144,11 @@ func (a *AckMessage) BuildAckID() string {
 // MatchesOriginatingMessageServer ...
 func (a *AckMessage) MatchesOriginatingMessageServer() bool {
 	return currentHostIP == a.ServerAddress
+}
+
+// HasHitDeadline ...
+func (a *AckMessage) HasHitDeadline() bool {
+	return time.Now().Unix() > int64(a.Deadline)
 }
 
 // ParseAckID ...

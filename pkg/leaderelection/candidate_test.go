@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/razorpay/metro/internal/node"
+
 	"github.com/razorpay/metro/pkg/registry"
 
 	"github.com/golang/mock/gomock"
@@ -18,7 +20,8 @@ func TestNewLeaderElection(t *testing.T) {
 	defer ctrl.Finish()
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
-	c1, err := New("node01", getConfig(), registryMock)
+	model := getDummyNodeModel()
+	c1, err := New(model, getConfig(), registryMock)
 	assert.NotNil(t, c1)
 	assert.Nil(t, err)
 }
@@ -28,9 +31,10 @@ func TestNewLeaderElectionFailure(t *testing.T) {
 	defer ctrl.Finish()
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
+	model := getDummyNodeModel()
 	config := getConfig()
 	config.LockPath = ""
-	c1, err := New("node01", config, registryMock)
+	c1, err := New(model, config, registryMock)
 	assert.NotNil(t, err)
 	assert.Nil(t, c1)
 }
@@ -55,7 +59,8 @@ func TestLeaderElectionRun(t *testing.T) {
 	config.Callbacks.OnStartedLeading = func(ctx context.Context) error {
 		return fmt.Errorf("terminate leader election")
 	}
-	c, _ := New("node01", config, registryMock)
+	model := getDummyNodeModel()
+	c, _ := New(model, config, registryMock)
 	assert.NotNil(t, c)
 
 	watcherMock.EXPECT().StartWatch().Do(func() {
@@ -74,7 +79,7 @@ func TestLeaderElectionRun(t *testing.T) {
 	// run leader election, it should call only expected registry calls as defined above
 	c.Run(context.Background())
 
-	assert.Equal(t, "", c.nodeID)
+	assert.Equal(t, "", c.sessionID)
 	assert.Equal(t, false, c.IsLeader())
 }
 
@@ -85,12 +90,13 @@ func TestDeregisterNodeUnregistered(t *testing.T) {
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	config := getConfig()
 
-	c, _ := New("node01", config, registryMock)
+	model := getDummyNodeModel()
+	c, _ := New(model, config, registryMock)
 	assert.NotNil(t, c)
 
 	// there shoudn't be any call to registry since node was not registered
 	c.release(context.Background())
-	assert.Equal(t, "", c.nodeID)
+	assert.Equal(t, "", c.sessionID)
 	assert.Equal(t, false, c.IsLeader())
 
 }
@@ -98,7 +104,6 @@ func TestDeregisterNodeUnregistered(t *testing.T) {
 func getConfig() Config {
 	return Config{
 		LockPath:      "metro/leader/election/test",
-		NodePath:      "metro/nodes/node01",
 		LeaseDuration: 30 * time.Second,
 		Name:          "leaderelection-test",
 		Callbacks: LeaderCallbacks{
@@ -109,5 +114,11 @@ func getConfig() Config {
 
 			},
 		},
+	}
+}
+
+func getDummyNodeModel() *node.Model {
+	return &node.Model{
+		ID: "node01",
 	}
 }

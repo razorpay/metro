@@ -14,7 +14,6 @@ type WatchConfig struct {
 }
 
 // IWatcher defines the watch interface for watch over registry
-//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/mock_watcher.go -package=mocks . IWatcher
 type IWatcher interface {
 	// StartWatch interface implemented by registry watcher to start a watch
 	StartWatch() error

@@ -153,6 +153,10 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/project IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/node ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/node IRepo
+	@mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/nodebinding ICore
+	@mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/nodebinding IRepo
+	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_registry.go -package=mocks github.com/razorpay/metro/pkg/registry IRegistry
+	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_watcher.go -package=mocks github.com/razorpay/metro/pkg/registry IWatcher
 
 .PHONY: mock-gen-clean ## Clean up all mockgen generated mocks directories
 mock-gen-clean:

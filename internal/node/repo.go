@@ -1,6 +1,9 @@
 package node
 
 import (
+	"context"
+	"encoding/json"
+
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/pkg/registry"
 )
@@ -8,6 +11,7 @@ import (
 // IRepo interface over database repository
 type IRepo interface {
 	common.IRepo
+	List(ctx context.Context, prefix string) ([]common.IModel, error)
 }
 
 // Repo implements various repository methods
@@ -20,4 +24,23 @@ func NewRepo(registry registry.IRegistry) IRepo {
 	return &Repo{
 		common.BaseRepo{Registry: registry},
 	}
+}
+
+// List returns a slice of Nodes matching prefix
+func (r *Repo) List(ctx context.Context, prefix string) ([]common.IModel, error) {
+	pairs, err := r.Registry.List(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	models := []common.IModel{}
+	for _, pair := range pairs {
+		var m Model
+		err = json.Unmarshal(pair.Value, &m)
+		if err != nil {
+			return nil, err
+		}
+		models = append(models, &m)
+	}
+	return models, nil
 }

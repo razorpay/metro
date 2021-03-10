@@ -16,7 +16,8 @@ type ICore interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteSubscription(ctx context.Context, m *Model) error
 	GetTopicFromSubscriptionName(ctx context.Context, subscription string) (string, error)
-	ListKeys(ctx context.Context) ([]string, error)
+	ListKeys(ctx context.Context, prefix string) ([]string, error)
+	List(ctx context.Context, prefix string) ([]*Model, error)
 }
 
 // Core implements all business logic for a subscription
@@ -113,7 +114,24 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 	return m.Topic, nil
 }
 
-// ListKeys returns list of subscription keys
-func (c *Core) ListKeys(ctx context.Context) ([]string, error) {
-	return c.repo.ListKeys(ctx, Prefix)
+// ListKeys gets all subscription keys
+func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
+	prefix = Prefix + prefix
+	return c.repo.ListKeys(ctx, prefix)
+}
+
+// List gets slice of subscriptions starting with given prefix
+func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
+	prefix = Prefix + prefix
+
+	out := []*Model{}
+	ret, err := c.repo.List(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, obj := range ret {
+		out = append(out, obj.(*Model))
+	}
+	return out, nil
 }

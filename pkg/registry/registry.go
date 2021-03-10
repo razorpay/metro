@@ -13,7 +13,6 @@ type Pair struct {
 }
 
 // IRegistry implements a generic interface for service discovery
-//go:generate go run -mod=mod github.com/golang/mock/mockgen -build_flags=-mod=mod -destination=mocks/mock_registry.go -package=mocks . IRegistry
 type IRegistry interface {
 	// Register a node with the Registry with a given name
 	// Returns a Registration id or error
@@ -33,7 +32,7 @@ type IRegistry interface {
 	RenewPeriodic(string, time.Duration, <-chan struct{}) error
 
 	// Acquire a lock for a registration_id on a given key and value pair
-	Acquire(string, string, string) (bool, error)
+	Acquire(string, string, []byte) (bool, error)
 
 	// Release a lock for a restration_id on a given key and value pair
 	Release(string, string, string) bool
@@ -49,6 +48,9 @@ type IRegistry interface {
 
 	// List returns a keys with matching key prefix
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
+
+	// List returns a slice of pairs with matching key prefix
+	List(ctx context.Context, prefix string) ([]Pair, error)
 
 	// Exists checks the existence of a key
 	Exists(key string) (bool, error)

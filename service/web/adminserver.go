@@ -3,6 +3,9 @@ package web
 import (
 	"context"
 
+	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
+
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/pkg/logger"
@@ -11,11 +14,13 @@ import (
 )
 
 type adminServer struct {
-	projectCore project.ICore
+	projectCore      project.ICore
+	subscriptionCore subscription.ICore
+	topicCore        topic.ICore
 }
 
-func newAdminServer(projectCore project.ICore) *adminServer {
-	return &adminServer{projectCore}
+func newAdminServer(projectCore project.ICore, subscriptionCore subscription.ICore, topicCore topic.ICore) *adminServer {
+	return &adminServer{projectCore, subscriptionCore, topicCore}
 }
 
 // CreateProject creates a new project
@@ -43,5 +48,14 @@ func (s adminServer) DeleteProject(ctx context.Context, req *metrov1.Project) (*
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
+	err = s.subscriptionCore.DeleteProjectSubscriptions(ctx, p.ProjectID)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+	err = s.topicCore.DeleteProjectTopics(ctx, p.ProjectID)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
 	return &emptypb.Empty{}, nil
 }

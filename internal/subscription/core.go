@@ -15,6 +15,7 @@ type ICore interface {
 	CreateSubscription(ctx context.Context, subscription *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteSubscription(ctx context.Context, m *Model) error
+	DeleteProjectSubscriptions(ctx context.Context, projectID string) error
 	GetTopicFromSubscriptionName(ctx context.Context, subscription string) (string, error)
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 	List(ctx context.Context, prefix string) ([]*Model, error)
@@ -93,7 +94,18 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 		}
 		return merror.Newf(merror.NotFound, "Subscription does not exist")
 	}
-	return c.repo.DeleteTree(ctx, m)
+	return c.repo.Delete(ctx, m)
+}
+
+// DeleteProjectSubscriptions deletes all subscriptions for the given projectID
+func (c *Core) DeleteProjectSubscriptions(ctx context.Context, projectID string) error {
+	if projectID == "" {
+		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
+	}
+
+	prefix := common.BasePrefix + Prefix + projectID
+
+	return c.repo.DeleteTree(ctx, prefix)
 }
 
 // GetTopicFromSubscriptionName returns topic from subscription

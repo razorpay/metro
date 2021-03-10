@@ -86,5 +86,5 @@ func (c *Core) DeleteNode(ctx context.Context, m *Model) error {
 		}
 		return merror.Newf(merror.NotFound, "node not found %s", m.ID)
 	}
-	return c.repo.DeleteTree(ctx, m)
+	return c.repo.Delete(ctx, m)
 }

@@ -2,7 +2,6 @@ package subscription
 
 import (
 	"github.com/razorpay/metro/internal/common"
-	"github.com/razorpay/metro/internal/project"
 )
 
 const (
@@ -30,5 +29,5 @@ func (m *Model) Key() string {
 
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
-	return common.BasePrefix + project.Prefix + m.ExtractedSubscriptionProjectID + "/" + Prefix
+	return common.BasePrefix + Prefix + m.ExtractedSubscriptionProjectID + "/"
 }

@@ -17,6 +17,7 @@ type ICore interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
+	DeleteProjectTopics(ctx context.Context, projectID string) error
 }
 
 // Core implements all business logic for a topic
@@ -88,5 +89,16 @@ func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
 		}
 		return merror.New(merror.NotFound, "Topic not found")
 	}
-	return c.repo.DeleteTree(ctx, m)
+	return c.repo.Delete(ctx, m)
+}
+
+// DeleteProjectTopics deletes all topics for a given projectID
+func (c *Core) DeleteProjectTopics(ctx context.Context, projectID string) error {
+	if projectID == "" {
+		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
+	}
+
+	prefix := common.BasePrefix + Prefix + projectID
+
+	return c.repo.DeleteTree(ctx, prefix)
 }

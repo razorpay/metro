@@ -62,5 +62,6 @@ func (c *Core) DeleteProject(ctx context.Context, m *Model) error {
 		}
 		return merror.Newf(merror.NotFound, "project not found %s", m.ProjectID)
 	}
-	return c.repo.DeleteTree(ctx, m)
+
+	return c.repo.Delete(ctx, m)
 }

@@ -12,7 +12,8 @@ import (
 type IRepo interface {
 	Create(ctx context.Context, m IModel) error
 	Exists(ctx context.Context, key string) (bool, error)
-	DeleteTree(ctx context.Context, m IModel) error
+	Delete(ctx context.Context, m IModel) error
+	DeleteTree(ctx context.Context, key string) error
 	Get(ctx context.Context, key string, m IModel) error
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 }
@@ -37,9 +38,14 @@ func (r BaseRepo) Exists(ctx context.Context, key string) (bool, error) {
 	return r.Registry.Exists(key)
 }
 
-// DeleteTree deletes all keys under a prefix
-func (r BaseRepo) DeleteTree(ctx context.Context, m IModel) error {
+// Delete deletes all keys under a model key
+func (r BaseRepo) Delete(ctx context.Context, m IModel) error {
 	return r.Registry.DeleteTree(m.Key())
+}
+
+// DeleteTree deletes all keys under a prefix
+func (r BaseRepo) DeleteTree(ctx context.Context, key string) error {
+	return r.Registry.DeleteTree(key)
 }
 
 // Get populates m with value corresponding to key

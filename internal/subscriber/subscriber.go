@@ -101,6 +101,10 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 	tp := req.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
 
+	if stats.offsetBasedMinHeap.IsEmpty() {
+		return nil
+	}
+
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
 
@@ -168,7 +172,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	stats := s.consumedMessageStats[tp]
 
 	deadlineBasedHeap := stats.deadlineBasedMinHeap
-	if len(deadlineBasedHeap.Indices) == 0 {
+	if deadlineBasedHeap.IsEmpty() {
 		return nil
 	}
 
@@ -197,12 +201,15 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	return nil
 }
 
-func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error {
+func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 	// do a deadline based eviction for all active topic-partition heaps
 	for _, metadata := range s.consumedMessageStats {
 
 		deadlineBasedHeap := metadata.deadlineBasedMinHeap
+		if deadlineBasedHeap.IsEmpty() {
+			return
+		}
 
 		// peek deadline heap
 		peek := deadlineBasedHeap.Indices[0]
@@ -224,7 +231,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error 
 			if err != nil {
 				logger.Ctx(ctx).Errorw("deadline eviction: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
 				// not sending the error over the errChan as this would stop the subscriber
-				return nil
+				return
 			}
 
 			// cleanup message from memory only after a successful push to retry topic
@@ -233,8 +240,6 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) error 
 			logger.Ctx(ctx).Infow("deadline eviction: message evicted", "msgId", peek.MsgID)
 		}
 	}
-
-	return nil
 }
 
 // Run loop

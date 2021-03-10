@@ -95,7 +95,7 @@ func Test_Pubsub2(t *testing.T) {
 		var (
 			wg sync.WaitGroup
 
-			numOfMsgs = 10
+			numOfMsgs = 1
 		)
 		wg.Add(numOfMsgs)
 
@@ -108,15 +108,17 @@ func Test_Pubsub2(t *testing.T) {
 				da = *m.DeliveryAttempt
 			}
 
-			if index%2 == 0 {
-				// ack every alternate message
-				m.Ack()
-				t.Logf("Ack'd ==> [%d] Got message: id=[%v], deliveryAttempt=[%v], data=[%v]", index, m.ID, da, string(m.Data))
-
-			} else {
-				t.Logf("Deadline evicted ==> [%d] Got message: id=[%v], deliveryAttempt=[%v], data=[%v]", index, m.ID, da, string(m.Data))
-				//m.Nack()
-			}
+			m.Ack()
+			t.Logf("[%d] Got message: id=[%v], deliveryAttempt=[%v], data=[%v]", index, m.ID, da, string(m.Data))
+			//if index%2 == 0 {
+			//	// ack every alternate message
+			//	m.Ack()
+			//	t.Logf("Ack'd ==> [%d] Got message: id=[%v], deliveryAttempt=[%v], data=[%v]", index, m.ID, da, string(m.Data))
+			//
+			//} else {
+			//	t.Logf("Deadline evicted ==> [%d] Got message: id=[%v], deliveryAttempt=[%v], data=[%v]", index, m.ID, da, string(m.Data))
+			//	//m.Nack()
+			//}
 			wg.Done()
 		})
 

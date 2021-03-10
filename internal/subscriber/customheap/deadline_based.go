@@ -20,6 +20,15 @@ type DeadlineBasedPriorityQueue struct {
 	MsgIDToIndexMapping map[string]int
 }
 
+func (pq DeadlineBasedPriorityQueue) hasItems() bool {
+	return pq.Indices != nil && len(pq.Indices) > 0
+}
+
+// IsEmpty ...
+func (pq DeadlineBasedPriorityQueue) IsEmpty() bool {
+	return pq.hasItems() == false
+}
+
 // NewDeadlineBasedPriorityQueue ...
 func NewDeadlineBasedPriorityQueue() DeadlineBasedPriorityQueue {
 	return DeadlineBasedPriorityQueue{

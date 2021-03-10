@@ -13,6 +13,15 @@ type OffsetBasedPriorityQueue struct {
 	MsgIDToIndexMapping map[string]int
 }
 
+func (pq OffsetBasedPriorityQueue) hasItems() bool {
+	return pq.Indices != nil && len(pq.Indices) > 0
+}
+
+// IsEmpty ...
+func (pq OffsetBasedPriorityQueue) IsEmpty() bool {
+	return pq.hasItems() == false
+}
+
 // NewOffsetBasedPriorityQueue ...
 func NewOffsetBasedPriorityQueue() OffsetBasedPriorityQueue {
 	return OffsetBasedPriorityQueue{

@@ -193,7 +193,7 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 		if err != nil {
 			return nil, err
 		}
-		msgs[string(msg.ID().Serialize())] = ReceivedMessage{msg.Payload(), string(msg.ID().Serialize()), msg.PublishTime()}
+		msgs[string(msg.ID().Serialize())] = ReceivedMessage{Data: msg.Payload(), MessageID: string(msg.ID().Serialize()), PublishTime: msg.PublishTime()}
 	}
 
 	return &GetMessagesFromTopicResponse{
@@ -231,6 +231,19 @@ func (p *PulsarBroker) GetTopicMetadata(ctx context.Context, request GetTopicMet
 	}
 
 	return GetTopicMetadataResponse{
-		Response: stats,
+		Topic:  request.Topic,
+		Offset: int32(stats.Cursors[request.Topic].MessagesConsumedCounter),
 	}, nil
+}
+
+// Pause pause the consumer
+func (p *PulsarBroker) Pause(_ context.Context, _ PauseOnTopicRequest) error {
+	// unused for pulsar
+	return nil
+}
+
+// Resume resume the consumer
+func (p *PulsarBroker) Resume(_ context.Context, _ ResumeOnTopicRequest) error {
+	// unused for pulsar
+	return nil
 }

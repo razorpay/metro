@@ -3,6 +3,7 @@ package messagebroker
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -228,18 +229,26 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 }
 
 // GetTopicMetadata fetches the given topics metadata stored in the broker
-func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, req GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
-	metadata, err := k.Admin.GetMetadata(&req.Topic, false, req.TimeoutSec*1000)
-	if err != nil {
+func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	resp, err := k.Consumer.Committed(tps, 5000)
+	if err != nil || resp == nil || len(resp) == 0 {
 		return GetTopicMetadataResponse{}, err
 	}
 
+	tpStats := resp[0]
+	offset, _ := strconv.ParseInt(tpStats.Offset.String(), 10, 0)
 	return GetTopicMetadataResponse{
-		Response: map[string]interface{}{
-			"brokers":           metadata.Brokers,
-			"originatingBroker": metadata.Brokers,
-			"topics":            metadata.Topics,
-		},
+		Topic:     request.Topic,
+		Partition: request.Partition,
+		Offset:    int32(offset),
 	}, err
 }
 
@@ -283,7 +292,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
 	case <-time.After(time.Duration(request.TimeoutSec) * time.Second):
-		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", &request.Topic, k.POptions.TimeoutSec)
+		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutSec)
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {
@@ -309,7 +318,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 					msgID = string(v.Value)
 				}
 			}
-			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, msg.Timestamp}
+			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, msg.TopicPartition.Partition, int32(msg.TopicPartition.Offset), msg.Timestamp}
 			if int32(len(msgs)) == request.NumOfMessages {
 				return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
 			}
@@ -328,10 +337,12 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
 func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	logger.Ctx(ctx).Infow("kafka CommitByPartitionAndOffset request received", "request", request)
+
 	tp := kafkapkg.TopicPartition{
-		Topic: &request.Topic,
-		//Partition: request.Partition,
-		Offset: kafkapkg.Offset(request.Offset),
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+		Offset:    kafkapkg.Offset(request.Offset),
 	}
 
 	tps := make([]kafkapkg.TopicPartition, 0)
@@ -347,4 +358,30 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 func (k *KafkaBroker) CommitByMsgID(_ context.Context, _ CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	// unused for kafka
 	return CommitOnTopicResponse{}, nil
+}
+
+// Pause pause the consumer
+func (k *KafkaBroker) Pause(_ context.Context, request PauseOnTopicRequest) error {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	return k.Consumer.Pause(tps)
+}
+
+// Resume resume the consumer
+func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) error {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	return k.Consumer.Resume(tps)
 }

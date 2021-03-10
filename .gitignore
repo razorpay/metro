@@ -42,3 +42,5 @@ statik/*
 
 # ignore all mocks directories
 **/mocks
+
+gomock_*

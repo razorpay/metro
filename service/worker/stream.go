@@ -7,14 +7,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/razorpay/metro/pkg/logger"
-
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
-type pushStream struct {
+// PushStream provides reads from broker and publishes messgaes for the push subscription
+type PushStream struct {
 	ctx              context.Context
 	nodeID           string
 	subcriptionName  string
@@ -25,12 +25,13 @@ type pushStream struct {
 	doneCh           chan struct{}
 }
 
-func NewPushStream(nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore) *pushStream {
-	return &pushStream{nodeID: nodeID, subcriptionName: subName, subscriptionCore: subscriptionCore, subscriberCore: subscriberCore}
+// NewPushStream return a pushstream obj which is used for push subscriptions
+func NewPushStream(nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore) *PushStream {
+	return &PushStream{nodeID: nodeID, subcriptionName: subName, subscriptionCore: subscriptionCore, subscriberCore: subscriberCore}
 }
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
-func (ps *pushStream) Start() error {
+func (ps *PushStream) Start() error {
 	subs, err := ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subcriptionName, 10, 0, 0)
 
 	if err != nil {
@@ -92,7 +93,7 @@ func (ps *pushStream) Start() error {
 }
 
 // Stop is used to terminate the push subscription processing
-func (ps *pushStream) Stop() error {
+func (ps *PushStream) Stop() error {
 	// Stop the pushsubscription
 	ps.stopCh <-
 

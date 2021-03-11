@@ -7,10 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/razorpay/metro/internal/subscriber"
-
-	"github.com/razorpay/metro/pkg/scheduler"
-
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -20,11 +16,13 @@ import (
 	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/project"
 	internalserver "github.com/razorpay/metro/internal/server"
+	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/leaderelection"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
+	"github.com/razorpay/metro/pkg/scheduler"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"

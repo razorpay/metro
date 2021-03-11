@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/razorpay/metro/internal/subscriber"
+
 	"github.com/razorpay/metro/pkg/scheduler"
 
 	"github.com/google/uuid"
@@ -52,8 +54,9 @@ type Service struct {
 	nodeCache        []*node.Model
 	subCache         []*subscription.Model
 	nodebindingCache []*nodebinding.Model
-	pushHandlers     map[string]*pushsubscriber
+	pushHandlers     map[string]*pushStream
 	scheduler        *scheduler.Scheduler
+	subscriber       subscriber.ICore
 }
 
 // NewService creates an instance of new worker
@@ -70,7 +73,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
-		pushHandlers:     map[string]*pushsubscriber{},
+		pushHandlers:     map[string]*pushStream{},
 	}
 }
 
@@ -115,6 +118,9 @@ func (svc *Service) Start() error {
 	svc.nodeBindingCore = nodebinding.NewCore(nodebinding.NewRepo(svc.registry))
 
 	svc.scheduler, err = scheduler.New(scheduler.LoadBalance)
+
+	svc.subscriber = subscriber.NewCore(svc.brokerStore, svc.subscriptionCore)
+
 	if err != nil {
 		return err
 	}
@@ -405,11 +411,7 @@ func (svc *Service) handleNodeBindingUpdates(newBindingPairs []registry.Pair) er
 
 		if !found {
 			logger.Ctx(svc.ctx).Infow("binding added", "key", newBinding.Key())
-			handler := &pushsubscriber{
-				SubcriptionKey: newBinding.SubscriptionID,
-				Broker:         svc.workerConfig.Broker.Variant,
-				BrokerConfig:   svc.workerConfig.Broker.BrokerConfig,
-			}
+			handler := NewPushStream(newBinding.NodeID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber)
 			svc.workgrp.Go(handler.Start)
 			svc.pushHandlers[newBinding.Key()] = handler
 		}

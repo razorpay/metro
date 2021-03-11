@@ -19,6 +19,7 @@ type ICore interface {
 	GetTopicFromSubscriptionName(ctx context.Context, subscription string) (string, error)
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 	List(ctx context.Context, prefix string) ([]*Model, error)
+	Get(ctx context.Context, key string) (*Model, error)
 }
 
 // Core implements all business logic for a subscription
@@ -152,4 +153,14 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 		out = append(out, obj.(*Model))
 	}
 	return out, nil
+}
+
+// Get returns subscription with the given key
+func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
+	var model *Model
+	err := c.repo.Get(ctx, key, model)
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
 }

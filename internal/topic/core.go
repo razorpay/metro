@@ -17,6 +17,7 @@ type ICore interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
+	DeleteProjectTopics(ctx context.Context, projectID string) error
 }
 
 // Core implements all business logic for a topic
@@ -71,7 +72,11 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 
 // ExistsWithName checks if the topic exists with a given name
 func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
-	return c.Exists(ctx, common.BasePrefix+name)
+	projectID, topicName, err := ExtractTopicMetaAndValidate(ctx, name)
+	if err != nil {
+		return false, err
+	}
+	return c.Exists(ctx, common.BasePrefix+Prefix+projectID+"/"+topicName)
 }
 
 // DeleteTopic deletes a topic and all resources associated with it
@@ -88,5 +93,16 @@ func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
 		}
 		return merror.New(merror.NotFound, "Topic not found")
 	}
-	return c.repo.DeleteTree(ctx, m)
+	return c.repo.Delete(ctx, m)
+}
+
+// DeleteProjectTopics deletes all topics for a given projectID
+func (c *Core) DeleteProjectTopics(ctx context.Context, projectID string) error {
+	if projectID == "" {
+		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
+	}
+
+	prefix := common.BasePrefix + Prefix + projectID
+
+	return c.repo.DeleteTree(ctx, prefix)
 }

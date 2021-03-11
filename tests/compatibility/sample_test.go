@@ -27,6 +27,10 @@ func Test_Pubsub(t *testing.T) {
 
 		sub, err := client.CreateSubscription(context.Background(), subscription,
 			pubsub.SubscriptionConfig{Topic: topic})
+		if err != nil {
+			t.Logf("error in create subscription: %s", err)
+		}
+
 		assert.Nil(t, err)
 
 		ctx, cancelFunc := context.WithCancel(context.Background())

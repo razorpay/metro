@@ -79,5 +79,5 @@ func (c *Core) DeleteNodeBinding(ctx context.Context, m *Model) error {
 		}
 		return merror.Newf(merror.NotFound, "nodebinding not found %s", m.Key())
 	}
-	return c.repo.DeleteTree(ctx, m)
+	return c.repo.Delete(ctx, m)
 }

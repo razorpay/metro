@@ -25,7 +25,7 @@ func TestCore_CreateTopic(t *testing.T) {
 	mockProjectCore.EXPECT().ExistsWithID(ctx, dTopic.ExtractedProjectID).Return(true, nil)
 	mockBrokerStore.EXPECT().GetAdmin(ctx, messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
 	mockAdmin.EXPECT().CreateTopic(ctx, messagebroker.CreateTopicRequest{dTopic.Name, 1}).Return(messagebroker.CreateTopicResponse{}, nil)
-	mockTopicRepo.EXPECT().Exists(ctx, "metro/projects/test-project/topics/test-topic")
+	mockTopicRepo.EXPECT().Exists(ctx, "metro/topics/test-project/test-topic")
 	mockTopicRepo.EXPECT().Create(ctx, dTopic)
 	err := topicCore.CreateTopic(ctx, dTopic)
 	assert.Nil(t, err)

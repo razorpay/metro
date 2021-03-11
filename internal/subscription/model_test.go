@@ -19,11 +19,11 @@ func getDummySubscriptionModel() *Model {
 }
 
 func TestModel_Prefix(t *testing.T) {
-	dTopic := getDummySubscriptionModel()
-	assert.Equal(t, "metro/projects/test-project/subscriptions/", dTopic.Prefix())
+	dSubscription := getDummySubscriptionModel()
+	assert.Equal(t, "metro/subscriptions/test-project/", dSubscription.Prefix())
 }
 
 func TestModel_Key(t *testing.T) {
-	dTopic := getDummySubscriptionModel()
-	assert.Equal(t, "metro/projects/"+dTopic.ExtractedSubscriptionProjectID+"/subscriptions/"+dTopic.ExtractedSubscriptionName, dTopic.Key())
+	dSubscription := getDummySubscriptionModel()
+	assert.Equal(t, "metro/subscriptions/"+dSubscription.ExtractedSubscriptionProjectID+"/"+dSubscription.ExtractedSubscriptionName, dSubscription.Key())
 }

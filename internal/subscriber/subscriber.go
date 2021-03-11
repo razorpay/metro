@@ -105,9 +105,6 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 		return nil
 	}
 
-	shouldCommit := false
-	peek := stats.offsetBasedMinHeap.Indices[0]
-
 	// if somehow an ack request comes for a message that has met deadline eviction threshold
 	if req.HasHitDeadline() {
 
@@ -122,6 +119,8 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 		return nil
 	}
 
+	shouldCommit := false
+	peek := stats.offsetBasedMinHeap.Indices[0]
 	if req.Offset == peek.Offset {
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
 		shouldCommit = true

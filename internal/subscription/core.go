@@ -110,7 +110,13 @@ func (c *Core) DeleteProjectSubscriptions(ctx context.Context, projectID string)
 
 // GetTopicFromSubscriptionName returns topic from subscription
 func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription string) (string, error) {
-	if ok, err := c.repo.Exists(ctx, common.BasePrefix+subscription); !ok {
+	projectID, subscriptionName, err := extractSubscriptionMetaAndValidate(ctx, subscription)
+	if err != nil {
+		return "", err
+	}
+	subscriptionKey := common.BasePrefix + Prefix + projectID + "/" + subscriptionName
+
+	if ok, err := c.repo.Exists(ctx, subscriptionKey); !ok {
 		if err != nil {
 			return "", err
 		}
@@ -119,7 +125,7 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 		return "", err
 	}
 	m := &Model{}
-	err := c.repo.Get(ctx, common.BasePrefix+subscription, m)
+	err = c.repo.Get(ctx, common.BasePrefix+subscription, m)
 	if err != nil {
 		return "", err
 	}

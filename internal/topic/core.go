@@ -72,7 +72,11 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 
 // ExistsWithName checks if the topic exists with a given name
 func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
-	return c.Exists(ctx, common.BasePrefix+name)
+	projectID, topicName, err := ExtractTopicMetaAndValidate(ctx, name)
+	if err != nil {
+		return false, err
+	}
+	return c.Exists(ctx, common.BasePrefix+Prefix+projectID+"/"+topicName)
 }
 
 // DeleteTopic deletes a topic and all resources associated with it

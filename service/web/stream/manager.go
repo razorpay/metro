@@ -91,6 +91,10 @@ func (s *Manager) Acknowledge(ctx context.Context, req *ParsedStreamingPullReque
 // ModifyAcknowledgement ...
 func (s *Manager) ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error {
 	for _, ackMsg := range req.AckMessages {
+		// non zero ack deadline is not supported, hence continue
+		if req.ModifyDeadlineMsgIdsWithSecs[ackMsg.MessageID] != 0 {
+			continue
+		}
 		if ackMsg.MatchesOriginatingMessageServer() {
 			// find active stream
 			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {

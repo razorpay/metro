@@ -95,11 +95,10 @@ func Test_Pubsub2(t *testing.T) {
 		assert.Nil(t, err)
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
-
 		var (
 			wg sync.WaitGroup
 
-			numOfMsgs = 1
+			numOfMsgs = 10
 		)
 		wg.Add(numOfMsgs)
 

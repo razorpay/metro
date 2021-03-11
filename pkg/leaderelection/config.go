@@ -8,9 +8,6 @@ import (
 
 // Config for leaderelector
 type Config struct {
-	// NodePath is key in registry that will be used for node registration
-	NodePath string
-
 	// LockPath is key in registry that will be used for locking
 	LockPath string
 
@@ -42,9 +39,6 @@ var (
 
 	// ErrInvalidLockPath is thrown if lock path for lease is not defined
 	ErrInvalidLockPath = fmt.Errorf("lock path must not be nil")
-
-	// ErrInvalidNodePath is thrown if node path for lease is not defined
-	ErrInvalidNodePath = fmt.Errorf("node path must not be nil")
 )
 
 // Validate validates the config
@@ -60,9 +54,6 @@ func (c *Config) Validate() error {
 	}
 	if c.LockPath == "" {
 		return ErrInvalidLockPath
-	}
-	if c.NodePath == "" {
-		return ErrInvalidNodePath
 	}
 
 	return nil

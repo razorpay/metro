@@ -168,9 +168,14 @@ type kafkaCerts struct {
 
 func readKafkaCerts(certDir string) (*kafkaCerts, error) {
 	caCertPath, err := getCertFile(certDir, "ca-cert.pem")
+	if err != nil {
+		return nil, err
+	}
 	userCertPath, err := getCertFile(certDir, "user-cert.pem")
+	if err != nil {
+		return nil, err
+	}
 	userKeyPath, err := getCertFile(certDir, "user.key")
-
 	if err != nil {
 		return nil, err
 	}

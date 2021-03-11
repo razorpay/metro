@@ -17,10 +17,10 @@ func getDummyTopicModel() *Model {
 
 func TestModel_Prefix(t *testing.T) {
 	dTopic := getDummyTopicModel()
-	assert.Equal(t, "metro/projects/test-project/topics/", dTopic.Prefix())
+	assert.Equal(t, "metro/topics/test-project/", dTopic.Prefix())
 }
 
 func TestModel_Key(t *testing.T) {
 	dTopic := getDummyTopicModel()
-	assert.Equal(t, "metro/projects/"+dTopic.ExtractedProjectID+"/topics/"+dTopic.ExtractedTopicName, dTopic.Key())
+	assert.Equal(t, "metro/topics/"+dTopic.ExtractedProjectID+"/"+dTopic.ExtractedTopicName, dTopic.Key())
 }

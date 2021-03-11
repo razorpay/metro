@@ -75,10 +75,10 @@ func (c *ConsulClient) Deregister(sessionID string) error {
 }
 
 // Acquire a lock
-func (c *ConsulClient) Acquire(sessionID string, key string, value string) (bool, error) {
+func (c *ConsulClient) Acquire(sessionID string, key string, value []byte) (bool, error) {
 	isAcquired, _, err := c.client.KV().Acquire(&api.KVPair{
 		Key:     key,
-		Value:   []byte(value),
+		Value:   value,
 		Session: sessionID,
 	}, nil)
 
@@ -141,6 +141,25 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 		return nil, err
 	}
 	return kv.Value, nil
+}
+
+// List returns a slice of pairs for a key prefix
+func (c *ConsulClient) List(ctx context.Context, prefix string) ([]Pair, error) {
+	kvs, _, err := c.client.KV().List(prefix, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs := []Pair{}
+
+	for _, kv := range kvs {
+		pairs = append(pairs, Pair{
+			Key:   kv.Key,
+			Value: kv.Value,
+		})
+	}
+
+	return pairs, nil
 }
 
 // ListKeys returns a value for a key

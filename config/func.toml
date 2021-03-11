@@ -21,7 +21,7 @@
         [web.broker.brokerconfig]
             brokers       = ["localhost:9092"]
             enableTLS     = true
-            [web.broker.brokerconfig.web]
+            certDir       = "/app/configs/"
     [web.interfaces]
         [web.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8081"
@@ -34,7 +34,6 @@
             brokers       = ["localhost:9092"]
             enableTLS     = true
             certDir       = "/app/configs/"
-            [worker.broker.brokerconfig.consumer]
     [worker.interfaces]
         [worker.interfaces.api]
             GrpcServerAddress     = "0.0.0.0:8083"

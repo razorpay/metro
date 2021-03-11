@@ -15,8 +15,10 @@ type ICore interface {
 	CreateSubscription(ctx context.Context, subscription *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteSubscription(ctx context.Context, m *Model) error
+	DeleteProjectSubscriptions(ctx context.Context, projectID string) error
 	GetTopicFromSubscriptionName(ctx context.Context, subscription string) (string, error)
-	ListKeys(ctx context.Context) ([]string, error)
+	ListKeys(ctx context.Context, prefix string) ([]string, error)
+	List(ctx context.Context, prefix string) ([]*Model, error)
 }
 
 // Core implements all business logic for a subscription
@@ -92,12 +94,29 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 		}
 		return merror.Newf(merror.NotFound, "Subscription does not exist")
 	}
-	return c.repo.DeleteTree(ctx, m)
+	return c.repo.Delete(ctx, m)
+}
+
+// DeleteProjectSubscriptions deletes all subscriptions for the given projectID
+func (c *Core) DeleteProjectSubscriptions(ctx context.Context, projectID string) error {
+	if projectID == "" {
+		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
+	}
+
+	prefix := common.BasePrefix + Prefix + projectID
+
+	return c.repo.DeleteTree(ctx, prefix)
 }
 
 // GetTopicFromSubscriptionName returns topic from subscription
 func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription string) (string, error) {
-	if ok, err := c.repo.Exists(ctx, common.BasePrefix+subscription); !ok {
+	projectID, subscriptionName, err := extractSubscriptionMetaAndValidate(ctx, subscription)
+	if err != nil {
+		return "", err
+	}
+	subscriptionKey := common.BasePrefix + Prefix + projectID + "/" + subscriptionName
+
+	if ok, err := c.repo.Exists(ctx, subscriptionKey); !ok {
 		if err != nil {
 			return "", err
 		}
@@ -106,14 +125,31 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 		return "", err
 	}
 	m := &Model{}
-	err := c.repo.Get(ctx, common.BasePrefix+subscription, m)
+	err = c.repo.Get(ctx, common.BasePrefix+subscription, m)
 	if err != nil {
 		return "", err
 	}
 	return m.Topic, nil
 }
 
-// ListKeys returns list of subscription keys
-func (c *Core) ListKeys(ctx context.Context) ([]string, error) {
-	return c.repo.ListKeys(ctx, Prefix)
+// ListKeys gets all subscription keys
+func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
+	prefix = Prefix + prefix
+	return c.repo.ListKeys(ctx, prefix)
+}
+
+// List gets slice of subscriptions starting with given prefix
+func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
+	prefix = Prefix + prefix
+
+	out := []*Model{}
+	ret, err := c.repo.List(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, obj := range ret {
+		out = append(out, obj.(*Model))
+	}
+	return out, nil
 }

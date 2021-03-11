@@ -65,23 +65,6 @@ func TestConfig(t *testing.T) {
 			config: Config{
 				LeaseDuration: 10 * time.Second,
 				LockPath:      "test",
-				NodePath:      "",
-				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) error {
-						return nil
-					},
-					OnStoppedLeading: func() {
-
-					},
-				},
-			},
-			err: ErrInvalidNodePath,
-		},
-		{
-			config: Config{
-				LeaseDuration: 10 * time.Second,
-				LockPath:      "test",
-				NodePath:      "test1",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil

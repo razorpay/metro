@@ -72,6 +72,7 @@ type GetMessagesFromTopicResponse struct {
 type ReceivedMessage struct {
 	Data        []byte
 	MessageID   string
+	Topic       string
 	Partition   int32
 	Offset      int32
 	PublishTime time.Time

@@ -8,7 +8,6 @@ import (
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -45,7 +44,6 @@ type Subscriber struct {
 	topic                  string
 	retryTopic             string
 	subscriberID           string
-	bs                     brokerstore.IBrokerStore
 	subscriptionCore       subscription.ICore
 	requestChan            chan *PullRequest
 	responseChan           chan metrov1.PullResponse
@@ -84,7 +82,7 @@ func (s *Subscriber) retry(ctx context.Context, data []byte) {
 	_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:      s.retryTopic,
 		Message:    data,
-		TimeoutSec: 1,
+		TimeoutSec: 50,
 	})
 
 	if err != nil {
@@ -135,12 +133,12 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 		if err != nil {
 			return err
 		}
+
+		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
+		stats.maxCommittedOffset = req.Offset
 	}
 
 	removeMessageFromMemory(stats, req.MessageID)
-
-	// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
-	stats.maxCommittedOffset = req.Offset
 
 	return nil
 }
@@ -221,17 +219,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
 			// this way the message is eligible to be retried
-			_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-				Topic:      s.retryTopic,
-				Message:    msg.Data,
-				TimeoutSec: 1,
-			})
-
-			if err != nil {
-				logger.Ctx(ctx).Errorw("deadline eviction: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
-				// not sending the error over the errChan as this would stop the subscriber
-				return
-			}
+			s.retry(ctx, msg.Data)
 
 			// cleanup message from memory only after a successful push to retry topic
 			removeMessageFromMemory(metadata, peek.MsgID)
@@ -285,13 +273,14 @@ func (s *Subscriber) Run(ctx context.Context) {
 			resp1, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
-				s.errChan <- err
+				return
 			}
 			resp2, err := s.retryConsumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error in receiving retryable messages", "msg", err.Error())
-				s.errChan <- err
+				return
 			}
+
 			// merge response from both the consumers
 			responses := make([]*messagebroker.GetMessagesFromTopicResponse, 0)
 			responses = append(responses, resp1)
@@ -313,7 +302,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 					// TODO: fix delivery attempt
 
 					// store the processed r1 in a map for limit checks
-					tp := NewTopicPartition(s.topic, msg.Partition)
+					tp := NewTopicPartition(msg.Topic, msg.Partition)
 					if _, ok := s.consumedMessageStats[tp]; !ok {
 						// init the stats data store before updating
 						s.consumedMessageStats[tp] = NewConsumptionMetadata()
@@ -332,9 +321,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 					}
 
 					ackDeadline := time.Now().Add(minAckDeadline).Unix()
-					s.consumedMessageStats[tp].Store(&msg, ackDeadline)
+					s.consumedMessageStats[tp].Store(msg, ackDeadline)
 
-					ackID := NewAckMessage(s.subscriberID, s.topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
+					ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
 					sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
 				}
 			}

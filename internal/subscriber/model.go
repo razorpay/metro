@@ -244,7 +244,7 @@ func NewConsumptionMetadata() *ConsumptionMetadata {
 }
 
 // Store updates all the internal data structures with the consumed message metadata
-func (cm *ConsumptionMetadata) Store(msg *messagebroker.ReceivedMessage, deadline int64) {
+func (cm *ConsumptionMetadata) Store(msg messagebroker.ReceivedMessage, deadline int64) {
 	cm.consumedMessages[msg.MessageID] = msg
 
 	msg1 := &customheap.AckMessageWithOffset{
@@ -253,6 +253,7 @@ func (cm *ConsumptionMetadata) Store(msg *messagebroker.ReceivedMessage, deadlin
 	}
 	cm.offsetBasedMinHeap.Indices = append(cm.offsetBasedMinHeap.Indices, msg1)
 	cm.offsetBasedMinHeap.MsgIDToIndexMapping[msg.MessageID] = len(cm.offsetBasedMinHeap.Indices) - 1
+	heap.Init(&cm.offsetBasedMinHeap)
 
 	msg2 := &customheap.AckMessageWithDeadline{
 		MsgID:       msg.MessageID,
@@ -260,6 +261,7 @@ func (cm *ConsumptionMetadata) Store(msg *messagebroker.ReceivedMessage, deadlin
 	}
 	cm.deadlineBasedMinHeap.Indices = append(cm.deadlineBasedMinHeap.Indices, msg2)
 	cm.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MessageID] = len(cm.deadlineBasedMinHeap.Indices) - 1
+	heap.Init(&cm.deadlineBasedMinHeap)
 }
 
 // TopicPartition ...

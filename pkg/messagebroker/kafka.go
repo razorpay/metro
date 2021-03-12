@@ -292,6 +292,12 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		return nil, err
 	}
 
+	// if timeout not send, override with default timeout set during client creation
+	timeout := request.TimeoutSec
+	if timeout == 0 {
+		timeout = int(k.POptions.TimeoutSec)
+	}
+
 	var m *kafkapkg.Message
 	select {
 	case event := <-deliveryChan:
@@ -323,7 +329,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 					msgID = string(v.Value)
 				}
 			}
-			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, msg.TopicPartition.Partition, int32(msg.TopicPartition.Offset), msg.Timestamp}
+			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, *msg.TopicPartition.Topic, msg.TopicPartition.Partition, int32(msg.TopicPartition.Offset), msg.Timestamp}
 			if int32(len(msgs)) == request.NumOfMessages {
 				return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
 			}

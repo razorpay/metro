@@ -62,7 +62,7 @@ func (s *pullStream) run() error {
 			}
 			return nil
 		case req := <-s.reqChan:
-			logger.Ctx(s.ctx).Infow("got pull request", "request", req.String())
+			logger.Ctx(s.ctx).Infow("got pull request", "request", req)
 			parsedReq, parseErr := NewParsedStreamingPullRequest(req)
 			if parseErr != nil {
 				logger.Ctx(s.ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())

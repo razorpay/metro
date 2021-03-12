@@ -172,7 +172,7 @@ test-integration-ci:
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration:
-	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test ./... -tags=integration,musl
+	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 ./... -tags=integration,musl
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:
@@ -180,7 +180,7 @@ test-compat-ci:
 
 .PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
 test-compat:
-	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test -v ./... -tags=compatibility,musl
+	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test --count=1 -v ./... -tags=compatibility,musl
 
 .PHONY: test-unit-prepare
 test-unit-prepare:
@@ -189,7 +189,7 @@ test-unit-prepare:
 
 .PHONY: test-unit ## Run unit tests
 test-unit: test-unit-prepare
-	@APP_ENV=dev_docker go test -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
+	@APP_ENV=dev_docker go test --count=1 -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
 	@go tool cover -func=$(TMP_DIR)/$(COVERAGE_TMP_FILE)
 
 .PHONY: help ## Display this help screen

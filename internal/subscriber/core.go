@@ -61,7 +61,6 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		topic:                  topic,
 		retryTopic:             retryTopic,
 		subscriberID:           uuid.New().String(),
-		bs:                     c.bs,
 		subscriptionCore:       c.subscriptionCore,
 		requestChan:            make(chan *PullRequest),
 		responseChan:           make(chan metrov1.PullResponse),

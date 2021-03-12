@@ -8,7 +8,6 @@ import (
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -45,7 +44,6 @@ type Subscriber struct {
 	topic                  string
 	retryTopic             string
 	subscriberID           string
-	bs                     brokerstore.IBrokerStore
 	subscriptionCore       subscription.ICore
 	requestChan            chan *PullRequest
 	responseChan           chan metrov1.PullResponse
@@ -84,7 +82,7 @@ func (s *Subscriber) retry(ctx context.Context, data []byte) {
 	_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:      s.retryTopic,
 		Message:    data,
-		TimeoutSec: 1,
+		TimeoutSec: 50,
 	})
 
 	if err != nil {
@@ -221,17 +219,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
 			// this way the message is eligible to be retried
-			_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-				Topic:      s.retryTopic,
-				Message:    msg.Data,
-				TimeoutSec: 1,
-			})
-
-			if err != nil {
-				logger.Ctx(ctx).Errorw("deadline eviction: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
-				// not sending the error over the errChan as this would stop the subscriber
-				return
-			}
+			s.retry(ctx, msg.Data)
 
 			// cleanup message from memory only after a successful push to retry topic
 			removeMessageFromMemory(metadata, peek.MsgID)

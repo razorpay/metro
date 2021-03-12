@@ -292,6 +292,12 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		return nil, err
 	}
 
+	// if timeout not send, override with default timeout set during client creation
+	timeout := request.TimeoutSec
+	if timeout == 0 {
+		timeout = int(k.POptions.TimeoutSec)
+	}
+
 	var m *kafkapkg.Message
 	select {
 	case event := <-deliveryChan:

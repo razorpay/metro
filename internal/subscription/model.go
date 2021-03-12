@@ -15,6 +15,7 @@ type Model struct {
 	Name                           string
 	Topic                          string
 	Labels                         map[string]string
+	PushEndpoint                   string
 	ExtractedTopicProjectID        string
 	ExtractedSubscriptionProjectID string
 	ExtractedTopicName             string
@@ -30,4 +31,9 @@ func (m *Model) Key() string {
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
 	return common.BasePrefix + Prefix + m.ExtractedSubscriptionProjectID + "/"
+}
+
+// IsPush returns true if a subscription is a push subscription
+func (m *Model) IsPush() bool {
+	return m.PushEndpoint != ""
 }

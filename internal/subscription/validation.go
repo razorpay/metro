@@ -3,6 +3,7 @@ package subscription
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -54,6 +55,17 @@ func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, 
 	m.Labels = req.GetLabels()
 	m.ExtractedSubscriptionProjectID = p
 	m.ExtractedSubscriptionName = s
+	pushConfig := req.GetPushConfig()
+	if pushConfig != nil {
+		urlEndpoint := req.GetPushConfig().PushEndpoint
+		_, err := url.ParseRequestURI(urlEndpoint)
+		if err != nil {
+			return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] url: (url=%s)", urlEndpoint)
+		}
+
+		m.PushEndpoint = urlEndpoint
+	}
+
 	return m, nil
 }
 

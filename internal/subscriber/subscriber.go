@@ -77,16 +77,29 @@ func (s *Subscriber) GetID() string {
 	return s.subscriberID
 }
 
-// pushes message to the pre-defined retry topic
-func (s *Subscriber) retry(ctx context.Context, data []byte) {
-	_, err := s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
+// commits existing message on primary topic and pushes message to the pre-defined retry topic
+func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
+	// remove message from the primary topic
+	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
+		Topic:     retryMsg.Topic,
+		Partition: retryMsg.Partition,
+		Offset:    retryMsg.Offset,
+	})
+
+	if err != nil {
+		logger.Ctx(ctx).Errorw("subscriber: commit to primary topic failed", "topic", s.topic, "err", err.Error())
+		return
+	}
+
+	// then push message to the retry topic
+	_, err = s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:      s.retryTopic,
-		Message:    data,
+		Message:    retryMsg.Data,
 		TimeoutSec: 50,
 	})
 
 	if err != nil {
-		logger.Ctx(ctx).Errorw("push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
+		logger.Ctx(ctx).Errorw("subscriber: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
 		// not sending the error over the errChan as this would stop the subscriber
 	}
 }
@@ -94,7 +107,7 @@ func (s *Subscriber) retry(ctx context.Context, data []byte) {
 // acknowledge messages
 func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 
-	logger.Ctx(ctx).Infow("got ack request", "ack_request", req.String())
+	logger.Ctx(ctx).Infow("subscriber: got ack request", "ack_request", req.String())
 
 	tp := req.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
@@ -110,7 +123,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 		msg := stats.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
 
 		// push to retry queue
-		s.retry(ctx, msg.Data)
+		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data))
 
 		removeMessageFromMemory(stats, req.MessageID)
 
@@ -131,7 +144,8 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 			Offset:    req.Offset,
 		})
 		if err != nil {
-			return err
+			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "message", "peek", "error", err.Error())
+			return nil
 		}
 
 		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
@@ -163,7 +177,7 @@ func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
 // modifyAckDeadline for messages
 func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) error {
 
-	logger.Ctx(ctx).Infow("got mod ack request", "mod_ack_request", req.String())
+	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "mod_ack_request", req.String())
 
 	tp := req.ackMessage.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
@@ -181,7 +195,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		msg := stats.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
 
 		// push to retry queue
-		s.retry(ctx, msg.Data)
+		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data))
 
 		// cleanup message from memory
 		removeMessageFromMemory(stats, msgID)
@@ -219,12 +233,12 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
 			// this way the message is eligible to be retried
-			s.retry(ctx, msg.Data)
+			s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data))
 
 			// cleanup message from memory only after a successful push to retry topic
 			removeMessageFromMemory(metadata, peek.MsgID)
 
-			logger.Ctx(ctx).Infow("deadline eviction: message evicted", "msgId", peek.MsgID)
+			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "msgId", peek.MsgID)
 		}
 	}
 }
@@ -272,12 +286,13 @@ func (s *Subscriber) Run(ctx context.Context) {
 			// TODO: run receive request in another goroutine?
 			resp1, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
-				logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
+				logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "msg", err.Error())
 				return
 			}
+			logger.Ctx(ctx).Infow("subscriber: got messages", "count", len(resp1.PartitionOffsetWithMessages), "messages", resp1.PartitionOffsetWithMessages)
 			resp2, err := s.retryConsumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
-				logger.Ctx(ctx).Errorw("error in receiving retryable messages", "msg", err.Error())
+				logger.Ctx(ctx).Errorw("subscriber: error in receiving retryable messages", "msg", err.Error())
 				return
 			}
 
@@ -288,7 +303,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 			sm := make([]*metrov1.ReceivedMessage, 0)
 			for _, resp := range responses {
-				for _, msg := range resp.OffsetWithMessages {
+				for _, msg := range resp.PartitionOffsetWithMessages {
 					protoMsg := &metrov1.PubsubMessage{}
 					err = proto.Unmarshal(msg.Data, protoMsg)
 					if err != nil {

@@ -50,22 +50,22 @@ func (s *pullStream) run() error {
 			return s.ctx.Err()
 		case <-timeout.C:
 			s.stop()
-			return fmt.Errorf("stream ack deadline seconds crossed")
+			return fmt.Errorf("stream: ack deadline seconds crossed")
 		case err := <-s.errChan:
 			s.stop()
 			if err == io.EOF {
 				// return will close stream from server side
-				logger.Ctx(s.ctx).Errorw("EOF received from client")
+				logger.Ctx(s.ctx).Errorw("stream: EOF received from client")
 			}
 			if err != nil {
-				logger.Ctx(s.ctx).Errorw("error received from client", "msg", err.Error())
+				logger.Ctx(s.ctx).Errorw("stream: error received from client", "msg", err.Error())
 			}
 			return nil
 		case req := <-s.reqChan:
 			logger.Ctx(s.ctx).Infow("got pull request", "request", req)
 			parsedReq, parseErr := NewParsedStreamingPullRequest(req)
 			if parseErr != nil {
-				logger.Ctx(s.ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
+				logger.Ctx(s.ctx).Errorw("stream: error is parsing pull request", "request", req, "error", parseErr.Error())
 				return parseErr
 			}
 
@@ -90,10 +90,15 @@ func (s *pullStream) run() error {
 				timeout = time.NewTicker(time.Duration(streamAckDeadlineSecs) * time.Second)
 			}
 		default:
+			/*
+				TODO : discuss this: default request over the stream is immediately sent after the actual request completes which
+				TODO : results in duplicate message delivery to the consumer. hence adding a sleep for now as a hack.
+			*/
+			time.Sleep(time.Second * 10)
 			// once stream is established, we can continuously send messages over it
 			req := &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
 			s.subscriptionSubscriber.GetRequestChannel() <- req
-			logger.Ctx(s.ctx).Infow("sending default pull request over stream", "req", req)
+			logger.Ctx(s.ctx).Infow("stream: sending default pull request over stream", "req", req)
 			select {
 			case res := <-s.subscriptionSubscriber.GetResponseChannel():
 				if len(res.ReceivedMessages) > 0 {
@@ -103,7 +108,7 @@ func (s *pullStream) run() error {
 						s.stop()
 						return nil
 					}
-					logger.Ctx(s.ctx).Infow("StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages))
+					logger.Ctx(s.ctx).Infow("stream: StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages))
 				}
 			}
 		}

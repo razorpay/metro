@@ -45,11 +45,13 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 	}
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
-		"group.id":           options.GroupID,
-		"auto.offset.reset":  "earliest",
-		"enable.auto.commit": false,
-		"group.instance.id":  id,
+		"bootstrap.servers":     strings.Join(bConfig.Brokers, ","),
+		"group.id":              options.GroupID,
+		"auto.offset.reset":     "earliest",
+		"enable.auto.commit":    false,
+		"group.instance.id":     id,
+		"heartbeat.interval.ms": 3000,
+		"session.timeout.ms":    10000,
 	}
 
 	if bConfig.EnableTLS {
@@ -329,26 +331,31 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 					msgID = string(v.Value)
 				}
 			}
-			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, *msg.TopicPartition.Topic, msg.TopicPartition.Partition, int32(msg.TopicPartition.Offset), msg.Timestamp}
+
+			offset, _ := strconv.ParseInt(fmt.Sprintf("%v", int32(msg.TopicPartition.Offset)), 10, 0)
+			po := NewPartitionOffset(msg.TopicPartition.Partition, int32(offset))
+			msgs[po.String()] = ReceivedMessage{msg.Value, msgID, *msg.TopicPartition.Topic, msg.TopicPartition.Partition, int32(msg.TopicPartition.Offset), msg.Timestamp}
+
 			if int32(len(msgs)) == request.NumOfMessages {
-				return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
+				return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 			}
 		} else if err.(kafkapkg.Error).Code() == kafkapkg.ErrTimedOut {
-			return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
+			return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 		} else {
 			// The client will automatically try to recover from all errors.
 			logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
 			return nil, err
 		}
 	}
-	return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
+
+	return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 }
 
 // CommitByPartitionAndOffset Commits messages if any
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
 func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
-	logger.Ctx(ctx).Infow("kafka CommitByPartitionAndOffset request received", "request", request)
+	logger.Ctx(ctx).Infow("kafka: commit request received", "request", request)
 
 	tp := kafkapkg.TopicPartition{
 		Topic:     &request.Topic,
@@ -360,9 +367,18 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 	tps = append(tps, tp)
 
 	resp, err := k.Consumer.CommitOffsets(tps)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: commit failed", "request", request, "error", err.Error())
+		return CommitOnTopicResponse{
+			Response: nil,
+		}, err
+	}
+
+	logger.Ctx(ctx).Errorw("kafka: committed successfully", "request", request)
+
 	return CommitOnTopicResponse{
 		Response: resp,
-	}, err
+	}, nil
 }
 
 // CommitByMsgID Commits a message by ID

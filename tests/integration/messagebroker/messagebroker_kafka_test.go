@@ -165,12 +165,12 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.Nil(t, err)
 
 	fmt.Printf("\n\nmsg received from topic : %v", topic)
-	for offset, msg := range resp.OffsetWithMessages {
+	for offset, msg := range resp.PartitionOffsetWithMessages {
 		fmt.Printf("\noffset [%v], message [%v]", offset, msg.String())
 	}
 
 	// message produced count should match the number of message ids generated in response
-	assert.Equal(t, msgsToSend, len(resp.OffsetWithMessages))
+	assert.Equal(t, msgsToSend, len(resp.PartitionOffsetWithMessages))
 
 	// spwan a new consumer and try to re-receive after commit and make sure no new messages are available
 	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-2", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
@@ -187,7 +187,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	})
 
 	assert.NotNil(t, resp3)
-	assert.Equal(t, len(resp3.OffsetWithMessages), 0)
+	assert.Equal(t, len(resp3.PartitionOffsetWithMessages), 0)
 	assert.Nil(t, rerr)
 }
 

@@ -63,9 +63,27 @@ type SendMessageToTopicResponse struct {
 	MessageID string
 }
 
+// PartitionOffset ...
+type PartitionOffset struct {
+	Partition int32
+	Offset    int32
+}
+
+func (po PartitionOffset) String() string {
+	return fmt.Sprintf("[%v]-[%v]", po.Partition, po.Offset)
+}
+
+// NewPartitionOffset ...
+func NewPartitionOffset(partition, offset int32) PartitionOffset {
+	return PartitionOffset{
+		Partition: partition,
+		Offset:    offset,
+	}
+}
+
 // GetMessagesFromTopicResponse ...
 type GetMessagesFromTopicResponse struct {
-	OffsetWithMessages map[string]ReceivedMessage
+	PartitionOffsetWithMessages map[string]ReceivedMessage
 }
 
 // ReceivedMessage ...

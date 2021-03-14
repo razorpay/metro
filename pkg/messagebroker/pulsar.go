@@ -197,7 +197,7 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	}
 
 	return &GetMessagesFromTopicResponse{
-		OffsetWithMessages: msgs,
+		PartitionOffsetWithMessages: msgs,
 	}, nil
 }
 

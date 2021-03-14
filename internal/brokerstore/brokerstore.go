@@ -101,7 +101,7 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 		b.variant,
 		id,
 		b.bConfig,
-		&messagebroker.ConsumerClientOptions{Topic: op.Topic, Subscription: op.Subscription, GroupID: op.GroupID},
+		&op,
 	)
 	if perr != nil {
 		return nil, perr
@@ -127,7 +127,7 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	newProducer, perr := messagebroker.NewProducerClient(ctx,
 		b.variant,
 		b.bConfig,
-		&messagebroker.ProducerClientOptions{Topic: op.Topic, TimeoutSec: op.TimeoutSec},
+		&op,
 	)
 	if perr != nil {
 		return nil, perr

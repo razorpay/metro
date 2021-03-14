@@ -73,7 +73,6 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 
 // Acknowledge ...
 func (s *Manager) Acknowledge(ctx context.Context, req *ParsedStreamingPullRequest) error {
-	logger.Ctx(ctx).Infow("got ack request", "subscription", req.Subscription, "num_of_msgs", len(req.AckMessages), "ack_ids", req.AckIDs)
 	for _, ackMsg := range req.AckMessages {
 		if ackMsg.MatchesOriginatingMessageServer() {
 			// find active stream

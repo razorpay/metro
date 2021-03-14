@@ -7,8 +7,6 @@ require (
 	github.com/apache/pulsar-client-go v0.3.0
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20210115012126-2456729a54ca // indirect
 	github.com/armon/go-metrics v0.3.6 // indirect
-	github.com/bufbuild/buf v0.38.0 // indirect
-	github.com/bykof/go-plantuml v1.0.0 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.5.2
 	github.com/danieljoos/wincred v1.1.0 // indirect
@@ -26,6 +24,7 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6 // indirect
+	github.com/klauspost/compress v1.11.8 // indirect
 	github.com/kris-nova/lolgopher v0.0.0-20210112022122-73f0047e8b65 // indirect
 	github.com/magiconair/properties v1.8.4
 	github.com/mattn/go-runewidth v0.0.10 // indirect
@@ -35,7 +34,6 @@ require (
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
-	github.com/prometheus/common v0.10.0
 	github.com/rakyll/statik v0.1.7
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rs/xid v1.2.1
@@ -48,13 +46,17 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/uber/jaeger-client-go v2.24.0+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
+	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
+	golang.org/x/net v0.0.0-20210224082022-3d97a244fca7 // indirect
 	golang.org/x/oauth2 v0.0.0-20210113205817-d3ed898aa8a3 // indirect
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	golang.org/x/sys v0.0.0-20210225134936-a50acf3fe073 // indirect
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
+	golang.org/x/text v0.3.5 // indirect
 	golang.org/x/tools v0.1.0 // indirect
 	google.golang.org/api v0.36.0
 	google.golang.org/genproto v0.0.0-20210224155714-063164c882e6

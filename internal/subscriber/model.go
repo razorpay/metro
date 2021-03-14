@@ -299,3 +299,21 @@ func NewModAckMessage(ackMessage *AckMessage, ackDeadline int32) *ModAckMessage 
 		ackDeadline: ackDeadline,
 	}
 }
+
+// RetryMessage ...
+type RetryMessage struct {
+	Data      []byte
+	Topic     string
+	Partition int32
+	Offset    int32
+}
+
+// NewRetryMessage ...
+func NewRetryMessage(topic string, partition, offset int32, data []byte) *RetryMessage {
+	return &RetryMessage{
+		Data:      data,
+		Topic:     topic,
+		Partition: partition,
+		Offset:    offset,
+	}
+}

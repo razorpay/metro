@@ -37,15 +37,17 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		return nil, err
 	}
 
+	subscriberID := uuid.New().String()
+
 	topic := strings.Replace(t, "/", "_", -1)
-	consumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: topic, GroupID: subscription})
+	consumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: topic, GroupID: subscriberID})
 	if err != nil {
 		return nil, err
 	}
 
 	// make sure retry topic creation is taken care during the primary topic creation flow
 	retryTopic := topic + topic2.RetryTopicSuffix
-	retryConsumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: retryTopic, GroupID: subscription})
+	retryConsumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: retryTopic, GroupID: subscriberID + topic2.RetryTopicSuffix})
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +62,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		subscription:           subscription,
 		topic:                  topic,
 		retryTopic:             retryTopic,
-		subscriberID:           uuid.New().String(),
+		subscriberID:           subscriberID,
 		subscriptionCore:       c.subscriptionCore,
 		requestChan:            make(chan *PullRequest),
 		responseChan:           make(chan metrov1.PullResponse),

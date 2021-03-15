@@ -22,10 +22,7 @@ func isErrorRecoverable(err error) bool {
 	switch err.(type) {
 	case kafkapkg.Error:
 		kErr := err.(kafkapkg.Error)
-		if kErr.IsRetriable() {
-			return true
-		}
-		return retryableKafkaErrorCodes[kErr.Code()]
+		return kErr.IsRetriable() || retryableKafkaErrorCodes[kErr.Code()]
 	default:
 		return false
 	}

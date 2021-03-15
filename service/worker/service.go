@@ -52,7 +52,7 @@ type Service struct {
 	nodeCache        []*node.Model
 	subCache         []*subscription.Model
 	nodebindingCache []*nodebinding.Model
-	pushHandlers     map[string]*pushStream
+	pushHandlers     map[string]*PushStream
 	scheduler        *scheduler.Scheduler
 	subscriber       subscriber.ICore
 }
@@ -71,7 +71,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
-		pushHandlers:     map[string]*pushStream{},
+		pushHandlers:     map[string]*PushStream{},
 	}
 }
 

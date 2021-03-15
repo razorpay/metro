@@ -3,7 +3,6 @@ package worker
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -65,27 +64,29 @@ func (ps *PushStream) Start() error {
 	for {
 		// read from response channel and fire a webhook
 		data := <-ps.responseChan
-		postBody, _ := json.Marshal(data)
-		responseBody := bytes.NewBuffer(postBody)
-		resp, err := http.Post(url, "application/json", responseBody)
-		if err != nil {
-			logger.Ctx(ps.ctx).Errorf("error posting messages to subscription url")
-		}
-		defer resp.Body.Close()
 
-		//Read the response body
-		_, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			logger.Ctx(ps.ctx).Errorf("error reading response body")
-		}
+		for _, message := range data.ReceivedMessages {
+			postData := bytes.NewBuffer(message.Message.Data)
+			resp, err := http.Post(url, "application/json", postData)
+			if err != nil {
+				logger.Ctx(ps.ctx).Errorf("error posting messages to subscription url")
+			}
+			defer resp.Body.Close()
 
-		// Ack/Nack
-		err = subs.Acknowledge(ps.ctx, &subscriber.AcknowledgeRequest{
-			AckIDs: []string{""},
-		})
+			//Read the response body
+			_, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				logger.Ctx(ps.ctx).Errorf("error reading response body")
+			}
 
-		if err != nil {
-			logger.Ctx(ps.ctx).Errorf("error in message ack")
+			// Ack/Nack
+			err = subs.Acknowledge(ps.ctx, &subscriber.AcknowledgeRequest{
+				AckIDs: []string{message.AckId},
+			})
+
+			if err != nil {
+				logger.Ctx(ps.ctx).Errorf("error in message ack")
+			}
 		}
 	}
 

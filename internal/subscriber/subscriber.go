@@ -24,8 +24,8 @@ type ISubscriber interface {
 	GetID() string
 	// not exporting acknowledge() and  modifyAckDeadline() intentionally so that
 	// all operations happen over the channel
-	acknowledge(ctx context.Context, req *AckMessage) error
-	modifyAckDeadline(ctx context.Context, req *ModAckMessage) error
+	acknowledge(ctx context.Context, req *AckMessage)
+	modifyAckDeadline(ctx context.Context, req *ModAckMessage)
 	// the grpc proto is used here as well, to optimise for serialization
 	// and deserialisation, a little unclean but optimal
 	// TODO: figure a better way out
@@ -88,6 +88,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: commit to primary topic failed", "topic", s.topic, "err", err.Error())
+		s.errChan <- err
 		return
 	}
 
@@ -100,12 +101,12 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
-		// not sending the error over the errChan as this would stop the subscriber
+		s.errChan <- err
 	}
 }
 
 // acknowledge messages
-func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
+func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
 	logger.Ctx(ctx).Infow("subscriber: got ack request", "ack_request", req.String())
 
@@ -113,7 +114,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 	stats := s.consumedMessageStats[tp]
 
 	if stats.offsetBasedMinHeap.IsEmpty() {
-		return nil
+		return
 	}
 
 	// if somehow an ack request comes for a message that has met deadline eviction threshold
@@ -127,7 +128,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 
 		removeMessageFromMemory(stats, req.MessageID)
 
-		return nil
+		return
 	}
 
 	shouldCommit := false
@@ -145,7 +146,8 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 		})
 		if err != nil {
 			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "message", "peek", "error", err.Error())
-			return nil
+			s.errChan <- err
+			return
 		}
 
 		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
@@ -153,8 +155,6 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) error {
 	}
 
 	removeMessageFromMemory(stats, req.MessageID)
-
-	return nil
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
@@ -175,7 +175,7 @@ func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
 }
 
 // modifyAckDeadline for messages
-func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) error {
+func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) {
 
 	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "mod_ack_request", req.String())
 
@@ -184,7 +184,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 
 	deadlineBasedHeap := stats.deadlineBasedMinHeap
 	if deadlineBasedHeap.IsEmpty() {
-		return nil
+		return
 	}
 
 	if req.ackDeadline == 0 {
@@ -200,16 +200,15 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		// cleanup message from memory
 		removeMessageFromMemory(stats, msgID)
 
-		return nil
+		return
 	}
 
+	// NOTE: currently we are not supporting non-zero mod ack. below code implementation is to handle that in future
 	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.ackMessage.MessageID]
 
 	// update the deadline of the identified message
 	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
 	heap.Init(&deadlineBasedHeap)
-
-	return nil
 }
 
 func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
@@ -219,7 +218,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 		deadlineBasedHeap := metadata.deadlineBasedMinHeap
 		if deadlineBasedHeap.IsEmpty() {
-			return
+			continue
 		}
 
 		// peek deadline heap
@@ -287,12 +286,14 @@ func (s *Subscriber) Run(ctx context.Context) {
 			resp1, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "msg", err.Error())
+				s.errChan <- err
 				return
 			}
 			logger.Ctx(ctx).Infow("subscriber: got messages", "count", len(resp1.PartitionOffsetWithMessages), "messages", resp1.PartitionOffsetWithMessages)
 			resp2, err := s.retryConsumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error in receiving retryable messages", "msg", err.Error())
+				s.errChan <- err
 				return
 			}
 

@@ -58,9 +58,20 @@ func (s *pullStream) run() error {
 				logger.Ctx(s.ctx).Errorw("stream: EOF received from client")
 			}
 			if err != nil {
-				logger.Ctx(s.ctx).Errorw("stream: error received from client", "msg", err.Error())
+				logger.Ctx(s.ctx).Errorw("stream: error received from client", "error", err.Error())
 			}
 			return nil
+		case err := <-s.subscriptionSubscriber.GetErrorChannel():
+			if isErrorRecoverable(err) {
+				// no need to stop the subscriber in such cases. just log and return
+				logger.Ctx(s.ctx).Errorw("subscriber: got recoverable error", err.Error())
+				return nil
+			}
+
+			logger.Ctx(s.ctx).Errorw("subscriber: got un-recoverable error", "error", err.Error())
+			s.stop()
+			return err
+
 		case req := <-s.reqChan:
 			logger.Ctx(s.ctx).Infow("got pull request", "request", req)
 			parsedReq, parseErr := NewParsedStreamingPullRequest(req)
@@ -133,6 +144,7 @@ func (s *pullStream) modifyAckDeadline(_ context.Context, req *subscriber.ModAck
 }
 
 func (s *pullStream) stop() {
+	logger.Ctx(s.ctx).Infow("stopping subscriber", "subscriberId", s.subscriberID)
 	s.subscriptionSubscriber.Stop()
 }
 

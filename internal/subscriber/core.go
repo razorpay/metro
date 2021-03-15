@@ -27,7 +27,7 @@ type Core struct {
 
 // NewCore returns a new core
 func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) *Core {
-	return &Core{bs, subscriptionCore}
+	return &Core{bs: bs, subscriptionCore: subscriptionCore}
 }
 
 // NewSubscriber initiates a new subscriber for a given topic
@@ -40,14 +40,14 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	subscriberID := uuid.New().String()
 
 	topic := strings.Replace(t, "/", "_", -1)
-	consumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: topic, GroupID: subscriberID})
+	consumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: topic, GroupID: subscription})
 	if err != nil {
 		return nil, err
 	}
 
 	// make sure retry topic creation is taken care during the primary topic creation flow
 	retryTopic := topic + topic2.RetryTopicSuffix
-	retryConsumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: retryTopic, GroupID: subscriberID + topic2.RetryTopicSuffix})
+	retryConsumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: retryTopic, GroupID: subscription + topic2.RetryTopicSuffix})
 	if err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ func (ps *PushStream) Start() error {
 	}
 
 	// get subscription Model details
-	_, err = ps.subscriptionCore.Get(ps.ctx, ps.subcriptionName)
+	subModel, err := ps.subscriptionCore.Get(ps.ctx, ps.subcriptionName)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorf("error fetching subscription: %s", err.Error())
 	}
@@ -60,14 +60,13 @@ func (ps *PushStream) Start() error {
 		}
 	}()
 
-	url := ""
 	for {
 		// read from response channel and fire a webhook
 		data := <-ps.responseChan
 
 		for _, message := range data.ReceivedMessages {
 			postData := bytes.NewBuffer(message.Message.Data)
-			resp, err := http.Post(url, "application/json", postData)
+			resp, err := http.Post(subModel.PushEndpoint, "application/json", postData)
 			if err != nil {
 				logger.Ctx(ps.ctx).Errorf("error posting messages to subscription url")
 			}

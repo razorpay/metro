@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/razorpay/metro/service/web/stream"
+
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -11,7 +13,6 @@ import (
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
 	internalserver "github.com/razorpay/metro/internal/server"
-	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/registry"
@@ -69,7 +70,7 @@ func (svc *Service) Start() error {
 
 	publisher := publisher.NewCore(brokerStore)
 
-	subscriber := subscriber.NewCore(brokerStore, subscriptionCore)
+	streamManager := stream.NewStreamManager(subscriptionCore, brokerStore)
 
 	grpcServer, err := internalserver.StartGRPCServer(
 		grp,
@@ -78,7 +79,7 @@ func (svc *Service) Start() error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 			metrov1.RegisterPublisherServer(server, newPublisherServer(brokerStore, topicCore, publisher))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore, subscriptionCore, topicCore))
-			metrov1.RegisterSubscriberServer(server, newSubscriberServer(subscriptionCore, subscriber))
+			metrov1.RegisterSubscriberServer(server, newSubscriberServer(subscriptionCore, streamManager))
 			return nil
 		},
 		getInterceptors()...,

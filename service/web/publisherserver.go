@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"log"
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/merror"
@@ -26,12 +25,12 @@ func newPublisherServer(brokerStore brokerstore.IBrokerStore, topicCore topic.IC
 
 // Produce messages to a topic
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
-	log.Println("produce request received")
+	logger.Ctx(ctx).Infow("produce request received", "req", req.Topic)
 	msgIDs, err := s.publisher.Publish(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
-	log.Println("produce request completed")
+	logger.Ctx(ctx).Infow("produce request completed", "req", req.Topic)
 	return &metrov1.PublishResponse{MessageIds: msgIDs}, nil
 }
 
@@ -53,11 +52,20 @@ func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*
 		return nil, merror.ToGRPCError(aerr)
 	}
 
+	// create primary topic
 	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
 		Name:          req.GetName(),
 		NumPartitions: 1,
 	})
+	if terr != nil {
+		return nil, merror.ToGRPCError(terr)
+	}
 
+	// create retry topic
+	_, terr = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
+		Name:          m.RetryTopicName,
+		NumPartitions: 1,
+	})
 	if terr != nil {
 		return nil, merror.ToGRPCError(terr)
 	}

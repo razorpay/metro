@@ -20,6 +20,13 @@ UNIT_TEST_EXCLUSIONS_FILE := "unit-test.exclusions"
 PROTO_ROOT := "metro-proto/"
 RPC_ROOT := "rpc/"
 
+
+BUF_BIN := /usr/local/bin
+BUF_VERSION := 0.32.0
+BUF_BINARY_NAME := buf
+BUF_UNAME_OS := $(shell uname -s)
+BUF_UNAME_ARCH := $(shell uname -m)
+
 # go binary. Change this to experiment with different versions of go.
 GO       = go
 
@@ -65,7 +72,7 @@ setup-git-hooks:
 	@git config core.hooksPath $(GIT_HOOKS_DIR)
 
 .PHONY: deps ## Fetch dependencies
-deps:
+deps: buf-deps
 	@echo "\n + Fetching buf dependencies \n"
 	# https://github.com/johanbrandhorst/grpc-gateway-boilerplate/blob/master/Makefile
 	@go install \
@@ -73,11 +80,16 @@ deps:
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
-		github.com/rakyll/statik \
-		github.com/bufbuild/buf/cmd/buf
+		github.com/rakyll/statik
 	@go install golang.org/x/lint/golint
 	@go install github.com/bykof/go-plantuml
 	@go install github.com/golang/mock/mockgen
+
+buf-deps:
+	curl -sSL \
+	https://github.com/bufbuild/buf/releases/download/v${BUF_VERSION}/${BUF_BINARY_NAME}-$(BUF_UNAME_OS)-$(BUF_UNAME_ARCH) \
+	-o ${BUF_BIN}/${BUF_BINARY_NAME} && \
+	chmod +x ${BUF_BIN}/${BUF_BINARY_NAME}
 
 .PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:
@@ -144,7 +156,7 @@ docker-build-metro:
 mock-gen:
 	@go generate ./...
 	@mockgen --build_flags='--tags=musl' -destination=internal/brokerstore/mocks/mock_brokerstore.go -package=mocks github.com/razorpay/metro/internal/brokerstore IBrokerStore
-	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_admin.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Admin
+	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_broker.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Broker
 	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/topic ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/topic IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/subscription/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscription ICore
@@ -172,7 +184,7 @@ test-integration-ci:
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration:
-	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test ./... -tags=integration,musl
+	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 ./... -tags=integration,musl
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:
@@ -180,7 +192,7 @@ test-compat-ci:
 
 .PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
 test-compat:
-	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test -v ./... -tags=compatibility,musl
+	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test --count=1 -v ./... -tags=compatibility,musl
 
 .PHONY: test-unit-prepare
 test-unit-prepare:
@@ -189,7 +201,7 @@ test-unit-prepare:
 
 .PHONY: test-unit ## Run unit tests
 test-unit: test-unit-prepare
-	@APP_ENV=dev_docker go test -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
+	@APP_ENV=dev_docker go test --count=1 -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
 	@go tool cover -func=$(TMP_DIR)/$(COVERAGE_TMP_FILE)
 
 .PHONY: help ## Display this help screen

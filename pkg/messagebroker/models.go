@@ -2,6 +2,7 @@ package messagebroker
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -25,6 +26,7 @@ type SendMessageToTopicRequest struct {
 	OrderingKey string
 	Attributes  []map[string][]byte
 	TimeoutSec  int
+	MessageID   string
 }
 
 // GetMessagesFromTopicRequest ...
@@ -37,14 +39,14 @@ type GetMessagesFromTopicRequest struct {
 type CommitOnTopicRequest struct {
 	Topic     string
 	Partition int32
-	Offset    int64
+	Offset    int32
 	ID        string
 }
 
 // GetTopicMetadataRequest ...
 type GetTopicMetadataRequest struct {
-	Topic      string
-	TimeoutSec int
+	Topic     string
+	Partition int32
 }
 
 // CreateTopicResponse ...
@@ -62,16 +64,42 @@ type SendMessageToTopicResponse struct {
 	MessageID string
 }
 
+// PartitionOffset ...
+type PartitionOffset struct {
+	Partition int32
+	Offset    int32
+}
+
+func (po PartitionOffset) String() string {
+	return fmt.Sprintf("[%v]-[%v]", po.Partition, po.Offset)
+}
+
+// NewPartitionOffset ...
+func NewPartitionOffset(partition, offset int32) PartitionOffset {
+	return PartitionOffset{
+		Partition: partition,
+		Offset:    offset,
+	}
+}
+
 // GetMessagesFromTopicResponse ...
 type GetMessagesFromTopicResponse struct {
-	OffsetWithMessages map[string]ReceivedMessage
+	PartitionOffsetWithMessages map[string]ReceivedMessage
 }
 
 // ReceivedMessage ...
 type ReceivedMessage struct {
 	Data        []byte
 	MessageID   string
+	Topic       string
+	Partition   int32
+	Offset      int32
 	PublishTime time.Time
+}
+
+func (rm ReceivedMessage) String() string {
+	return fmt.Sprintf("data=[%v], msgId=[%v], partition=[%v], offset=[%v], publishTime=[%v]",
+		string(rm.Data), rm.MessageID, rm.Partition, rm.Offset, rm.PublishTime.Unix())
 }
 
 // CommitOnTopicResponse ...
@@ -81,7 +109,21 @@ type CommitOnTopicResponse struct {
 
 // GetTopicMetadataResponse ...
 type GetTopicMetadataResponse struct {
-	Response interface{}
+	Topic     string
+	Partition int32
+	Offset    int32
+}
+
+// PauseOnTopicRequest ...
+type PauseOnTopicRequest struct {
+	Topic     string
+	Partition int32
+}
+
+// ResumeOnTopicRequest ...
+type ResumeOnTopicRequest struct {
+	Topic     string
+	Partition int32
 }
 
 type pulsarAckMessage struct {

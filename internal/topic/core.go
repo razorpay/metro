@@ -52,7 +52,7 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 		return err
 	}
 	// TODO: take number of partitions as input
-	_, err = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{m.Name, 1})
+	_, err = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{m.Name, 2})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in creating topic in broker", "msg", err.Error())
 		return err

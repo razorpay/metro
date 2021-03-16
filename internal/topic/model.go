@@ -7,6 +7,9 @@ import (
 const (
 	// Prefix for all topic keys in the registry
 	Prefix = "topics/"
+
+	// RetryTopicSuffix every primary topic will have a retry topic with this suffix as well
+	RetryTopicSuffix = "-retry"
 )
 
 // Model for a topic
@@ -16,6 +19,7 @@ type Model struct {
 	Labels             map[string]string
 	ExtractedProjectID string
 	ExtractedTopicName string
+	RetryTopicName     string
 }
 
 // Key returns the key for storing in the registry

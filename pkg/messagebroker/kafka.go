@@ -3,6 +3,7 @@ package messagebroker
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -233,18 +234,27 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 }
 
 // GetTopicMetadata fetches the given topics metadata stored in the broker
-func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, req GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
-	metadata, err := k.Admin.GetMetadata(&req.Topic, false, req.TimeoutSec*1000)
-	if err != nil {
+func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	// TODO : normalize timeouts
+	resp, err := k.Consumer.Committed(tps, 5000)
+	if err != nil || resp == nil || len(resp) == 0 {
 		return GetTopicMetadataResponse{}, err
 	}
 
+	tpStats := resp[0]
+	offset, _ := strconv.ParseInt(tpStats.Offset.String(), 10, 0)
 	return GetTopicMetadataResponse{
-		Response: map[string]interface{}{
-			"brokers":           metadata.Brokers,
-			"originatingBroker": metadata.Brokers,
-			"topics":            metadata.Topics,
-		},
+		Topic:     request.Topic,
+		Partition: request.Partition,
+		Offset:    int32(offset),
 	}, err
 }
 
@@ -263,8 +273,13 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		}
 	}
 
-	// generate a message id and attach
-	msgID := xid.New().String()
+	msgID := request.MessageID
+	if msgID == "" {
+		// generate a message id and attach only if not sent by the caller
+		// in case of retry push to topic, the same messageID is to be re-used
+		msgID = xid.New().String()
+	}
+
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   messageID,
 		Value: []byte(msgID),
@@ -283,12 +298,18 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		return nil, err
 	}
 
+	// if timeout not send, override with default timeout set during client creation
+	timeout := request.TimeoutSec
+	if timeout == 0 {
+		timeout = int(k.POptions.TimeoutSec)
+	}
+
 	var m *kafkapkg.Message
 	select {
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
 	case <-time.After(time.Duration(request.TimeoutSec) * time.Second):
-		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", &request.Topic, k.POptions.TimeoutSec)
+		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutSec)
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {
@@ -314,42 +335,103 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 					msgID = string(v.Value)
 				}
 			}
-			msgs[fmt.Sprintf("%v", int64(msg.TopicPartition.Offset))] = ReceivedMessage{msg.Value, msgID, msg.Timestamp}
+
+			offset, _ := strconv.ParseInt(fmt.Sprintf("%v", int32(msg.TopicPartition.Offset)), 10, 0)
+			po := NewPartitionOffset(msg.TopicPartition.Partition, int32(offset))
+			msgs[po.String()] = ReceivedMessage{msg.Value, msgID, *msg.TopicPartition.Topic, msg.TopicPartition.Partition, int32(msg.TopicPartition.Offset), msg.Timestamp}
+
 			if int32(len(msgs)) == request.NumOfMessages {
-				return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
+				return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 			}
 		} else if err.(kafkapkg.Error).Code() == kafkapkg.ErrTimedOut {
-			return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
+			return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 		} else {
 			// The client will automatically try to recover from all errors.
 			logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
 			return nil, err
 		}
 	}
-	return &GetMessagesFromTopicResponse{OffsetWithMessages: msgs}, nil
+
+	return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 }
 
 // CommitByPartitionAndOffset Commits messages if any
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
 func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	logger.Ctx(ctx).Infow("kafka: commit request received", "request", request)
+
 	tp := kafkapkg.TopicPartition{
-		Topic: &request.Topic,
-		//Partition: request.Partition,
-		Offset: kafkapkg.Offset(request.Offset),
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+		Offset:    kafkapkg.Offset(request.Offset),
 	}
 
 	tps := make([]kafkapkg.TopicPartition, 0)
 	tps = append(tps, tp)
 
 	resp, err := k.Consumer.CommitOffsets(tps)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: commit failed", "request", request, "error", err.Error())
+		return CommitOnTopicResponse{
+			Response: nil,
+		}, err
+	}
+
+	logger.Ctx(ctx).Infow("kafka: committed successfully", "request", request)
+
 	return CommitOnTopicResponse{
 		Response: resp,
-	}, err
+	}, nil
 }
 
 // CommitByMsgID Commits a message by ID
 func (k *KafkaBroker) CommitByMsgID(_ context.Context, _ CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	// unused for kafka
 	return CommitOnTopicResponse{}, nil
+}
+
+// Pause pause the consumer
+func (k *KafkaBroker) Pause(_ context.Context, request PauseOnTopicRequest) error {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	return k.Consumer.Pause(tps)
+}
+
+// Resume resume the consumer
+func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) error {
+	tp := kafkapkg.TopicPartition{
+		Topic:     &request.Topic,
+		Partition: request.Partition,
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	return k.Consumer.Resume(tps)
+}
+
+// Close closes the consumer
+func (k *KafkaBroker) Close(ctx context.Context) error {
+	logger.Ctx(ctx).Infow("kafka: request to close the consumer", "topic", k.COptions.Topic, "groupID", k.COptions.GroupID)
+	err := k.Consumer.Unsubscribe()
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: consumer unsubscribe failed", "topic", k.COptions.Topic, "groupID", k.COptions.GroupID, "error", err.Error())
+		return err
+	}
+
+	err = k.Consumer.Close()
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: consumer close failed", "topic", k.COptions.Topic, "groupID", k.COptions.GroupID, "error", err.Error())
+		return err
+	}
+	logger.Ctx(ctx).Infow("kafka: consumer closed...", "topic", k.COptions.Topic, "groupID", k.COptions.GroupID)
+
+	return nil
 }

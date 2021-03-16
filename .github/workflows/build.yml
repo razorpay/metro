@@ -13,7 +13,7 @@ jobs:
             submodules: true
         - name: install prerequisites
           run: |
-            apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
+            apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl
         - name: lint-check
           run: |
             make lint-check
@@ -57,6 +57,7 @@ jobs:
             build_args: GIT_COMMIT_HASH=${{ github.sha }}
           env:
             GIT_COMMIT_HASH: ${{ github.sha }}
+            APP_ENV: dev_docker
     integration-tests:
         runs-on: ubuntu-latest
         container: golang:1.15.5-alpine3.12
@@ -136,7 +137,7 @@ jobs:
               submodules: true
           - name: install prerequisites
             run: |
-              apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf
+              apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl
           - name: deps
             run: |
               make deps

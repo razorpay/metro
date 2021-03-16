@@ -31,7 +31,12 @@ func Test_CreateValidTopic(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 
-	metadata, merr := admin.GetTopicMetadata(context.Background(), messagebroker.GetTopicMetadataRequest{Topic: topic, TimeoutSec: 2})
+	// create consumer to fetch topic metadata
+	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-1", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+		Topic:   topic,
+		GroupID: "dummy-group-2",
+	})
+	metadata, merr := consumer1.GetTopicMetadata(context.Background(), messagebroker.GetTopicMetadataRequest{Topic: topic})
 
 	assert.Nil(t, merr)
 	assert.NotNil(t, metadata)
@@ -160,12 +165,12 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.Nil(t, err)
 
 	fmt.Printf("\n\nmsg received from topic : %v", topic)
-	for offset, msg := range resp.OffsetWithMessages {
-		fmt.Printf("\noffset [%v], message [%v]", offset, msg)
+	for offset, msg := range resp.PartitionOffsetWithMessages {
+		fmt.Printf("\noffset [%v], message [%v]", offset, msg.String())
 	}
 
 	// message produced count should match the number of message ids generated in response
-	assert.Equal(t, msgsToSend, len(resp.OffsetWithMessages))
+	assert.Equal(t, msgsToSend, len(resp.PartitionOffsetWithMessages))
 
 	// spwan a new consumer and try to re-receive after commit and make sure no new messages are available
 	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-2", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
@@ -182,7 +187,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	})
 
 	assert.NotNil(t, resp3)
-	assert.Equal(t, len(resp3.OffsetWithMessages), 0)
+	assert.Equal(t, len(resp3.PartitionOffsetWithMessages), 0)
 	assert.Nil(t, rerr)
 }
 
@@ -192,7 +197,7 @@ func getAdminClientConfig() *messagebroker.AdminClientOptions {
 
 func getKafkaBrokerConfig() *messagebroker.BrokerConfig {
 	kafKaBroker := fmt.Sprintf("%v:9092", os.Getenv("KAFKA_TEST_HOST"))
-	fmt.Println("using kafKaBroker", kafKaBroker)
+	fmt.Println("\nusing kafKaBroker", kafKaBroker)
 	return &messagebroker.BrokerConfig{
 		Brokers: []string{kafKaBroker},
 		Consumer: &messagebroker.ConsumerConfig{

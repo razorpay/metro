@@ -125,7 +125,7 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 		return "", err
 	}
 	m := &Model{}
-	err = c.repo.Get(ctx, common.BasePrefix+subscription, m)
+	err = c.repo.Get(ctx, subscriptionKey, m)
 	if err != nil {
 		return "", err
 	}

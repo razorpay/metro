@@ -45,13 +45,11 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 	}
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers":     strings.Join(bConfig.Brokers, ","),
-		"group.id":              options.GroupID,
-		"auto.offset.reset":     "earliest",
-		"enable.auto.commit":    false,
-		"group.instance.id":     id,
-		"heartbeat.interval.ms": 3000,
-		"session.timeout.ms":    10000,
+		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
+		"group.id":           options.GroupID,
+		"auto.offset.reset":  "earliest",
+		"enable.auto.commit": false,
+		"group.instance.id":  id,
 	}
 
 	if bConfig.EnableTLS {
@@ -245,6 +243,7 @@ func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetada
 	tps := make([]kafkapkg.TopicPartition, 0)
 	tps = append(tps, tp)
 
+	// TODO : normalize timeouts
 	resp, err := k.Consumer.Committed(tps, 5000)
 	if err != nil || resp == nil || len(resp) == 0 {
 		return GetTopicMetadataResponse{}, err

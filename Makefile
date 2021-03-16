@@ -20,6 +20,13 @@ UNIT_TEST_EXCLUSIONS_FILE := "unit-test.exclusions"
 PROTO_ROOT := "metro-proto/"
 RPC_ROOT := "rpc/"
 
+
+BUF_BIN := /usr/local/bin
+BUF_VERSION := 0.32.0
+BUF_BINARY_NAME := buf
+BUF_UNAME_OS := $(shell uname -s)
+BUF_UNAME_ARCH := $(shell uname -m)
+
 # go binary. Change this to experiment with different versions of go.
 GO       = go
 
@@ -65,7 +72,7 @@ setup-git-hooks:
 	@git config core.hooksPath $(GIT_HOOKS_DIR)
 
 .PHONY: deps ## Fetch dependencies
-deps:
+deps: buf-deps
 	@echo "\n + Fetching buf dependencies \n"
 	# https://github.com/johanbrandhorst/grpc-gateway-boilerplate/blob/master/Makefile
 	@go install \
@@ -73,11 +80,16 @@ deps:
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
-		github.com/rakyll/statik \
-		github.com/bufbuild/buf/cmd/buf
+		github.com/rakyll/statik
 	@go install golang.org/x/lint/golint
 	@go install github.com/bykof/go-plantuml
 	@go install github.com/golang/mock/mockgen
+
+buf-deps:
+	curl -sSL \
+	https://github.com/bufbuild/buf/releases/download/v${BUF_VERSION}/${BUF_BINARY_NAME}-$(BUF_UNAME_OS)-$(BUF_UNAME_ARCH) \
+	-o ${BUF_BIN}/${BUF_BINARY_NAME} && \
+	chmod +x ${BUF_BIN}/${BUF_BINARY_NAME}
 
 .PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:

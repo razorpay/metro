@@ -97,6 +97,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 		Topic:      s.retryTopic,
 		Message:    retryMsg.Data,
 		TimeoutSec: 50,
+		MessageID:  retryMsg.MessageID,
 	})
 
 	if err != nil {
@@ -121,10 +122,10 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	if req.HasHitDeadline() {
 
 		msgID := req.MessageID
-		msg := stats.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
+		msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 		// push to retry queue
-		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data))
+		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
 
 		removeMessageFromMemory(stats, req.MessageID)
 
@@ -192,10 +193,10 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
 
 		msgID := req.ackMessage.MessageID
-		msg := stats.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
+		msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 		// push to retry queue
-		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data))
+		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
 
 		// cleanup message from memory
 		removeMessageFromMemory(stats, msgID)
@@ -228,11 +229,11 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 		if peek.HasHitDeadline() {
 
 			msgID := peek.MsgID
-			msg := metadata.consumedMessages[msgID].(*messagebroker.ReceivedMessage)
+			msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
 			// this way the message is eligible to be retried
-			s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data))
+			s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
 
 			// cleanup message from memory only after a successful push to retry topic
 			removeMessageFromMemory(metadata, peek.MsgID)
@@ -289,13 +290,14 @@ func (s *Subscriber) Run(ctx context.Context) {
 				s.errChan <- err
 				return
 			}
-			logger.Ctx(ctx).Infow("subscriber: got messages", "count", len(resp1.PartitionOffsetWithMessages), "messages", resp1.PartitionOffsetWithMessages)
+			logger.Ctx(ctx).Infow("subscriber: got messages from primary topic", "count", len(resp1.PartitionOffsetWithMessages), "messages", resp1.PartitionOffsetWithMessages)
 			resp2, err := s.retryConsumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error in receiving retryable messages", "msg", err.Error())
 				s.errChan <- err
 				return
 			}
+			logger.Ctx(ctx).Infow("subscriber: got messages from retry topic", "count", len(resp2.PartitionOffsetWithMessages), "messages", resp2.PartitionOffsetWithMessages)
 
 			// merge response from both the consumers
 			responses := make([]*messagebroker.GetMessagesFromTopicResponse, 0)

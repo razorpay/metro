@@ -26,6 +26,7 @@ type SendMessageToTopicRequest struct {
 	OrderingKey string
 	Attributes  []map[string][]byte
 	TimeoutSec  int
+	MessageID   string
 }
 
 // GetMessagesFromTopicRequest ...

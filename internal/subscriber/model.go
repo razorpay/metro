@@ -306,14 +306,16 @@ type RetryMessage struct {
 	Topic     string
 	Partition int32
 	Offset    int32
+	MessageID string
 }
 
 // NewRetryMessage ...
-func NewRetryMessage(topic string, partition, offset int32, data []byte) *RetryMessage {
+func NewRetryMessage(topic string, partition, offset int32, data []byte, messageID string) *RetryMessage {
 	return &RetryMessage{
 		Data:      data,
 		Topic:     topic,
 		Partition: partition,
 		Offset:    offset,
+		MessageID: messageID,
 	}
 }

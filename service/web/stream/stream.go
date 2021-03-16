@@ -101,11 +101,6 @@ func (s *pullStream) run() error {
 				timeout = time.NewTicker(time.Duration(streamAckDeadlineSecs) * time.Second)
 			}
 		default:
-			/*
-				TODO : discuss this: default request over the stream is immediately sent after the actual request completes which
-				TODO : results in duplicate message delivery to the consumer. hence adding a sleep for now as a hack.
-			*/
-			time.Sleep(time.Second * 10)
 			// once stream is established, we can continuously send messages over it
 			req := &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
 			s.subscriptionSubscriber.GetRequestChannel() <- req

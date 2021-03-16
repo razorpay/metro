@@ -40,14 +40,16 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	subscriberID := uuid.New().String()
 
 	topic := strings.Replace(t, "/", "_", -1)
-	consumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: topic, GroupID: subscription})
+	groupID := subscription
+	consumer, err := c.bs.GetConsumer(ctx, groupID, messagebroker.ConsumerClientOptions{Topic: topic, GroupID: groupID})
 	if err != nil {
 		return nil, err
 	}
 
 	// make sure retry topic creation is taken care during the primary topic creation flow
 	retryTopic := topic + topic2.RetryTopicSuffix
-	retryConsumer, err := c.bs.GetConsumer(ctx, id, messagebroker.ConsumerClientOptions{Topic: retryTopic, GroupID: subscription + topic2.RetryTopicSuffix})
+	retryGroupID := subscription + topic2.RetryTopicSuffix
+	retryConsumer, err := c.bs.GetConsumer(ctx, retryGroupID, messagebroker.ConsumerClientOptions{Topic: retryTopic, GroupID: retryGroupID})
 	if err != nil {
 		return nil, err
 	}

@@ -63,7 +63,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 		return err
 	}
 
-	logger.Ctx(server.Context()).Infow("created new pull stream", "stream_id", pullStream.subscriberID)
+	logger.Ctx(server.Context()).Infow("created new pull stream", "subscriberID", pullStream.subscriberID)
 
 	// store all active pull streams in a map
 	s.pullStreams[pullStream.subscriberID] = pullStream

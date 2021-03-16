@@ -274,8 +274,13 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		}
 	}
 
-	// generate a message id and attach
-	msgID := xid.New().String()
+	msgID := request.MessageID
+	if msgID == "" {
+		// generate a message id and attach only if not sent by the caller
+		// in case of retry push to topic, the same messageID is to be re-used
+		msgID = xid.New().String()
+	}
+
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   messageID,
 		Value: []byte(msgID),
@@ -374,7 +379,7 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 		}, err
 	}
 
-	logger.Ctx(ctx).Errorw("kafka: committed successfully", "request", request)
+	logger.Ctx(ctx).Infow("kafka: committed successfully", "request", request)
 
 	return CommitOnTopicResponse{
 		Response: resp,

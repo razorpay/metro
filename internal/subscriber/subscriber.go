@@ -290,14 +290,17 @@ func (s *Subscriber) Run(ctx context.Context) {
 				s.errChan <- err
 				return
 			}
-			logger.Ctx(ctx).Infow("subscriber: got messages from primary topic", "count", len(resp1.PartitionOffsetWithMessages), "messages", resp1.PartitionOffsetWithMessages)
+			logger.Ctx(ctx).Infow("subscriber: got messages from primary topic", "count", len(resp1.PartitionOffsetWithMessages), "messages", resp1.PartitionOffsetWithMessages, "subscriber", s.subscriberID)
 			resp2, err := s.retryConsumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error in receiving retryable messages", "msg", err.Error())
 				s.errChan <- err
 				return
 			}
-			logger.Ctx(ctx).Infow("subscriber: got messages from retry topic", "count", len(resp2.PartitionOffsetWithMessages), "messages", resp2.PartitionOffsetWithMessages)
+
+			if len(resp2.PartitionOffsetWithMessages) > 0 {
+				logger.Ctx(ctx).Infow("subscriber: got messages from retry topic", "count", len(resp2.PartitionOffsetWithMessages), "messages", resp2.PartitionOffsetWithMessages, "subscriber", s.subscriberID)
+			}
 
 			// merge response from both the consumers
 			responses := make([]*messagebroker.GetMessagesFromTopicResponse, 0)

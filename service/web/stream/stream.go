@@ -46,12 +46,15 @@ func (s *pullStream) run() error {
 		go s.receive()
 		select {
 		case <-s.ctx.Done():
+			logger.Ctx(s.ctx).Infow("stopping subscriber from <-s.ctx.Done()")
 			s.stop()
 			return s.ctx.Err()
 		case <-timeout.C:
+			logger.Ctx(s.ctx).Infow("stopping subscriber from <-timeout.C")
 			s.stop()
 			return fmt.Errorf("stream: ack deadline seconds crossed")
 		case err := <-s.errChan:
+			logger.Ctx(s.ctx).Infow("stopping subscriber from err := <-s.errChan")
 			s.stop()
 			if err == io.EOF {
 				// return will close stream from server side
@@ -69,6 +72,7 @@ func (s *pullStream) run() error {
 			}
 
 			logger.Ctx(s.ctx).Errorw("subscriber: got un-recoverable error", "error", err.Error())
+			logger.Ctx(s.ctx).Infow("stopping subscriber from err := <-s.subscriptionSubscriber.GetErrorChannel()")
 			s.stop()
 			return err
 
@@ -114,9 +118,11 @@ func (s *pullStream) run() error {
 						s.stop()
 						return nil
 					}
-					logger.Ctx(s.ctx).Infow("stream: StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages))
+					logger.Ctx(s.ctx).Infow("stream: StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages), "subscriber", s.subscriberID)
 				}
 			}
+			timeout.Stop()
+			timeout = time.NewTicker(time.Duration(streamAckDeadlineSecs) * time.Second)
 		}
 	}
 }
@@ -139,8 +145,8 @@ func (s *pullStream) modifyAckDeadline(_ context.Context, req *subscriber.ModAck
 }
 
 func (s *pullStream) stop() {
-	logger.Ctx(s.ctx).Infow("stopping subscriber", "subscriberId", s.subscriberID)
 	s.subscriptionSubscriber.Stop()
+	logger.Ctx(s.ctx).Infow("stopped subscriber...", "subscriberId", s.subscriberID)
 }
 
 func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group) (*pullStream, error) {

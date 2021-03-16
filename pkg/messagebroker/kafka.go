@@ -417,3 +417,22 @@ func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) er
 
 	return k.Consumer.Resume(tps)
 }
+
+// Close closes the consumer
+func (k *KafkaBroker) Close(ctx context.Context) error {
+	logger.Ctx(ctx).Infow("kafka: request to close the consumer", "topic", k.COptions.Topic, "groupID", k.COptions.GroupID)
+	err := k.Consumer.Unsubscribe()
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: consumer unsubscribe failed", "topic", k.COptions.Topic, "groupID", k.COptions.GroupID, "error", err.Error())
+		return err
+	}
+
+	err = k.Consumer.Close()
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: consumer close failed", "topic", k.COptions.Topic, "groupID", k.COptions.GroupID, "error", err.Error())
+		return err
+	}
+	logger.Ctx(ctx).Infow("kafka: consumer closed...", "topic", k.COptions.Topic, "groupID", k.COptions.GroupID)
+
+	return nil
+}

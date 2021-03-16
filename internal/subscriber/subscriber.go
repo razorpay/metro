@@ -61,6 +61,7 @@ type Subscriber struct {
 	maxOutstandingBytes    int64
 	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
 	isPaused               bool
+	ctx                    context.Context
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
@@ -389,6 +390,9 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 
 // Stop the subscriber
 func (s *Subscriber) Stop() {
+	logger.Ctx(s.ctx).Infow("subscriber: stop() called on consumer", "subscription", s.subscription)
+	s.consumer.Close(s.ctx)
+	s.retryConsumer.Close(s.ctx)
 	s.cancelFunc()
 	<-s.closeChan
 }

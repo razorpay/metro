@@ -46,4 +46,7 @@ type Consumer interface {
 
 	// resume the consumer
 	Resume(context.Context, ResumeOnTopicRequest) error
+
+	// closes the consumer
+	Close(context.Context) error
 }

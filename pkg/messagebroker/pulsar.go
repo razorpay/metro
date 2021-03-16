@@ -247,3 +247,9 @@ func (p *PulsarBroker) Resume(_ context.Context, _ ResumeOnTopicRequest) error {
 	// unused for pulsar
 	return nil
 }
+
+// Close closes the consumer
+func (p *PulsarBroker) Close(_ context.Context) error {
+	p.Consumer.Close()
+	return nil
+}

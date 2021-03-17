@@ -1,10 +1,8 @@
 package server
 
 import (
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net"
 	"net/http"
-	"net/http/pprof"
 
 	"golang.org/x/sync/errgroup"
 
@@ -27,7 +25,6 @@ func StartGRPCServer(
 	address string,
 	registerGrpcHandlers registerGrpcHandlers,
 	interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
-
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
 		return nil, err
@@ -113,18 +110,5 @@ func newHTTPServer(r registerHTTPHandlers) (*http.Server, error) {
 	}
 
 	server := http.Server{Handler: mux}
-	return &server, nil
-}
-
-func newInternalServer() (*http.Server, error) {
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-	mux.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
-	mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-	mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-	mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-	mux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-	server := http.Server{Handler: mux}
-
 	return &server, nil
 }

@@ -27,7 +27,6 @@ type Service struct {
 	ctx            context.Context
 	grpcServer     *grpc.Server
 	httpServer     *http.Server
-	internalServer *http.Server
 	health         *health.Core
 	webConfig      *Config
 	registryConfig *registry.Config

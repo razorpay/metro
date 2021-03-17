@@ -100,9 +100,8 @@ func (s *pullStream) run() error {
 
 			// reset stream ack deadline seconds
 			if req.StreamAckDeadlineSeconds != 0 {
-				timeout.Stop()
 				streamAckDeadlineSecs = req.StreamAckDeadlineSeconds
-				timeout = time.NewTicker(time.Duration(streamAckDeadlineSecs) * time.Second)
+				timeout.Reset(time.Duration(streamAckDeadlineSecs) * time.Second)
 			}
 		default:
 			// once stream is established, we can continuously send messages over it
@@ -121,8 +120,7 @@ func (s *pullStream) run() error {
 					logger.Ctx(s.ctx).Infow("stream: StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages), "subscriber", s.subscriberID)
 				}
 			}
-			timeout.Stop()
-			timeout = time.NewTicker(time.Duration(streamAckDeadlineSecs) * time.Second)
+			timeout.Reset(time.Duration(streamAckDeadlineSecs) * time.Second)
 		}
 	}
 }

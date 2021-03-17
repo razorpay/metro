@@ -357,6 +357,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 		case <-s.deadlineTickerChan:
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 		case <-ctx.Done():
+			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "subscription", s.subscription)
+			s.consumer.Close(s.ctx)
+			s.retryConsumer.Close(s.ctx)
 			s.closeChan <- struct{}{}
 			return
 		}
@@ -390,9 +393,6 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 
 // Stop the subscriber
 func (s *Subscriber) Stop() {
-	logger.Ctx(s.ctx).Infow("subscriber: stop() called on consumer", "subscription", s.subscription)
-	s.consumer.Close(s.ctx)
-	s.retryConsumer.Close(s.ctx)
 	s.cancelFunc()
 	<-s.closeChan
 }

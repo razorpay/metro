@@ -157,8 +157,14 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 
 // Get returns subscription with the given key
 func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
-	var model *Model
-	err := c.repo.Get(ctx, key, model)
+	projectID, subscriptionName, err := extractSubscriptionMetaAndValidate(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	prefix := common.BasePrefix + Prefix + projectID + "/" + subscriptionName
+
+	model := &Model{}
+	err = c.repo.Get(ctx, prefix, model)
 	if err != nil {
 		return nil, err
 	}

@@ -288,6 +288,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	deliveryChan := make(chan kafkapkg.Event)
 
 	tp := normalizeTopicName(request.Topic)
+	logger.Ctx(ctx).Infow("normalized topic name", "topoic", tp)
 	err := k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &tp, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,

@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"sync"
 
 	"github.com/razorpay/metro/pkg/logger"
 
@@ -27,15 +28,44 @@ type Manager struct {
 	subscriptionCore  subscription.ICore
 	bs                brokerstore.IBrokerStore
 	activeStreamCount map[string]uint32 // TODO: will remove. maintain a distributed counter for active streams per subscription
+	cleanupCh         chan string       // listens for closed subscribers
+	mutex             *sync.Mutex
+	ctx               context.Context
 }
 
 // NewStreamManager ...
-func NewStreamManager(subscriptionCore subscription.ICore, bs brokerstore.IBrokerStore) IManager {
-	return &Manager{
+func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, bs brokerstore.IBrokerStore) IManager {
+	mgr := &Manager{
 		pullStreams:       make(map[string]IStream),
 		subscriptionCore:  subscriptionCore,
 		activeStreamCount: make(map[string]uint32),
 		bs:                bs,
+		cleanupCh:         make(chan string),
+		mutex:             &sync.Mutex{},
+		ctx:               ctx,
+	}
+
+	go mgr.run()
+
+	return mgr
+}
+
+func (s *Manager) run() {
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case subscriberID := <-s.cleanupCh:
+			logger.Ctx(s.ctx).Infow("manager: got request to cleanup subscriber", "subscriberID", subscriberID)
+			s.mutex.Lock()
+			if _, ok := s.pullStreams[subscriberID]; ok {
+				delete(s.pullStreams, subscriberID)
+				logger.Ctx(s.ctx).Infow("manager: deleted subscriber from store", "subscriberID", subscriberID)
+			} else {
+				logger.Ctx(s.ctx).Infow("manager: skipping cleanup for subscriber", "subscriberID", subscriberID)
+			}
+			s.mutex.Unlock()
+		}
 	}
 }
 
@@ -58,6 +88,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 		req.Subscription,
 		subscriber.NewCore(s.bs, s.subscriptionCore),
 		errGroup,
+		s.cleanupCh,
 	)
 	if err != nil {
 		return err
@@ -66,7 +97,9 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 	logger.Ctx(server.Context()).Infow("created new pull stream", "subscriberID", pullStream.subscriberID)
 
 	// store all active pull streams in a map
+	s.mutex.Lock()
 	s.pullStreams[pullStream.subscriberID] = pullStream
+	s.mutex.Unlock()
 
 	return nil
 }

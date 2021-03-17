@@ -33,6 +33,7 @@ type pullStream struct {
 	reqChan      chan *metrov1.StreamingPullRequest
 	errChan      chan error
 	responseChan chan metrov1.PullResponse
+	cleanupCh    chan string
 }
 
 // DefaultNumMessagesToReadOffStream ...
@@ -145,9 +146,12 @@ func (s *pullStream) modifyAckDeadline(_ context.Context, req *subscriber.ModAck
 func (s *pullStream) stop() {
 	s.subscriptionSubscriber.Stop()
 	logger.Ctx(s.ctx).Infow("stopped subscriber...", "subscriberId", s.subscriberID)
+
+	// notify stream manager to cleanup subscriber held in-memory
+	s.cleanupCh <- s.subscriberID
 }
 
-func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group) (*pullStream, error) {
+func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group, cleanupCh chan string) (*pullStream, error) {
 	//nCtx, cancelFunc := context.WithCancel(server.Context())
 	subs, err := subscriberCore.NewSubscriber(server.Context(), clientID, subscription, 1, 50, 5000)
 	if err != nil {
@@ -163,6 +167,7 @@ func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID strin
 		subscriberID:           subs.GetID(),
 		reqChan:                make(chan *metrov1.StreamingPullRequest),
 		errChan:                make(chan error),
+		cleanupCh:              cleanupCh,
 	}
 
 	errGroup.Go(pr.run)

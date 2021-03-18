@@ -52,6 +52,7 @@ type Service struct {
 	nodeCache        []*node.Model
 	subCache         []*subscription.Model
 	nodebindingCache []*nodebinding.Model
+	nbwatch          chan []registry.Pair
 	pushHandlers     map[string]*PushStream
 	scheduler        *scheduler.Scheduler
 	subscriber       subscriber.ICore
@@ -68,6 +69,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		},
 		doneCh:           make(chan struct{}),
 		stopCh:           make(chan struct{}),
+		nbwatch:          make(chan []registry.Pair),
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
@@ -115,16 +117,10 @@ func (svc *Service) Start() error {
 
 	svc.nodeBindingCore = nodebinding.NewCore(nodebinding.NewRepo(svc.registry))
 
-	svc.scheduler, err = scheduler.New(scheduler.LoadBalance)
-
 	svc.subscriber = subscriber.NewCore(svc.brokerStore, svc.subscriptionCore)
 
-	if err != nil {
-		return err
-	}
+	svc.scheduler, err = scheduler.New(scheduler.LoadBalance)
 
-	// Register Node with registry
-	err = svc.nodeCore.CreateNode(svc.ctx, svc.node)
 	if err != nil {
 		return err
 	}
@@ -155,12 +151,6 @@ func (svc *Service) Start() error {
 		return svc.candidate.Run(gctx)
 	})
 
-	// Build NodeBinding Cache
-	svc.nodebindingCache, err = svc.nodeBindingCore.List(svc.ctx, svc.node.ID)
-	if err != nil {
-		return nil
-	}
-
 	// Watch for the subscription assignment changes
 	var watcher registry.IWatcher
 	svc.workgrp.Go(func() error {
@@ -169,10 +159,7 @@ func (svc *Service) Start() error {
 			WatchPath: fmt.Sprintf("metro/nodebinding/%s/", svc.node.ID),
 			Handler: func(ctx context.Context, pairs []registry.Pair) {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
-				err = svc.handleNodeBindingUpdates(ctx, pairs)
-				if err != nil {
-					logger.Ctx(ctx).Errorw("error processing nodebinding updates", "error", err)
-				}
+				svc.nbwatch <- pairs
 			},
 		}
 
@@ -182,6 +169,21 @@ func (svc *Service) Start() error {
 		}
 
 		return watcher.StartWatch()
+	})
+
+	svc.workgrp.Go(func() error {
+		for {
+			select {
+			case pairs := <-svc.nbwatch:
+				err = svc.handleNodeBindingUpdates(gctx, pairs)
+				if err != nil {
+					logger.Ctx(gctx).Errorw("error processing nodebinding updates", "error", err)
+					return err
+				}
+			}
+		}
+
+		return nil
 	})
 
 	svc.workgrp.Go(func() error {
@@ -249,6 +251,9 @@ func (svc *Service) Stop() error {
 
 	// signal to stop all go routines
 	close(svc.stopCh)
+
+	// close nodebinding channel to terminate the routine spawning new handlers
+	close(svc.nbwatch)
 
 	// stop all push stream handlers
 	logger.Ctx(svc.ctx).Infow("metro stop: stopping all push handlers")

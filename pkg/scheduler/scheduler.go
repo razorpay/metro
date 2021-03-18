@@ -35,7 +35,7 @@ func (s *Scheduler) Schedule(subscription *subscription.Model, nbs []*nodebindin
 
 	nb := nodebinding.Model{
 		NodeID:         node.ID,
-		SubscriptionID: subscription.Key(),
+		SubscriptionID: subscription.Name,
 	}
 
 	return &nb, nil

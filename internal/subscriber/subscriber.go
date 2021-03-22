@@ -22,6 +22,7 @@ const (
 // ISubscriber is interface over high level subscriber
 type ISubscriber interface {
 	GetID() string
+	GetSubscription() string
 	// not exporting acknowledge() and  modifyAckDeadline() intentionally so that
 	// all operations happen over the channel
 	acknowledge(ctx context.Context, req *AckMessage)
@@ -76,6 +77,11 @@ func (s *Subscriber) canConsumeMore() bool {
 // GetID ...
 func (s *Subscriber) GetID() string {
 	return s.subscriberID
+}
+
+// GetSubscription ...
+func (s *Subscriber) GetSubscription() string {
+	return s.subscription
 }
 
 // commits existing message on primary topic and pushes message to the pre-defined retry topic
@@ -372,6 +378,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 		case <-s.deadlineTickerChan:
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 		case <-ctx.Done():
+			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "subscription", s.subscription)
+			s.consumer.Close(s.ctx)
+			s.retryConsumer.Close(s.ctx)
 			s.closeChan <- struct{}{}
 			return
 		}
@@ -405,9 +414,6 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 
 // Stop the subscriber
 func (s *Subscriber) Stop() {
-	logger.Ctx(s.ctx).Infow("subscriber: stop() called on consumer", "subscription", s.subscription)
-	s.consumer.Close(s.ctx)
-	s.retryConsumer.Close(s.ctx)
 	s.cancelFunc()
 	<-s.closeChan
 }

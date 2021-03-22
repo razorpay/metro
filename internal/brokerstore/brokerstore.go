@@ -61,7 +61,7 @@ type IBrokerStore interface {
 	GetConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
 
 	// RemoveConsumer deletes the consumer from the store
-	RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions)
+	RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) bool
 
 	// GetProducer returns for an existing producer instance, if available returns that else creates as new instance
 	GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error)
@@ -115,9 +115,10 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 }
 
 // RemoveConsumer deletes the consumer from the store
-func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebroker.ConsumerClientOptions) {
+func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebroker.ConsumerClientOptions) bool {
 	key := NewKey(op.GroupID, id)
-	b.consumerMap.LoadAndDelete(key)
+	_, loaded := b.consumerMap.LoadAndDelete(key)
+	return loaded
 }
 
 // GetProducer returns for an existing producer instance, if available returns that else creates as new instance

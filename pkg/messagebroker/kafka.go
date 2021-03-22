@@ -428,10 +428,10 @@ func (k *KafkaBroker) Close(ctx context.Context) error {
 		return err
 	}
 
-	err = k.Consumer.Close()
-	if err != nil {
-		logger.Ctx(ctx).Errorw("kafka: consumer close failed", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID, "error", err.Error())
-		return err
+	cerr := k.Consumer.Close()
+	if cerr != nil {
+		logger.Ctx(ctx).Errorw("kafka: consumer close failed", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID, "error", cerr.Error())
+		return cerr
 	}
 	logger.Ctx(ctx).Infow("kafka: consumer closed...", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID)
 

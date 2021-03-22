@@ -341,8 +341,13 @@ func (s *Subscriber) Run(ctx context.Context) {
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 		case <-ctx.Done():
 			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "subscription", s.subscription)
-			s.consumer.Close(s.ctx)
-			s.bs.RemoveConsumer(s.ctx, s.subscription, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
+			wasConsumerFound := s.bs.RemoveConsumer(s.ctx, s.subscription, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
+			if wasConsumerFound {
+				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.
+				// if the entry is already deleted from brokerStore, that means some other goroutine has already closed the consumer.
+				// in such cases do not attempt to close the consumer again else it will panic
+				s.consumer.Close(s.ctx)
+			}
 			s.closeChan <- struct{}{}
 			return
 		}

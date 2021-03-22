@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/razorpay/metro/internal/common"
-
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/pkg/logger"
 )

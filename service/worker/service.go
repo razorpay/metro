@@ -347,18 +347,7 @@ func (svc *Service) lead(ctx context.Context) error {
 		return subWatcher.StartWatch()
 	})
 
-	// handle node updates
-	svc.leadgrp.Go(func() error {
-		for {
-			select {
-			case <-gctx.Done():
-				return gctx.Err()
-			}
-		}
-		return nil
-	})
-
-	// handle subscription updates
+	// handle node and subscription updates
 	svc.leadgrp.Go(func() error {
 		for {
 			select {
@@ -487,115 +476,6 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 	svc.nodebindingCache = newBindings
 	return nil
 }
-
-//func (svc *Service) handleSubUpdates(ctx context.Context, allSubs []*subscription.Model) error {
-//	oldSubs := svc.subCache
-//	var newSubs []*subscription.Model
-//
-//	// Filter Push Subscriptions
-//	for _, sub := range allSubs {
-//		if sub.IsPush() {
-//			newSubs = append(newSubs, sub)
-//		}
-//	}
-//
-//	for _, old := range oldSubs {
-//		found := false
-//		for _, newSub := range newSubs {
-//			if old.Key() == newSub.Key() {
-//				found = true
-//				break
-//			}
-//		}
-//
-//		if !found {
-//			logger.Ctx(ctx).Infow("sub removed", "key", old.Key())
-//			for _, nb := range svc.nodebindingCache {
-//				if nb.SubscriptionID == old.Key() {
-//					err := svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
-//					if err != nil {
-//						return err
-//					}
-//				}
-//			}
-//		}
-//	}
-//
-//	for _, newSub := range newSubs {
-//		found := false
-//		for _, old := range oldSubs {
-//			if old.Key() == newSub.Key() {
-//				found = true
-//				break
-//			}
-//		}
-//
-//		if !found {
-//			logger.Ctx(ctx).Infow("sub added", "key", newSub.Key())
-//
-//			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "key", newSub.Key(), "nodecache", svc.nodeCache, "bindings", svc.nodebindingCache)
-//
-//			nb, err := svc.scheduler.Schedule(newSub, svc.nodebindingCache, svc.nodeCache)
-//			if err != nil {
-//				return err
-//			}
-//
-//			err = svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
-//			if err != nil {
-//				return err
-//			}
-//		}
-//	}
-//
-//	svc.subCache = newSubs
-//	return nil
-//}
-
-//func (svc *Service) handleNodeUpdates(ctx context.Context, newNodes []*node.Model) error {
-//	oldNodes := svc.nodeCache
-//
-//	for _, old := range oldNodes {
-//		found := false
-//		for _, newNode := range newNodes {
-//			if old.Key() == newNode.Key() {
-//				found = true
-//				break
-//			}
-//		}
-//
-//		if !found {
-//			logger.Ctx(ctx).Infow("node removed", "key", old.Key())
-//
-//			for _, nb := range svc.nodebindingCache {
-//				if nb.NodeID == old.ID {
-//					err := svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
-//					if err != nil {
-//						return err
-//					}
-//				}
-//			}
-//
-//		}
-//	}
-//
-//	for _, newNode := range newNodes {
-//		found := false
-//		for _, old := range oldNodes {
-//			if old.Key() == newNode.Key() {
-//				found = true
-//				break
-//			}
-//		}
-//
-//		if !found {
-//			logger.Ctx(ctx).Infow("node added", "key", newNode.Key())
-//			// Do nothing for now
-//		}
-//	}
-//
-//	svc.nodeCache = newNodes
-//	return nil
-//}
 
 func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 	// fetch all current nodebindings across all nodes

@@ -20,6 +20,7 @@ type Broker struct {
 
 // NetworkInterfaces contains all exposed interfaces
 type NetworkInterfaces struct {
-	GrpcServerAddress string
-	HTTPServerAddress string
+	GrpcServerAddress         string
+	HTTPServerAddress         string
+	InternalHTTPServerAddress string
 }

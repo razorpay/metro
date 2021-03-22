@@ -105,6 +105,8 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 		logger.Ctx(ctx).Errorw("subscriber: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
 		s.errChan <- err
 	}
+
+	subscriberMessagesRetried.WithLabelValues(s.retryTopic, s.subscription).Add(1)
 }
 
 // acknowledge messages
@@ -119,11 +121,11 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		return
 	}
 
+	msgID := req.MessageID
+	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+
 	// if somehow an ack request comes for a message that has met deadline eviction threshold
 	if req.HasHitDeadline() {
-
-		msgID := req.MessageID
-		msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 		// push to retry queue
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
@@ -157,6 +159,9 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	}
 
 	removeMessageFromMemory(stats, req.MessageID)
+
+	subscriberMessagesAckd.WithLabelValues(s.topic, s.subscription).Add(1)
+	subscriberTimeTakenToAckMsg.WithLabelValues(s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
@@ -211,6 +216,8 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	// update the deadline of the identified message
 	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
 	heap.Init(&deadlineBasedHeap)
+
+	subscriberMessagesModAckd.WithLabelValues(s.topic, s.subscription).Add(1)
 }
 
 func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
@@ -240,6 +247,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 			removeMessageFromMemory(metadata, peek.MsgID)
 
 			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "msgId", peek.MsgID)
+			subscriberMessagesDeadlineEvicted.WithLabelValues(s.topic, s.subscription).Add(1)
 		}
 	}
 }
@@ -261,6 +269,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 		select {
 		case req := <-s.requestChan:
 			if s.canConsumeMore() == false {
+				logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "topic", s.topic, "subscription", s.subscription)
 				// check if consumer is paused once maxOutstanding messages limit is hit
 				if s.isPaused == false {
 					// if not, pause all topic-partitions for consumer
@@ -269,6 +278,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
+						logger.Ctx(ctx).Infow("subscriber: pausing consumer", "topic", s.topic, "subscription", s.subscription)
+						subscriberPausedConsumersTotal.WithLabelValues(s.topic, s.subscription).Inc()
 					}
 				}
 			} else {
@@ -280,6 +291,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
+						logger.Ctx(ctx).Infow("subscriber: resuming consumer", "topic", s.topic, "subscription", s.subscription)
+						subscriberPausedConsumersTotal.WithLabelValues(s.topic, s.subscription).Dec()
 					}
 				}
 			}
@@ -340,6 +353,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 						}
 						s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
+						subscriberMessagesConsumed.WithLabelValues(msg.Topic, s.subscription).Add(1)
 					}
 
 					ackDeadline := time.Now().Add(minAckDeadline).Unix()
@@ -347,6 +361,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 					ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
 					sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
+					subscriberMemoryMessagesCountTotal.WithLabelValues(s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
 				}
 			}
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}

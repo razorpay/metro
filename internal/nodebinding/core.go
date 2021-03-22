@@ -3,6 +3,8 @@ package nodebinding
 import (
 	"context"
 
+	"github.com/razorpay/metro/internal/common"
+
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/pkg/logger"
 )
@@ -51,13 +53,13 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 
 // ListKeys gets all nodebinding keys
 func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
-	prefix = Prefix + prefix
+	prefix = common.BasePrefix + prefix
 	return c.repo.ListKeys(ctx, prefix)
 }
 
 // List gets all nodebinding keys starting with given prefix
 func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
-	prefix = Prefix + prefix
+	prefix = common.BasePrefix + prefix
 
 	out := []*Model{}
 	ret, err := c.repo.List(ctx, prefix)

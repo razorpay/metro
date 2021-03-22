@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/razorpay/metro/internal/common"
+
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -69,7 +71,6 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		},
 		doneCh:           make(chan struct{}),
 		stopCh:           make(chan struct{}),
-		nbwatch:          make(chan []registry.Pair),
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
@@ -150,10 +151,15 @@ func (svc *Service) Start() error {
 		logger.Ctx(gctx).Info("starting leader election")
 		return svc.candidate.Run(gctx)
 	})
+	go func() {
+
+	}()
 
 	// Watch for the subscription assignment changes
 	var watcher registry.IWatcher
 	svc.workgrp.Go(func() error {
+		svc.nbwatch = make(chan []registry.Pair)
+
 		wh := registry.WatchConfig{
 			WatchType: "keyprefix",
 			WatchPath: fmt.Sprintf("metro/nodebinding/%s/", svc.node.ID),
@@ -174,14 +180,19 @@ func (svc *Service) Start() error {
 	svc.workgrp.Go(func() error {
 		for {
 			select {
+			case <-gctx.Done():
+				logger.Ctx(gctx).Infow("nodebinding handler routine exiting as group context done")
+				return gctx.Err()
 			case pairs := <-svc.nbwatch:
+				logger.Ctx(gctx).Infow("received data from node bindings channel", "pairs", pairs)
 				err = svc.handleNodeBindingUpdates(gctx, pairs)
 				if err != nil {
-					logger.Ctx(gctx).Errorw("error processing nodebinding updates", "error", err)
+					logger.Ctx(gctx).Infow("error processing nodebinding updates", "error", err)
 					return err
 				}
 			}
 		}
+		logger.Ctx(gctx).Infow("exiting from nodebinding updates goroutine", "error", err)
 
 		return nil
 	})
@@ -195,9 +206,14 @@ func (svc *Service) Start() error {
 			err = fmt.Errorf("signal received, stopping worker")
 		}
 
+		logger.Ctx(gctx).Infow("stopping the node subscription watch")
 		if watcher != nil {
 			watcher.StopWatch()
 		}
+
+		// close nodebinding channel to terminate the routine spawning new handlers
+		logger.Ctx(gctx).Infow("closing the node binding data channel")
+		close(svc.nbwatch)
 
 		return err
 	})
@@ -252,15 +268,12 @@ func (svc *Service) Stop() error {
 	// signal to stop all go routines
 	close(svc.stopCh)
 
-	// close nodebinding channel to terminate the routine spawning new handlers
-	close(svc.nbwatch)
-
 	// stop all push stream handlers
 	logger.Ctx(svc.ctx).Infow("metro stop: stopping all push handlers")
 	for _, handler := range svc.pushHandlers {
 		err := handler.Stop()
 		if err != nil {
-			logger.Ctx(svc.ctx).Errorw("error stopping stream handler", "error", err)
+			logger.Ctx(svc.ctx).Infow("error stopping stream handler", "error", err)
 		}
 	}
 
@@ -289,31 +302,17 @@ func (svc *Service) lead(ctx context.Context) error {
 		gctx                    context.Context
 	)
 
-	// create nodeCache
-	logger.Ctx(ctx).Infof("getting active nodes for cache")
-	svc.nodeCache, err = svc.nodeCore.List(svc.ctx, "")
-	if err != nil {
-		return err
-	}
-
-	// create subscription cache
-	logger.Ctx(ctx).Infof("getting active subscriptions for cache")
-	svc.subCache, err = svc.subscriptionCore.List(svc.ctx, "")
-	if err != nil {
-		return err
-	}
+	nodeWatchData := make(chan struct{})
+	subWatchData := make(chan struct{})
 
 	svc.leadgrp, gctx = errgroup.WithContext(ctx)
 
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
-		WatchPath: "metro/nodes",
+		WatchPath: common.BasePrefix + node.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
-			err = svc.handleNodeUpdates(ctx, pairs)
-			if err != nil {
-				logger.Ctx(ctx).Errorw("error processing node updates", "error", err)
-			}
+			nodeWatchData <- struct{}{}
 		},
 	}
 
@@ -325,13 +324,10 @@ func (svc *Service) lead(ctx context.Context) error {
 
 	swh := registry.WatchConfig{
 		WatchType: "keyprefix",
-		WatchPath: "metro/subscriptions",
+		WatchPath: common.BasePrefix + subscription.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("subscriptions watch handler data", "pairs", pairs)
-			err = svc.handleSubUpdates(ctx, pairs)
-			if err != nil {
-				logger.Ctx(ctx).Errorw("error processing subscription updates", "error", err)
-			}
+			subWatchData <- struct{}{}
 		},
 	}
 
@@ -351,6 +347,60 @@ func (svc *Service) lead(ctx context.Context) error {
 		return subWatcher.StartWatch()
 	})
 
+	// handle node updates
+	svc.leadgrp.Go(func() error {
+		for {
+			select {
+			case <-gctx.Done():
+				return gctx.Err()
+			}
+		}
+		return nil
+	})
+
+	// handle subscription updates
+	svc.leadgrp.Go(func() error {
+		for {
+			select {
+			case <-gctx.Done():
+				return gctx.Err()
+			case <-subWatchData:
+				allSubs, serr := svc.subscriptionCore.List(gctx, subscription.Prefix)
+				if serr != nil {
+					logger.Ctx(gctx).Errorw("error fetching new subscription list", "error", serr)
+					return err
+				}
+				// Filter Push Subscriptions
+				newSubs := []*subscription.Model{}
+				for _, sub := range allSubs {
+					if sub.IsPush() {
+						newSubs = append(newSubs, sub)
+					}
+				}
+
+				svc.subCache = newSubs
+				serr = svc.refreshNodeBindings(gctx)
+				if serr != nil {
+					// just log the error, we want to retry the sub update failures
+					logger.Ctx(gctx).Infow("error processing subscription updates", "error", serr)
+				}
+			case <-nodeWatchData:
+				nodes, nerr := svc.nodeCore.List(gctx, node.Prefix)
+				if nerr != nil {
+					logger.Ctx(gctx).Errorw("error fetching new node list", "error", nerr)
+					return nerr
+				}
+				svc.nodeCache = nodes
+				nerr = svc.refreshNodeBindings(gctx)
+				if nerr != nil {
+					logger.Ctx(gctx).Infow("error processing node updates", "error", nerr)
+				}
+
+			}
+		}
+		return nil
+	})
+
 	// wait for done channel to be closed and stop watches if received done
 	svc.leadgrp.Go(func() error {
 		<-gctx.Done()
@@ -363,22 +413,25 @@ func (svc *Service) lead(ctx context.Context) error {
 			subWatcher.StopWatch()
 		}
 
+		close(nodeWatchData)
+		close(subWatchData)
+
 		logger.Ctx(gctx).Info("leader context returned done")
 		return gctx.Err()
 	})
 
-	return nil
+	// wait for leader go routines to terminate
+	err = svc.leadgrp.Wait()
+
+	if err != nil {
+		logger.Ctx(gctx).Errorf("Error in leader group go routines : %s", err.Error())
+	}
+
+	return err
 }
 
 func (svc *Service) stepDown() {
 	logger.Ctx(svc.ctx).Infof("Node %s stepping down from leader", svc.node.ID)
-
-	// wait for leader go routines to terminate
-	err := svc.leadgrp.Wait()
-
-	if err != nil {
-		logger.Ctx(svc.ctx).Errorf("Error in leader group go routine termination : %s", err.Error())
-	}
 }
 
 func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPairs []registry.Pair) error {
@@ -435,125 +488,183 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 	return nil
 }
 
-func (svc *Service) handleSubUpdates(ctx context.Context, newSubsPairs []registry.Pair) error {
-	oldSubs := svc.subCache
-	var newSubs []*subscription.Model
+//func (svc *Service) handleSubUpdates(ctx context.Context, allSubs []*subscription.Model) error {
+//	oldSubs := svc.subCache
+//	var newSubs []*subscription.Model
+//
+//	// Filter Push Subscriptions
+//	for _, sub := range allSubs {
+//		if sub.IsPush() {
+//			newSubs = append(newSubs, sub)
+//		}
+//	}
+//
+//	for _, old := range oldSubs {
+//		found := false
+//		for _, newSub := range newSubs {
+//			if old.Key() == newSub.Key() {
+//				found = true
+//				break
+//			}
+//		}
+//
+//		if !found {
+//			logger.Ctx(ctx).Infow("sub removed", "key", old.Key())
+//			for _, nb := range svc.nodebindingCache {
+//				if nb.SubscriptionID == old.Key() {
+//					err := svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
+//					if err != nil {
+//						return err
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//	for _, newSub := range newSubs {
+//		found := false
+//		for _, old := range oldSubs {
+//			if old.Key() == newSub.Key() {
+//				found = true
+//				break
+//			}
+//		}
+//
+//		if !found {
+//			logger.Ctx(ctx).Infow("sub added", "key", newSub.Key())
+//
+//			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "key", newSub.Key(), "nodecache", svc.nodeCache, "bindings", svc.nodebindingCache)
+//
+//			nb, err := svc.scheduler.Schedule(newSub, svc.nodebindingCache, svc.nodeCache)
+//			if err != nil {
+//				return err
+//			}
+//
+//			err = svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
+//			if err != nil {
+//				return err
+//			}
+//		}
+//	}
+//
+//	svc.subCache = newSubs
+//	return nil
+//}
 
-	for _, pair := range newSubsPairs {
-		sub := subscription.Model{}
-		err := json.Unmarshal(pair.Value, &sub)
-		if err != nil {
-			return err
-		}
-		newSubs = append(newSubs, &sub)
+//func (svc *Service) handleNodeUpdates(ctx context.Context, newNodes []*node.Model) error {
+//	oldNodes := svc.nodeCache
+//
+//	for _, old := range oldNodes {
+//		found := false
+//		for _, newNode := range newNodes {
+//			if old.Key() == newNode.Key() {
+//				found = true
+//				break
+//			}
+//		}
+//
+//		if !found {
+//			logger.Ctx(ctx).Infow("node removed", "key", old.Key())
+//
+//			for _, nb := range svc.nodebindingCache {
+//				if nb.NodeID == old.ID {
+//					err := svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
+//					if err != nil {
+//						return err
+//					}
+//				}
+//			}
+//
+//		}
+//	}
+//
+//	for _, newNode := range newNodes {
+//		found := false
+//		for _, old := range oldNodes {
+//			if old.Key() == newNode.Key() {
+//				found = true
+//				break
+//			}
+//		}
+//
+//		if !found {
+//			logger.Ctx(ctx).Infow("node added", "key", newNode.Key())
+//			// Do nothing for now
+//		}
+//	}
+//
+//	svc.nodeCache = newNodes
+//	return nil
+//}
+
+func (svc *Service) refreshNodeBindings(ctx context.Context) error {
+	// fetch all current nodebindings across all nodes
+	nodeBindings, err := svc.nodeBindingCore.List(ctx, nodebinding.Prefix)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
+		return err
 	}
 
-	for _, old := range oldSubs {
+	validBindings := []*nodebinding.Model{}
+	// Delete any binding where node is removed
+	for _, nb := range nodeBindings {
 		found := false
-		for _, newSub := range newSubs {
-			if old.Key() == newSub.Key() {
+		for _, node := range svc.nodeCache {
+			if node.ID == nb.NodeID {
 				found = true
-				break
 			}
 		}
 
 		if !found {
-			logger.Ctx(ctx).Infow("sub removed", "key", old.Key())
-			for _, nb := range svc.nodebindingCache {
-				if nb.SubscriptionID == old.Key() {
-					err := svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
-					if err != nil {
-						return err
-					}
-				}
-			}
+			svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
+		} else {
+			validBindings = append(validBindings, nb)
 		}
 	}
+	// update the binding list after deletions
+	nodeBindings = validBindings
 
-	for _, newSub := range newSubs {
+	// Delete any binding where subscription is removed
+	for _, nb := range nodeBindings {
 		found := false
-		for _, old := range oldSubs {
-			if old.Key() == newSub.Key() {
+		for _, sub := range svc.subCache {
+			if sub.Name == nb.SubscriptionID {
 				found = true
-				break
 			}
 		}
 
 		if !found {
-			logger.Ctx(ctx).Infow("sub added", "key", newSub.Key())
-
-			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "key", newSub.Key(), "nodecache", svc.nodeCache, "bindings", svc.nodebindingCache)
-
-			nb, err := svc.scheduler.Schedule(newSub, svc.nodebindingCache, svc.nodeCache)
-			if err != nil {
-				return err
-			}
-
-			err = svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
-			if err != nil {
-				return err
-			}
+			svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
+		} else {
+			validBindings = append(validBindings, nb)
 		}
 	}
+	// update the binding list after deletions
+	nodeBindings = validBindings
 
-	svc.subCache = newSubs
-	return nil
-}
-
-func (svc *Service) handleNodeUpdates(ctx context.Context, newNodePairs []registry.Pair) error {
-	oldNodes := svc.nodeCache
-	var newNodes []*node.Model
-
-	for _, pair := range newNodePairs {
-		model := node.Model{}
-		err := json.Unmarshal(pair.Value, &model)
-		if err != nil {
-			return err
-		}
-		newNodes = append(newNodes, &model)
-	}
-
-	for _, old := range oldNodes {
+	// Create bindings for new subscriptions
+	for _, sub := range svc.subCache {
 		found := false
-		for _, newNode := range newNodes {
-			if old.Key() == newNode.Key() {
+		for _, nb := range nodeBindings {
+			if sub.Name == nb.SubscriptionID {
 				found = true
-				break
 			}
 		}
 
 		if !found {
-			logger.Ctx(ctx).Infow("node removed", "key", old.Key())
+			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "key", sub.Name)
 
-			for _, nb := range svc.nodebindingCache {
-				if nb.NodeID == old.ID {
-					err := svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
-					if err != nil {
-						return err
-					}
-				}
+			nb, serr := svc.scheduler.Schedule(sub, nodeBindings, svc.nodeCache)
+			if serr != nil {
+				return serr
 			}
 
-		}
-	}
-
-	for _, newNode := range newNodes {
-		found := false
-		for _, old := range oldNodes {
-			if old.Key() == newNode.Key() {
-				found = true
-				break
+			berr := svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
+			if berr != nil {
+				return berr
 			}
 		}
-
-		if !found {
-			logger.Ctx(ctx).Infow("node added", "key", newNode.Key())
-			// Do nothing for now
-		}
 	}
-
-	svc.nodeCache = newNodes
-
 	return nil
 }
 

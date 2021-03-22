@@ -145,11 +145,14 @@ func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
 	if acquired {
 		logger.Ctx(ctx).Info("leader election acquire success")
 		c.leader = true
-		err := c.config.Callbacks.OnStartedLeading(ctx)
+		go func() {
+			err := c.config.Callbacks.OnStartedLeading(ctx)
 
-		if err != nil {
-			c.errCh <- err
-		}
+			if err != nil {
+				c.errCh <- err
+			}
+		}()
+
 	}
 }
 

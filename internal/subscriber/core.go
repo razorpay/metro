@@ -40,16 +40,10 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 	subscriberID := uuid.New().String()
 
 	topic := strings.Replace(t, "/", "_", -1)
-	groupID := subscription
-	consumer, err := c.bs.GetConsumer(ctx, groupID, messagebroker.ConsumerClientOptions{Topic: topic, GroupID: groupID})
-	if err != nil {
-		return nil, err
-	}
-
 	// make sure retry topic creation is taken care during the primary topic creation flow
 	retryTopic := topic + topic2.RetryTopicSuffix
-	retryGroupID := subscription + topic2.RetryTopicSuffix
-	retryConsumer, err := c.bs.GetConsumer(ctx, retryGroupID, messagebroker.ConsumerClientOptions{Topic: retryTopic, GroupID: retryGroupID})
+	groupID := subscription
+	consumer, err := c.bs.GetConsumer(ctx, groupID, messagebroker.ConsumerClientOptions{Topics: []string{topic, retryTopic}, GroupID: groupID})
 	if err != nil {
 		return nil, err
 	}
@@ -75,13 +69,13 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		deadlineTickerChan:     make(chan bool),
 		timeoutInSec:           timeoutInSec,
 		consumer:               consumer,
-		retryConsumer:          retryConsumer,
 		retryProducer:          retryProducer,
 		cancelFunc:             cancelFunc,
 		maxOutstandingMessages: maxOutstandingMessages,
 		maxOutstandingBytes:    maxOutstandingBytes,
 		consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
 		ctx:                    subsCtx,
+		bs:                     c.bs,
 	}
 
 	go s.Run(subsCtx)

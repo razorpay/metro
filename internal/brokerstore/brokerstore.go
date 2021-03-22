@@ -60,6 +60,9 @@ type IBrokerStore interface {
 	// GetConsumer returns for an existing consumer instance, if available returns that else creates as new instance
 	GetConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
 
+	// RemoveConsumer deletes the consumer from the store
+	RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions)
+
 	// GetProducer returns for an existing producer instance, if available returns that else creates as new instance
 	GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error)
 
@@ -109,6 +112,12 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	consumer, _ = b.consumerMap.LoadOrStore(key.String(), newConsumer)
 	b.partitionLock.Unlock(key.String()) // unlock
 	return consumer.(messagebroker.Consumer), nil
+}
+
+// RemoveConsumer deletes the consumer from the store
+func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebroker.ConsumerClientOptions) {
+	key := NewKey(op.GroupID, id)
+	b.consumerMap.LoadAndDelete(key)
 }
 
 // GetProducer returns for an existing producer instance, if available returns that else creates as new instance

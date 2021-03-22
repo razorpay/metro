@@ -5,6 +5,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/razorpay/metro/internal/brokerstore"
+
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 
 	"github.com/golang/protobuf/proto"
@@ -54,7 +56,6 @@ type Subscriber struct {
 	deadlineTickerChan     chan bool
 	timeoutInSec           int
 	consumer               messagebroker.Consumer // consume messages from primary topic
-	retryConsumer          messagebroker.Consumer // consume messages from retry topic
 	retryProducer          messagebroker.Producer // produce messages to retry topic
 	cancelFunc             func()
 	maxOutstandingMessages int64
@@ -62,6 +63,7 @@ type Subscriber struct {
 	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
 	isPaused               bool
 	ctx                    context.Context
+	bs                     brokerstore.IBrokerStore
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
@@ -284,70 +286,51 @@ func (s *Subscriber) Run(ctx context.Context) {
 				}
 			}
 
-			// TODO: run receive request in another goroutine?
-			resp1, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
+			resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "msg", err.Error())
 				s.errChan <- err
 				return
 			}
-			logger.Ctx(ctx).Infow("subscriber: got messages from primary topic", "count", len(resp1.PartitionOffsetWithMessages), "messages", resp1.PartitionOffsetWithMessages, "subscriber", s.subscriberID)
-			resp2, err := s.retryConsumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
-			if err != nil {
-				logger.Ctx(ctx).Errorw("subscriber: error in receiving retryable messages", "msg", err.Error())
-				s.errChan <- err
-				return
-			}
-
-			if len(resp2.PartitionOffsetWithMessages) > 0 {
-				logger.Ctx(ctx).Infow("subscriber: got messages from retry topic", "count", len(resp2.PartitionOffsetWithMessages), "messages", resp2.PartitionOffsetWithMessages, "subscriber", s.subscriberID)
-			}
-
-			// merge response from both the consumers
-			responses := make([]*messagebroker.GetMessagesFromTopicResponse, 0)
-			responses = append(responses, resp1)
-			responses = append(responses, resp2)
+			logger.Ctx(ctx).Infow("subscriber: got messages from topics", "count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages, "subscriber", s.subscriberID)
 
 			sm := make([]*metrov1.ReceivedMessage, 0)
-			for _, resp := range responses {
-				for _, msg := range resp.PartitionOffsetWithMessages {
-					protoMsg := &metrov1.PubsubMessage{}
-					err = proto.Unmarshal(msg.Data, protoMsg)
+			for _, msg := range resp.PartitionOffsetWithMessages {
+				protoMsg := &metrov1.PubsubMessage{}
+				err = proto.Unmarshal(msg.Data, protoMsg)
+				if err != nil {
+					s.errChan <- err
+				}
+				// set messageID and publish time
+				protoMsg.MessageId = msg.MessageID
+				ts := &timestamppb.Timestamp{}
+				ts.Seconds = msg.PublishTime.Unix() // test this
+				protoMsg.PublishTime = ts
+				// TODO: fix delivery attempt
+
+				// store the processed r1 in a map for limit checks
+				tp := NewTopicPartition(msg.Topic, msg.Partition)
+				if _, ok := s.consumedMessageStats[tp]; !ok {
+					// init the stats data store before updating
+					s.consumedMessageStats[tp] = NewConsumptionMetadata()
+
+					// query and set the max committed offset for each topic partition
+					resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
+						Topic:     s.topic,
+						Partition: msg.Partition,
+					})
+
 					if err != nil {
 						s.errChan <- err
 					}
-					// set messageID and publish time
-					protoMsg.MessageId = msg.MessageID
-					ts := &timestamppb.Timestamp{}
-					ts.Seconds = msg.PublishTime.Unix() // test this
-					protoMsg.PublishTime = ts
-					// TODO: fix delivery attempt
-
-					// store the processed r1 in a map for limit checks
-					tp := NewTopicPartition(msg.Topic, msg.Partition)
-					if _, ok := s.consumedMessageStats[tp]; !ok {
-						// init the stats data store before updating
-						s.consumedMessageStats[tp] = NewConsumptionMetadata()
-
-						// query and set the max committed offset for each topic partition
-						resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
-							Topic:     s.topic,
-							Partition: msg.Partition,
-						})
-
-						if err != nil {
-							s.errChan <- err
-
-						}
-						s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
-					}
-
-					ackDeadline := time.Now().Add(minAckDeadline).Unix()
-					s.consumedMessageStats[tp].Store(msg, ackDeadline)
-
-					ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
-					sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
+					s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
 				}
+
+				ackDeadline := time.Now().Add(minAckDeadline).Unix()
+				s.consumedMessageStats[tp].Store(msg, ackDeadline)
+
+				ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
+				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
 			}
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
 		case ackRequest := <-s.ackChan:
@@ -359,7 +342,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 		case <-ctx.Done():
 			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "subscription", s.subscription)
 			s.consumer.Close(s.ctx)
-			s.retryConsumer.Close(s.ctx)
+			s.bs.RemoveConsumer(s.ctx, s.subscription, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			s.closeChan <- struct{}{}
 			return
 		}

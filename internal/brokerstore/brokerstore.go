@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/partitionlocker"
@@ -90,6 +91,11 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 
 // GetConsumer returns for an existing consumer instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
+	brokerStoreOperationCount.WithLabelValues(env, "GetConsumer").Inc()
+
+	startTime := time.Now()
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetConsumer").Observe(time.Now().Sub(startTime).Seconds())
+
 	key := NewKey(op.GroupID, id)
 	consumer, ok := b.consumerMap.Load(key.String())
 	if ok {
@@ -116,6 +122,11 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 
 // RemoveConsumer deletes the consumer from the store
 func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebroker.ConsumerClientOptions) bool {
+	brokerStoreOperationCount.WithLabelValues(env, "RemoveConsumer").Inc()
+
+	startTime := time.Now()
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveConsumer").Observe(time.Now().Sub(startTime).Seconds())
+
 	key := NewKey(op.GroupID, id)
 	_, loaded := b.consumerMap.LoadAndDelete(key)
 	return loaded
@@ -123,6 +134,11 @@ func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebro
 
 // GetProducer returns for an existing producer instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error) {
+	brokerStoreOperationCount.WithLabelValues(env, "GetProducer").Inc()
+
+	startTime := time.Now()
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetProducer").Observe(time.Now().Sub(startTime).Seconds())
+
 	// TODO: perf and check if single producer for a topic works
 	key := NewKey(b.variant, op.Topic)
 	producer, ok := b.producerMap.Load(key.String())
@@ -149,6 +165,10 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 
 // GetAdmin returns for an existing admin instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetAdmin(ctx context.Context, options messagebroker.AdminClientOptions) (messagebroker.Admin, error) {
+	brokerStoreOperationCount.WithLabelValues(env, "GetAdmin").Inc()
+
+	startTime := time.Now()
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetAdmin").Observe(time.Now().Sub(startTime).Seconds())
 
 	if b.admin != nil {
 		return b.admin, nil

@@ -2,6 +2,7 @@ package topic
 
 import (
 	"context"
+	"time"
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
@@ -34,6 +35,11 @@ func NewCore(repo IRepo, projectCore project.ICore, brokerStore brokerstore.IBro
 
 // CreateTopic implements topic creation
 func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
+	topicOperationCount.WithLabelValues(env, "CreateTopic").Inc()
+
+	startTime := time.Now()
+	defer topicOperationTimeTaken.WithLabelValues(env, "CreateTopic").Observe(time.Now().Sub(startTime).Seconds())
+
 	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedProjectID); !ok {
 		if err != nil {
 			return err
@@ -62,6 +68,11 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 
 // Exists checks if the topic exists with a given key
 func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
+	topicOperationCount.WithLabelValues(env, "Exists").Inc()
+
+	startTime := time.Now()
+	defer topicOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+
 	ok, err := c.repo.Exists(ctx, key)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in executing exists", "msg", err.Error(), "key", key)
@@ -72,6 +83,11 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 
 // ExistsWithName checks if the topic exists with a given name
 func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
+	topicOperationCount.WithLabelValues(env, "ExistsWithName").Inc()
+
+	startTime := time.Now()
+	defer topicOperationTimeTaken.WithLabelValues(env, "ExistsWithName").Observe(time.Now().Sub(startTime).Seconds())
+
 	projectID, topicName, err := ExtractTopicMetaAndValidate(ctx, name)
 	if err != nil {
 		return false, err
@@ -81,6 +97,11 @@ func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
 
 // DeleteTopic deletes a topic and all resources associated with it
 func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
+	topicOperationCount.WithLabelValues(env, "DeleteTopic").Inc()
+
+	startTime := time.Now()
+	defer topicOperationTimeTaken.WithLabelValues(env, "DeleteTopic").Observe(time.Now().Sub(startTime).Seconds())
+
 	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedProjectID); !ok {
 		if err != nil {
 			return err
@@ -98,6 +119,11 @@ func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
 
 // DeleteProjectTopics deletes all topics for a given projectID
 func (c *Core) DeleteProjectTopics(ctx context.Context, projectID string) error {
+	topicOperationCount.WithLabelValues(env, "DeleteProjectTopics").Inc()
+
+	startTime := time.Now()
+	defer topicOperationTimeTaken.WithLabelValues(env, "DeleteProjectTopics").Observe(time.Now().Sub(startTime).Seconds())
+
 	if projectID == "" {
 		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
 	}

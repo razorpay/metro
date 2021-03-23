@@ -189,6 +189,10 @@ func readKafkaCerts(certDir string) (*kafkaCerts, error) {
 
 // CreateTopic creates a new topic if not available
 func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "CreateTopic").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CreateTopic").Observe(time.Now().Sub(startTime).Seconds())
 
 	tp := normalizeTopicName(request.Name)
 	logger.Ctx(ctx).Infow("received request to create kafka topic", "request", request, "normalizedTopicName", tp)
@@ -224,6 +228,10 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 
 // DeleteTopic deletes an existing topic
 func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicRequest) (DeleteTopicResponse, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "DeleteTopic").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "DeleteTopic").Observe(time.Now().Sub(startTime).Seconds())
 
 	topics := make([]string, 0)
 	topics = append(topics, request.Name)
@@ -235,6 +243,11 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 
 // GetTopicMetadata fetches the given topics metadata stored in the broker
 func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "GetTopicMetadata").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "GetTopicMetadata").Observe(time.Now().Sub(startTime).Seconds())
+
 	tp := kafkapkg.TopicPartition{
 		Topic:     &request.Topic,
 		Partition: request.Partition,
@@ -260,6 +273,10 @@ func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetada
 
 // SendMessage sends a message on the topic
 func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "SendMessage").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "SendMessage").Observe(time.Now().Sub(startTime).Seconds())
 
 	var kHeaders []kafkapkg.Header
 	if request.Attributes != nil {
@@ -326,6 +343,10 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "ReceiveMessages").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "ReceiveMessages").Observe(time.Now().Sub(startTime).Seconds())
 
 	msgs := make(map[string]ReceivedMessage, 0)
 	for {
@@ -361,6 +382,11 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
 func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Observe(time.Now().Sub(startTime).Seconds())
+
 	logger.Ctx(ctx).Infow("kafka: commit request received", "request", request)
 
 	tp := kafkapkg.TopicPartition{
@@ -395,6 +421,11 @@ func (k *KafkaBroker) CommitByMsgID(_ context.Context, _ CommitOnTopicRequest) (
 
 // Pause pause the consumer
 func (k *KafkaBroker) Pause(_ context.Context, request PauseOnTopicRequest) error {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Pause").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Pause").Observe(time.Now().Sub(startTime).Seconds())
+
 	tp := kafkapkg.TopicPartition{
 		Topic:     &request.Topic,
 		Partition: request.Partition,
@@ -408,6 +439,11 @@ func (k *KafkaBroker) Pause(_ context.Context, request PauseOnTopicRequest) erro
 
 // Resume resume the consumer
 func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) error {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Resume").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Resume").Observe(time.Now().Sub(startTime).Seconds())
+
 	tp := kafkapkg.TopicPartition{
 		Topic:     &request.Topic,
 		Partition: request.Partition,
@@ -421,6 +457,11 @@ func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) er
 
 // Close closes the consumer
 func (k *KafkaBroker) Close(ctx context.Context) error {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Close").Inc()
+
+	startTime := time.Now()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Close").Observe(time.Now().Sub(startTime).Seconds())
+
 	logger.Ctx(ctx).Infow("kafka: request to close the consumer", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID)
 	err := k.Consumer.Unsubscribe()
 	if err != nil {

@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"time"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
@@ -28,6 +29,11 @@ func NewCore(repo IRepo) *Core {
 
 // CreateProject creates a new project
 func (c *Core) CreateProject(ctx context.Context, m *Model) error {
+	projectOperationCount.WithLabelValues(env, "CreateProject").Inc()
+
+	startTime := time.Now()
+	defer projectOperationTimeTaken.WithLabelValues(env, "CreateProject").Observe(time.Now().Sub(startTime).Seconds())
+
 	ok, err := c.Exists(ctx, m.Key())
 	if err != nil {
 		return err
@@ -40,6 +46,11 @@ func (c *Core) CreateProject(ctx context.Context, m *Model) error {
 
 // Exists to check if the project exists with fully qualified consul key
 func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
+	projectOperationCount.WithLabelValues(env, "Exists").Inc()
+
+	startTime := time.Now()
+	defer projectOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+
 	logger.Ctx(ctx).Infow("exists query on project", "key", key)
 	ok, err := c.repo.Exists(ctx, key)
 	if err != nil {
@@ -51,11 +62,21 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 
 // ExistsWithID to check if the project exists with the projectID
 func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
+	projectOperationCount.WithLabelValues(env, "ExistsWithID").Inc()
+
+	startTime := time.Now()
+	defer projectOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(time.Now().Sub(startTime).Seconds())
+
 	return c.Exists(ctx, common.BasePrefix+Prefix+id)
 }
 
 // DeleteProject deletes a project and all resources in it
 func (c *Core) DeleteProject(ctx context.Context, m *Model) error {
+	projectOperationCount.WithLabelValues(env, "DeleteProject").Inc()
+
+	startTime := time.Now()
+	defer projectOperationTimeTaken.WithLabelValues(env, "DeleteProject").Observe(time.Now().Sub(startTime).Seconds())
+
 	if ok, err := c.Exists(ctx, m.Key()); !ok {
 		if err != nil {
 			return err

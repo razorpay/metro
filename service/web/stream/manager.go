@@ -59,7 +59,7 @@ func (s *Manager) run() {
 			logger.Ctx(s.ctx).Infow("manager: got request to cleanup subscriber", "cleanupMessage", cleanupMessage)
 			s.mutex.Lock()
 			if _, ok := s.pullStreams[cleanupMessage.subscriberID]; ok {
-				streamManagerActiveStreams.WithLabelValues(cleanupMessage.subscriberID, cleanupMessage.subscription).Dec()
+				streamManagerActiveStreams.WithLabelValues(env, cleanupMessage.subscriberID, cleanupMessage.subscription).Dec()
 				delete(s.pullStreams, cleanupMessage.subscriberID)
 				logger.Ctx(s.ctx).Infow("manager: deleted subscriber from store", "cleanupMessage", cleanupMessage)
 			} else {
@@ -100,7 +100,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 	// store all active pull streams in a map
 	s.mutex.Lock()
 	s.pullStreams[pullStream.subscriberID] = pullStream
-	streamManagerActiveStreams.WithLabelValues(pullStream.subscriberID, req.Subscription).Inc()
+	streamManagerActiveStreams.WithLabelValues(env, pullStream.subscriberID, req.Subscription).Inc()
 	s.mutex.Unlock()
 
 	return nil

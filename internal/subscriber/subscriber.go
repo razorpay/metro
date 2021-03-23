@@ -114,7 +114,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 		s.errChan <- err
 	}
 
-	subscriberMessagesRetried.WithLabelValues(s.retryTopic, s.subscription).Add(1)
+	subscriberMessagesRetried.WithLabelValues(env, s.retryTopic, s.subscription).Inc()
 }
 
 // acknowledge messages
@@ -168,8 +168,8 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
 	removeMessageFromMemory(stats, req.MessageID)
 
-	subscriberMessagesAckd.WithLabelValues(s.topic, s.subscription).Add(1)
-	subscriberTimeTakenToAckMsg.WithLabelValues(s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
+	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
@@ -202,12 +202,12 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		return
 	}
 
+	msgID := req.ackMessage.MessageID
+	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+
 	if req.ackDeadline == 0 {
 		// modAck with deadline = 0 means nack
 		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
-
-		msgID := req.ackMessage.MessageID
-		msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 		// push to retry queue
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
@@ -225,7 +225,8 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
 	heap.Init(&deadlineBasedHeap)
 
-	subscriberMessagesModAckd.WithLabelValues(s.topic, s.subscription).Add(1)
+	subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
+	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 }
 
 func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
@@ -255,7 +256,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 			removeMessageFromMemory(metadata, peek.MsgID)
 
 			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "msgId", peek.MsgID)
-			subscriberMessagesDeadlineEvicted.WithLabelValues(s.topic, s.subscription).Add(1)
+			subscriberMessagesDeadlineEvicted.WithLabelValues(env, s.topic, s.subscription).Inc()
 		}
 	}
 }
@@ -287,7 +288,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Partition: tp.partition,
 						})
 						logger.Ctx(ctx).Infow("subscriber: pausing consumer", "topic", s.topic, "subscription", s.subscription)
-						subscriberPausedConsumersTotal.WithLabelValues(s.topic, s.subscription).Inc()
+						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Inc()
 					}
 				}
 			} else {
@@ -300,7 +301,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Partition: tp.partition,
 						})
 						logger.Ctx(ctx).Infow("subscriber: resuming consumer", "topic", s.topic, "subscription", s.subscription)
-						subscriberPausedConsumersTotal.WithLabelValues(s.topic, s.subscription).Dec()
+						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Dec()
 					}
 				}
 			}
@@ -350,11 +351,13 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 				ackDeadline := time.Now().Add(minAckDeadline).Unix()
 				s.consumedMessageStats[tp].Store(msg, ackDeadline)
-				subscriberMessagesConsumed.WithLabelValues(msg.Topic, s.subscription).Add(1)
 
 				ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
 				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
-				subscriberMemoryMessagesCountTotal.WithLabelValues(s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
+
+				subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription).Inc()
+				subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
+				subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 			}
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
 

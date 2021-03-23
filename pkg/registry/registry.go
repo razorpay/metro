@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -10,6 +11,10 @@ type Pair struct {
 	Key       string
 	Value     []byte
 	SessionID string
+}
+
+func (pair *Pair) String() string {
+	return fmt.Sprintf("key: %s, value: %s, sessionID: %s", pair.Key, string(pair.Value), pair.SessionID)
 }
 
 // IRegistry implements a generic interface for service discovery

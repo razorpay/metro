@@ -26,9 +26,8 @@ func NewRepo(registry registry.IRegistry) IRepo {
 	}
 }
 
-// List returns a slice of NodeBindings matching prefix
+// List returns a slice of subscriptions matching prefix
 func (r *Repo) List(ctx context.Context, prefix string) ([]common.IModel, error) {
-	prefix = Prefix + prefix
 	pairs, err := r.Registry.List(ctx, prefix)
 	if err != nil {
 		return nil, err

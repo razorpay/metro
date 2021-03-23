@@ -135,13 +135,13 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 
 // ListKeys gets all subscription keys
 func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
-	prefix = Prefix + prefix
+	prefix = common.BasePrefix + prefix
 	return c.repo.ListKeys(ctx, prefix)
 }
 
 // List gets slice of subscriptions starting with given prefix
 func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
-	prefix = Prefix + prefix
+	prefix = common.BasePrefix + prefix
 
 	out := []*Model{}
 	ret, err := c.repo.List(ctx, prefix)

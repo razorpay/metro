@@ -8,7 +8,7 @@ import (
 
 func Test_validateKafkaConsumerClientConfig(t *testing.T) {
 	op1 := ConsumerClientOptions{
-		Topic:   "t1",
+		Topics:  []string{"t1"},
 		GroupID: "g1",
 	}
 
@@ -16,10 +16,10 @@ func Test_validateKafkaConsumerClientConfig(t *testing.T) {
 
 	ops := []ConsumerClientOptions{
 		{
-			Topic:   "t2",
+			Topics:  nil,
 			GroupID: "",
 		}, {
-			Topic:   "",
+			Topics:  []string{},
 			GroupID: "g3",
 		},
 	}

@@ -7,7 +7,7 @@ import (
 // validateKafkaConsumerClientConfig validates kafka consumer client config
 func validateKafkaConsumerClientConfig(options *ConsumerClientOptions) error {
 
-	if options.Topic == "" {
+	if options.Topics == nil || len(options.Topics) == 0 {
 		return fmt.Errorf("kafka: empty topic name")
 	}
 

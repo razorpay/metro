@@ -319,7 +319,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 				err = proto.Unmarshal(msg.Data, protoMsg)
 				if err != nil {
 					s.errChan <- err
+					continue
 				}
+
 				// set messageID and publish time
 				protoMsg.MessageId = msg.MessageID
 				ts := &timestamppb.Timestamp{}
@@ -341,28 +343,21 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 					if err != nil {
 						s.errChan <- err
+						continue
 					}
 					s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
 				}
-						if err != nil {
-							s.errChan <- err
-
-						}
-						s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
-						subscriberMessagesConsumed.WithLabelValues(msg.Topic, s.subscription).Add(1)
-					}
 
 				ackDeadline := time.Now().Add(minAckDeadline).Unix()
 				s.consumedMessageStats[tp].Store(msg, ackDeadline)
+				subscriberMessagesConsumed.WithLabelValues(msg.Topic, s.subscription).Add(1)
 
 				ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
 				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
-					ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
-					sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
-					subscriberMemoryMessagesCountTotal.WithLabelValues(s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
-				}
+				subscriberMemoryMessagesCountTotal.WithLabelValues(s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
 			}
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
+
 		case ackRequest := <-s.ackChan:
 			s.acknowledge(ctx, ackRequest)
 		case modAckRequest := <-s.modAckChan:

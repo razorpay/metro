@@ -32,33 +32,33 @@ import (
 
 // Service for worker
 type Service struct {
-	ctx              context.Context
-	grpcServer       *grpc.Server
-	httpServer       *http.Server
+	ctx                context.Context
+	grpcServer         *grpc.Server
+	httpServer         *http.Server
 	internalHTTPServer *http.Server
-	health           *health.Core
-	workerConfig     *Config
-	registryConfig   *registry.Config
-	registry         registry.IRegistry
-	candidate        *leaderelection.Candidate
-	node             *node.Model
-	doneCh           chan struct{}
-	stopCh           chan struct{}
-	workgrp          *errgroup.Group
-	leadgrp          *errgroup.Group
-	brokerStore      brokerstore.IBrokerStore
-	projectCore      project.ICore
-	nodeCore         node.ICore
-	topicCore        topic.ICore
-	subscriptionCore subscription.ICore
-	nodeBindingCore  nodebinding.ICore
-	nodeCache        []*node.Model
-	subCache         []*subscription.Model
-	nodebindingCache []*nodebinding.Model
-	nbwatch          chan []registry.Pair
-	pushHandlers     map[string]*PushStream
-	scheduler        *scheduler.Scheduler
-	subscriber       subscriber.ICore
+	health             *health.Core
+	workerConfig       *Config
+	registryConfig     *registry.Config
+	registry           registry.IRegistry
+	candidate          *leaderelection.Candidate
+	node               *node.Model
+	doneCh             chan struct{}
+	stopCh             chan struct{}
+	workgrp            *errgroup.Group
+	leadgrp            *errgroup.Group
+	brokerStore        brokerstore.IBrokerStore
+	projectCore        project.ICore
+	nodeCore           node.ICore
+	topicCore          topic.ICore
+	subscriptionCore   subscription.ICore
+	nodeBindingCore    nodebinding.ICore
+	nodeCache          []*node.Model
+	subCache           []*subscription.Model
+	nodebindingCache   []*nodebinding.Model
+	nbwatch            chan []registry.Pair
+	pushHandlers       map[string]*PushStream
+	scheduler          *scheduler.Scheduler
+	subscriber         subscriber.ICore
 }
 
 // NewService creates an instance of new worker

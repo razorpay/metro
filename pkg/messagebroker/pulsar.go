@@ -52,7 +52,7 @@ func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, id stri
 	}
 
 	c, err := client.Subscribe(pulsar.ConsumerOptions{
-		Topic:            options.Topic,
+		Topics:           options.Topics,
 		SubscriptionName: options.Subscription,
 		Type:             pulsar.SubscriptionType(bConfig.Consumer.SubscriptionType),
 		Name:             id,

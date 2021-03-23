@@ -33,7 +33,7 @@ func Test_CreateValidTopic(t *testing.T) {
 
 	// create consumer to fetch topic metadata
 	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-1", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
-		Topic:   topic,
+		Topics:  []string{topic},
 		GroupID: "dummy-group-2",
 	})
 	metadata, merr := consumer1.GetTopicMetadata(context.Background(), messagebroker.GetTopicMetadataRequest{Topic: topic})
@@ -149,7 +149,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	// now consume the messages and assert the message ids generated in the previous step
 	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-1", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
-		Topic:   topic,
+		Topics:  []string{topic},
 		GroupID: "dummy-group-1",
 	})
 
@@ -174,7 +174,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	// spwan a new consumer and try to re-receive after commit and make sure no new messages are available
 	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-2", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
-		Topic:   topic,
+		Topics:  []string{topic},
 		GroupID: "dummy-group-1",
 	})
 

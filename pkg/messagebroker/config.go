@@ -46,7 +46,7 @@ type AdminConfig struct{}
 
 // ConsumerClientOptions holds client specific configuration for consumer
 type ConsumerClientOptions struct {
-	Topic        string
+	Topics       []string
 	Subscription string
 	GroupID      string
 	Partition    int

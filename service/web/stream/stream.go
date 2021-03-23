@@ -131,6 +131,7 @@ func (s *pullStream) receive() {
 	req, err := s.server.Recv()
 	if err != nil {
 		s.errChan <- err
+		return
 	}
 	s.reqChan <- req
 }

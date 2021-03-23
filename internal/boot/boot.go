@@ -26,7 +26,6 @@ func GetEnv() string {
 	environment := os.Getenv("APP_ENV")
 	if environment == "" {
 		environment = "dev"
-		os.Setenv("APP_ENV", environment)
 	}
 
 	return environment

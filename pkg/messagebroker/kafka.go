@@ -2,6 +2,7 @@ package messagebroker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,7 +14,8 @@ import (
 )
 
 const (
-	messageID = "messageID"
+	messageID  = "messageID"
+	retryCount = "retryCount"
 )
 
 // KafkaBroker for kafka
@@ -302,10 +304,16 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		Value: []byte(msgID),
 	})
 
+	rc, _ := json.Marshal(request.RetryCount)
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   retryCount,
+		Value: rc,
+	})
+
 	deliveryChan := make(chan kafkapkg.Event)
 
 	tp := normalizeTopicName(request.Topic)
-	logger.Ctx(ctx).Infow("normalized topic name", "topoic", tp)
+	logger.Ctx(ctx).Infow("normalized topic name", "topic", tp)
 	err := k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &tp, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
@@ -351,17 +359,28 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	msgs := make(map[string]ReceivedMessage, 0)
 	for {
 		var msgID string
+		var retryCounter int32
 		msg, err := k.Consumer.ReadMessage(time.Duration(request.TimeoutSec) * time.Second)
 		if err == nil {
 			for _, v := range msg.Headers {
 				if v.Key == messageID {
 					msgID = string(v.Value)
+				} else if v.Key == retryCount {
+					rc, _ := strconv.ParseInt(string(v.Value), 10, 0)
+					retryCounter = int32(rc)
 				}
 			}
 
 			offset, _ := strconv.ParseInt(fmt.Sprintf("%v", int32(msg.TopicPartition.Offset)), 10, 0)
 			po := NewPartitionOffset(msg.TopicPartition.Partition, int32(offset))
-			msgs[po.String()] = ReceivedMessage{msg.Value, msgID, *msg.TopicPartition.Topic, msg.TopicPartition.Partition, int32(msg.TopicPartition.Offset), msg.Timestamp}
+			msgs[po.String()] = ReceivedMessage{
+				Data: msg.Value, MessageID: msgID,
+				Topic:       *msg.TopicPartition.Topic,
+				Partition:   msg.TopicPartition.Partition,
+				Offset:      int32(msg.TopicPartition.Offset),
+				RetryCount:  retryCounter,
+				PublishTime: msg.Timestamp,
+			}
 
 			if int32(len(msgs)) == request.NumOfMessages {
 				return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil

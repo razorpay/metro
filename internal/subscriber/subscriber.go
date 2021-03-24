@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	minAckDeadline = 10 * time.Minute
+	minAckDeadline          = 10 * time.Minute
+	maxMessageRetryAttempts = 2
 )
 
 // ISubscriber is interface over high level subscriber
@@ -88,6 +89,8 @@ func (s *Subscriber) GetSubscription() string {
 
 // commits existing message on primary topic and pushes message to the pre-defined retry topic
 func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
+	retryMsg.incrementRetry()
+
 	// remove message from the primary topic
 	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 		Topic:     retryMsg.Topic,
@@ -101,12 +104,20 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 		return
 	}
 
+	// check max retries.
+	if retryMsg.RetryCount >= maxMessageRetryAttempts {
+		logger.Ctx(ctx).Infow("subscriber: max retries exceeded. skipping push to retry topic", "retryMsg", retryMsg)
+		// TODO : push to DLQ in such cases
+		return
+	}
+
 	// then push message to the retry topic
 	_, err = s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:      s.retryTopic,
 		Message:    retryMsg.Data,
 		TimeoutSec: 50,
 		MessageID:  retryMsg.MessageID,
+		RetryCount: retryMsg.RetryCount,
 	})
 
 	if err != nil {
@@ -115,6 +126,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	}
 
 	subscriberMessagesRetried.WithLabelValues(env, s.retryTopic, s.subscription).Inc()
+	logger.Ctx(ctx).Infow("subscriber: msg pushed to retry topic", "topic", s.topic, "retryMsg", retryMsg)
 }
 
 // acknowledge messages
@@ -136,7 +148,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	if req.HasHitDeadline() {
 
 		// push to retry queue
-		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
+		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
 		removeMessageFromMemory(stats, req.MessageID)
 
@@ -210,7 +222,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
 
 		// push to retry queue
-		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
+		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
 		// cleanup message from memory
 		removeMessageFromMemory(stats, msgID)
@@ -250,7 +262,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
 			// this way the message is eligible to be retried
-			s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
+			s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
 			// cleanup message from memory only after a successful push to retry topic
 			removeMessageFromMemory(metadata, peek.MsgID)

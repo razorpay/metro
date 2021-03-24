@@ -27,6 +27,7 @@ type SendMessageToTopicRequest struct {
 	Attributes  []map[string][]byte
 	TimeoutSec  int
 	MessageID   string
+	RetryCount  int32
 }
 
 // GetMessagesFromTopicRequest ...
@@ -94,6 +95,7 @@ type ReceivedMessage struct {
 	Topic       string
 	Partition   int32
 	Offset      int32
+	RetryCount  int32
 	PublishTime time.Time
 }
 

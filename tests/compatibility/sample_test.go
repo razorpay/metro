@@ -36,7 +36,7 @@ func Test_Pubsub1(t *testing.T) {
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
 
-		numOfMessages := 1
+		numOfMessages := 10
 
 		//sub1.ReceiveSettings.Synchronous = true
 		sub.ReceiveSettings.NumGoroutines = 1
@@ -51,7 +51,7 @@ func Test_Pubsub1(t *testing.T) {
 			}
 
 			t.Logf("[%d] Got message: id=[%v], deliveryAttempt=[%v], data=[%v]", index, m.ID, da, string(m.Data))
-			m.Nack()
+			m.Ack()
 		})
 
 		//topic.EnableMessageOrdering = true
@@ -60,7 +60,7 @@ func Test_Pubsub1(t *testing.T) {
 			r.Get(context.Background())
 		}
 
-		time.Sleep(time.Duration(20) * time.Second)
+		time.Sleep(time.Duration(numOfMessages) * time.Second)
 		topic.Stop()
 
 		// cleanup
@@ -79,7 +79,7 @@ func Test_Pubsub1(t *testing.T) {
 // no of goroutines : 2
 // make one stream, produce messages on topic with 2 partitions. Then start another stream : topic partition should get rebalanced b/w the two
 func Test_Pubsub2(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	topicName := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
 	subscription := fmt.Sprintf("sub-%s", uuid.New().String()[0:4])
 

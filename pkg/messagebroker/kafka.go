@@ -192,7 +192,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "CreateTopic").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CreateTopic").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CreateTopic").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	tp := normalizeTopicName(request.Name)
 	logger.Ctx(ctx).Infow("received request to create kafka topic", "request", request, "normalizedTopicName", tp)
@@ -231,7 +231,7 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "DeleteTopic").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "DeleteTopic").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "DeleteTopic").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	topics := make([]string, 0)
 	topics = append(topics, request.Name)
@@ -246,7 +246,7 @@ func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetada
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "GetTopicMetadata").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "GetTopicMetadata").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "GetTopicMetadata").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	tp := kafkapkg.TopicPartition{
 		Topic:     &request.Topic,
@@ -276,7 +276,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "SendMessage").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "SendMessage").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "SendMessage").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	var kHeaders []kafkapkg.Header
 	if request.Attributes != nil {
@@ -346,7 +346,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "ReceiveMessages").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "ReceiveMessages").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "ReceiveMessages").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	msgs := make(map[string]ReceivedMessage, 0)
 	for {
@@ -385,7 +385,7 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	logger.Ctx(ctx).Infow("kafka: commit request received", "request", request)
 
@@ -424,7 +424,7 @@ func (k *KafkaBroker) Pause(_ context.Context, request PauseOnTopicRequest) erro
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Pause").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Pause").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Pause").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	tp := kafkapkg.TopicPartition{
 		Topic:     &request.Topic,
@@ -442,7 +442,7 @@ func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) er
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Resume").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Resume").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Resume").Observe(time.Now().Sub(startTime).Seconds() / 1e3)
 
 	tp := kafkapkg.TopicPartition{
 		Topic:     &request.Topic,
@@ -460,7 +460,7 @@ func (k *KafkaBroker) Close(ctx context.Context) error {
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Close").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Close").Observe(time.Now().Sub(startTime).Seconds())
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Close").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	logger.Ctx(ctx).Infow("kafka: request to close the consumer", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID)
 	err := k.Consumer.Unsubscribe()

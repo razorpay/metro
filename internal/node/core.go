@@ -34,7 +34,7 @@ func (c *Core) CreateNode(ctx context.Context, m *Model) error {
 	nodeOperationCount.WithLabelValues(env, "CreateNode").Inc()
 
 	startTime := time.Now()
-	defer nodeOperationTimeTaken.WithLabelValues(env, "CreateNode").Observe(time.Now().Sub(startTime).Seconds())
+	defer nodeOperationTimeTaken.WithLabelValues(env, "CreateNode").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	ok, err := c.Exists(ctx, m.Key())
 	if err != nil {
@@ -51,7 +51,7 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 	nodeOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
-	defer nodeOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+	defer nodeOperationTimeTaken.WithLabelValues(env, "Exists").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	logger.Ctx(ctx).Infow("exists query on node", "key", key)
 	ok, err := c.repo.Exists(ctx, key)
@@ -67,7 +67,7 @@ func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
 	nodeOperationCount.WithLabelValues(env, "ExistsWithID").Inc()
 
 	startTime := time.Now()
-	defer nodeOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(time.Now().Sub(startTime).Seconds())
+	defer nodeOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	return c.Exists(ctx, common.BasePrefix+Prefix+id)
 }
@@ -77,7 +77,7 @@ func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 	nodeOperationCount.WithLabelValues(env, "ListKeys").Inc()
 
 	startTime := time.Now()
-	defer nodeOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(time.Now().Sub(startTime).Seconds())
+	defer nodeOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	prefix = common.BasePrefix + prefix
 	return c.repo.ListKeys(ctx, prefix)
@@ -88,7 +88,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	nodeOperationCount.WithLabelValues(env, "List").Inc()
 
 	startTime := time.Now()
-	defer nodeOperationTimeTaken.WithLabelValues(env, "List").Observe(time.Now().Sub(startTime).Seconds())
+	defer nodeOperationTimeTaken.WithLabelValues(env, "List").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	prefix = common.BasePrefix + prefix
 
@@ -109,7 +109,7 @@ func (c *Core) DeleteNode(ctx context.Context, m *Model) error {
 	nodeOperationCount.WithLabelValues(env, "DeleteNode").Inc()
 
 	startTime := time.Now()
-	defer nodeOperationTimeTaken.WithLabelValues(env, "DeleteNode").Observe(time.Now().Sub(startTime).Seconds())
+	defer nodeOperationTimeTaken.WithLabelValues(env, "DeleteNode").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
 	if ok, err := c.Exists(ctx, m.Key()); !ok {
 		if err != nil {

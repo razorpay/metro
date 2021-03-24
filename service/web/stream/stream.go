@@ -35,7 +35,7 @@ type pullStream struct {
 	reqChan      chan *metrov1.StreamingPullRequest
 	errChan      chan error
 	responseChan chan metrov1.PullResponse
-	cleanupCh    chan string
+	cleanupCh    chan cleanupMessage
 }
 
 // DefaultNumMessagesToReadOffStream ...
@@ -151,10 +151,13 @@ func (s *pullStream) stop() {
 	logger.Ctx(s.ctx).Infow("stopped subscriber...", "subscriberId", s.subscriberID)
 
 	// notify stream manager to cleanup subscriber held in-memory
-	s.cleanupCh <- s.subscriberID
+	s.cleanupCh <- cleanupMessage{
+		subscriberID: s.subscriberID,
+		subscription: s.subscriptionSubscriber.GetSubscription(),
+	}
 }
 
-func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group, cleanupCh chan string) (*pullStream, error) {
+func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group, cleanupCh chan cleanupMessage) (*pullStream, error) {
 
 	// use the clientID as the subscriberID if provided
 	subscriberID := clientID

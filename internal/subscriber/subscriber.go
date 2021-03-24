@@ -24,6 +24,7 @@ const (
 // ISubscriber is interface over high level subscriber
 type ISubscriber interface {
 	GetID() string
+	GetSubscription() string
 	// not exporting acknowledge() and  modifyAckDeadline() intentionally so that
 	// all operations happen over the channel
 	acknowledge(ctx context.Context, req *AckMessage)
@@ -80,6 +81,11 @@ func (s *Subscriber) GetID() string {
 	return s.subscriberID
 }
 
+// GetSubscription ...
+func (s *Subscriber) GetSubscription() string {
+	return s.subscription
+}
+
 // commits existing message on primary topic and pushes message to the pre-defined retry topic
 func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	// remove message from the primary topic
@@ -107,6 +113,8 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 		logger.Ctx(ctx).Errorw("subscriber: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
 		s.errChan <- err
 	}
+
+	subscriberMessagesRetried.WithLabelValues(env, s.retryTopic, s.subscription).Inc()
 }
 
 // acknowledge messages
@@ -121,11 +129,11 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		return
 	}
 
+	msgID := req.MessageID
+	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+
 	// if somehow an ack request comes for a message that has met deadline eviction threshold
 	if req.HasHitDeadline() {
-
-		msgID := req.MessageID
-		msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 		// push to retry queue
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
@@ -159,6 +167,9 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	}
 
 	removeMessageFromMemory(stats, req.MessageID)
+
+	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
+	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Now().Sub(msg.PublishTime).Milliseconds() / 1e3))
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
@@ -191,12 +202,12 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		return
 	}
 
+	msgID := req.ackMessage.MessageID
+	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+
 	if req.ackDeadline == 0 {
 		// modAck with deadline = 0 means nack
 		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
-
-		msgID := req.ackMessage.MessageID
-		msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 		// push to retry queue
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID))
@@ -213,6 +224,9 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	// update the deadline of the identified message
 	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
 	heap.Init(&deadlineBasedHeap)
+
+	subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
+	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Now().Sub(msg.PublishTime).Milliseconds() / 1e3))
 }
 
 func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
@@ -242,6 +256,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 			removeMessageFromMemory(metadata, peek.MsgID)
 
 			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "msgId", peek.MsgID)
+			subscriberMessagesDeadlineEvicted.WithLabelValues(env, s.topic, s.subscription).Inc()
 		}
 	}
 }
@@ -263,6 +278,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 		select {
 		case req := <-s.requestChan:
 			if s.canConsumeMore() == false {
+				logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "topic", s.topic, "subscription", s.subscription)
 				// check if consumer is paused once maxOutstanding messages limit is hit
 				if s.isPaused == false {
 					// if not, pause all topic-partitions for consumer
@@ -271,7 +287,10 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
+						logger.Ctx(ctx).Infow("subscriber: pausing consumer", "topic", s.topic, "subscription", s.subscription)
+						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Inc()
 						s.isPaused = true
+
 					}
 				}
 			} else {
@@ -283,6 +302,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
+						logger.Ctx(ctx).Infow("subscriber: resuming consumer", "topic", s.topic, "subscription", s.subscription)
+						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Dec()
 					}
 				}
 			}
@@ -301,7 +322,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 				err = proto.Unmarshal(msg.Data, protoMsg)
 				if err != nil {
 					s.errChan <- err
+					continue
 				}
+
 				// set messageID and publish time
 				protoMsg.MessageId = msg.MessageID
 				ts := &timestamppb.Timestamp{}
@@ -323,6 +346,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 					if err != nil {
 						s.errChan <- err
+						continue
 					}
 					s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
 				}
@@ -332,8 +356,13 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 				ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
 				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
+
+				subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription).Inc()
+				subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
+				subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Now().Sub(msg.PublishTime).Milliseconds() / 1e3))
 			}
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
+
 		case ackRequest := <-s.ackChan:
 			s.acknowledge(ctx, ackRequest)
 		case modAckRequest := <-s.modAckChan:

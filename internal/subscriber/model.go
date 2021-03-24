@@ -311,8 +311,9 @@ type RetryMessage struct {
 }
 
 // increments the retry attempt
-func (rm *RetryMessage) incrementRetry() {
+func (rm *RetryMessage) incrementAndGetRetryCount() int32 {
 	rm.RetryCount++
+	return rm.RetryCount
 }
 
 // NewRetryMessage ...

@@ -104,8 +104,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	}
 
 	// check max retries.
-	retryMsg.incrementRetry()
-	if retryMsg.RetryCount >= maxMessageRetryAttempts {
+	if retryMsg.incrementAndGetRetryCount() >= maxMessageRetryAttempts {
 		logger.Ctx(ctx).Infow("subscriber: max retries exceeded. skipping push to retry topic", "retryMsg", retryMsg)
 		// TODO : push to DLQ in such cases
 		return

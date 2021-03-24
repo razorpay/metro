@@ -21,7 +21,7 @@ func Test_Pubsub1(t *testing.T) {
 	// This is just a placeholder test.
 	// TODO: fix it with more tests and better structure
 	index := 0
-	for _, client := range []*pubsub.Client{metroClient, emulatorClient} {
+	for _, client := range []*pubsub.Client{metroClient} {
 		topic, err := client.CreateTopic(context.Background(), topicName)
 		assert.Nil(t, err)
 		assert.NotNil(t, topic)
@@ -36,7 +36,7 @@ func Test_Pubsub1(t *testing.T) {
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
 
-		numOfMessages := 10
+		numOfMessages := 200
 
 		//sub1.ReceiveSettings.Synchronous = true
 		sub.ReceiveSettings.NumGoroutines = 1
@@ -60,7 +60,7 @@ func Test_Pubsub1(t *testing.T) {
 			r.Get(context.Background())
 		}
 
-		time.Sleep(time.Duration(numOfMessages) * time.Second)
+		time.Sleep(time.Duration(30) * time.Second)
 		topic.Stop()
 
 		// cleanup
@@ -79,7 +79,7 @@ func Test_Pubsub1(t *testing.T) {
 // no of goroutines : 2
 // make one stream, produce messages on topic with 2 partitions. Then start another stream : topic partition should get rebalanced b/w the two
 func Test_Pubsub2(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	topicName := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
 	subscription := fmt.Sprintf("sub-%s", uuid.New().String()[0:4])
 

@@ -271,6 +271,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
+						s.isPaused = true
 					}
 				}
 			} else {

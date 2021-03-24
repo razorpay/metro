@@ -289,6 +289,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 						})
 						logger.Ctx(ctx).Infow("subscriber: pausing consumer", "topic", s.topic, "subscription", s.subscription)
 						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Inc()
+						s.isPaused = true
+
 					}
 				}
 			} else {

@@ -6,6 +6,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -156,8 +158,14 @@ func (s *pullStream) stop() {
 }
 
 func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group, cleanupCh chan cleanupMessage) (*pullStream, error) {
-	//nCtx, cancelFunc := context.WithCancel(server.Context())
-	subs, err := subscriberCore.NewSubscriber(server.Context(), clientID, subscription, 1, 50, 5000)
+
+	// use the clientID as the subscriberID if provided
+	subscriberID := clientID
+	if subscriberID == "" {
+		subscriberID = uuid.New().String()
+	}
+
+	subs, err := subscriberCore.NewSubscriber(server.Context(), subscriberID, subscription, 1, 50, 5000)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +176,7 @@ func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID strin
 		subscriberCore:         subscriberCore,
 		subscriptionSubscriber: subs,
 		responseChan:           make(chan metrov1.PullResponse),
-		subscriberID:           subs.GetID(),
+		subscriberID:           subscriberID,
 		reqChan:                make(chan *metrov1.StreamingPullRequest),
 		errChan:                make(chan error),
 		cleanupCh:              cleanupCh,

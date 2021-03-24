@@ -89,7 +89,6 @@ func (s *Subscriber) GetSubscription() string {
 
 // commits existing message on primary topic and pushes message to the pre-defined retry topic
 func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
-	retryMsg.incrementRetry()
 
 	// remove message from the primary topic
 	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
@@ -105,6 +104,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	}
 
 	// check max retries.
+	retryMsg.incrementRetry()
 	if retryMsg.RetryCount >= maxMessageRetryAttempts {
 		logger.Ctx(ctx).Infow("subscriber: max retries exceeded. skipping push to retry topic", "retryMsg", retryMsg)
 		// TODO : push to DLQ in such cases

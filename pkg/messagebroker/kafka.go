@@ -366,8 +366,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				if v.Key == messageID {
 					msgID = string(v.Value)
 				} else if v.Key == retryCount {
-					rc, _ := strconv.ParseInt(string(v.Value), 10, 0)
-					retryCounter = int32(rc)
+					json.Unmarshal(v.Value, &retryCounter)
 				}
 			}
 

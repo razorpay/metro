@@ -114,7 +114,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	_, err = s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:      s.retryTopic,
 		Message:    retryMsg.Data,
-		TimeoutMs: 50,
+		TimeoutMs:  50,
 		MessageID:  retryMsg.MessageID,
 		RetryCount: retryMsg.incrementAndGetRetryCount(),
 	})

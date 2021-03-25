@@ -45,13 +45,13 @@ func Test_validateKafkaConsumerBrokerConfig(t *testing.T) {
 			ConnectionTimeoutMs: 5,
 		}, {
 			Brokers:             []string{"kakfa-broker-1:9092"},
-			OperationTimeoutMs:  9999,
+			OperationTimeoutMs:  99999999,
 			ConnectionTimeoutMs: 10,
 		},
 		{
 			Brokers:             []string{"kakfa-broker-1:9092"},
 			OperationTimeoutMs:  2,
-			ConnectionTimeoutMs: 9999,
+			ConnectionTimeoutMs: 99999999,
 		},
 	}
 
@@ -83,7 +83,7 @@ func Test_validateKafkaProducerClientConfig(t *testing.T) {
 		{
 			Topic:     "t3",
 			Partition: 0,
-			TimeoutMs: 300,
+			TimeoutMs: 300000,
 		},
 	}
 

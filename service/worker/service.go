@@ -545,14 +545,12 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 		if !found {
 			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "key", sub.Name)
 
-			//topicM, terr := svc.topicCore.Get(ctx, sub.Topic)
-			//if terr != nil {
-			//	return terr
-			//}
+			topicM, terr := svc.topicCore.Get(ctx, sub.Topic)
+			if terr != nil {
+				return terr
+			}
 
-			noOfPartitions := 2 // TODO: get from topicModel
-
-			for i := 0; i < noOfPartitions; i++ {
+			for i := 0; i < topicM.NumPartitions; i++ {
 				nb, serr := svc.scheduler.Schedule(sub, nodeBindings, svc.nodeCache)
 				if serr != nil {
 					return serr

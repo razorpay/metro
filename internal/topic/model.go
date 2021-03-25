@@ -10,6 +10,9 @@ const (
 
 	// RetryTopicSuffix every primary topic will have a retry topic with this suffix as well
 	RetryTopicSuffix = "-retry"
+
+	// DefaultNumPartitions default no of partitions for a topic
+	DefaultNumPartitions = 1
 )
 
 // Model for a topic
@@ -20,6 +23,7 @@ type Model struct {
 	ExtractedProjectID string
 	ExtractedTopicName string
 	RetryTopicName     string
+	NumPartitions      int
 }
 
 // Key returns the key for storing in the registry

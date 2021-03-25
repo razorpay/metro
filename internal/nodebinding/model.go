@@ -1,6 +1,8 @@
 package nodebinding
 
 import (
+	"strings"
+
 	"github.com/razorpay/metro/internal/common"
 )
 
@@ -12,13 +14,15 @@ const (
 // Model for a node
 type Model struct {
 	common.BaseModel
+	ID             string
 	NodeID         string
 	SubscriptionID string
 }
 
 // Key returns the key for storing in the registry
 func (m *Model) Key() string {
-	return m.Prefix() + m.NodeID + "/" + m.SubscriptionID
+	subID := strings.ReplaceAll(m.SubscriptionID, "/", "_")
+	return m.Prefix() + m.NodeID + "/" + subID + "_" + m.ID[0:4]
 }
 
 // Prefix returns the key prefix

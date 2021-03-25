@@ -519,6 +519,7 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 		for _, sub := range svc.subCache {
 			if sub.Name == nb.SubscriptionID {
 				found = true
+				break
 			}
 		}
 
@@ -537,20 +538,32 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 		for _, nb := range nodeBindings {
 			if sub.Name == nb.SubscriptionID {
 				found = true
+				break
 			}
 		}
 
 		if !found {
 			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "key", sub.Name)
 
-			nb, serr := svc.scheduler.Schedule(sub, nodeBindings, svc.nodeCache)
-			if serr != nil {
-				return serr
-			}
+			//topicM, terr := svc.topicCore.Get(ctx, sub.Topic)
+			//if terr != nil {
+			//	return terr
+			//}
 
-			berr := svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
-			if berr != nil {
-				return berr
+			noOfPartitions := 2 // TODO: get from topicModel
+
+			for i := 0; i < noOfPartitions; i++ {
+				nb, serr := svc.scheduler.Schedule(sub, nodeBindings, svc.nodeCache)
+				if serr != nil {
+					return serr
+				}
+
+				berr := svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
+				if berr != nil {
+					return berr
+				}
+
+				nodeBindings = append(nodeBindings, nb)
 			}
 		}
 	}

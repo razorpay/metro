@@ -94,7 +94,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 		Topic:     retryMsg.Topic,
 		Partition: retryMsg.Partition,
-		Offset:    retryMsg.Offset,
+		Offset:    retryMsg.Offset + 1, // add 1 to current offset
 	})
 
 	if err != nil {
@@ -165,7 +165,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 			Topic:     req.Topic,
 			Partition: req.Partition,
-			Offset:    req.Offset,
+			Offset:    req.Offset + 1, // add 1 to current offset
 		})
 		if err != nil {
 			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "message", "peek", "error", err.Error())

@@ -116,7 +116,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	// init a producer on the topic created
 	producer, err := messagebroker.NewProducerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ProducerClientOptions{
 		Topic:     topic,
-		TimeoutMs: 100,
+		TimeoutMs: 300,
 	})
 
 	assert.Nil(t, err)
@@ -135,7 +135,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 		msg := messagebroker.SendMessageToTopicRequest{
 			Topic:     topic,
 			Message:   msgbytes,
-			TimeoutMs: 100,
+			TimeoutMs: 300,
 		}
 
 		// send the message
@@ -159,7 +159,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	// first receive without commit
 	resp, err := consumer1.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
 		NumOfMessages: int32(msgsToSend),
-		TimeoutMs:     100,
+		TimeoutMs:     300,
 	})
 
 	assert.Nil(t, err)
@@ -183,7 +183,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	resp3, rerr := consumer3.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
 		NumOfMessages: int32(msgsToSend),
-		TimeoutMs:     100,
+		TimeoutMs:     300,
 	})
 
 	assert.NotNil(t, resp3)

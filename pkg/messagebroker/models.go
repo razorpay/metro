@@ -25,14 +25,14 @@ type SendMessageToTopicRequest struct {
 	Message     []byte
 	OrderingKey string
 	Attributes  []map[string][]byte
-	TimeoutSec  int
+	TimeoutMs   int
 	MessageID   string
 }
 
 // GetMessagesFromTopicRequest ...
 type GetMessagesFromTopicRequest struct {
 	NumOfMessages int32
-	TimeoutSec    int
+	TimeoutMs     int
 }
 
 // CommitOnTopicRequest ...

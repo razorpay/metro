@@ -31,27 +31,27 @@ func Test_validateKafkaConsumerClientConfig(t *testing.T) {
 
 func Test_validateKafkaConsumerBrokerConfig(t *testing.T) {
 	bc1 := BrokerConfig{
-		Brokers:              []string{"kakfa-broker-1:9092"},
-		OperationTimeoutSec:  5,
-		ConnectionTimeoutSec: 10,
+		Brokers:             []string{"kakfa-broker-1:9092"},
+		OperationTimeoutMs:  5,
+		ConnectionTimeoutMs: 10,
 	}
 
 	assert.Nil(t, validateKafkaConsumerBrokerConfig(&bc1))
 
 	bcs := []BrokerConfig{
 		{
-			Brokers:              nil,
-			OperationTimeoutSec:  3,
-			ConnectionTimeoutSec: 5,
+			Brokers:             nil,
+			OperationTimeoutMs:  3,
+			ConnectionTimeoutMs: 5,
 		}, {
-			Brokers:              []string{"kakfa-broker-1:9092"},
-			OperationTimeoutSec:  9999,
-			ConnectionTimeoutSec: 10,
+			Brokers:             []string{"kakfa-broker-1:9092"},
+			OperationTimeoutMs:  9999,
+			ConnectionTimeoutMs: 10,
 		},
 		{
-			Brokers:              []string{"kakfa-broker-1:9092"},
-			OperationTimeoutSec:  2,
-			ConnectionTimeoutSec: 9999,
+			Brokers:             []string{"kakfa-broker-1:9092"},
+			OperationTimeoutMs:  2,
+			ConnectionTimeoutMs: 9999,
 		},
 	}
 
@@ -62,28 +62,28 @@ func Test_validateKafkaConsumerBrokerConfig(t *testing.T) {
 
 func Test_validateKafkaProducerClientConfig(t *testing.T) {
 	op1 := ProducerClientOptions{
-		Topic:      "t1",
-		Partition:  0,
-		TimeoutSec: 5,
+		Topic:     "t1",
+		Partition: 0,
+		TimeoutMs: 100,
 	}
 
 	assert.Nil(t, validateKafkaProducerClientConfig(&op1))
 
 	ops := []ProducerClientOptions{
 		{
-			Topic:      "t2",
-			Partition:  -1,
-			TimeoutSec: 5,
+			Topic:     "t2",
+			Partition: -1,
+			TimeoutMs: 100,
 		},
 		{
-			Topic:      "",
-			Partition:  0,
-			TimeoutSec: 3,
+			Topic:     "",
+			Partition: 0,
+			TimeoutMs: 100,
 		},
 		{
-			Topic:      "t3",
-			Partition:  0,
-			TimeoutSec: 300,
+			Topic:     "t3",
+			Partition: 0,
+			TimeoutMs: 300,
 		},
 	}
 

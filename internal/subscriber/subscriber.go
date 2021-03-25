@@ -97,10 +97,10 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 
 	// then push message to the retry topic
 	_, err = s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-		Topic:      s.retryTopic,
-		Message:    retryMsg.Data,
-		TimeoutSec: 50,
-		MessageID:  retryMsg.MessageID,
+		Topic:     s.retryTopic,
+		Message:   retryMsg.Data,
+		TimeoutMs: 50,
+		MessageID: retryMsg.MessageID,
 	})
 
 	if err != nil {
@@ -286,7 +286,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 				}
 			}
 
-			resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
+			resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInSec})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "msg", err.Error())
 				s.errChan <- err

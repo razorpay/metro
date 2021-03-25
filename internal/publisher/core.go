@@ -23,7 +23,7 @@ func NewCore(bs brokerstore.IBrokerStore) *Core {
 
 // Publish messages
 func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]string, error) {
-	producer, err := p.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutSec: 50})
+	producer, err := p.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutMs: 50})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in getting producer", "msg", err.Error())
 		return nil, err
@@ -42,12 +42,12 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 		if err != nil {
 			return nil, fmt.Errorf("unable to marshal message")
 		}
-		// TODO: rationalise TimeoutSec
+		// TODO: rationalise TimeoutMs
 		msgResp, err := producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 			Topic:       req.Topic,
 			Message:     dataWithMeta,
 			OrderingKey: msg.OrderingKey,
-			TimeoutSec:  50,
+			TimeoutMs:   100,
 		})
 		if err != nil {
 			logger.Ctx(ctx).Errorw("error in sending messages", "msg", err.Error())

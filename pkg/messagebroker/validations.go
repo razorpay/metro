@@ -25,11 +25,11 @@ func validateKafkaConsumerBrokerConfig(config *BrokerConfig) error {
 		return fmt.Errorf("kafka: empty brokers list")
 	}
 
-	if config.ConnectionTimeoutSec > 60 {
+	if config.ConnectionTimeoutMs > 60000 {
 		return fmt.Errorf("kafka: connection timeout above the allowed value of 60secs")
 	}
 
-	if config.OperationTimeoutSec > 60 {
+	if config.OperationTimeoutMs > 60000 {
 		return fmt.Errorf("kafka: operation timeout above the allowed value of 60secs")
 	}
 
@@ -47,7 +47,7 @@ func validateKafkaProducerClientConfig(options *ProducerClientOptions) error {
 		return fmt.Errorf("kafka: invalid partition")
 	}
 
-	if options.TimeoutSec > 60 {
+	if options.TimeoutMs > 60000 {
 		return fmt.Errorf("kafka: operation timeout above the allowed value of 60secs")
 	}
 

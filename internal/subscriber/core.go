@@ -16,7 +16,7 @@ import (
 
 // ICore is interface over subscribers core
 type ICore interface {
-	NewSubscriber(ctx context.Context, id string, subscription string, timeoutInSec int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error)
+	NewSubscriber(ctx context.Context, id string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error)
 }
 
 // Core implements ISubscriber
@@ -31,7 +31,7 @@ func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) *
 }
 
 // NewSubscriber initiates a new subscriber for a given topic
-func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string, timeoutInSec int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error) {
+func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error) {
 	t, err := c.subscriptionCore.GetTopicFromSubscriptionName(ctx, subscription)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		return nil, err
 	}
 
-	retryProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: retryTopic, TimeoutSec: 50})
+	retryProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: retryTopic, TimeoutMs: 50})
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (c *Core) NewSubscriber(ctx context.Context, id string, subscription string
 		ackChan:                make(chan *AckMessage),
 		modAckChan:             make(chan *ModAckMessage),
 		deadlineTickerChan:     make(chan bool),
-		timeoutInSec:           timeoutInSec,
+		timeoutInSec:           timeoutInMs,
 		consumer:               consumer,
 		retryProducer:          retryProducer,
 		cancelFunc:             cancelFunc,

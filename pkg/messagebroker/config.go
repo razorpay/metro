@@ -8,19 +8,19 @@ import (
 
 // BrokerConfig holds broker's configuration
 type BrokerConfig struct {
-	Brokers              []string
-	EnableTLS            bool
-	UserCertificate      string
-	UserKey              string
-	CACertificate        string
-	CertDir              string
-	Version              string
-	DebugEnabled         bool
-	OperationTimeoutSec  int
-	ConnectionTimeoutSec int
-	Producer             *ProducerConfig
-	Consumer             *ConsumerConfig
-	Admin                *AdminConfig
+	Brokers             []string
+	EnableTLS           bool
+	UserCertificate     string
+	UserKey             string
+	CACertificate       string
+	CertDir             string
+	Version             string
+	DebugEnabled        bool
+	OperationTimeoutMs  int
+	ConnectionTimeoutMs int
+	Producer            *ProducerConfig
+	Consumer            *ConsumerConfig
+	Admin               *AdminConfig
 }
 
 // ProducerConfig holds producer's configuration'
@@ -54,9 +54,9 @@ type ConsumerClientOptions struct {
 
 // ProducerClientOptions holds client specific configuration for producer
 type ProducerClientOptions struct {
-	Topic      string
-	Partition  int
-	TimeoutSec int64
+	Topic     string
+	Partition int
+	TimeoutMs int64
 }
 
 // AdminClientOptions holds client specific configuration for admin

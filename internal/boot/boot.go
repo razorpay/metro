@@ -3,7 +3,6 @@ package boot
 import (
 	"context"
 	"io"
-	"os"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/config"
@@ -19,17 +18,6 @@ var (
 	// Closer holds an instance to the RequestTracing object's Closer.
 	Closer io.Closer
 )
-
-// GetEnv returns the current environment, prod, dev etc
-func GetEnv() string {
-	// Fetch env for bootstrapping
-	environment := os.Getenv("APP_ENV")
-	if environment == "" {
-		environment = "dev"
-	}
-
-	return environment
-}
 
 // InitMonitoring is used to setup logger, tracing and sentry for monitoring
 func InitMonitoring(env string, app config.App, sentry sentry.Config, tracing tracingpkg.Config) error {

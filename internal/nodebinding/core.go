@@ -68,7 +68,7 @@ func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 	startTime := time.Now()
 	defer nodeBindingOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
-	prefix = common.BasePrefix + prefix
+	prefix = common.GetBasePrefix() + prefix
 	return c.repo.ListKeys(ctx, prefix)
 }
 
@@ -79,7 +79,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	startTime := time.Now()
 	defer nodeBindingOperationTimeTaken.WithLabelValues(env, "List").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
-	prefix = common.BasePrefix + prefix
+	prefix = common.GetBasePrefix() + prefix
 
 	out := []*Model{}
 	ret, err := c.repo.List(ctx, prefix)

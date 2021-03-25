@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/razorpay/metro/cmd/service/metro"
+	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/boot"
 )
 
@@ -24,7 +25,7 @@ func main() {
 	flag.Parse()
 
 	// read the env
-	env := boot.GetEnv()
+	env := app.GetEnv()
 
 	// Init app dependencies
 	metro.Init(ctx, env, *componentName)

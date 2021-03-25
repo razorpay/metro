@@ -67,7 +67,7 @@ func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
 	startTime := time.Now()
 	defer projectOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
-	return c.Exists(ctx, common.BasePrefix+Prefix+id)
+	return c.Exists(ctx, common.GetBasePrefix()+Prefix+id)
 }
 
 // DeleteProject deletes a project and all resources in it

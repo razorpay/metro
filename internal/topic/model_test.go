@@ -3,6 +3,7 @@ package topic
 import (
 	"testing"
 
+	"github.com/razorpay/metro/internal/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,10 +18,10 @@ func getDummyTopicModel() *Model {
 
 func TestModel_Prefix(t *testing.T) {
 	dTopic := getDummyTopicModel()
-	assert.Equal(t, "metro/topics/test-project/", dTopic.Prefix())
+	assert.Equal(t, common.GetBasePrefix()+Prefix+dTopic.ExtractedProjectID+"/", dTopic.Prefix())
 }
 
 func TestModel_Key(t *testing.T) {
 	dTopic := getDummyTopicModel()
-	assert.Equal(t, "metro/topics/"+dTopic.ExtractedProjectID+"/"+dTopic.ExtractedTopicName, dTopic.Key())
+	assert.Equal(t, dTopic.Prefix()+dTopic.ExtractedTopicName, dTopic.Key())
 }

@@ -125,7 +125,7 @@ func (c *Core) DeleteProjectSubscriptions(ctx context.Context, projectID string)
 		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
 	}
 
-	prefix := common.BasePrefix + Prefix + projectID
+	prefix := common.GetBasePrefix() + Prefix + projectID
 
 	return c.repo.DeleteTree(ctx, prefix)
 }
@@ -141,13 +141,13 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 	if err != nil {
 		return "", err
 	}
-	subscriptionKey := common.BasePrefix + Prefix + projectID + "/" + subscriptionName
+	subscriptionKey := common.GetBasePrefix() + Prefix + projectID + "/" + subscriptionName
 
 	if ok, err := c.repo.Exists(ctx, subscriptionKey); !ok {
 		if err != nil {
 			return "", err
 		}
-		err = merror.Newf(merror.NotFound, "subscription not found %s", common.BasePrefix+subscription)
+		err = merror.Newf(merror.NotFound, "subscription not found %s", common.GetBasePrefix()+subscription)
 		logger.Ctx(ctx).Error(err.Error())
 		return "", err
 	}
@@ -166,7 +166,7 @@ func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 	startTime := time.Now()
 	defer subscriptionOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
-	prefix = common.BasePrefix + prefix
+	prefix = common.GetBasePrefix() + prefix
 	return c.repo.ListKeys(ctx, prefix)
 }
 
@@ -177,7 +177,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	startTime := time.Now()
 	defer subscriptionOperationTimeTaken.WithLabelValues(env, "List").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
-	prefix = common.BasePrefix + prefix
+	prefix = common.GetBasePrefix() + prefix
 
 	out := []*Model{}
 	ret, err := c.repo.List(ctx, prefix)
@@ -202,7 +202,7 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	prefix := common.BasePrefix + Prefix + projectID + "/" + subscriptionName
+	prefix := common.GetBasePrefix() + Prefix + projectID + "/" + subscriptionName
 
 	model := &Model{}
 	err = c.repo.Get(ctx, prefix, model)

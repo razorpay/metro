@@ -92,7 +92,7 @@ func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return c.Exists(ctx, common.BasePrefix+Prefix+projectID+"/"+topicName)
+	return c.Exists(ctx, common.GetBasePrefix()+Prefix+projectID+"/"+topicName)
 }
 
 // DeleteTopic deletes a topic and all resources associated with it
@@ -128,7 +128,7 @@ func (c *Core) DeleteProjectTopics(ctx context.Context, projectID string) error 
 		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
 	}
 
-	prefix := common.BasePrefix + Prefix + projectID
+	prefix := common.GetBasePrefix() + Prefix + projectID
 
 	return c.repo.DeleteTree(ctx, prefix)
 }

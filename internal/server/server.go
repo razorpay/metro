@@ -3,6 +3,9 @@ package server
 import (
 	"net"
 	"net/http"
+	"net/http/pprof"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"golang.org/x/sync/errgroup"
 
@@ -25,6 +28,7 @@ func StartGRPCServer(
 	address string,
 	registerGrpcHandlers registerGrpcHandlers,
 	interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
+
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
 		return nil, err
@@ -65,6 +69,31 @@ func StartHTTPServer(grp *errgroup.Group, address string, registerHTTPHandlers r
 	})
 
 	return httpServer, nil
+}
+
+// StartInternalHTTPServer with handlers
+func StartInternalHTTPServer(grp *errgroup.Group, address string) (*http.Server, error) {
+
+	internalHTTPServer, err := newInternalServer()
+	if err != nil {
+		return nil, err
+	}
+
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start Internal HTTP server for metrics
+	grp.Go(func() error {
+		err := internalHTTPServer.Serve(listener)
+		if err != nil && err != http.ErrServerClosed {
+			return err
+		}
+		return nil
+	})
+
+	return internalHTTPServer, err
 }
 
 func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
@@ -110,5 +139,18 @@ func newHTTPServer(r registerHTTPHandlers) (*http.Server, error) {
 	}
 
 	server := http.Server{Handler: mux}
+	return &server, nil
+}
+
+func newInternalServer() (*http.Server, error) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+	mux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+	mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+	mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	mux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
+	server := http.Server{Handler: mux}
+
 	return &server, nil
 }

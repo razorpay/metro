@@ -24,8 +24,9 @@
             [web.broker.brokerconfig.web]
     [web.interfaces]
         [web.interfaces.api]
-            GrpcServerAddress     = "0.0.0.0:8081"
-            HttpServerAddress     = "0.0.0.0:8082"
+            GrpcServerAddress               = "0.0.0.0:8081"
+            HttpServerAddress               = "0.0.0.0:8082"
+            InternalHttpServerAddress       = "0.0.0.0:9000"
 
 [worker]
     [worker.broker]
@@ -37,8 +38,9 @@
             [worker.broker.brokerconfig.consumer]
     [worker.interfaces]
         [worker.interfaces.api]
-            GrpcServerAddress     = "0.0.0.0:8083"
-            HttpServerAddress     = "0.0.0.0:8084"
+            GrpcServerAddress               = "0.0.0.0:8083"
+            HttpServerAddress               = "0.0.0.0:8084"
+            InternalHttpServerAddress       = "0.0.0.0:9001"
 
 [registry]
     driver                    = "consul"

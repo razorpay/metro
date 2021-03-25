@@ -27,8 +27,8 @@ type Manager struct {
 	pullStreams       map[string]IStream
 	subscriptionCore  subscription.ICore
 	bs                brokerstore.IBrokerStore
-	activeStreamCount map[string]uint32 // TODO: will remove. maintain a distributed counter for active streams per subscription
-	cleanupCh         chan string       // listens for closed subscribers
+	activeStreamCount map[string]uint32   // TODO: will remove. maintain a distributed counter for active streams per subscription
+	cleanupCh         chan cleanupMessage // listens for closed subscribers
 	mutex             *sync.Mutex
 	ctx               context.Context
 }
@@ -40,7 +40,7 @@ func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, 
 		subscriptionCore:  subscriptionCore,
 		activeStreamCount: make(map[string]uint32),
 		bs:                bs,
-		cleanupCh:         make(chan string),
+		cleanupCh:         make(chan cleanupMessage),
 		mutex:             &sync.Mutex{},
 		ctx:               ctx,
 	}
@@ -55,14 +55,15 @@ func (s *Manager) run() {
 		select {
 		case <-s.ctx.Done():
 			return
-		case subscriberID := <-s.cleanupCh:
-			logger.Ctx(s.ctx).Infow("manager: got request to cleanup subscriber", "subscriberID", subscriberID)
+		case cleanupMessage := <-s.cleanupCh:
+			logger.Ctx(s.ctx).Infow("manager: got request to cleanup subscriber", "cleanupMessage", cleanupMessage)
 			s.mutex.Lock()
-			if _, ok := s.pullStreams[subscriberID]; ok {
-				delete(s.pullStreams, subscriberID)
-				logger.Ctx(s.ctx).Infow("manager: deleted subscriber from store", "subscriberID", subscriberID)
+			if _, ok := s.pullStreams[cleanupMessage.subscriberID]; ok {
+				streamManagerActiveStreams.WithLabelValues(env, cleanupMessage.subscriberID, cleanupMessage.subscription).Dec()
+				delete(s.pullStreams, cleanupMessage.subscriberID)
+				logger.Ctx(s.ctx).Infow("manager: deleted subscriber from store", "cleanupMessage", cleanupMessage)
 			} else {
-				logger.Ctx(s.ctx).Infow("manager: skipping cleanup for subscriber", "subscriberID", subscriberID)
+				logger.Ctx(s.ctx).Infow("manager: skipping cleanup for subscriber", "cleanupMessage", cleanupMessage)
 			}
 			s.mutex.Unlock()
 		}
@@ -99,6 +100,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 	// store all active pull streams in a map
 	s.mutex.Lock()
 	s.pullStreams[pullStream.subscriberID] = pullStream
+	streamManagerActiveStreams.WithLabelValues(env, pullStream.subscriberID, req.Subscription).Inc()
 	s.mutex.Unlock()
 
 	return nil
@@ -138,4 +140,10 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, req *ParsedStreamin
 	}
 
 	return nil
+}
+
+// cleanupMessage ...
+type cleanupMessage struct {
+	subscriberID string
+	subscription string
 }

@@ -4,15 +4,16 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/razorpay/metro/pkg/logger"
+
 	"github.com/razorpay/metro/service/web/stream"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
-	internalserver "github.com/razorpay/metro/internal/server"
+	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/registry"
@@ -24,12 +25,13 @@ import (
 
 // Service for producer
 type Service struct {
-	ctx            context.Context
-	grpcServer     *grpc.Server
-	httpServer     *http.Server
-	health         *health.Core
-	webConfig      *Config
-	registryConfig *registry.Config
+	ctx                context.Context
+	grpcServer         *grpc.Server
+	httpServer         *http.Server
+	internalHTTPServer *http.Server
+	health             *health.Core
+	webConfig          *Config
+	registryConfig     *registry.Config
 }
 
 // NewService creates an instance of new producer service
@@ -72,7 +74,7 @@ func (svc *Service) Start() error {
 
 	streamManager := stream.NewStreamManager(svc.ctx, subscriptionCore, brokerStore)
 
-	grpcServer, err := internalserver.StartGRPCServer(
+	grpcServer, err := server.StartGRPCServer(
 		grp,
 		svc.webConfig.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
@@ -88,7 +90,7 @@ func (svc *Service) Start() error {
 		return err
 	}
 
-	httpServer, err := internalserver.StartHTTPServer(
+	httpServer, err := server.StartHTTPServer(
 		grp,
 		svc.webConfig.Interfaces.API.HTTPServerAddress,
 		func(mux *runtime.ServeMux) error {
@@ -111,10 +113,6 @@ func (svc *Service) Start() error {
 			if err != nil {
 				return err
 			}
-
-			mux.Handle("GET", runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "metrics"}, "")), func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-				promhttp.Handler().ServeHTTP(w, r)
-			})
 			return nil
 		})
 
@@ -122,11 +120,21 @@ func (svc *Service) Start() error {
 		return err
 	}
 
+	internalHTTPServer, err := server.StartInternalHTTPServer(grp, svc.webConfig.Interfaces.API.InternalHTTPServerAddress)
+	if err != nil {
+		return err
+	}
+
 	svc.grpcServer = grpcServer
 	svc.httpServer = httpServer
+	svc.internalHTTPServer = internalHTTPServer
 	svc.health = healthCore
 
-	return grp.Wait()
+	err = grp.Wait()
+	if err != nil {
+		logger.Ctx(gctx).Info("web service error: %s", err.Error())
+	}
+	return err
 }
 
 // Stop the service
@@ -140,6 +148,10 @@ func (svc *Service) Stop() error {
 
 	grp.Go(func() error {
 		return svc.httpServer.Shutdown(gctx)
+	})
+
+	grp.Go(func() error {
+		return svc.internalHTTPServer.Shutdown(gctx)
 	})
 
 	return grp.Wait()

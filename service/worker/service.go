@@ -9,16 +9,16 @@ import (
 
 	"github.com/razorpay/metro/internal/common"
 
+	"github.com/razorpay/metro/internal/subscriber"
+
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/project"
-	internalserver "github.com/razorpay/metro/internal/server"
-	"github.com/razorpay/metro/internal/subscriber"
+	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/leaderelection"
@@ -32,32 +32,33 @@ import (
 
 // Service for worker
 type Service struct {
-	ctx              context.Context
-	grpcServer       *grpc.Server
-	httpServer       *http.Server
-	health           *health.Core
-	workerConfig     *Config
-	registryConfig   *registry.Config
-	registry         registry.IRegistry
-	candidate        *leaderelection.Candidate
-	node             *node.Model
-	doneCh           chan struct{}
-	stopCh           chan struct{}
-	workgrp          *errgroup.Group
-	leadgrp          *errgroup.Group
-	brokerStore      brokerstore.IBrokerStore
-	projectCore      project.ICore
-	nodeCore         node.ICore
-	topicCore        topic.ICore
-	subscriptionCore subscription.ICore
-	nodeBindingCore  nodebinding.ICore
-	nodeCache        []*node.Model
-	subCache         []*subscription.Model
-	nodebindingCache []*nodebinding.Model
-	nbwatch          chan []registry.Pair
-	pushHandlers     map[string]*PushStream
-	scheduler        *scheduler.Scheduler
-	subscriber       subscriber.ICore
+	ctx                context.Context
+	grpcServer         *grpc.Server
+	httpServer         *http.Server
+	internalHTTPServer *http.Server
+	health             *health.Core
+	workerConfig       *Config
+	registryConfig     *registry.Config
+	registry           registry.IRegistry
+	candidate          *leaderelection.Candidate
+	node               *node.Model
+	doneCh             chan struct{}
+	stopCh             chan struct{}
+	workgrp            *errgroup.Group
+	leadgrp            *errgroup.Group
+	brokerStore        brokerstore.IBrokerStore
+	projectCore        project.ICore
+	nodeCore           node.ICore
+	topicCore          topic.ICore
+	subscriptionCore   subscription.ICore
+	nodeBindingCore    nodebinding.ICore
+	nodeCache          []*node.Model
+	subCache           []*subscription.Model
+	nodebindingCache   []*nodebinding.Model
+	nbwatch            chan []registry.Pair
+	pushHandlers       map[string]*PushStream
+	scheduler          *scheduler.Scheduler
+	subscriber         subscriber.ICore
 }
 
 // NewService creates an instance of new worker
@@ -218,7 +219,7 @@ func (svc *Service) Start() error {
 		return err
 	})
 
-	grpcServer, err := internalserver.StartGRPCServer(
+	grpcServer, err := server.StartGRPCServer(
 		svc.workgrp,
 		svc.workerConfig.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
@@ -231,7 +232,7 @@ func (svc *Service) Start() error {
 		return err
 	}
 
-	httpServer, err := internalserver.StartHTTPServer(
+	httpServer, err := server.StartHTTPServer(
 		svc.workgrp,
 		svc.workerConfig.Interfaces.API.HTTPServerAddress,
 		func(mux *runtime.ServeMux) error {
@@ -240,9 +241,6 @@ func (svc *Service) Start() error {
 				return err
 			}
 
-			mux.Handle("GET", runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "metrics"}, "")), func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-				promhttp.Handler().ServeHTTP(w, r)
-			})
 			return nil
 		})
 
@@ -250,8 +248,14 @@ func (svc *Service) Start() error {
 		return err
 	}
 
+	internalHTTPServer, err := server.StartInternalHTTPServer(svc.workgrp, svc.workerConfig.Interfaces.API.InternalHTTPServerAddress)
+	if err != nil {
+		return err
+	}
+
 	svc.grpcServer = grpcServer
 	svc.httpServer = httpServer
+	svc.internalHTTPServer = internalHTTPServer
 	svc.health = healthCore
 
 	err = svc.workgrp.Wait()
@@ -282,7 +286,11 @@ func (svc *Service) Stop() error {
 
 	// signal http server go routine
 	err := svc.httpServer.Shutdown(svc.ctx)
+	if err != nil {
+		return err
+	}
 
+	err = svc.internalHTTPServer.Shutdown(svc.ctx)
 	if err != nil {
 		return err
 	}
@@ -492,6 +500,7 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 		for _, node := range svc.nodeCache {
 			if node.ID == nb.NodeID {
 				found = true
+				break
 			}
 		}
 

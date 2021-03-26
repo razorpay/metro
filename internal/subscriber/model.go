@@ -224,7 +224,6 @@ type ConsumptionMetadata struct {
 	consumedMessages     map[string]interface{} // hold all consumed messages. this will help throttle based on maxOutstandingMessages and maxOutstandingBytes
 	offsetBasedMinHeap   customheap.OffsetBasedPriorityQueue
 	deadlineBasedMinHeap customheap.DeadlineBasedPriorityQueue
-	maxCommittedOffset   int32 // our counter will init to that value initially
 }
 
 // NewConsumptionMetadata ...
@@ -233,7 +232,6 @@ func NewConsumptionMetadata() *ConsumptionMetadata {
 		consumedMessages:     make(map[string]interface{}),
 		offsetBasedMinHeap:   customheap.NewOffsetBasedPriorityQueue(),
 		deadlineBasedMinHeap: customheap.NewDeadlineBasedPriorityQueue(),
-		maxCommittedOffset:   0,
 	}
 
 	// init the heaps as well

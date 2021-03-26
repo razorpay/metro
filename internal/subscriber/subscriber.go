@@ -166,16 +166,13 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 			Topic:     req.Topic,
 			Partition: req.Partition,
-			Offset:    req.Offset + 1, // add 1 to current offset
+			Offset:    peek.Offset + 1, // add 1 to current offset
 		})
 		if err != nil {
 			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "message", "peek", "error", err.Error())
 			s.errChan <- err
 			return
 		}
-
-		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
-		stats.maxCommittedOffset = req.Offset
 	}
 
 	removeMessageFromMemory(stats, req.MessageID)
@@ -349,18 +346,6 @@ func (s *Subscriber) Run(ctx context.Context) {
 				if _, ok := s.consumedMessageStats[tp]; !ok {
 					// init the stats data store before updating
 					s.consumedMessageStats[tp] = NewConsumptionMetadata()
-
-					// query and set the max committed offset for each topic partition
-					resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
-						Topic:     s.topic,
-						Partition: msg.Partition,
-					})
-
-					if err != nil {
-						s.errChan <- err
-						continue
-					}
-					s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
 				}
 
 				ackDeadline := time.Now().Add(minAckDeadline).Unix()

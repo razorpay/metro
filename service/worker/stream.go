@@ -90,7 +90,7 @@ func (ps *PushStream) Start() error {
 			default:
 				logger.Ctx(ps.ctx).Infow("reading response data from channel")
 				data := <-ps.responseChan
-				if len(data.ReceivedMessages) > 0 {
+				if data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 					ps.processPushStreamResponse(ps.ctx, subModel, data)
 				}
 			}
@@ -123,6 +123,10 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 	logger.Ctx(ctx).Infow("response", "data", data)
 	for _, message := range data.ReceivedMessages {
 		logger.Ctx(ps.ctx).Infow("publishing response data to subscription endpoint")
+		if message.AckId == "" {
+			continue
+		}
+
 		postData := bytes.NewBuffer(message.Message.Data)
 		resp, err := http.Post(subModel.PushEndpoint, "application/json", postData)
 		if err != nil {

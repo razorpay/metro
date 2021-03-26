@@ -156,6 +156,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
+	logger.Ctx(ctx).Infow("subscriber: req offset %d peek offset %d", req.Offset, peek.Offset)
 	if req.Offset == peek.Offset {
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
 		shouldCommit = true

@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/razorpay/metro/internal/common"
+
 	"github.com/razorpay/metro/internal/node"
 
 	"github.com/razorpay/metro/pkg/registry"
@@ -49,8 +51,8 @@ func TestLeaderElectionRun(t *testing.T) {
 	registryMock.EXPECT().Register("leaderelection-test", 30*time.Second).Return("id", nil).Times(1)
 	registryMock.EXPECT().IsRegistered("id").Return(true).AnyTimes()
 	registryMock.EXPECT().Deregister("id").Return(nil).Times(1)
-	registryMock.EXPECT().Acquire("id", "metro/nodes/node01", gomock.Any()).Return(true, nil).AnyTimes()
-	registryMock.EXPECT().Acquire("id", "metro/leader/election/test", gomock.Any()).Return(true, nil).AnyTimes()
+	registryMock.EXPECT().Acquire("id", common.GetBasePrefix()+"nodes/node01", gomock.Any()).Return(true, nil).AnyTimes()
+	registryMock.EXPECT().Acquire("id", common.GetBasePrefix()+"leader/election/test", gomock.Any()).Return(true, nil).AnyTimes()
 	registryMock.EXPECT().RenewPeriodic(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	registryMock.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(watcherMock, nil).AnyTimes()
 
@@ -66,7 +68,7 @@ func TestLeaderElectionRun(t *testing.T) {
 	watcherMock.EXPECT().StartWatch().Do(func() {
 		data := []registry.Pair{
 			{
-				Key:       "metro/leader/election/test",
+				Key:       common.GetBasePrefix() + "leader/election/test",
 				Value:     []byte("aaa"),
 				SessionID: "",
 			},
@@ -103,7 +105,7 @@ func TestDeregisterNodeUnregistered(t *testing.T) {
 
 func getConfig() Config {
 	return Config{
-		LockPath:      "metro/leader/election/test",
+		LockPath:      common.GetBasePrefix() + "leader/election/test",
 		LeaseDuration: 30 * time.Second,
 		Name:          "leaderelection-test",
 		Callbacks: LeaderCallbacks{

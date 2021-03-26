@@ -15,7 +15,7 @@ func TestModel_Prefix(t *testing.T) {
 
 func TestModel_Key(t *testing.T) {
 	node := getDummyNodeModel()
-	assert.Equal(t, node.Key(), common.GetBasePrefix()+node.ID)
+	assert.Equal(t, node.Key(), node.Prefix()+node.ID)
 }
 
 func getDummyNodeModel() *Model {

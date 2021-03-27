@@ -221,17 +221,21 @@ func (a *AckMessage) ToTopicPartition() TopicPartition {
 // ConsumptionMetadata ...
 type ConsumptionMetadata struct {
 	// data structures to hold messages in-memory
-	consumedMessages     map[string]interface{} // hold all consumed messages. this will help throttle based on maxOutstandingMessages and maxOutstandingBytes
-	offsetBasedMinHeap   customheap.OffsetBasedPriorityQueue
-	deadlineBasedMinHeap customheap.DeadlineBasedPriorityQueue
+	consumedMessages              map[string]interface{} // hold all consumed messages. this will help throttle based on maxOutstandingMessages and maxOutstandingBytes
+	offsetBasedMinHeap            customheap.OffsetBasedPriorityQueue
+	deadlineBasedMinHeap          customheap.DeadlineBasedPriorityQueue
+	maxCommittedOffset            int32          // our counter will init to that value initially
+	evictedButNotCommittedOffsets map[int32]bool // holds all offsets which have been evicted from the heap but not yet committed to the broker
 }
 
 // NewConsumptionMetadata ...
 func NewConsumptionMetadata() *ConsumptionMetadata {
 	cm := &ConsumptionMetadata{
-		consumedMessages:     make(map[string]interface{}),
-		offsetBasedMinHeap:   customheap.NewOffsetBasedPriorityQueue(),
-		deadlineBasedMinHeap: customheap.NewDeadlineBasedPriorityQueue(),
+		consumedMessages:              make(map[string]interface{}),
+		offsetBasedMinHeap:            customheap.NewOffsetBasedPriorityQueue(),
+		deadlineBasedMinHeap:          customheap.NewDeadlineBasedPriorityQueue(),
+		maxCommittedOffset:            0,
+		evictedButNotCommittedOffsets: make(map[int32]bool),
 	}
 
 	// init the heaps as well

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/razorpay/metro/internal/subscriber"
@@ -91,30 +90,8 @@ func (ps *PushStream) Start() error {
 			default:
 				logger.Ctx(ps.ctx).Infow("reading response data from channel")
 				data := <-ps.responseChan
-				for _, message := range data.ReceivedMessages {
-					logger.Ctx(ps.ctx).Infow("publishing response data to subscription endpoint")
-					postData := bytes.NewBuffer(message.Message.Data)
-					resp, err := http.Post(subModel.PushEndpoint, "application/json", postData)
-					if err != nil {
-						logger.Ctx(ps.ctx).Errorf("error posting messages to subscription url")
-						// Implement Nack
-					}
-					defer resp.Body.Close()
-
-					//Read the response body
-					_, err = ioutil.ReadAll(resp.Body)
-					if err != nil {
-						logger.Ctx(ps.ctx).Errorf("error reading response body")
-					}
-
-					// Ack/Nack
-					logger.Ctx(ps.ctx).Infow("sending Ack for successful push")
-					ackReq := subscriber.ParseAckID(message.AckId)
-					ps.subs.GetAckChannel() <- ackReq
-
-					if err != nil {
-						logger.Ctx(ps.ctx).Errorf("error in message ack")
-					}
+				if data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
+					ps.processPushStreamResponse(ps.ctx, subModel, data)
 				}
 			}
 		}
@@ -140,6 +117,50 @@ func (ps *PushStream) Stop() error {
 	// wait for stop to complete
 	<-ps.doneCh
 	return nil
+}
+
+func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data metrov1.PullResponse) {
+	logger.Ctx(ctx).Infow("response", "data", data)
+	for _, message := range data.ReceivedMessages {
+		logger.Ctx(ps.ctx).Infow("publishing response data to subscription endpoint")
+		if message.AckId == "" {
+			continue
+		}
+
+		postData := bytes.NewBuffer(message.Message.Data)
+		resp, err := http.Post(subModel.PushEndpoint, "application/json", postData)
+		if err != nil {
+			logger.Ctx(ps.ctx).Errorw("error posting messages to subscription url", "error", err.Error())
+			ps.nack(ctx, message)
+			return
+		}
+
+		defer resp.Body.Close()
+		logger.Ctx(ps.ctx).Infow("push response received for subscription", "status", resp.StatusCode)
+		if resp.StatusCode == http.StatusOK {
+			// Ack
+			ps.ack(ctx, message)
+		} else {
+			// Nack
+			ps.nack(ctx, message)
+		}
+
+		// TODO: read response body if required by publisher later
+	}
+}
+
+func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage) {
+	logger.Ctx(ps.ctx).Infow("sending nack request to subscriber", "ackId", message.AckId)
+	ackReq := subscriber.ParseAckID(message.AckId)
+	// deadline is set to 0 for nack
+	modackReq := subscriber.NewModAckMessage(ackReq, 0)
+	ps.subs.GetModAckChannel() <- modackReq
+}
+
+func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage) {
+	logger.Ctx(ps.ctx).Infow("sending ack request to subscriber", "ackId", message.AckId)
+	ackReq := subscriber.ParseAckID(message.AckId)
+	ps.subs.GetAckChannel() <- ackReq
 }
 
 // NewPushStream return a pushstream obj which is used for push subscriptions

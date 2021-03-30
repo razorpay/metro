@@ -19,6 +19,7 @@ type ICore interface {
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
 	DeleteProjectTopics(ctx context.Context, projectID string) error
+	Get(ctx context.Context, key string) (*Model, error)
 }
 
 // Core implements all business logic for a topic
@@ -131,4 +132,25 @@ func (c *Core) DeleteProjectTopics(ctx context.Context, projectID string) error 
 	prefix := common.GetBasePrefix() + Prefix + projectID
 
 	return c.repo.DeleteTree(ctx, prefix)
+}
+
+// Get returns topic with the given key
+func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
+	topicOperationCount.WithLabelValues(env, "Get").Inc()
+
+	startTime := time.Now()
+	defer topicOperationTimeTaken.WithLabelValues(env, "Get").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+
+	projectID, topicName, err := ExtractTopicMetaAndValidate(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	prefix := common.GetBasePrefix() + Prefix + projectID + "/" + topicName
+
+	model := &Model{}
+	err = c.repo.Get(ctx, prefix, model)
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
 }

@@ -475,7 +475,7 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 
 		if !found {
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
-			handler := NewPushStream(ctx, newBinding.NodeID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber)
+			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber)
 			svc.workgrp.Go(handler.Start)
 			svc.pushHandlers[newBinding.Key()] = handler
 		}
@@ -519,6 +519,7 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 		for _, sub := range svc.subCache {
 			if sub.Name == nb.SubscriptionID {
 				found = true
+				break
 			}
 		}
 
@@ -537,20 +538,30 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 		for _, nb := range nodeBindings {
 			if sub.Name == nb.SubscriptionID {
 				found = true
+				break
 			}
 		}
 
 		if !found {
 			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "key", sub.Name)
 
-			nb, serr := svc.scheduler.Schedule(sub, nodeBindings, svc.nodeCache)
-			if serr != nil {
-				return serr
+			topicM, terr := svc.topicCore.Get(ctx, sub.Topic)
+			if terr != nil {
+				return terr
 			}
 
-			berr := svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
-			if berr != nil {
-				return berr
+			for i := 0; i < topicM.NumPartitions; i++ {
+				nb, serr := svc.scheduler.Schedule(sub, nodeBindings, svc.nodeCache)
+				if serr != nil {
+					return serr
+				}
+
+				berr := svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
+				if berr != nil {
+					return berr
+				}
+
+				nodeBindings = append(nodeBindings, nb)
 			}
 		}
 	}

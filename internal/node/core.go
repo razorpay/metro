@@ -69,7 +69,7 @@ func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
 	startTime := time.Now()
 	defer nodeOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
-	return c.Exists(ctx, common.BasePrefix+Prefix+id)
+	return c.Exists(ctx, common.GetBasePrefix()+Prefix+id)
 }
 
 // ListKeys gets all node keys
@@ -79,7 +79,7 @@ func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 	startTime := time.Now()
 	defer nodeOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
-	prefix = common.BasePrefix + prefix
+	prefix = common.GetBasePrefix() + prefix
 	return c.repo.ListKeys(ctx, prefix)
 }
 
@@ -90,7 +90,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	startTime := time.Now()
 	defer nodeOperationTimeTaken.WithLabelValues(env, "List").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
 
-	prefix = common.BasePrefix + prefix
+	prefix = common.GetBasePrefix() + prefix
 
 	out := []*Model{}
 	ret, err := c.repo.List(ctx, prefix)

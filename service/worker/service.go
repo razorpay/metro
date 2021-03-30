@@ -131,7 +131,7 @@ func (svc *Service) Start() error {
 	svc.candidate, err = leaderelection.New(svc.node,
 		leaderelection.Config{
 			Name:          "metro/metro-worker",
-			LockPath:      "metro/leader/election",
+			LockPath:      common.GetBasePrefix() + "leader/election",
 			LeaseDuration: 30 * time.Second,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) error {
@@ -163,7 +163,7 @@ func (svc *Service) Start() error {
 
 		wh := registry.WatchConfig{
 			WatchType: "keyprefix",
-			WatchPath: fmt.Sprintf("metro/nodebinding/%s/", svc.node.ID),
+			WatchPath: fmt.Sprintf(common.GetBasePrefix()+nodebinding.Prefix+"%s/", svc.node.ID),
 			Handler: func(ctx context.Context, pairs []registry.Pair) {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
 				svc.nbwatch <- pairs
@@ -317,7 +317,7 @@ func (svc *Service) lead(ctx context.Context) error {
 
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
-		WatchPath: common.BasePrefix + node.Prefix,
+		WatchPath: common.GetBasePrefix() + node.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
 			nodeWatchData <- struct{}{}
@@ -332,7 +332,7 @@ func (svc *Service) lead(ctx context.Context) error {
 
 	swh := registry.WatchConfig{
 		WatchType: "keyprefix",
-		WatchPath: common.BasePrefix + subscription.Prefix,
+		WatchPath: common.GetBasePrefix() + subscription.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("subscriptions watch handler data", "pairs", pairs)
 			subWatchData <- struct{}{}

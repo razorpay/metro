@@ -3,6 +3,8 @@ package subscription
 import (
 	"testing"
 
+	"github.com/razorpay/metro/internal/common"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,10 +22,10 @@ func getDummySubscriptionModel() *Model {
 
 func TestModel_Prefix(t *testing.T) {
 	dSubscription := getDummySubscriptionModel()
-	assert.Equal(t, "metro/subscriptions/test-project/", dSubscription.Prefix())
+	assert.Equal(t, common.GetBasePrefix()+Prefix+dSubscription.ExtractedSubscriptionProjectID+"/", dSubscription.Prefix())
 }
 
 func TestModel_Key(t *testing.T) {
 	dSubscription := getDummySubscriptionModel()
-	assert.Equal(t, "metro/subscriptions/"+dSubscription.ExtractedSubscriptionProjectID+"/"+dSubscription.ExtractedSubscriptionName, dSubscription.Key())
+	assert.Equal(t, dSubscription.Prefix()+dSubscription.ExtractedSubscriptionName, dSubscription.Key())
 }

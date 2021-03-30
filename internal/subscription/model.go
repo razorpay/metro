@@ -30,7 +30,7 @@ func (m *Model) Key() string {
 
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
-	return common.BasePrefix + Prefix + m.ExtractedSubscriptionProjectID + "/"
+	return common.GetBasePrefix() + Prefix + m.ExtractedSubscriptionProjectID + "/"
 }
 
 // IsPush returns true if a subscription is a push subscription

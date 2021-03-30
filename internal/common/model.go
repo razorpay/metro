@@ -1,9 +1,6 @@
 package common
 
-const (
-	// BasePrefix is the base prefix for all keys
-	BasePrefix = "metro/"
-)
+import "github.com/razorpay/metro/internal/app"
 
 // IModel interface which all models should implement
 type IModel interface {
@@ -15,3 +12,8 @@ type IModel interface {
 
 // BaseModel implements basic model functionality
 type BaseModel struct{}
+
+// GetBasePrefix returns the prefix
+func GetBasePrefix() string {
+	return "metro" + "-" + app.GetEnv() + "/"
+}

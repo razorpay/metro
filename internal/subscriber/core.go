@@ -63,7 +63,7 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		ackChan:                make(chan *AckMessage),
 		modAckChan:             make(chan *ModAckMessage),
 		deadlineTickerChan:     make(chan bool),
-		timeoutInSec:           timeoutInMs,
+		timeoutInMs:            timeoutInMs,
 		consumer:               consumer,
 		retryProducer:          retryProducer,
 		cancelFunc:             cancelFunc,

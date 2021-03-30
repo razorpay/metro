@@ -56,7 +56,7 @@ type Subscriber struct {
 	errChan                chan error
 	closeChan              chan struct{}
 	deadlineTickerChan     chan bool
-	timeoutInSec           int
+	timeoutInMs            int
 	consumer               messagebroker.Consumer // consume messages from primary topic
 	retryProducer          messagebroker.Producer // produce messages to retry topic
 	cancelFunc             func()
@@ -321,7 +321,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 				}
 			}
 
-			resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInSec})
+			resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInMs})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "msg", err.Error())
 				s.errChan <- err

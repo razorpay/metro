@@ -145,7 +145,7 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	prefix := common.BasePrefix + Prefix + projectID + "/" + topicName
+	prefix := common.GetBasePrefix() + Prefix + projectID + "/" + topicName
 
 	model := &Model{}
 	err = c.repo.Get(ctx, prefix, model)

@@ -325,17 +325,17 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}
 
 	// if timeout not send, override with default timeout set during client creation
-	timeout := request.TimeoutSec
+	timeout := request.TimeoutMs
 	if timeout == 0 {
-		timeout = int(k.POptions.TimeoutSec)
+		timeout = int(k.POptions.TimeoutMs)
 	}
 
 	var m *kafkapkg.Message
 	select {
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
-	case <-time.After(time.Duration(request.TimeoutSec) * time.Second):
-		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutSec)
+	case <-time.After(time.Duration(request.TimeoutMs) * time.Millisecond):
+		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutMs)
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {
@@ -360,7 +360,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	for {
 		var msgID string
 		var retryCounter int32
-		msg, err := k.Consumer.ReadMessage(time.Duration(request.TimeoutSec) * time.Second)
+		msg, err := k.Consumer.ReadMessage(time.Duration(request.TimeoutMs) * time.Millisecond)
 		if err == nil {
 			for _, v := range msg.Headers {
 				if v.Key == messageID {

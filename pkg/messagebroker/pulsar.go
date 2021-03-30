@@ -43,8 +43,8 @@ func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, id stri
 
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:               bConfig.Brokers[0],
-		OperationTimeout:  time.Duration(bConfig.OperationTimeoutSec) * time.Second,
-		ConnectionTimeout: time.Duration(bConfig.ConnectionTimeoutSec) * time.Second,
+		OperationTimeout:  time.Duration(bConfig.OperationTimeoutMs) * time.Millisecond,
+		ConnectionTimeout: time.Duration(bConfig.ConnectionTimeoutMs) * time.Millisecond,
 	})
 
 	if err != nil {
@@ -86,8 +86,8 @@ func newPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:                        fmt.Sprintf("pulsar://%v", bConfig.Brokers[0]),
 		TLSAllowInsecureConnection: true,
-		OperationTimeout:           time.Duration(bConfig.OperationTimeoutSec) * time.Second,
-		ConnectionTimeout:          time.Duration(bConfig.ConnectionTimeoutSec) * time.Second,
+		OperationTimeout:           time.Duration(bConfig.OperationTimeoutMs) * time.Millisecond,
+		ConnectionTimeout:          time.Duration(bConfig.ConnectionTimeoutMs) * time.Millisecond,
 	})
 
 	if err != nil {

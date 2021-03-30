@@ -115,8 +115,8 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	// init a producer on the topic created
 	producer, err := messagebroker.NewProducerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ProducerClientOptions{
-		Topic:      topic,
-		TimeoutSec: 2,
+		Topic:     topic,
+		TimeoutMs: 300,
 	})
 
 	assert.Nil(t, err)
@@ -133,9 +133,9 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 		newMsg := fmt.Sprintf("msg-%v", i)
 		msgbytes, _ := json.Marshal(newMsg)
 		msg := messagebroker.SendMessageToTopicRequest{
-			Topic:      topic,
-			Message:    msgbytes,
-			TimeoutSec: 2,
+			Topic:     topic,
+			Message:   msgbytes,
+			TimeoutMs: 300,
 		}
 
 		// send the message
@@ -159,7 +159,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	// first receive without commit
 	resp, err := consumer1.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
 		NumOfMessages: int32(msgsToSend),
-		TimeoutSec:    10,
+		TimeoutMs:     300,
 	})
 
 	assert.Nil(t, err)
@@ -183,7 +183,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	resp3, rerr := consumer3.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
 		NumOfMessages: int32(msgsToSend),
-		TimeoutSec:    2,
+		TimeoutMs:     300,
 	})
 
 	assert.NotNil(t, resp3)

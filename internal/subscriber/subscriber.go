@@ -56,7 +56,7 @@ type Subscriber struct {
 	errChan                chan error
 	closeChan              chan struct{}
 	deadlineTickerChan     chan bool
-	timeoutInSec           int
+	timeoutInMs            int
 	consumer               messagebroker.Consumer // consume messages from primary topic
 	retryProducer          messagebroker.Producer // produce messages to retry topic
 	cancelFunc             func()
@@ -94,7 +94,9 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 		Topic:     retryMsg.Topic,
 		Partition: retryMsg.Partition,
-		Offset:    retryMsg.Offset,
+		// add 1 to current offset
+		// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
+		Offset: retryMsg.Offset + 1,
 	})
 
 	if err != nil {
@@ -114,7 +116,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	_, err = s.retryProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:      s.retryTopic,
 		Message:    retryMsg.Data,
-		TimeoutSec: 50,
+		TimeoutMs:  50,
 		MessageID:  retryMsg.MessageID,
 		RetryCount: retryMsg.incrementAndGetRetryCount(),
 	})
@@ -156,6 +158,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "req offset", req.Offset, "peek offset", peek.Offset)
 	if req.Offset == peek.Offset {
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
 		shouldCommit = true
@@ -165,16 +168,15 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 			Topic:     req.Topic,
 			Partition: req.Partition,
-			Offset:    req.Offset,
+			// add 1 to current offset
+			// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
+			Offset: peek.Offset + 1,
 		})
 		if err != nil {
 			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "message", "peek", "error", err.Error())
 			s.errChan <- err
 			return
 		}
-
-		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
-		stats.maxCommittedOffset = req.Offset
 	}
 
 	removeMessageFromMemory(stats, req.MessageID)
@@ -319,7 +321,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 				}
 			}
 
-			resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutSec: s.timeoutInSec})
+			resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInMs})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "msg", err.Error())
 				s.errChan <- err
@@ -348,18 +350,6 @@ func (s *Subscriber) Run(ctx context.Context) {
 				if _, ok := s.consumedMessageStats[tp]; !ok {
 					// init the stats data store before updating
 					s.consumedMessageStats[tp] = NewConsumptionMetadata()
-
-					// query and set the max committed offset for each topic partition
-					resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
-						Topic:     s.topic,
-						Partition: msg.Partition,
-					})
-
-					if err != nil {
-						s.errChan <- err
-						continue
-					}
-					s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
 				}
 
 				ackDeadline := time.Now().Add(minAckDeadline).Unix()

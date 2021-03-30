@@ -32,7 +32,7 @@ func (ps *PushStream) Start() error {
 	defer close(ps.doneCh)
 
 	var err error
-	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subcriptionName, 10, 50, 0)
+	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subcriptionName, 100, 50, 0)
 
 	if err != nil {
 		return err

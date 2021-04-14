@@ -100,7 +100,7 @@ func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInter
 	grpcprometheus.EnableHandlingTimeHistogram(func(opts *prometheus.HistogramOpts) {
 		opts.Name = "grpc_server_handled_duration_seconds"
 		// The buckets covers 2ms to 8.192s
-		opts.Buckets = prometheus.ExponentialBuckets(0.002, 2, 13)
+		opts.Buckets = prometheus.ExponentialBuckets(0.001, 1.25, 100)
 	})
 	defaultInterceptors := []grpc.UnaryServerInterceptor{
 		// Set tags in context. These tags will be used by subsequent middlewares - logger & tracing.

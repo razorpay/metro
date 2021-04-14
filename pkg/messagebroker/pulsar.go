@@ -144,7 +144,7 @@ func (p *PulsarBroker) CreateTopic(ctx context.Context, request CreateTopicReque
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "CreateTopic").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "CreateTopic").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "CreateTopic").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	pulsarTopic, terr := utils.GetTopicName(request.Name)
 	if terr != nil {
@@ -164,7 +164,7 @@ func (p *PulsarBroker) DeleteTopic(ctx context.Context, request DeleteTopicReque
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "DeleteTopic").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "DeleteTopic").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "DeleteTopic").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	pulsarTopic, terr := utils.GetTopicName(request.Name)
 	if terr != nil {
@@ -184,7 +184,7 @@ func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "SendMessage").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "SendMessage").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "SendMessage").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	msgID, err := p.Producer.Send(ctx, &pulsar.ProducerMessage{
 		Payload: request.Message,
@@ -202,7 +202,7 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "ReceiveMessages").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "ReceiveMessages").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "ReceiveMessages").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	var i int32
 	msgs := make(map[string]ReceivedMessage, request.NumOfMessages)
@@ -232,7 +232,7 @@ func (p *PulsarBroker) CommitByMsgID(ctx context.Context, request CommitOnTopicR
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "CommitByMsgID").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "CommitByMsgID").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "CommitByMsgID").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	p.Consumer.AckID(&pulsarAckMessage{
 		ID: request.ID,
@@ -246,7 +246,7 @@ func (p *PulsarBroker) GetTopicMetadata(ctx context.Context, request GetTopicMet
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "GetTopicMetadata").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "GetTopicMetadata").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "GetTopicMetadata").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	pulsarTopic, terr := utils.GetTopicName(request.Topic)
 	if terr != nil {
@@ -281,7 +281,7 @@ func (p *PulsarBroker) Close(_ context.Context) error {
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "Close").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "Close").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "Close").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	p.Consumer.Close()
 	return nil

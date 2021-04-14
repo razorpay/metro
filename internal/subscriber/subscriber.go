@@ -174,12 +174,32 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		return
 	}
 
+	offsetToCommit := req.Offset
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
+
 	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "req offset", req.Offset, "peek offset", peek.Offset)
-	if req.Offset == peek.Offset {
+	if offsetToCommit == peek.Offset {
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
 		shouldCommit = true
+
+		logger.Ctx(ctx).Infow("subscriber: evicted offsets", "stats.evictedButNotCommittedOffsets", stats.evictedButNotCommittedOffsets)
+		// find if any previously evicted offsets can be committed as well
+		// eg. if we get an commit for 5, check for 6,7,8...etc have previously been evicted.
+		// in such cases we can commit the max contiguous offset available directly instead of 5.
+		newOffset := offsetToCommit
+		for {
+			if stats.evictedButNotCommittedOffsets[newOffset+1] {
+				delete(stats.evictedButNotCommittedOffsets, newOffset+1)
+				newOffset++
+				continue
+			}
+			if offsetToCommit != newOffset {
+				logger.Ctx(ctx).Infow("subscriber: updating offset to commit", "old", offsetToCommit, "new", newOffset)
+				offsetToCommit = newOffset
+			}
+			break
+		}
 	}
 
 	if shouldCommit {
@@ -188,16 +208,24 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 			Partition: req.Partition,
 			// add 1 to current offset
 			// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
-			Offset: peek.Offset + 1,
+			Offset: offsetToCommit + 1,
 		})
 		if err != nil {
 			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "message", "peek", "error", err.Error())
 			s.errChan <- err
 			return
 		}
+		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
+		stats.maxCommittedOffset = offsetToCommit
+		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "offset", offsetToCommit, "topic-partition", tp)
 	}
 
 	removeMessageFromMemory(stats, req.MessageID)
+
+	// add to eviction map only in case of any out of order eviction
+	if offsetToCommit > stats.maxCommittedOffset {
+		stats.evictedButNotCommittedOffsets[offsetToCommit] = true
+	}
 
 	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
 	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Since(msg.PublishTime).Nanoseconds() / 1e9))
@@ -368,6 +396,18 @@ func (s *Subscriber) Run(ctx context.Context) {
 				if _, ok := s.consumedMessageStats[tp]; !ok {
 					// init the stats data store before updating
 					s.consumedMessageStats[tp] = NewConsumptionMetadata()
+
+					// query and set the max committed offset for each topic partition
+					resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
+						Topic:     s.topic,
+						Partition: msg.Partition,
+					})
+
+					if err != nil {
+						s.errChan <- err
+						continue
+					}
+					s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
 				}
 
 				ackDeadline := time.Now().Add(minAckDeadline).Unix()

@@ -61,6 +61,7 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		subscription:           subscription,
 		topic:                  topic,
 		retryTopic:             retryTopic,
+		dlqTopic:               dlqTopic,
 		subscriberID:           subscriberID,
 		subscriptionCore:       c.subscriptionCore,
 		requestChan:            make(chan *PullRequest),

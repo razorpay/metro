@@ -217,7 +217,7 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, req *ParsedStreamin
 				// on error, try to proxy remaining requests
 				continue
 			}
-			logger.Ctx(ctx).Errorw("manager: modack proxy request succeeded", "proxyAddr", proxyAddr, "ackIds", ackIds)
+			logger.Ctx(ctx).Infow("manager: modack proxy request succeeded", "proxyAddr", proxyAddr, "ackIds", ackIds)
 		}
 	}
 	return nil

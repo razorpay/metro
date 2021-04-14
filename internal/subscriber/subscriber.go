@@ -161,6 +161,12 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	}
 
 	msgID := req.MessageID
+	// check if message is present in-memory or not
+	if _, ok := stats.consumedMessages[msgID]; !ok {
+		logger.Ctx(ctx).Infow("subscriber: skipping ack as message not found in-memory", "ack_request", req.String())
+		return
+	}
+
 	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 	// if somehow an ack request comes for a message that has met deadline eviction threshold
@@ -262,6 +268,12 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	}
 
 	msgID := req.ackMessage.MessageID
+	// check if message is present in-memory or not
+	if _, ok := stats.consumedMessages[msgID]; !ok {
+		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "mod_ack_request", req.String())
+		return
+	}
+
 	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 	if req.ackDeadline == 0 {
@@ -305,6 +317,10 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 		if peek.HasHitDeadline() {
 
 			msgID := peek.MsgID
+			if _, ok := metadata.consumedMessages[msgID]; !ok {
+				// check if message is present in-memory or not
+				continue
+			}
 			msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap

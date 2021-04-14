@@ -36,9 +36,11 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 	}
 
 	topic := strings.Replace(t, "/", "_", -1)
-	// make sure retry topic creation is taken care during the primary topic creation flow
+	// make sure retry+dlq topic creation is taken care during the primary topic creation flow
 	retryTopic := topic + topic2.RetryTopicSuffix
+	dlqTopic := topic + topic2.DLQTopicSuffix
 	groupID := subscription
+
 	consumer, err := c.bs.GetConsumer(ctx, subscriberID, messagebroker.ConsumerClientOptions{Topics: []string{topic, retryTopic}, GroupID: groupID})
 	if err != nil {
 		return nil, err
@@ -49,11 +51,17 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		return nil, err
 	}
 
+	dlqProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: dlqTopic, TimeoutMs: 50})
+	if err != nil {
+		return nil, err
+	}
+
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	s := &Subscriber{
 		subscription:           subscription,
 		topic:                  topic,
 		retryTopic:             retryTopic,
+		dlqTopic:               dlqTopic,
 		subscriberID:           subscriberID,
 		subscriptionCore:       c.subscriptionCore,
 		requestChan:            make(chan *PullRequest),
@@ -66,6 +74,7 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		timeoutInMs:            timeoutInMs,
 		consumer:               consumer,
 		retryProducer:          retryProducer,
+		dlqProducer:            dlqProducer,
 		cancelFunc:             cancelFunc,
 		maxOutstandingMessages: maxOutstandingMessages,
 		maxOutstandingBytes:    maxOutstandingBytes,

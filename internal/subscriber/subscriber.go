@@ -47,6 +47,7 @@ type Subscriber struct {
 	subscription           string
 	topic                  string
 	retryTopic             string
+	dlqTopic               string
 	subscriberID           string
 	subscriptionCore       subscription.ICore
 	requestChan            chan *PullRequest
@@ -59,6 +60,7 @@ type Subscriber struct {
 	timeoutInMs            int
 	consumer               messagebroker.Consumer // consume messages from primary topic
 	retryProducer          messagebroker.Producer // produce messages to retry topic
+	dlqProducer            messagebroker.Producer // produce messages to dlq topic
 	cancelFunc             func()
 	maxOutstandingMessages int64
 	maxOutstandingBytes    int64
@@ -107,8 +109,23 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 
 	// check max retries.
 	if retryMsg.RetryCount >= maxMessageRetryAttempts {
-		logger.Ctx(ctx).Infow("subscriber: max retries exceeded. skipping push to retry topic", "retryMsg", retryMsg)
-		// TODO : push to DLQ in such cases
+		// then push message to the dlq topic
+		logger.Ctx(ctx).Infow("subscriber: max retries exceeded. pushing to dlq topic", "retryMsg", retryMsg, "dlq", s.dlqTopic)
+		_, err = s.dlqProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
+			Topic:     s.dlqTopic,
+			Message:   retryMsg.Data,
+			TimeoutMs: 50,
+		})
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("subscriber: push to dlq topic failed", "topic", s.dlqTopic, "err", err.Error())
+			s.errChan <- err
+			return
+		}
+
+		subscriberMessagesRetried.WithLabelValues(env, s.dlqTopic, s.subscription).Inc()
+		logger.Ctx(ctx).Infow("subscriber: msg pushed to dlq topic", "topic", s.dlqTopic, "dlqMsg", retryMsg)
+
 		return
 	}
 
@@ -124,6 +141,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
 		s.errChan <- err
+		return
 	}
 
 	subscriberMessagesRetried.WithLabelValues(env, s.retryTopic, s.subscription).Inc()

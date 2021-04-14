@@ -32,7 +32,7 @@ func (c *Core) CreateProject(ctx context.Context, m *Model) error {
 	projectOperationCount.WithLabelValues(env, "CreateProject").Inc()
 
 	startTime := time.Now()
-	defer projectOperationTimeTaken.WithLabelValues(env, "CreateProject").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer projectOperationTimeTaken.WithLabelValues(env, "CreateProject").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	ok, err := c.Exists(ctx, m.Key())
 	if err != nil {
@@ -49,7 +49,7 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 	projectOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
-	defer projectOperationTimeTaken.WithLabelValues(env, "Exists").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer projectOperationTimeTaken.WithLabelValues(env, "Exists").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	logger.Ctx(ctx).Infow("exists query on project", "key", key)
 	ok, err := c.repo.Exists(ctx, key)
@@ -65,7 +65,7 @@ func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
 	projectOperationCount.WithLabelValues(env, "ExistsWithID").Inc()
 
 	startTime := time.Now()
-	defer projectOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer projectOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	return c.Exists(ctx, common.GetBasePrefix()+Prefix+id)
 }
@@ -75,7 +75,7 @@ func (c *Core) DeleteProject(ctx context.Context, m *Model) error {
 	projectOperationCount.WithLabelValues(env, "DeleteProject").Inc()
 
 	startTime := time.Now()
-	defer projectOperationTimeTaken.WithLabelValues(env, "DeleteProject").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer projectOperationTimeTaken.WithLabelValues(env, "DeleteProject").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	if ok, err := c.Exists(ctx, m.Key()); !ok {
 		if err != nil {

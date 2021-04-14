@@ -200,7 +200,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	removeMessageFromMemory(stats, req.MessageID)
 
 	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
-	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Now().Sub(msg.PublishTime).Milliseconds() / 1e3))
+	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Since(msg.PublishTime).Nanoseconds() / 1e9))
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
@@ -257,7 +257,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	heap.Init(&deadlineBasedHeap)
 
 	subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
-	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Now().Sub(msg.PublishTime).Milliseconds() / 1e3))
+	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Since(msg.PublishTime).Nanoseconds() / 1e9))
 }
 
 func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
@@ -378,7 +378,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 				subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription).Inc()
 				subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
-				subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Now().Sub(msg.PublishTime).Milliseconds() / 1e3))
+				subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Since(msg.PublishTime).Nanoseconds() / 1e9))
 			}
 			s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
 

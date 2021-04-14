@@ -39,7 +39,7 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 	topicOperationCount.WithLabelValues(env, "CreateTopic").Inc()
 
 	startTime := time.Now()
-	defer topicOperationTimeTaken.WithLabelValues(env, "CreateTopic").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer topicOperationTimeTaken.WithLabelValues(env, "CreateTopic").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedProjectID); !ok {
 		if err != nil {
@@ -72,7 +72,7 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 	topicOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
-	defer topicOperationTimeTaken.WithLabelValues(env, "Exists").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer topicOperationTimeTaken.WithLabelValues(env, "Exists").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	ok, err := c.repo.Exists(ctx, key)
 	if err != nil {
@@ -87,7 +87,7 @@ func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
 	topicOperationCount.WithLabelValues(env, "ExistsWithName").Inc()
 
 	startTime := time.Now()
-	defer topicOperationTimeTaken.WithLabelValues(env, "ExistsWithName").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer topicOperationTimeTaken.WithLabelValues(env, "ExistsWithName").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	projectID, topicName, err := ExtractTopicMetaAndValidate(ctx, name)
 	if err != nil {
@@ -101,7 +101,7 @@ func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
 	topicOperationCount.WithLabelValues(env, "DeleteTopic").Inc()
 
 	startTime := time.Now()
-	defer topicOperationTimeTaken.WithLabelValues(env, "DeleteTopic").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer topicOperationTimeTaken.WithLabelValues(env, "DeleteTopic").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedProjectID); !ok {
 		if err != nil {
@@ -123,7 +123,7 @@ func (c *Core) DeleteProjectTopics(ctx context.Context, projectID string) error 
 	topicOperationCount.WithLabelValues(env, "DeleteProjectTopics").Inc()
 
 	startTime := time.Now()
-	defer topicOperationTimeTaken.WithLabelValues(env, "DeleteProjectTopics").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer topicOperationTimeTaken.WithLabelValues(env, "DeleteProjectTopics").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	if projectID == "" {
 		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
@@ -139,7 +139,7 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	topicOperationCount.WithLabelValues(env, "Get").Inc()
 
 	startTime := time.Now()
-	defer topicOperationTimeTaken.WithLabelValues(env, "Get").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer topicOperationTimeTaken.WithLabelValues(env, "Get").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	projectID, topicName, err := ExtractTopicMetaAndValidate(ctx, key)
 	if err != nil {

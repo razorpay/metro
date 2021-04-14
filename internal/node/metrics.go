@@ -23,6 +23,6 @@ func init() {
 	nodeOperationTimeTaken = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_node_time_taken_for_operation_sec",
 		Help:    "Time taken for each node operation",
-		Buckets: prometheus.ExponentialBuckets(0.01, 2, 25),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 100),
 	}, []string{"env", "operation"})
 }

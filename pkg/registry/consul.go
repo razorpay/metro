@@ -38,7 +38,7 @@ func (c *ConsulClient) Register(name string, ttl time.Duration) (string, error) 
 	registryOperationCount.WithLabelValues(env, "Register").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Register").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Register").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	sessionID, _, err := c.client.Session().Create(&api.SessionEntry{
 		Name:      name,
@@ -58,7 +58,7 @@ func (c *ConsulClient) IsRegistered(sessionID string) bool {
 	registryOperationCount.WithLabelValues(env, "IsRegistered").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "IsRegistered").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "IsRegistered").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	session, _, _ := c.client.Session().Info(sessionID, nil)
 
@@ -70,7 +70,7 @@ func (c *ConsulClient) Renew(sessionID string) error {
 	registryOperationCount.WithLabelValues(env, "Renew").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Renew").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Renew").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	_, _, err := c.client.Session().Renew(sessionID, nil)
 
@@ -82,7 +82,7 @@ func (c *ConsulClient) RenewPeriodic(sessionID string, ttl time.Duration, doneCh
 	registryOperationCount.WithLabelValues(env, "RenewPeriodic").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "RenewPeriodic").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "RenewPeriodic").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	return c.client.Session().RenewPeriodic(ttl.String(), sessionID, nil, doneCh)
 }
@@ -92,7 +92,7 @@ func (c *ConsulClient) Deregister(sessionID string) error {
 	registryOperationCount.WithLabelValues(env, "Deregister").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Deregister").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Deregister").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	_, err := c.client.Session().Destroy(sessionID, nil)
 
@@ -104,7 +104,7 @@ func (c *ConsulClient) Acquire(sessionID string, key string, value []byte) (bool
 	registryOperationCount.WithLabelValues(env, "Acquire").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Acquire").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Acquire").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	isAcquired, _, err := c.client.KV().Acquire(&api.KVPair{
 		Key:     key,
@@ -124,7 +124,7 @@ func (c *ConsulClient) Release(sessionID string, key string, value string) bool 
 	registryOperationCount.WithLabelValues(env, "Release").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Release").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Release").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	isReleased, _, err := c.client.KV().Release(&api.KVPair{
 		Key:     key,
@@ -144,7 +144,7 @@ func (c *ConsulClient) Watch(ctx context.Context, wh *WatchConfig) (IWatcher, er
 	registryOperationCount.WithLabelValues(env, "Watch").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Watch").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Watch").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	params := map[string]interface{}{}
 
@@ -170,7 +170,7 @@ func (c *ConsulClient) Put(key string, value []byte) error {
 	registryOperationCount.WithLabelValues(env, "Put").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Put").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Put").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	_, err := c.client.KV().Put(&api.KVPair{
 		Key:   key,
@@ -184,7 +184,7 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 	registryOperationCount.WithLabelValues(env, "Get").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Get").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Get").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	kv, _, err := c.client.KV().Get(key, nil)
 	if err != nil {
@@ -198,7 +198,7 @@ func (c *ConsulClient) List(ctx context.Context, prefix string) ([]Pair, error) 
 	registryOperationCount.WithLabelValues(env, "List").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "List").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "List").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	kvs, _, err := c.client.KV().List(prefix, nil)
 	if err != nil {
@@ -222,7 +222,7 @@ func (c *ConsulClient) ListKeys(ctx context.Context, key string) ([]string, erro
 	registryOperationCount.WithLabelValues(env, "ListKeys").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	kv, _, err := c.client.KV().List(key, nil)
 	if err != nil {
@@ -243,7 +243,7 @@ func (c *ConsulClient) Exists(key string) (bool, error) {
 	registryOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "Exists").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "Exists").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	kvp, _, err := c.client.KV().Get(key, nil)
 	if err != nil {
@@ -260,7 +260,7 @@ func (c *ConsulClient) DeleteTree(key string) error {
 	registryOperationCount.WithLabelValues(env, "DeleteTree").Inc()
 
 	startTime := time.Now()
-	defer registryOperationTimeTaken.WithLabelValues(env, "DeleteTree").Observe(float64(time.Now().Sub(startTime).Milliseconds() / 1e3))
+	defer registryOperationTimeTaken.WithLabelValues(env, "DeleteTree").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
 	_, err := c.client.KV().DeleteTree(key, nil)
 	if err != nil {

@@ -76,6 +76,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
 		pushHandlers:     map[string]*PushStream{},
+		nbwatch:          make(chan []registry.Pair),
 	}
 }
 
@@ -152,18 +153,16 @@ func (svc *Service) Start() error {
 		logger.Ctx(gctx).Info("starting leader election")
 		return svc.candidate.Run(gctx)
 	})
-	go func() {
-
-	}()
 
 	// Watch for the subscription assignment changes
 	var watcher registry.IWatcher
 	svc.workgrp.Go(func() error {
-		svc.nbwatch = make(chan []registry.Pair)
+		prefix := fmt.Sprintf(common.GetBasePrefix()+nodebinding.Prefix+"%s/", svc.node.ID)
+		logger.Ctx(gctx).Infow("setting up node subscriptions watch", "prefix", prefix)
 
 		wh := registry.WatchConfig{
 			WatchType: "keyprefix",
-			WatchPath: fmt.Sprintf(common.GetBasePrefix()+nodebinding.Prefix+"%s/", svc.node.ID),
+			WatchPath: prefix,
 			Handler: func(ctx context.Context, pairs []registry.Pair) {
 				logger.Ctx(ctx).Infow("node subscriptions", "pairs", pairs)
 				svc.nbwatch <- pairs

@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"google.golang.org/grpc"
+
 	"github.com/razorpay/metro/pkg/logger"
 
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -16,7 +18,7 @@ import (
 // IManager ...
 type IManager interface {
 	CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest, errGroup *errgroup.Group) error
-	Acknowledge(ctx context.Context, req *ParsedStreamingPullRequest) error
+	Acknowledge(ctx context.Context, parsedReq *ParsedStreamingPullRequest) error
 	ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error
 }
 
@@ -107,23 +109,69 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 }
 
 // Acknowledge ...
-func (s *Manager) Acknowledge(ctx context.Context, req *ParsedStreamingPullRequest) error {
-	for _, ackMsg := range req.AckMessages {
+func (s *Manager) Acknowledge(ctx context.Context, parsedReq *ParsedStreamingPullRequest) error {
+
+	// holds a map of ackMsgs to their corresponding originating server addresses
+	msgsToBeProxied := make(map[string][]*subscriber.AckMessage, 0)
+
+	for _, ackMsg := range parsedReq.AckMessages {
 		if ackMsg.MatchesOriginatingMessageServer() {
 			// find active stream
 			if pullStream, ok := s.pullStreams[ackMsg.SubscriberID]; ok {
 				pullStream.acknowledge(ctx, ackMsg)
 			}
 		} else {
-			// proxy request to the correct server
+			proxyAddr := ackMsg.ServerAddress
+			if _, ok := msgsToBeProxied[proxyAddr]; !ok {
+				// init empty slice
+				msgsToBeProxied[proxyAddr] = make([]*subscriber.AckMessage, 0)
+			}
+			msgsToBeProxied[proxyAddr] = append(msgsToBeProxied[proxyAddr], ackMsg)
 		}
 	}
 
+	if len(msgsToBeProxied) > 0 {
+		// proxy request to the correct server
+		for proxyAddr, ackMsgs := range msgsToBeProxied {
+			conn, err := grpc.Dial(proxyAddr, []grpc.DialOption{grpc.WithInsecure()}...)
+			if err != nil {
+				return err
+			}
+
+			ackIds := collectAckIds(ackMsgs)
+			logger.Ctx(ctx).Infow("manager: acknowledge proxy request", "proxyAddr", proxyAddr, "ackIds", ackIds)
+
+			proxyAckRequest := &metrov1.AcknowledgeRequest{
+				Subscription: parsedReq.Subscription,
+				AckIds:       ackIds,
+			}
+			client := metrov1.NewSubscriberClient(conn)
+			_, aerr := client.Acknowledge(ctx, proxyAckRequest)
+			if aerr != nil {
+				logger.Ctx(ctx).Errorw("manager: acknowledge proxy request failed", "proxyAddr", proxyAddr, "error", aerr.Error())
+				// on error, try to proxy remaining requests
+				continue
+			}
+			logger.Ctx(ctx).Infow("manager: acknowledge proxy request succeeded", "proxyAddr", proxyAddr, "ackIds", ackIds)
+		}
+	}
 	return nil
+}
+
+func collectAckIds(msgs []*subscriber.AckMessage) []string {
+	ackIds := make([]string, 0)
+
+	for _, msg := range msgs {
+		ackIds = append(ackIds, msg.AckID)
+	}
+	return ackIds
 }
 
 // ModifyAcknowledgement ...
 func (s *Manager) ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error {
+	// holds a map of modAckMsgs to their corresponding originating server addresses
+	msgsToBeProxied := make(map[string][]*subscriber.AckMessage, 0)
+
 	for _, ackMsg := range req.AckMessages {
 		// non zero ack deadline is not supported, hence continue
 		if req.ModifyDeadlineMsgIdsWithSecs[ackMsg.MessageID] != 0 {
@@ -135,10 +183,43 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, req *ParsedStreamin
 				pullStream.modifyAckDeadline(ctx, subscriber.NewModAckMessage(ackMsg, req.ModifyDeadlineMsgIdsWithSecs[ackMsg.MessageID]))
 			}
 		} else {
-			// proxy request to the correct server
+			proxyAddr := ackMsg.ServerAddress
+			if _, ok := msgsToBeProxied[proxyAddr]; !ok {
+				// init empty slice
+				msgsToBeProxied[proxyAddr] = make([]*subscriber.AckMessage, 0)
+			}
+			msgsToBeProxied[proxyAddr] = append(msgsToBeProxied[proxyAddr], ackMsg)
 		}
 	}
 
+	if len(msgsToBeProxied) > 0 {
+		// proxy request to the correct server
+		for proxyAddr, ackMsgs := range msgsToBeProxied {
+			conn, err := grpc.Dial(proxyAddr, []grpc.DialOption{grpc.WithInsecure()}...)
+			if err != nil {
+				return err
+			}
+
+			ackIds := collectAckIds(ackMsgs)
+			logger.Ctx(ctx).Infow("manager: modack proxy request", "proxyAddr", proxyAddr, "ackIds", ackIds)
+
+			proxyModAckRequest := &metrov1.ModifyAckDeadlineRequest{
+				Subscription: req.Subscription,
+				AckIds:       ackIds,
+				// pick up ack deadline time for any one of the message and set in the request
+				// this is usually the same for all given ack_ids
+				AckDeadlineSeconds: req.ModifyDeadlineMsgIdsWithSecs[ackMsgs[0].MessageID],
+			}
+			client := metrov1.NewSubscriberClient(conn)
+			_, aerr := client.ModifyAckDeadline(ctx, proxyModAckRequest)
+			if aerr != nil {
+				logger.Ctx(ctx).Errorw("manager: modack proxy request failed", "proxyAddr", proxyAddr, "error", aerr.Error())
+				// on error, try to proxy remaining requests
+				continue
+			}
+			logger.Ctx(ctx).Errorw("manager: modack proxy request succeeded", "proxyAddr", proxyAddr, "ackIds", ackIds)
+		}
+	}
 	return nil
 }
 

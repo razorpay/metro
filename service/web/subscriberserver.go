@@ -25,7 +25,7 @@ func newSubscriberServer(subscriptionCore *subscription.Core, psm stream.IManage
 
 // CreateSubscription to create a new subscription
 func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.Subscription) (*metrov1.Subscription, error) {
-	logger.Ctx(ctx).Infow("received request to create subscription", "name", req.Name, "topic", req.Topic)
+	logger.Ctx(ctx).Infow("subscriberserver: received request to create subscription", "name", req.Name, "topic", req.Topic)
 	m, err := subscription.GetValidatedModelForCreate(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
@@ -39,11 +39,11 @@ func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.S
 
 // Acknowledge a message
 func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
-	logger.Ctx(ctx).Infow("received request to ack messages", "ack_req", req.String())
+	logger.Ctx(ctx).Infow("subscriberserver: received request to ack messages", "ack_req", req.String())
 
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	if parseErr != nil {
-		logger.Ctx(ctx).Errorw("error is parsing ack request", "request", req, "error", parseErr.Error())
+		logger.Ctx(ctx).Errorw("subscriberserver: error is parsing ack request", "request", req, "error", parseErr.Error())
 		return nil, parseErr
 	}
 
@@ -57,7 +57,7 @@ func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.Acknowle
 
 // Pull messages
 func (s subscriberserver) Pull(ctx context.Context, req *metrov1.PullRequest) (*metrov1.PullResponse, error) {
-	logger.Ctx(ctx).Infow("received request to pull messages", "pull_req", req.String())
+	logger.Ctx(ctx).Infow("subscriberserver: received request to pull messages", "pull_req", req.String())
 	// non streaming pull not to be supported
 	/*
 		res, err := s.subscriberCore.Pull(ctx, &subscriber.PullRequest{req.Subscription, 0, 0}, 2, xid.New().String()) // TODO: fix
@@ -87,7 +87,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 
 	parsedReq, parseErr := stream.NewParsedStreamingPullRequest(req)
 	if parseErr != nil {
-		logger.Ctx(ctx).Errorw("error is parsing pull request", "request", req, "error", parseErr.Error())
+		logger.Ctx(ctx).Errorw("subscriberserver: error is parsing pull request", "request", req, "error", parseErr.Error())
 		return nil
 	}
 
@@ -128,7 +128,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 
 // DeleteSubscription deletes a subscription
 func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
-	logger.Ctx(ctx).Infow("received request to delete subscription", "name", req.Subscription)
+	logger.Ctx(ctx).Infow("subscriberserver: received request to delete subscription", "name", req.Subscription)
 	m, err := subscription.GetValidatedModelForDelete(ctx, &metrov1.Subscription{Name: req.Subscription})
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
@@ -141,10 +141,10 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 }
 
 func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
-	logger.Ctx(ctx).Infow("received request to modack messages", "mod_ack_req", req.String())
+	logger.Ctx(ctx).Infow("subscriberserver: received request to modack messages", "mod_ack_req", req.String())
 	parsedReq, parseErr := stream.NewParsedModifyAckDeadlineRequest(req)
 	if parseErr != nil {
-		logger.Ctx(ctx).Errorw("error is parsing modack request", "request", req, "error", parseErr.Error())
+		logger.Ctx(ctx).Errorw("subscriberserver: error is parsing modack request", "request", req, "error", parseErr.Error())
 		return nil, parseErr
 	}
 	err := s.psm.ModifyAcknowledgement(ctx, parsedReq)

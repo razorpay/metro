@@ -389,7 +389,10 @@ func (s *Subscriber) Run(ctx context.Context) {
 				s.errChan <- err
 				return
 			}
-			logger.Ctx(ctx).Infow("subscriber: got messages from topics", "count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages, "subscriber", s.subscriberID)
+
+			if len(resp.PartitionOffsetWithMessages) > 0 {
+				logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "message_count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages, "subscriber", s.subscriberID)
+			}
 
 			sm := make([]*metrov1.ReceivedMessage, 0)
 			for _, msg := range resp.PartitionOffsetWithMessages {

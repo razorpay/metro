@@ -110,7 +110,7 @@ func (s *pullStream) run() error {
 			// once stream is established, we can continuously send messages over it
 			req := &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
 			s.subscriptionSubscriber.GetRequestChannel() <- req
-			logger.Ctx(s.ctx).Infow("stream: sending default pull request over stream", "req", req)
+			logger.Ctx(s.ctx).Debugw("stream: sending default pull request over stream", "req", req)
 			select {
 			case res := <-s.subscriptionSubscriber.GetResponseChannel():
 				if len(res.ReceivedMessages) > 0 {
@@ -120,7 +120,7 @@ func (s *pullStream) run() error {
 						s.stop()
 						return nil
 					}
-					logger.Ctx(s.ctx).Infow("stream: StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages), "subscriber", s.subscriberID)
+					logger.Ctx(s.ctx).Debugw("stream: StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages), "subscriber", s.subscriberID)
 				}
 			}
 			timeout.Reset(time.Duration(streamAckDeadlineSecs) * time.Second)

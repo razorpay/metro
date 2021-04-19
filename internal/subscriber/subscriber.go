@@ -102,7 +102,7 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	})
 
 	if err != nil {
-		logger.Ctx(ctx).Errorw("subscriber: commit to primary topic failed", "topic", s.topic, "err", err.Error())
+		logger.Ctx(ctx).Errorw("subscriber: commit to primary topic failed", "err", err.Error())
 		s.errChan <- err
 		return
 	}
@@ -217,7 +217,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 			Offset: offsetToCommit + 1,
 		})
 		if err != nil {
-			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "message", "peek", "error", err.Error())
+			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "error", err.Error())
 			s.errChan <- err
 			return
 		}
@@ -353,7 +353,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 		select {
 		case req := <-s.requestChan:
 			if s.canConsumeMore() == false {
-				logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "topic", s.topic, "subscription", s.subscription)
+				logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking")
 				// check if consumer is paused once maxOutstanding messages limit is hit
 				if s.isPaused == false {
 					// if not, pause all topic-partitions for consumer
@@ -362,7 +362,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
-						logger.Ctx(ctx).Infow("subscriber: pausing consumer", "topic", s.topic, "subscription", s.subscription)
+						logger.Ctx(ctx).Infow("subscriber: pausing consumer")
 						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Inc()
 						s.isPaused = true
 
@@ -377,7 +377,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
-						logger.Ctx(ctx).Infow("subscriber: resuming consumer", "topic", s.topic, "subscription", s.subscription)
+						logger.Ctx(ctx).Infow("subscriber: resuming consumer")
 						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Dec()
 					}
 				}
@@ -389,7 +389,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 				s.errChan <- err
 				return
 			}
-			logger.Ctx(ctx).Infow("subscriber: got messages from topics", "count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages, "subscriber", s.subscriberID)
+			logger.Ctx(ctx).Infow("subscriber: got messages from topics", "count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages)
 
 			sm := make([]*metrov1.ReceivedMessage, 0)
 			for _, msg := range resp.PartitionOffsetWithMessages {
@@ -445,7 +445,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 		case <-s.deadlineTickerChan:
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 		case <-ctx.Done():
-			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "subscription", s.subscription)
+			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called")
 			wasConsumerFound := s.bs.RemoveConsumer(s.ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			if wasConsumerFound {
 				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.

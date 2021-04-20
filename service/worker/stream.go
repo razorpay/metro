@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
@@ -121,6 +122,7 @@ func (ps *PushStream) Stop() error {
 
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data metrov1.PullResponse) {
 	logger.Ctx(ctx).Infow("worker: response", "data", data)
+
 	for _, message := range data.ReceivedMessages {
 		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint")
 		if message.AckId == "" {
@@ -128,7 +130,13 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		}
 
 		postData := bytes.NewBuffer(message.Message.Data)
-		resp, err := http.Post(subModel.PushEndpoint, "application/json", postData)
+		// TODO: move http client creation during push stream init
+		httpClient := &http.Client{
+			// setting a strict timeout for now
+			Timeout: 1 * time.Second,
+		}
+		defer httpClient.CloseIdleConnections()
+		resp, err := httpClient.Post(subModel.PushEndpoint, "application/json", postData)
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "error", err.Error())
 			ps.nack(ctx, message)

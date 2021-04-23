@@ -61,24 +61,6 @@ func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*
 		return nil, merror.ToGRPCError(terr)
 	}
 
-	// create retry topic
-	_, terr = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
-		Name:          m.RetryTopicName,
-		NumPartitions: m.NumPartitions,
-	})
-	if terr != nil {
-		return nil, merror.ToGRPCError(terr)
-	}
-
-	// create dlq topic
-	_, terr = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
-		Name:          m.DLQTopicName,
-		NumPartitions: m.NumPartitions,
-	})
-	if terr != nil {
-		return nil, merror.ToGRPCError(terr)
-	}
-
 	return req, nil
 }
 

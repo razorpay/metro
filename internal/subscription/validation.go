@@ -55,6 +55,8 @@ func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, 
 	m.Labels = req.GetLabels()
 	m.ExtractedSubscriptionProjectID = p
 	m.ExtractedSubscriptionName = s
+	m.RetryTopic = topic.GetTopicName(p, s+topic.RetryTopicSuffix)
+	m.DeadLetterTopic = topic.GetTopicName(p, s+topic.DLQTopicSuffix)
 	pushConfig := req.GetPushConfig()
 	if pushConfig != nil {
 		urlEndpoint := req.GetPushConfig().PushEndpoint

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/razorpay/metro/internal/brokerstore"
+
 	"github.com/razorpay/metro/service/web/stream"
 
 	"github.com/razorpay/metro/internal/merror"
@@ -15,12 +17,13 @@ import (
 )
 
 type subscriberserver struct {
+	brokerStore      brokerstore.IBrokerStore
 	subscriptionCore *subscription.Core
 	psm              stream.IManager
 }
 
-func newSubscriberServer(subscriptionCore *subscription.Core, psm stream.IManager) *subscriberserver {
-	return &subscriberserver{subscriptionCore, psm}
+func newSubscriberServer(brokerStore brokerstore.IBrokerStore, subscriptionCore *subscription.Core, psm stream.IManager) *subscriberserver {
+	return &subscriberserver{brokerStore, subscriptionCore, psm}
 }
 
 // CreateSubscription to create a new subscription

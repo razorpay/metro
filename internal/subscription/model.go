@@ -14,6 +14,8 @@ type Model struct {
 	common.BaseModel
 	Name                           string
 	Topic                          string
+	RetryTopic                     string
+	DeadLetterTopic                string
 	Labels                         map[string]string
 	PushEndpoint                   string
 	ExtractedTopicProjectID        string

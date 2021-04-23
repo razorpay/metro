@@ -4,6 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/razorpay/metro/internal/brokerstore"
+
+	"github.com/razorpay/metro/pkg/messagebroker"
+
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
@@ -28,11 +32,12 @@ type Core struct {
 	repo        IRepo
 	projectCore project.ICore
 	topicCore   topic.ICore
+	brokerStore brokerstore.IBrokerStore
 }
 
 // NewCore returns an instance of Core
-func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore) *Core {
-	return &Core{repo, projectCore, topicCore}
+func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore, brokerStore brokerstore.IBrokerStore) *Core {
+	return &Core{repo, projectCore, topicCore, brokerStore}
 }
 
 // CreateSubscription creates a subscription for a given topic
@@ -68,12 +73,39 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		logger.Ctx(ctx).Errorw("topic project not found", "name", m.ExtractedTopicProjectID)
 		return merror.New(merror.NotFound, "project not found")
 	}
-	if ok, err = c.topicCore.ExistsWithName(ctx, m.Topic); !ok {
+
+	var topicModel *topic.Model
+	if topicModel, err = c.topicCore.Get(ctx, m.Topic); !ok {
 		if err != nil {
 			return err
 		}
 		return merror.Newf(merror.NotFound, "topic with name %s not found", m.Topic)
 	}
+
+	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return aerr
+	}
+
+	// create retry topic for subscription
+	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
+		Name:          m.RetryTopic,
+		NumPartitions: topicModel.NumPartitions,
+	})
+	if terr != nil {
+		return terr
+	}
+
+	// create dlq topic for subscription
+	_, terr = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
+		Name:          m.DeadLetterTopic,
+		NumPartitions: topicModel.NumPartitions,
+	})
+
+	if terr != nil {
+		return terr
+	}
+
 	return c.repo.Create(ctx, m)
 }
 

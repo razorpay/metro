@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"strings"
 
 	"github.com/razorpay/metro/internal/subscriber"
@@ -95,4 +96,34 @@ func NewParsedModifyAckDeadlineRequest(req *metrov1.ModifyAckDeadlineRequest) (*
 	}
 
 	return parsedReq, nil
+}
+
+// requestType specifies the type of proxy request, ack or modack
+type requestType int
+
+const (
+	ack requestType = iota
+	modAck
+)
+
+type proxyRequest struct {
+	ctx         context.Context
+	addr        string
+	ackMsgs     []*subscriber.AckMessage
+	parsedReq   *ParsedStreamingPullRequest
+	requestType requestType
+}
+
+func newProxyRequest(ctx context.Context, addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, requestType requestType) *proxyRequest {
+	return &proxyRequest{
+		ctx:         ctx,
+		addr:        addr,
+		ackMsgs:     ackMsgs,
+		parsedReq:   parsedReq,
+		requestType: requestType,
+	}
+}
+
+func (pr *proxyRequest) isAckRequestType() bool {
+	return pr.requestType == ack
 }

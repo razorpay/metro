@@ -72,11 +72,11 @@ func (ps *PushStream) Start() error {
 			case <-gctx.Done():
 				return gctx.Err()
 			default:
-				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request")
+				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request")
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{10}
-				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data")
+				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data")
 				res := <-ps.subs.GetResponseChannel()
-				logger.Ctx(ps.ctx).Debugw("worker: writing subscriber data to channel", "res", res)
+				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res , "count" , len(res.ReceivedMessages))
 				ps.responseChan <- res
 			}
 		}

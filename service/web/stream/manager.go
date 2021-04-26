@@ -133,7 +133,7 @@ func (s *Manager) Acknowledge(ctx context.Context, parsedReq *ParsedStreamingPul
 	if len(msgsToBeProxied) > 0 {
 		// proxy request to the correct server
 		for proxyAddr, ackMsgs := range msgsToBeProxied {
-			return newProxyRequest(ctx, proxyAddr, ackMsgs, parsedReq, ack).do()
+			newProxyRequest(ctx, proxyAddr, ackMsgs, parsedReq, ack).do()
 		}
 	}
 	return nil
@@ -167,18 +167,19 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, parsedReq *ParsedSt
 	if len(msgsToBeProxied) > 0 {
 		// proxy request to the correct server
 		for proxyAddr, ackMsgs := range msgsToBeProxied {
-			return newProxyRequest(ctx, proxyAddr, ackMsgs, parsedReq, modAck).do()
+			newProxyRequest(ctx, proxyAddr, ackMsgs, parsedReq, modAck).do()
 		}
 	}
 	return nil
 }
 
 // proxy request to the specified server
-func (pr *proxyRequest) do() error {
+func (pr *proxyRequest) do() {
 
 	conn, err := grpc.Dial(pr.addr, []grpc.DialOption{grpc.WithInsecure()}...)
 	if err != nil {
-		return err
+		logger.Ctx(pr.ctx).Errorw("manager: failed to connect to proxy host", "proxyAddr", pr.addr, "error", err.Error())
+		return
 	}
 
 	ackIds := collectAckIds(pr.ackMsgs)
@@ -210,12 +211,10 @@ func (pr *proxyRequest) do() error {
 	if proxyError != nil {
 		logger.Ctx(pr.ctx).Errorw("manager: proxy request failed", "proxyAddr", pr.addr, "requestType", pr.requestType, "error", proxyError.Error())
 		// on error, try to proxy remaining requests
-		return nil
+		return
 	}
 
 	logger.Ctx(pr.ctx).Infow("manager: proxy request succeeded", "proxyAddr", pr.addr, "ackIds", ackIds, "requestType", pr.requestType)
-
-	return nil
 }
 
 func collectAckIds(msgs []*subscriber.AckMessage) []string {

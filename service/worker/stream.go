@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -22,6 +23,7 @@ type PushStream struct {
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
+	httpClient       http.Client
 	responseChan     chan metrov1.PullResponse
 	stopCh           chan struct{}
 	doneCh           chan struct{}
@@ -130,13 +132,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		}
 
 		postData := bytes.NewBuffer(message.Message.Data)
-		// TODO: move http client creation during push stream init
-		httpClient := &http.Client{
-			// setting a strict timeout for now
-			Timeout: 1 * time.Second,
-		}
-		defer httpClient.CloseIdleConnections()
-		resp, err := httpClient.Post(subModel.PushEndpoint, "application/json", postData)
+		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "error", err.Error())
 			ps.nack(ctx, message)
@@ -171,8 +167,8 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 	ps.subs.GetAckChannel() <- ackReq
 }
 
-// NewPushStream return a pushstream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore) *PushStream {
+// NewPushStream return a push stream obj which is used for push subscriptions
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
 	return &PushStream{
 		ctx:              ctx,
 		nodeID:           nodeID,
@@ -181,5 +177,24 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		stopCh:           make(chan struct{}),
 		responseChan:     make(chan metrov1.PullResponse),
+		httpClient:       NewHTTPClientWithConfig(config),
 	}
+}
+
+// NewHTTPClientWithConfig return a http client
+func NewHTTPClientWithConfig(config *HTTPClientConfig) http.Client {
+	tr := &http.Transport{
+		ResponseHeaderTimeout: time.Duration(config.ResponseHeaderTimeoutMS) * time.Millisecond,
+		DialContext: (&net.Dialer{
+			KeepAlive: time.Duration(config.ConnKeepAliveMS) * time.Millisecond,
+			Timeout:   time.Duration(config.ConnectTimeoutMS) * time.Millisecond,
+		}).DialContext,
+		MaxIdleConns:          config.MaxAllIdleConns,
+		IdleConnTimeout:       time.Duration(config.IdleConnTimeoutMS) * time.Millisecond,
+		TLSHandshakeTimeout:   time.Duration(config.TLSHandshakeTimeoutMS) * time.Millisecond,
+		MaxIdleConnsPerHost:   config.MaxHostIdleConns,
+		ExpectContinueTimeout: time.Duration(config.ExpectContinueTimeoutMS) * time.Millisecond,
+	}
+
+	return http.Client{Transport: tr}
 }

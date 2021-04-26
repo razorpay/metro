@@ -47,7 +47,7 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 			Topic:       req.Topic,
 			Message:     dataWithMeta,
 			OrderingKey: msg.OrderingKey,
-			TimeoutMs:   50,
+			TimeoutMs:   100,
 		})
 		if err != nil {
 			logger.Ctx(ctx).Errorw("error in sending messages", "msg", err.Error())

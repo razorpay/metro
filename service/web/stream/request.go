@@ -112,6 +112,14 @@ type proxyRequest struct {
 	requestType requestType
 }
 
+func newAckProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest) *proxyRequest {
+	return newProxyRequest(addr, ackMsgs, parsedReq, ack)
+}
+
+func newModAckProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest) *proxyRequest {
+	return newProxyRequest(addr, ackMsgs, parsedReq, modAck)
+}
+
 func newProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, requestType requestType) *proxyRequest {
 	return &proxyRequest{
 		addr:        addr,

@@ -133,7 +133,7 @@ func (s *Manager) Acknowledge(ctx context.Context, parsedReq *ParsedStreamingPul
 	if len(msgsToBeProxied) > 0 {
 		// proxy request to the correct server
 		for proxyAddr, ackMsgs := range msgsToBeProxied {
-			newProxyRequest(proxyAddr, ackMsgs, parsedReq, ack).do(ctx)
+			newAckProxyRequest(proxyAddr, ackMsgs, parsedReq).do(ctx)
 		}
 	}
 	return nil
@@ -167,7 +167,7 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, parsedReq *ParsedSt
 	if len(msgsToBeProxied) > 0 {
 		// proxy request to the correct server
 		for proxyAddr, ackMsgs := range msgsToBeProxied {
-			newProxyRequest(proxyAddr, ackMsgs, parsedReq, modAck).do(ctx)
+			newModAckProxyRequest(proxyAddr, ackMsgs, parsedReq).do(ctx)
 		}
 	}
 	return nil

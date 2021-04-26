@@ -75,11 +75,10 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	}
 
 	var topicModel *topic.Model
-	if topicModel, err = c.topicCore.Get(ctx, m.Topic); !ok {
+	if topicModel, err = c.topicCore.Get(ctx, m.Topic); err != nil {
 		if err != nil {
 			return err
 		}
-		return merror.Newf(merror.NotFound, "topic with name %s not found", m.Topic)
 	}
 
 	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
@@ -169,22 +168,8 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 	startTime := time.Now()
 	defer subscriptionOperationTimeTaken.WithLabelValues(env, "GetTopicFromSubscriptionName").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
-	projectID, subscriptionName, err := extractSubscriptionMetaAndValidate(ctx, subscription)
-	if err != nil {
-		return "", err
-	}
-	subscriptionKey := common.GetBasePrefix() + Prefix + projectID + "/" + subscriptionName
+	m, err := c.Get(ctx, subscription)
 
-	if ok, err := c.repo.Exists(ctx, subscriptionKey); !ok {
-		if err != nil {
-			return "", err
-		}
-		err = merror.Newf(merror.NotFound, "subscription not found %s", common.GetBasePrefix()+subscription)
-		logger.Ctx(ctx).Error(err.Error())
-		return "", err
-	}
-	m := &Model{}
-	err = c.repo.Get(ctx, subscriptionKey, m)
 	if err != nil {
 		return "", err
 	}
@@ -235,6 +220,8 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 		return nil, err
 	}
 	prefix := common.GetBasePrefix() + Prefix + projectID + "/" + subscriptionName
+
+	logger.Ctx(ctx).Infow("fetching subscription", "key", prefix)
 
 	model := &Model{}
 	err = c.repo.Get(ctx, prefix, model)

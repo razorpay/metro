@@ -8,10 +8,10 @@ const (
 	// Prefix for all topic keys in the registry
 	Prefix = "topics/"
 
-	// RetryTopicSuffix every primary topic will have a retry topic with this suffix as well
+	// RetryTopicSuffix every primary topic subscription will have a retry topic with this suffix as well
 	RetryTopicSuffix = "-retry"
 
-	// DLQTopicSuffix every primary topic will have a dlq topic with this suffix as well
+	// DLQTopicSuffix every primary topic subscription will have a dlq topic with this suffix as well
 	DLQTopicSuffix = "-dlq"
 
 	// DefaultNumPartitions default no of partitions for a topic
@@ -25,8 +25,6 @@ type Model struct {
 	Labels             map[string]string
 	ExtractedProjectID string
 	ExtractedTopicName string
-	RetryTopicName     string
-	DLQTopicName       string
 	NumPartitions      int
 }
 

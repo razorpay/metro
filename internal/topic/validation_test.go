@@ -40,7 +40,4 @@ func TestValidation_GetValidatedModel(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, m.Name, topic)
-	assert.Equal(t, m.RetryTopicName, topic+"-retry")
-	assert.Equal(t, m.DLQTopicName, topic+"-dlq")
-
 }

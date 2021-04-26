@@ -26,7 +26,7 @@ func TestCore_CreateTopic(t *testing.T) {
 	dTopic := getDummyTopicModel()
 	mockProjectCore.EXPECT().ExistsWithID(ctx, dTopic.ExtractedProjectID).Return(true, nil)
 	mockBrokerStore.EXPECT().GetAdmin(ctx, messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
-	mockAdmin.EXPECT().CreateTopic(ctx, messagebroker.CreateTopicRequest{dTopic.Name, 2}).Return(messagebroker.CreateTopicResponse{}, nil)
+	mockAdmin.EXPECT().CreateTopic(ctx, messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
 	mockTopicRepo.EXPECT().Exists(ctx, common.GetBasePrefix()+"topics/test-project/test-topic")
 	mockTopicRepo.EXPECT().Create(ctx, dTopic)
 	err := topicCore.CreateTopic(ctx, dTopic)

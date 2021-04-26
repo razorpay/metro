@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"context"
 	"strings"
 
 	"github.com/razorpay/metro/internal/subscriber"
@@ -107,16 +106,14 @@ const (
 )
 
 type proxyRequest struct {
-	ctx         context.Context
 	addr        string
 	ackMsgs     []*subscriber.AckMessage
 	parsedReq   *ParsedStreamingPullRequest
 	requestType requestType
 }
 
-func newProxyRequest(ctx context.Context, addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, requestType requestType) *proxyRequest {
+func newProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, requestType requestType) *proxyRequest {
 	return &proxyRequest{
-		ctx:         ctx,
 		addr:        addr,
 		ackMsgs:     ackMsgs,
 		parsedReq:   parsedReq,

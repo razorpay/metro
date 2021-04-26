@@ -76,7 +76,7 @@ func (ps *PushStream) Start() error {
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{10}
 				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data")
 				res := <-ps.subs.GetResponseChannel()
-				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res , "count" , len(res.ReceivedMessages))
+				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res, "count", len(res.ReceivedMessages))
 				ps.responseChan <- res
 			}
 		}

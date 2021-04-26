@@ -46,12 +46,12 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		return nil, err
 	}
 
-	retryProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: retryTopic, TimeoutMs: 500})
+	retryProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: retryTopic, TimeoutMs: 50})
 	if err != nil {
 		return nil, err
 	}
 
-	dlqProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: dlqTopic, TimeoutMs: 500})
+	dlqProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: dlqTopic, TimeoutMs: 50})
 	if err != nil {
 		return nil, err
 	}

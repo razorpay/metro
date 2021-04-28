@@ -196,7 +196,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 	startTime := time.Now()
 	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CreateTopic").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
-	tp := normalizeTopicName(request.Name)
+	tp := NormalizeTopicName(request.Name)
 	logger.Ctx(ctx).Infow("received request to create kafka topic", "request", request, "normalizedTopicName", tp)
 
 	topics := make([]kafkapkg.TopicSpecification, 0)
@@ -312,7 +312,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	deliveryChan := make(chan kafkapkg.Event)
 
-	tp := normalizeTopicName(request.Topic)
+	tp := NormalizeTopicName(request.Topic)
 	logger.Ctx(ctx).Infow("normalized topic name", "topic", tp)
 	err := k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &tp, Partition: kafkapkg.PartitionAny},

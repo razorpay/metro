@@ -2,7 +2,6 @@ package subscriber
 
 import (
 	"context"
-	"strings"
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
@@ -33,9 +32,10 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		return nil, err
 	}
 
-	topic := strings.Replace(subModel.Topic, "/", "_", -1)
-	retryTopic := strings.Replace(subModel.RetryTopic, "/", "_", -1)
-	dlqTopic := strings.Replace(subModel.DeadLetterTopic, "/", "_", -1)
+	topic := messagebroker.NormalizeTopicName(subModel.Topic)
+	retryTopic := messagebroker.NormalizeTopicName(subModel.RetryTopic)
+	dlqTopic := messagebroker.NormalizeTopicName(subModel.DeadLetterTopic)
+
 	groupID := subscription
 
 	consumer, err := c.bs.GetConsumer(ctx, subscriberID, messagebroker.ConsumerClientOptions{Topics: []string{topic, retryTopic}, GroupID: groupID})

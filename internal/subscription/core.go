@@ -5,14 +5,12 @@ import (
 	"time"
 
 	"github.com/razorpay/metro/internal/brokerstore"
-
-	"github.com/razorpay/metro/pkg/messagebroker"
-
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
 // ICore is an interface over subscription core

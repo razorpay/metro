@@ -180,6 +180,9 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, parsedReq *ParsedSt
 // proxy request to the specified server
 func (pr *proxyRequest) do(ctx context.Context) {
 
+	// from config grpcServerAddr would be read as => 0.0.0.0:8081
+	// we extract the port(8081) out of the host+grpc_port string and append it to the ack_msg_addr
+	// all proxy grpc calls would be made on this ack_msg_addr:grpc_port destination.
 	grpcPort := strings.Split(pr.grpcServerAddr, ":")[1]
 	destinationHostWithPort := fmt.Sprintf("%v:%v", pr.addr, grpcPort)
 

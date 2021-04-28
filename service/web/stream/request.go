@@ -106,26 +106,28 @@ const (
 )
 
 type proxyRequest struct {
-	addr        string
-	ackMsgs     []*subscriber.AckMessage
-	parsedReq   *ParsedStreamingPullRequest
-	requestType requestType
+	addr           string
+	grpcServerAddr string
+	ackMsgs        []*subscriber.AckMessage
+	parsedReq      *ParsedStreamingPullRequest
+	requestType    requestType
 }
 
-func newAckProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest) *proxyRequest {
-	return newProxyRequest(addr, ackMsgs, parsedReq, ack)
+func newAckProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, grpcServerAddr string) *proxyRequest {
+	return newProxyRequest(addr, ackMsgs, parsedReq, grpcServerAddr, ack)
 }
 
-func newModAckProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest) *proxyRequest {
-	return newProxyRequest(addr, ackMsgs, parsedReq, modAck)
+func newModAckProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, grpcServerAddr string) *proxyRequest {
+	return newProxyRequest(addr, ackMsgs, parsedReq, grpcServerAddr, modAck)
 }
 
-func newProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, requestType requestType) *proxyRequest {
+func newProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, grpcServerAddr string, requestType requestType) *proxyRequest {
 	return &proxyRequest{
-		addr:        addr,
-		ackMsgs:     ackMsgs,
-		parsedReq:   parsedReq,
-		requestType: requestType,
+		addr:           addr,
+		grpcServerAddr: grpcServerAddr,
+		ackMsgs:        ackMsgs,
+		parsedReq:      parsedReq,
+		requestType:    requestType,
 	}
 }
 

@@ -2,6 +2,8 @@ package stream
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -32,11 +34,12 @@ type Manager struct {
 	activeStreamCount map[string]uint32   // TODO: will remove. maintain a distributed counter for active streams per subscription
 	cleanupCh         chan cleanupMessage // listens for closed subscribers
 	mutex             *sync.Mutex
+	grpcServerAddr    string
 	ctx               context.Context
 }
 
 // NewStreamManager ...
-func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, bs brokerstore.IBrokerStore) IManager {
+func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, bs brokerstore.IBrokerStore, grpcServerAddr string) IManager {
 	mgr := &Manager{
 		pullStreams:       make(map[string]IStream),
 		subscriptionCore:  subscriptionCore,
@@ -44,6 +47,7 @@ func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, 
 		bs:                bs,
 		cleanupCh:         make(chan cleanupMessage),
 		mutex:             &sync.Mutex{},
+		grpcServerAddr:    grpcServerAddr,
 		ctx:               ctx,
 	}
 
@@ -133,7 +137,7 @@ func (s *Manager) Acknowledge(ctx context.Context, parsedReq *ParsedStreamingPul
 	if len(msgsToBeProxied) > 0 {
 		// proxy request to the correct server
 		for proxyAddr, ackMsgs := range msgsToBeProxied {
-			newAckProxyRequest(proxyAddr, ackMsgs, parsedReq).do(ctx)
+			newAckProxyRequest(proxyAddr, ackMsgs, parsedReq, s.grpcServerAddr).do(ctx)
 		}
 	}
 	return nil
@@ -167,7 +171,7 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, parsedReq *ParsedSt
 	if len(msgsToBeProxied) > 0 {
 		// proxy request to the correct server
 		for proxyAddr, ackMsgs := range msgsToBeProxied {
-			newModAckProxyRequest(proxyAddr, ackMsgs, parsedReq).do(ctx)
+			newModAckProxyRequest(proxyAddr, ackMsgs, parsedReq, s.grpcServerAddr).do(ctx)
 		}
 	}
 	return nil
@@ -176,9 +180,12 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, parsedReq *ParsedSt
 // proxy request to the specified server
 func (pr *proxyRequest) do(ctx context.Context) {
 
-	conn, err := grpc.Dial(pr.addr, []grpc.DialOption{grpc.WithInsecure()}...)
+	grpcPort := strings.Split(pr.grpcServerAddr, ":")[1]
+	destinationHostWithPort := fmt.Sprintf("%v:%v", pr.addr, grpcPort)
+
+	conn, err := grpc.Dial(destinationHostWithPort, []grpc.DialOption{grpc.WithInsecure()}...)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("manager: failed to connect to proxy host", "proxyAddr", pr.addr, "error", err.Error())
+		logger.Ctx(ctx).Errorw("manager: failed to connect to proxy host", "proxyAddr", destinationHostWithPort, "error", err.Error())
 		return
 	}
 
@@ -187,7 +194,7 @@ func (pr *proxyRequest) do(ctx context.Context) {
 
 	var proxyError error
 
-	logger.Ctx(ctx).Infow("manager: proxy request", "proxyAddr", pr.addr, "ackIds", ackIds, "requestType", pr.requestType)
+	logger.Ctx(ctx).Infow("manager: proxy request", "proxyAddr", destinationHostWithPort, "ackIds", ackIds, "requestType", pr.requestType)
 
 	if pr.isAckRequestType() {
 		proxyAckRequest := &metrov1.AcknowledgeRequest{
@@ -209,12 +216,12 @@ func (pr *proxyRequest) do(ctx context.Context) {
 	}
 
 	if proxyError != nil {
-		logger.Ctx(ctx).Errorw("manager: proxy request failed", "proxyAddr", pr.addr, "requestType", pr.requestType, "error", proxyError.Error())
+		logger.Ctx(ctx).Errorw("manager: proxy request failed", "proxyAddr", destinationHostWithPort, "requestType", pr.requestType, "error", proxyError.Error())
 		// on error, try to proxy remaining requests
 		return
 	}
 
-	logger.Ctx(ctx).Infow("manager: proxy request succeeded", "proxyAddr", pr.addr, "ackIds", ackIds, "requestType", pr.requestType)
+	logger.Ctx(ctx).Infow("manager: proxy request succeeded", "proxyAddr", destinationHostWithPort, "ackIds", ackIds, "requestType", pr.requestType)
 }
 
 func collectAckIds(msgs []*subscriber.AckMessage) []string {

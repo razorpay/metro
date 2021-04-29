@@ -131,22 +131,27 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 			continue
 		}
 
+		startTime := time.Now()
 		postData := bytes.NewBuffer(message.Message.Data)
 		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
+		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "error", err.Error())
 			ps.nack(ctx, message)
 			return
 		}
-
 		defer resp.Body.Close()
+
 		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode)
+		workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode))
 		if resp.StatusCode == http.StatusOK {
 			// Ack
 			ps.ack(ctx, message)
+			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint)
 		} else {
 			// Nack
 			ps.nack(ctx, message)
+			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint)
 		}
 
 		// TODO: read response body if required by publisher later

@@ -1,0 +1,38 @@
+package worker
+
+import (
+	"os"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	env                              string
+	workerMessagesAckd               *prometheus.CounterVec
+	workerMessagesNAckd              *prometheus.CounterVec
+	workerPushEndpointHTTPStatusCode *prometheus.CounterVec
+	workerPushEndpointTimeTaken      *prometheus.HistogramVec
+)
+
+func init() {
+	env = os.Getenv("APP_ENV")
+
+	workerMessagesAckd = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_worker_messages_ackd",
+	}, []string{"env", "topic", "subscription", "endpoint"})
+
+	workerMessagesNAckd = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_worker_messages_nackd",
+	}, []string{"env", "topic", "subscription", "endpoint"})
+
+	workerPushEndpointHTTPStatusCode = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_worker_push_endpoint_http_status_code",
+	}, []string{"env", "topic", "subscription", "endpoint", "code"})
+
+	workerPushEndpointTimeTaken = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "metro_worker_push_endpoint_time_taken_seconds",
+		Help:    "Time taken to get response from push endpoint",
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
+	}, []string{"env", "topic", "subscription", "endpoint"})
+}

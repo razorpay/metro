@@ -80,21 +80,31 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	if topicModel.IsDeadLetterTopic() == false {
 		// create retry topic for subscription
 		// TODO: update based on retry policy
-		c.topicCore.CreateRetryTopic(ctx, &topic.Model{
+		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
 			Name:               m.GetRetryTopic(),
 			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
 			ExtractedProjectID: m.ExtractedTopicProjectID,
 			NumPartitions:      topicModel.NumPartitions,
 		})
 
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic())
+			return err
+		}
+
 		// create deadletter topic for subscription
 		// TODO: read the deadletter policy and update occordingly
-		c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
+		err = c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
 			Name:               m.GetDeadLetterTopic(),
 			ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
 			ExtractedProjectID: m.ExtractedTopicProjectID,
 			NumPartitions:      topicModel.NumPartitions,
 		})
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic())
+			return err
+		}
 	}
 
 	return c.repo.Create(ctx, m)

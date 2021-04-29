@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-
 	"github.com/stretchr/testify/assert"
 )
 

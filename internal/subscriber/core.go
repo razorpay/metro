@@ -33,8 +33,8 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 	}
 
 	topic := messagebroker.NormalizeTopicName(subModel.Topic)
-	retryTopic := messagebroker.NormalizeTopicName(subModel.RetryTopic)
-	dlqTopic := messagebroker.NormalizeTopicName(subModel.DeadLetterTopic)
+	retryTopic := messagebroker.NormalizeTopicName(subModel.GetRetryTopic())
+	dlqTopic := messagebroker.NormalizeTopicName(subModel.GetDeadLetterTopic())
 
 	groupID := subscription
 

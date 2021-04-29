@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/internal/topic"
 )
 
 const (
@@ -14,8 +15,6 @@ type Model struct {
 	common.BaseModel
 	Name                           string
 	Topic                          string
-	RetryTopic                     string
-	DeadLetterTopic                string
 	Labels                         map[string]string
 	PushEndpoint                   string
 	ExtractedTopicProjectID        string
@@ -38,4 +37,19 @@ func (m *Model) Prefix() string {
 // IsPush returns true if a subscription is a push subscription
 func (m *Model) IsPush() bool {
 	return m.PushEndpoint != ""
+}
+
+// GetTopic returns the primary subscription topic
+func (m *Model) GetTopic() string {
+	return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.RetryTopicSuffix)
+}
+
+// GetRetryTopic returns the topic used for subscription retries
+func (m *Model) GetRetryTopic() string {
+	return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.RetryTopicSuffix)
+}
+
+// GetDeadLetterTopic returns the topic used for deadlettering for subscription
+func (m *Model) GetDeadLetterTopic() string {
+	return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix)
 }

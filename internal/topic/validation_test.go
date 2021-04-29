@@ -25,6 +25,12 @@ func TestValidation_extractTopicMetaAndValidate(t *testing.T) {
 	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/goog-test-topic")
 	assert.NotNil(t, err)
 
+	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/test-topic-retry")
+	assert.NotNil(t, err)
+
+	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/test-topic-dlq")
+	assert.NotNil(t, err)
+
 	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/to")
 	assert.NotNil(t, err)
 }

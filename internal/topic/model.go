@@ -11,8 +11,8 @@ const (
 	// RetryTopicSuffix every primary topic subscription will have a retry topic with this suffix as well
 	RetryTopicSuffix = "-retry"
 
-	// DLQTopicSuffix every primary topic subscription will have a dlq topic with this suffix as well
-	DLQTopicSuffix = "-dlq"
+	// DeadLetterTopicSuffix every primary topic subscription will have a dlq topic with this suffix as well
+	DeadLetterTopicSuffix = "-dlq"
 
 	// DefaultNumPartitions default no of partitions for a topic
 	DefaultNumPartitions = 1

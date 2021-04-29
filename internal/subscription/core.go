@@ -73,7 +73,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	}
 
 	var topicModel *topic.Model
-	if topicModel, err = c.topicCore.Get(ctx, m.Topic); err != nil {
+	if topicModel, err = c.topicCore.Get(ctx, m.GetTopic()); err != nil {
 		if err != nil {
 			return err
 		}
@@ -86,7 +86,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 
 	// create retry topic for subscription
 	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
-		Name:          m.RetryTopic,
+		Name:          m.GetRetryTopic(),
 		NumPartitions: topicModel.NumPartitions,
 	})
 	if terr != nil {
@@ -95,7 +95,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 
 	// create dlq topic for subscription
 	_, terr = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
-		Name:          m.DeadLetterTopic,
+		Name:          m.GetDeadLetterTopic(),
 		NumPartitions: topicModel.NumPartitions,
 	})
 
@@ -171,7 +171,7 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 	if err != nil {
 		return "", err
 	}
-	return m.Topic, nil
+	return m.GetTopic(), nil
 }
 
 // ListKeys gets all subscription keys

@@ -68,7 +68,7 @@ func (svc *Service) Start() error {
 
 	topicCore := topic.NewCore(topic.NewRepo(r), projectCore, brokerStore)
 
-	subscriptionCore := subscription.NewCore(subscription.NewRepo(r), projectCore, topicCore, brokerStore)
+	subscriptionCore := subscription.NewCore(subscription.NewRepo(r), projectCore, topicCore)
 
 	publisher := publisher.NewCore(brokerStore)
 

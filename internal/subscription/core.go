@@ -4,13 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
-	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
 // ICore is an interface over subscription core
@@ -30,12 +28,11 @@ type Core struct {
 	repo        IRepo
 	projectCore project.ICore
 	topicCore   topic.ICore
-	brokerStore brokerstore.IBrokerStore
 }
 
 // NewCore returns an instance of Core
-func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore, brokerStore brokerstore.IBrokerStore) *Core {
-	return &Core{repo, projectCore, topicCore, brokerStore}
+func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore) *Core {
+	return &Core{repo, projectCore, topicCore}
 }
 
 // CreateSubscription creates a subscription for a given topic
@@ -79,28 +76,25 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		}
 	}
 
-	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
-	if aerr != nil {
-		return aerr
-	}
+	// for subscription over deadletter topics, skip the retry and deadletter topic creation
+	if topicModel.IsDeadLetterTopic() == false {
+		// create retry topic for subscription
+		// TODO: update based on retry policy
+		c.topicCore.CreateRetryTopic(ctx, &topic.Model{
+			Name:               m.GetRetryTopic(),
+			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
+			ExtractedProjectID: m.ExtractedTopicProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		})
 
-	// create retry topic for subscription
-	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
-		Name:          m.GetRetryTopic(),
-		NumPartitions: topicModel.NumPartitions,
-	})
-	if terr != nil {
-		return terr
-	}
-
-	// create dlq topic for subscription
-	_, terr = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
-		Name:          m.GetDeadLetterTopic(),
-		NumPartitions: topicModel.NumPartitions,
-	})
-
-	if terr != nil {
-		return terr
+		// create deadletter topic for subscription
+		// TODO: read the deadletter policy and update occordingly
+		c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
+			Name:               m.GetDeadLetterTopic(),
+			ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
+			ExtractedProjectID: m.ExtractedTopicProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		})
 	}
 
 	return c.repo.Create(ctx, m)

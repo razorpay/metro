@@ -1,6 +1,8 @@
 package topic
 
 import (
+	"strings"
+
 	"github.com/razorpay/metro/internal/common"
 )
 
@@ -36,4 +38,9 @@ func (m *Model) Key() string {
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
 	return common.GetBasePrefix() + Prefix + m.ExtractedProjectID + "/"
+}
+
+// IsDeadLetterTopic checks if the topic is a deadlettertopic created for dlq support on subscription
+func (m *Model) IsDeadLetterTopic() bool {
+	return strings.HasSuffix(m.ExtractedTopicName, DeadLetterTopicSuffix)
 }

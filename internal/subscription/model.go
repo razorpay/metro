@@ -21,6 +21,11 @@ type Model struct {
 	ExtractedSubscriptionProjectID string
 	ExtractedTopicName             string
 	ExtractedSubscriptionName      string
+
+	// DeadLetterTopic keeps the topic name used for deadlettering, this will be created with subscription and
+	// will be visible to subscriber, subscriber can create subscription over this topic to read messages from this
+	DeadLetterTopic string
+
 	// TODO: add remaining fields from spec.proto
 }
 
@@ -41,7 +46,7 @@ func (m *Model) IsPush() bool {
 
 // GetTopic returns the primary subscription topic
 func (m *Model) GetTopic() string {
-	return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.RetryTopicSuffix)
+	return m.Topic
 }
 
 // GetRetryTopic returns the topic used for subscription retries
@@ -51,5 +56,5 @@ func (m *Model) GetRetryTopic() string {
 
 // GetDeadLetterTopic returns the topic used for deadlettering for subscription
 func (m *Model) GetDeadLetterTopic() string {
-	return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix)
+	return m.DeadLetterTopic
 }

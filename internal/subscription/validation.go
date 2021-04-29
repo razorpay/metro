@@ -45,16 +45,19 @@ func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) 
 }
 
 func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
+	// validate and extract the subscription fields from the name
 	p, s, err := extractSubscriptionMetaAndValidate(ctx, req.GetName())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] name: (name=%s)", req.Name)
 	}
 
+	// get validated topic details
 	topicName, err := validateTopicName(ctx, req.GetTopic())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] topic: (topic=%s)", req.GetTopic())
 	}
 
+	// get validated pushconfig details
 	urlEndpoint, err := validatePushConfig(ctx, req.GetPushConfig())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] push config: (url=%s)", urlEndpoint)
@@ -67,6 +70,7 @@ func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, 
 		ExtractedSubscriptionName:      s,
 		ExtractedSubscriptionProjectID: p,
 		PushEndpoint:                   urlEndpoint,
+		DeadLetterTopic:                topic.GetTopicName(p, s+topic.DeadLetterTopicSuffix),
 	}
 
 	return m, nil

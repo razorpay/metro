@@ -117,8 +117,7 @@ func (svc *Service) Start() error {
 	svc.subscriptionCore = subscription.NewCore(
 		subscription.NewRepo(svc.registry),
 		svc.projectCore,
-		svc.topicCore,
-		svc.brokerStore)
+		svc.topicCore)
 
 	svc.nodeCore = node.NewCore(node.NewRepo(svc.registry))
 

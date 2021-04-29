@@ -1,5 +1,5 @@
 [app]
-    appEnv                = "default"
+    appEnv                = "stage"
     serviceName           = "metro"
     shutdownTimeout       = 2
     shutdownDelay         = 2

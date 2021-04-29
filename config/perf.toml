@@ -1,5 +1,5 @@
 [app]
-    appEnv                = "dev_docker"
+    appEnv                = "perf"
     serviceName           = "metro"
     shutdownTimeout       = 2
     shutdownDelay         = 2
@@ -19,8 +19,9 @@
     [web.broker]
         variant               = "kafka"
         [web.broker.brokerconfig]
-            brokers       = ["kafka-broker:9092"]
-            [web.broker.brokerconfig.web]
+            brokers       = ["localhost:9092"]
+            enableTLS     = true
+            certDir       = "/app/configs/"
     [web.interfaces]
         [web.interfaces.api]
             GrpcServerAddress               = "0.0.0.0:8081"
@@ -31,8 +32,9 @@
     [worker.broker]
         variant               = "kafka"
         [worker.broker.brokerconfig]
-            brokers       = ["kafka-broker:9092"]
-            [worker.broker.brokerconfig.consumer]
+            brokers       = ["localhost:9092"]
+            enableTLS     = true
+            certDir       = "/app/configs/"
     [worker.interfaces]
         [worker.interfaces.api]
             GrpcServerAddress               = "0.0.0.0:8083"
@@ -52,8 +54,10 @@
     driver                    = "consul"
     [registry.consulconfig]
         [registry.consulconfig.config]
-            address            = "consul:8500"
-            scheme             = "http"
+            address            = "localhost:8500"
+            token              = ""
+            scheme             = "https"
+            caPem              = ""
 
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"

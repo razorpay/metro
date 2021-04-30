@@ -5,6 +5,7 @@ import (
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
@@ -52,6 +53,13 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 	if err != nil {
 		return nil, err
 	}
+
+	// this way, all subscriber logs will have these metadata appended by default
+	logger.AppendServiceKV(map[string]interface{}{
+		"topic":        topic,
+		"subscription": subscription,
+		"subscriberId": subscriberID,
+	})
 
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	s := &Subscriber{

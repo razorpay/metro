@@ -88,7 +88,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		})
 
 		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic())
+			logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic(), "error", err.Error())
 			return err
 		}
 
@@ -102,7 +102,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		})
 
 		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic())
+			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic(), "error" , err.Error())
 			return err
 		}
 	}

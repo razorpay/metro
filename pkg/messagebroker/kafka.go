@@ -419,7 +419,7 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 	attempt := 1
 	resp, err := k.Consumer.CommitOffsets(tps)
 	for {
-		if err.Error() == kafkapkg.ErrRequestTimedOut.String() && attempt <= 3 {
+		if err != nil && err.Error() == kafkapkg.ErrRequestTimedOut.String() && attempt <= 3 {
 			logger.Ctx(ctx).Infow("kafka: retrying commit", "attempt", attempt)
 			resp, err = k.Consumer.CommitOffsets(tps)
 			attempt++

@@ -143,15 +143,15 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		defer resp.Body.Close()
 
 		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode)
-		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode))
+		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
 		if resp.StatusCode == http.StatusOK {
 			// Ack
 			ps.ack(ctx, message)
-			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint)
+			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		} else {
 			// Nack
 			ps.nack(ctx, message)
-			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint)
+			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		}
 
 		// TODO: read response body if required by publisher later

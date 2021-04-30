@@ -416,7 +416,20 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 	tps := make([]kafkapkg.TopicPartition, 0)
 	tps = append(tps, tp)
 
+	attempt := 1
 	resp, err := k.Consumer.CommitOffsets(tps)
+	for {
+		logger.Ctx(ctx).Infow("kafka: commit failed", "error", err.Error())
+		if err.Error() == kafkapkg.ErrRequestTimedOut.String() && attempt <= 3 {
+			logger.Ctx(ctx).Infow("kafka: retrying commit", "attempt", attempt)
+			resp, err = k.Consumer.CommitOffsets(tps)
+			attempt++
+			time.Sleep(time.Millisecond * 250)
+			continue
+		}
+		break
+	}
+
 	if err != nil {
 		logger.Ctx(ctx).Errorw("kafka: commit failed", "request", request, "error", err.Error())
 		return CommitOnTopicResponse{

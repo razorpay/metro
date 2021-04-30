@@ -143,7 +143,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		defer resp.Body.Close()
 
 		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode)
-		workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode))
+		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode))
 		if resp.StatusCode == http.StatusOK {
 			// Ack
 			ps.ack(ctx, message)

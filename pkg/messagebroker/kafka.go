@@ -54,6 +54,8 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 		"group.instance.id":  id,
 	}
 
+	logger.Ctx(ctx).Infow("kafka consumer: initializing new", "configMap", configMap, "options", options, "id", id)
+
 	if bConfig.EnableTLS {
 		certs, err := readKafkaCerts(bConfig.CertDir)
 		if err != nil {
@@ -74,6 +76,8 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 
 	c.SubscribeTopics(options.Topics, nil)
 
+	logger.Ctx(ctx).Infow("kafka consumer: initialized")
+
 	return &KafkaBroker{
 		Consumer: c,
 		Config:   bConfig,
@@ -92,6 +96,8 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Ctx(ctx).Infow("kafka producer: initializing new", "options", options)
 
 	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
@@ -114,6 +120,8 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
+	logger.Ctx(ctx).Infow("kafka producer: initialized")
+
 	return &KafkaBroker{
 		Producer: p,
 		Config:   bConfig,
@@ -132,6 +140,8 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Ctx(ctx).Infow("kafka admin: initializing new", "options", *options)
 
 	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
@@ -154,6 +164,8 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Ctx(ctx).Infow("kafka admin: initialized")
 
 	return &KafkaBroker{
 		Admin:    a,

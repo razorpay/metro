@@ -45,28 +45,57 @@ func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) 
 }
 
 func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
+	// validate and extract the subscription fields from the name
 	p, s, err := extractSubscriptionMetaAndValidate(ctx, req.GetName())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] name: (name=%s)", req.Name)
 	}
-	m := &Model{}
-	m.Name = req.GetName()
-	m.Topic = req.GetTopic()
-	m.Labels = req.GetLabels()
-	m.ExtractedSubscriptionProjectID = p
-	m.ExtractedSubscriptionName = s
-	pushConfig := req.GetPushConfig()
-	if pushConfig != nil {
-		urlEndpoint := req.GetPushConfig().PushEndpoint
-		_, err := url.ParseRequestURI(urlEndpoint)
-		if err != nil {
-			return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] url: (url=%s)", urlEndpoint)
-		}
 
-		m.PushEndpoint = urlEndpoint
+	// get validated topic details
+	topicName, err := validateTopicName(ctx, req.GetTopic())
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] topic: (topic=%s)", req.GetTopic())
+	}
+
+	// get validated pushconfig details
+	urlEndpoint, err := validatePushConfig(ctx, req.GetPushConfig())
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] push config: (url=%s)", urlEndpoint)
+	}
+
+	m := &Model{
+		Name:                           req.GetName(),
+		Topic:                          topicName,
+		Labels:                         req.GetLabels(),
+		ExtractedSubscriptionName:      s,
+		ExtractedSubscriptionProjectID: p,
+		PushEndpoint:                   urlEndpoint,
+		DeadLetterTopic:                topic.GetTopicName(p, s+topic.DeadLetterTopicSuffix),
 	}
 
 	return m, nil
+}
+
+func validateTopicName(ctx context.Context, name string) (string, error) {
+	if strings.HasSuffix(name, topic.RetryTopicSuffix) {
+		err := fmt.Errorf("subscription topic name cannot end with " + topic.RetryTopicSuffix)
+		return "", err
+	}
+
+	return name, nil
+}
+
+func validatePushConfig(ctx context.Context, config *metrov1.PushConfig) (string, error) {
+	if config != nil {
+		urlEndpoint := config.PushEndpoint
+		_, err := url.ParseRequestURI(urlEndpoint)
+		if err != nil {
+			return "", err
+		}
+
+		return urlEndpoint, nil
+	}
+	return "", nil
 }
 
 func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (projectID string, subscriptionName string, err error) {
@@ -81,5 +110,6 @@ func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (proje
 		err = fmt.Errorf("subscription name cannot start with goog")
 		return "", "", err
 	}
+
 	return projectID, subscriptionName, nil
 }

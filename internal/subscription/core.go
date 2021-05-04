@@ -68,12 +68,43 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		logger.Ctx(ctx).Errorw("topic project not found", "name", m.ExtractedTopicProjectID)
 		return merror.New(merror.NotFound, "project not found")
 	}
-	if ok, err = c.topicCore.ExistsWithName(ctx, m.Topic); !ok {
+
+	var topicModel *topic.Model
+	if topicModel, err = c.topicCore.Get(ctx, m.GetTopic()); err != nil {
+		return err
+	}
+
+	// for subscription over deadletter topics, skip the retry and deadletter topic creation
+	if topicModel.IsDeadLetterTopic() == false {
+		// create retry topic for subscription
+		// TODO: update based on retry policy
+		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
+			Name:               m.GetRetryTopic(),
+			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
+			ExtractedProjectID: m.ExtractedTopicProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		})
+
 		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic(), "error", err.Error())
 			return err
 		}
-		return merror.Newf(merror.NotFound, "topic with name %s not found", m.Topic)
+
+		// create deadletter topic for subscription
+		// TODO: read the deadletter policy and update accordingly
+		err = c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
+			Name:               m.GetDeadLetterTopic(),
+			ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
+			ExtractedProjectID: m.ExtractedTopicProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		})
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic(), "error", err.Error())
+			return err
+		}
 	}
+
 	return c.repo.Create(ctx, m)
 }
 
@@ -137,26 +168,12 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 	startTime := time.Now()
 	defer subscriptionOperationTimeTaken.WithLabelValues(env, "GetTopicFromSubscriptionName").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
-	projectID, subscriptionName, err := extractSubscriptionMetaAndValidate(ctx, subscription)
-	if err != nil {
-		return "", err
-	}
-	subscriptionKey := common.GetBasePrefix() + Prefix + projectID + "/" + subscriptionName
+	m, err := c.Get(ctx, subscription)
 
-	if ok, err := c.repo.Exists(ctx, subscriptionKey); !ok {
-		if err != nil {
-			return "", err
-		}
-		err = merror.Newf(merror.NotFound, "subscription not found %s", common.GetBasePrefix()+subscription)
-		logger.Ctx(ctx).Error(err.Error())
-		return "", err
-	}
-	m := &Model{}
-	err = c.repo.Get(ctx, subscriptionKey, m)
 	if err != nil {
 		return "", err
 	}
-	return m.Topic, nil
+	return m.GetTopic(), nil
 }
 
 // ListKeys gets all subscription keys
@@ -179,7 +196,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 
 	prefix = common.GetBasePrefix() + prefix
 
-	out := []*Model{}
+	var out []*Model
 	ret, err := c.repo.List(ctx, prefix)
 	if err != nil {
 		return nil, err
@@ -203,6 +220,8 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 		return nil, err
 	}
 	prefix := common.GetBasePrefix() + Prefix + projectID + "/" + subscriptionName
+
+	logger.Ctx(ctx).Infow("fetching subscription", "key", prefix)
 
 	model := &Model{}
 	err = c.repo.Get(ctx, prefix, model)

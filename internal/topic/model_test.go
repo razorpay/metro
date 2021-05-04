@@ -13,6 +13,7 @@ func getDummyTopicModel() *Model {
 		Labels:             map[string]string{"label": "value"},
 		ExtractedProjectID: "test-project",
 		ExtractedTopicName: "test-topic",
+		NumPartitions:      DefaultNumPartitions,
 	}
 }
 

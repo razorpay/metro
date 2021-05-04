@@ -81,7 +81,7 @@ func (svc *Service) Start() error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 			metrov1.RegisterPublisherServer(server, newPublisherServer(brokerStore, topicCore, publisher))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore, subscriptionCore, topicCore))
-			metrov1.RegisterSubscriberServer(server, newSubscriberServer(subscriptionCore, streamManager))
+			metrov1.RegisterSubscriberServer(server, newSubscriberServer(brokerStore, subscriptionCore, streamManager))
 			return nil
 		},
 		getInterceptors()...,

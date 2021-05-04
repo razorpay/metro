@@ -4,23 +4,24 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/razorpay/metro/service/web/stream"
-
+	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	"github.com/razorpay/metro/service/web/stream"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type subscriberserver struct {
+	brokerStore      brokerstore.IBrokerStore
 	subscriptionCore *subscription.Core
 	psm              stream.IManager
 }
 
-func newSubscriberServer(subscriptionCore *subscription.Core, psm stream.IManager) *subscriberserver {
-	return &subscriberserver{subscriptionCore, psm}
+func newSubscriberServer(brokerStore brokerstore.IBrokerStore, subscriptionCore *subscription.Core, psm stream.IManager) *subscriberserver {
+	return &subscriberserver{brokerStore, subscriptionCore, psm}
 }
 
 // CreateSubscription to create a new subscription

@@ -14,12 +14,14 @@ import (
 
 // ICore is an interface over topic core
 type ICore interface {
-	CreateTopic(ctx context.Context, topic *Model) error
+	CreateTopic(ctx context.Context, model *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
 	DeleteProjectTopics(ctx context.Context, projectID string) error
 	Get(ctx context.Context, key string) (*Model, error)
+	CreateRetryTopic(ctx context.Context, model *Model) error
+	CreateDeadLetterTopic(ctx context.Context, model *Model) error
 }
 
 // Core implements all business logic for a topic
@@ -41,12 +43,15 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 	startTime := time.Now()
 	defer topicOperationTimeTaken.WithLabelValues(env, "CreateTopic").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 
+	// validate project exists
 	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedProjectID); !ok {
 		if err != nil {
 			return err
 		}
 		return merror.Newf(merror.NotFound, "project not found")
 	}
+
+	// validate if the topic already exists
 	ok, err := c.Exists(ctx, m.Key())
 	if err != nil {
 		return err
@@ -54,17 +59,34 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 	if ok {
 		return merror.New(merror.AlreadyExists, "Topic already exists")
 	}
-	admin, err := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
-	if err != nil {
-		return err
-	}
-	// TODO: take number of partitions as input
-	_, err = admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{m.Name, 2})
+
+	// create broker topic
+	err = c.createBrokerTopic(ctx, m)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in creating topic in broker", "msg", err.Error())
 		return err
 	}
+
+	// create regsitry entry
 	return c.repo.Create(ctx, m)
+}
+
+// CreateRetryTopic creates a retry topic for the given primary topic and name
+func (c *Core) CreateRetryTopic(ctx context.Context, model *Model) error {
+	// create broker topic
+	return c.createBrokerTopic(ctx, model)
+}
+
+// CreateDeadLetterTopic creates a deadletter topic for the given primary topic and name
+func (c *Core) CreateDeadLetterTopic(ctx context.Context, model *Model) error {
+	// create broker topic
+	err := c.createBrokerTopic(ctx, model)
+	if err != nil {
+		return err
+	}
+
+	// create registry entry
+	return c.repo.Create(ctx, model)
 }
 
 // Exists checks if the topic exists with a given key
@@ -153,4 +175,20 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 		return nil, err
 	}
 	return model, nil
+}
+
+// createBrokerTopic creates the topic with the message broker
+func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
+	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return aerr
+	}
+
+	// Create topic requset with Broker
+	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
+		Name:          model.Name,
+		NumPartitions: model.NumPartitions,
+	})
+
+	return terr
 }

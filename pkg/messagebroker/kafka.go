@@ -322,7 +322,8 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		Value: rc,
 	})
 
-	deliveryChan := make(chan kafkapkg.Event)
+	deliveryChan := make(chan kafkapkg.Event, 1000)
+	defer close(deliveryChan)
 
 	tp := NormalizeTopicName(request.Topic)
 	logger.Ctx(ctx).Infow("normalized topic name", "topic", tp)
@@ -346,15 +347,14 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	select {
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
-	case <-time.After(time.Duration(request.TimeoutMs) * time.Millisecond):
-		return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutMs)
+		//case <-time.After(time.Duration(request.TimeoutMs) * time.Millisecond):
+		//	return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutMs)
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {
+		logger.Ctx(ctx).Errorw("kafka: error in publishing messages", "error", m.TopicPartition.Error.Error())
 		return nil, m.TopicPartition.Error
 	}
-
-	close(deliveryChan)
 
 	return &SendMessageToTopicResponse{MessageID: msgID}, nil
 }
@@ -400,7 +400,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 		} else {
 			// The client will automatically try to recover from all errors.
-			logger.Ctx(ctx).Errorw("error in receiving messages", "msg", err.Error())
+			logger.Ctx(ctx).Errorw("kafka: error in receiving messages", "msg", err.Error())
 			return nil, err
 		}
 	}

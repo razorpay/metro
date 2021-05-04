@@ -72,7 +72,7 @@ func (svc *Service) Start() error {
 
 	publisher := publisher.NewCore(brokerStore)
 
-	streamManager := stream.NewStreamManager(svc.ctx, subscriptionCore, brokerStore)
+	streamManager := stream.NewStreamManager(svc.ctx, subscriptionCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
 
 	grpcServer, err := server.StartGRPCServer(
 		grp,
@@ -81,7 +81,7 @@ func (svc *Service) Start() error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 			metrov1.RegisterPublisherServer(server, newPublisherServer(brokerStore, topicCore, publisher))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore, subscriptionCore, topicCore))
-			metrov1.RegisterSubscriberServer(server, newSubscriberServer(subscriptionCore, streamManager))
+			metrov1.RegisterSubscriberServer(server, newSubscriberServer(brokerStore, subscriptionCore, streamManager))
 			return nil
 		},
 		getInterceptors()...,

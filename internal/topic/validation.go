@@ -33,8 +33,6 @@ func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) 
 	m.Labels = req.GetLabels()
 	m.ExtractedProjectID = p
 	m.ExtractedTopicName = t
-	m.RetryTopicName = req.GetName() + RetryTopicSuffix
-	m.DLQTopicName = req.GetName() + DLQTopicSuffix
 	m.NumPartitions = DefaultNumPartitions
 	return m, nil
 }
@@ -52,5 +50,17 @@ func ExtractTopicMetaAndValidate(ctx context.Context, name string) (projectID st
 		err = fmt.Errorf("topic name cannot start with goog")
 		return "", "", err
 	}
+
+	// -retry is reserved for internal retry topic
+	if strings.HasSuffix(topicName, RetryTopicSuffix) {
+		err = fmt.Errorf("topic name cannot end with " + RetryTopicSuffix)
+		return "", "", err
+	}
+
+	if strings.HasSuffix(topicName, DeadLetterTopicSuffix) {
+		err = fmt.Errorf("topic name cannot end with " + DeadLetterTopicSuffix)
+		return "", "", err
+	}
+
 	return projectID, topicName, nil
 }

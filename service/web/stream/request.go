@@ -96,3 +96,41 @@ func NewParsedModifyAckDeadlineRequest(req *metrov1.ModifyAckDeadlineRequest) (*
 
 	return parsedReq, nil
 }
+
+// requestType specifies the type of proxy request, ack or modack
+type requestType int
+
+const (
+	ack requestType = iota
+	modAck
+)
+
+type proxyRequest struct {
+	addr           string
+	grpcServerAddr string
+	ackMsgs        []*subscriber.AckMessage
+	parsedReq      *ParsedStreamingPullRequest
+	requestType    requestType
+}
+
+func newAckProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, grpcServerAddr string) *proxyRequest {
+	return newProxyRequest(addr, ackMsgs, parsedReq, grpcServerAddr, ack)
+}
+
+func newModAckProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, grpcServerAddr string) *proxyRequest {
+	return newProxyRequest(addr, ackMsgs, parsedReq, grpcServerAddr, modAck)
+}
+
+func newProxyRequest(addr string, ackMsgs []*subscriber.AckMessage, parsedReq *ParsedStreamingPullRequest, grpcServerAddr string, requestType requestType) *proxyRequest {
+	return &proxyRequest{
+		addr:           addr,
+		grpcServerAddr: grpcServerAddr,
+		ackMsgs:        ackMsgs,
+		parsedReq:      parsedReq,
+		requestType:    requestType,
+	}
+}
+
+func (pr *proxyRequest) isAckRequestType() bool {
+	return pr.requestType == ack
+}

@@ -71,9 +71,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 
 	var topicModel *topic.Model
 	if topicModel, err = c.topicCore.Get(ctx, m.GetTopic()); err != nil {
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	// for subscription over deadletter topics, skip the retry and deadletter topic creation
@@ -93,7 +91,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		}
 
 		// create deadletter topic for subscription
-		// TODO: read the deadletter policy and update occordingly
+		// TODO: read the deadletter policy and update accordingly
 		err = c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
 			Name:               m.GetDeadLetterTopic(),
 			ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
@@ -102,7 +100,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		})
 
 		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic(), "error" , err.Error())
+			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic(), "error", err.Error())
 			return err
 		}
 	}
@@ -198,7 +196,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 
 	prefix = common.GetBasePrefix() + prefix
 
-	out := []*Model{}
+	var out []*Model
 	ret, err := c.repo.List(ctx, prefix)
 	if err != nil {
 		return nil, err

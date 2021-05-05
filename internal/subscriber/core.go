@@ -30,6 +30,7 @@ func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) *
 func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error) {
 	subModel, err := c.subscriptionCore.Get(ctx, subscription)
 	if err != nil {
+		logger.Ctx(ctx).Errorw("subscriber: error fetching subscription", err.Error())
 		return nil, err
 	}
 

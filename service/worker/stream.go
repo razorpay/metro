@@ -55,8 +55,6 @@ func (ps *PushStream) Start() error {
 		case <-gctx.Done():
 			err = gctx.Err()
 			logger.Ctx(ps.ctx).Infow("worker: subscriber stream context done", "error", err.Error())
-		case err = <-ps.subs.GetErrorChannel():
-			return err
 		case <-ps.stopCh:
 			logger.Ctx(ps.ctx).Infow("worker: subscriber stream received stop signal")
 			err = fmt.Errorf("stop channel received signal for stream, stopping")
@@ -71,12 +69,14 @@ func (ps *PushStream) Start() error {
 			select {
 			case <-gctx.Done():
 				return gctx.Err()
+			case err = <-ps.subs.GetErrorChannel():
+				logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "err", err.Error())
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request")
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{10}
 				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data")
 				res := <-ps.subs.GetResponseChannel()
-				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res)
+				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res, "count", len(res.ReceivedMessages))
 				ps.responseChan <- res
 			}
 		}

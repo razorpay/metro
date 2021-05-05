@@ -4,13 +4,11 @@ import (
 	"context"
 	"testing"
 
-	mocks3 "github.com/razorpay/metro/internal/topic/mocks/core"
-
-	mocks2 "github.com/razorpay/metro/internal/subscription/mocks/core"
-
 	"github.com/golang/mock/gomock"
 	"github.com/razorpay/metro/internal/project"
 	mocks "github.com/razorpay/metro/internal/project/mocks/core"
+	mocks2 "github.com/razorpay/metro/internal/subscription/mocks/core"
+	mocks3 "github.com/razorpay/metro/internal/topic/mocks/core"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )

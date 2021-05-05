@@ -497,6 +497,15 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 
 // Stop the subscriber
 func (s *Subscriber) Stop() {
+	// close all active channels on stop
+	defer close(s.requestChan)
+	defer close(s.responseChan)
+	defer close(s.ackChan)
+	defer close(s.modAckChan)
+	defer close(s.deadlineTickerChan)
+	defer close(s.errChan)
+	defer close(s.closeChan)
+
 	s.cancelFunc()
 	<-s.closeChan
 }

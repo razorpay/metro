@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	env                        string
-	streamManagerActiveStreams *prometheus.GaugeVec
+	env                           string
+	streamManagerActiveStreams    *prometheus.GaugeVec
+	streamManagerSubscriberErrors *prometheus.CounterVec
 )
 
 func init() {
@@ -18,4 +19,8 @@ func init() {
 	streamManagerActiveStreams = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_stream_manager_active_streams",
 	}, []string{"env", "stream_id", "subscription"})
+
+	streamManagerSubscriberErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_stream_manager_subscriber_errors",
+	}, []string{"env", "stream_id", "subscription", "error"})
 }

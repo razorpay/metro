@@ -13,6 +13,7 @@ var (
 	workerMessagesNAckd              *prometheus.CounterVec
 	workerPushEndpointHTTPStatusCode *prometheus.CounterVec
 	workerPushEndpointTimeTaken      *prometheus.HistogramVec
+	workerSubscriberErrors           *prometheus.CounterVec
 )
 
 func init() {
@@ -35,4 +36,8 @@ func init() {
 		Help:    "Time taken to get response from push endpoint",
 		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription", "endpoint"})
+
+	workerSubscriberErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_worker_subscriber_errors",
+	}, []string{"env", "topic", "subscription", "error"})
 }

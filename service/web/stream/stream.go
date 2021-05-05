@@ -62,12 +62,12 @@ func (s *pullStream) run() error {
 			if err == io.EOF {
 				// return will close stream from server side
 				logger.Ctx(s.ctx).Errorw("stream: EOF received from client")
-			}
-			if err != nil {
+			} else if err != nil {
 				logger.Ctx(s.ctx).Errorw("stream: error received from client", "error", err.Error())
 			}
 			return nil
 		case err := <-s.subscriptionSubscriber.GetErrorChannel():
+			streamManagerSubscriberErrors.WithLabelValues(env, s.subscriberID, s.subscriptionSubscriber.GetSubscription(), err.Error()).Inc()
 			if isErrorRecoverable(err) {
 				// no need to stop the subscriber in such cases. just log and return
 				logger.Ctx(s.ctx).Errorw("subscriber: got recoverable error", err.Error())

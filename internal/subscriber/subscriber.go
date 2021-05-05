@@ -291,6 +291,9 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		// cleanup message from memory
 		removeMessageFromMemory(stats, msgID)
 
+		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
+		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Since(msg.PublishTime).Nanoseconds() / 1e9))
+
 		return
 	}
 

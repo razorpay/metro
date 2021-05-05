@@ -71,6 +71,7 @@ func (ps *PushStream) Start() error {
 				return gctx.Err()
 			case err = <-ps.subs.GetErrorChannel():
 				logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "err", err.Error())
+				workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error()).Inc()
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request")
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{10}
@@ -158,7 +159,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 	}
 }
 
-func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage) {
+func (ps *PushStream) nack(_ context.Context, message *metrov1.ReceivedMessage) {
 	logger.Ctx(ps.ctx).Infow("worker: sending nack request to subscriber", "ackId", message.AckId)
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// deadline is set to 0 for nack
@@ -166,7 +167,7 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 	ps.subs.GetModAckChannel() <- modackReq
 }
 
-func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage) {
+func (ps *PushStream) ack(_ context.Context, message *metrov1.ReceivedMessage) {
 	logger.Ctx(ps.ctx).Infow("worker: sending ack request to subscriber", "ackId", message.AckId)
 	ackReq := subscriber.ParseAckID(message.AckId)
 	ps.subs.GetAckChannel() <- ackReq

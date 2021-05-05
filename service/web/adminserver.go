@@ -44,15 +44,21 @@ func (s adminServer) DeleteProject(ctx context.Context, req *metrov1.Project) (*
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
-	err = s.projectCore.DeleteProject(ctx, p)
-	if err != nil {
-		return nil, merror.ToGRPCError(err)
-	}
+
+	// Delete all subscriptions of the project first
 	err = s.subscriptionCore.DeleteProjectSubscriptions(ctx, p.ProjectID)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
+
+	// Delete all topics of the project
 	err = s.topicCore.DeleteProjectTopics(ctx, p.ProjectID)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	// Delete the project
+	err = s.projectCore.DeleteProject(ctx, p)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}

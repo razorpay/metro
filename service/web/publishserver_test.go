@@ -8,15 +8,15 @@ import (
 	"github.com/golang/mock/gomock"
 	mocks "github.com/razorpay/metro/internal/brokerstore/mocks"
 	mocks3 "github.com/razorpay/metro/internal/publisher/mocks/core"
+	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	mocks4 "github.com/razorpay/metro/pkg/messagebroker/mocks"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPublishServer_CreateTopicSucess(t *testing.T) {
+func TestPublishServer_CreateTopicSuccess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
@@ -26,14 +26,18 @@ func TestPublishServer_CreateTopicSucess(t *testing.T) {
 
 	ctx := context.Background()
 	req := &metrov1.Topic{
-		Name: "projects/project123/topics/test-topic",
+		Name:   "projects/project123/topics/test-topic",
+		Labels: map[string]string{"foo": "bar"},
 	}
-	topicCore.EXPECT().CreateTopic(gomock.Any(), gomock.Any()).Times(1).Return(nil)
-	brokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Times(1).Return(admin, nil)
-	admin.EXPECT().CreateTopic(gomock.Any(), gomock.Any()).Times(1).Return(messagebroker.CreateTopicResponse{}, nil)
+	topicModel, err := topic.GetValidatedModel(ctx, req)
+	assert.Nil(t, err)
 
-	topic, err := server.CreateTopic(ctx, req)
-	assert.NotNil(t, topic)
+	topicCore.EXPECT().CreateTopic(ctx, topicModel).Times(1).Return(nil)
+	brokerStore.EXPECT().GetAdmin(ctx, gomock.Any()).Times(1).Return(admin, nil)
+	admin.EXPECT().CreateTopic(ctx, gomock.Any()).Times(1).Return(messagebroker.CreateTopicResponse{}, nil)
+
+	tp, err := server.CreateTopic(ctx, req)
+	assert.Equal(t, req, tp)
 	assert.Nil(t, err)
 }
 
@@ -48,10 +52,13 @@ func TestPublishServer_CreateTopicFailure(t *testing.T) {
 	req := &metrov1.Topic{
 		Name: "projects/project123/topics/test-topic",
 	}
-	topicCore.EXPECT().CreateTopic(gomock.Any(), gomock.Any()).Times(1).Return(fmt.Errorf("error"))
-	topic, err := server.CreateTopic(ctx, req)
+	topicModel, err := topic.GetValidatedModel(ctx, req)
+	assert.Nil(t, err)
+
+	topicCore.EXPECT().CreateTopic(ctx, topicModel).Times(1).Return(fmt.Errorf("error"))
+	tp, err := server.CreateTopic(ctx, req)
 	assert.NotNil(t, err)
-	assert.Nil(t, topic)
+	assert.Nil(t, tp)
 }
 
 func TestPublishServer_DeleteTopicSuccess(t *testing.T) {
@@ -66,9 +73,11 @@ func TestPublishServer_DeleteTopicSuccess(t *testing.T) {
 		Topic: "projects/project123/topics/test-topic",
 	}
 
-	topicCore.EXPECT().DeleteTopic(gomock.Any(), gomock.Any()).Times(1).Return(nil)
-	_, err := server.DeleteTopic(ctx, req)
+	topicModel, err := topic.GetValidatedModel(ctx, &metrov1.Topic{Name: req.Topic})
+	assert.Nil(t, err)
 
+	topicCore.EXPECT().DeleteTopic(ctx, topicModel).Times(1).Return(nil)
+	_, err = server.DeleteTopic(ctx, req)
 	assert.Nil(t, err)
 }
 
@@ -83,10 +92,11 @@ func TestPublishServer_DeleteTopicFailure(t *testing.T) {
 	req := &metrov1.DeleteTopicRequest{
 		Topic: "projects/project123/topics/test-topic",
 	}
+	topicModel, err := topic.GetValidatedModel(ctx, &metrov1.Topic{Name: req.Topic})
+	assert.Nil(t, err)
 
-	topicCore.EXPECT().DeleteTopic(gomock.Any(), gomock.Any()).Times(1).Return(fmt.Errorf("error"))
-	_, err := server.DeleteTopic(ctx, req)
-
+	topicCore.EXPECT().DeleteTopic(ctx, topicModel).Times(1).Return(fmt.Errorf("error"))
+	_, err = server.DeleteTopic(ctx, req)
 	assert.NotNil(t, err)
 }
 
@@ -103,7 +113,7 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 		Messages: []*metrov1.PubsubMessage{},
 	}
 
-	publisher.EXPECT().Publish(gomock.Any(), gomock.Any()).Times(1).Return([]string{}, nil)
+	publisher.EXPECT().Publish(ctx, req).Times(1).Return([]string{}, nil)
 	_, err := server.Publish(ctx, req)
 	assert.Nil(t, err)
 }
@@ -121,7 +131,7 @@ func TestPublishServer_PublishFailure(t *testing.T) {
 		Messages: []*metrov1.PubsubMessage{},
 	}
 
-	publisher.EXPECT().Publish(gomock.Any(), gomock.Any()).Times(1).Return([]string{}, fmt.Errorf("error"))
+	publisher.EXPECT().Publish(ctx, req).Times(1).Return([]string{}, fmt.Errorf("error"))
 	_, err := server.Publish(ctx, req)
 	assert.NotNil(t, err)
 }

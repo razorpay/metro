@@ -58,13 +58,6 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		return nil, err
 	}
 
-	// this way, all subscriber logs will have these metadata appended by default
-	logger.AppendServiceKV(map[string]interface{}{
-		"topic":        topic,
-		"subscription": subscription,
-		"subscriberId": subscriberID,
-	})
-
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	s := &Subscriber{
 		subscription:           subscription,

@@ -56,5 +56,9 @@ func (m *Model) GetRetryTopic() string {
 
 // GetDeadLetterTopic returns the topic used for deadlettering for subscription
 func (m *Model) GetDeadLetterTopic() string {
+	if m.DeadLetterTopic == "" {
+		// adding this for backward compatibility as older models will not have persisted DLQ topic name
+		return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix)
+	}
 	return m.DeadLetterTopic
 }

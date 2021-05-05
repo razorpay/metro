@@ -36,7 +36,7 @@ func (ps *PushStream) Start() error {
 	var err error
 	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subcriptionName, 100, 50, 0)
 	if err != nil {
-		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", err.Error())
+		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "error", err.Error())
 		return err
 	}
 

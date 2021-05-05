@@ -220,6 +220,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 	topics = append(topics, ts)
 	topicsResp, err := k.Admin.CreateTopics(ctx, topics, kafkapkg.SetAdminOperationTimeout(59*time.Second))
 	if err != nil {
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "CreateTopic", err.Error()).Inc()
 		return CreateTopicResponse{
 			Response: topicsResp,
 		}, err
@@ -227,6 +228,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 
 	for _, tp := range topicsResp {
 		if tp.Error.Code() != kafkapkg.ErrNoError && tp.Error.Code() != kafkapkg.ErrTopicAlreadyExists {
+			messageBrokerOperationError.WithLabelValues(env, Kafka, "CreateTopic", err.Error()).Inc()
 			return CreateTopicResponse{
 				Response: topicsResp,
 			}, fmt.Errorf("kafka: %v", tp.Error.String())
@@ -250,9 +252,16 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 	topics := make([]string, 0)
 	topics = append(topics, request.Name)
 	resp, err := k.Admin.DeleteTopics(ctx, topics)
+	if err != nil {
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "DeleteTopic", err.Error()).Inc()
+		return DeleteTopicResponse{
+			Response: resp,
+		}, err
+	}
+
 	return DeleteTopicResponse{
 		Response: resp,
-	}, err
+	}, nil
 }
 
 // GetTopicMetadata fetches the given topics metadata stored in the broker
@@ -273,6 +282,7 @@ func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetada
 	// TODO : normalize timeouts
 	resp, err := k.Consumer.Committed(tps, 5000)
 	if err != nil || resp == nil || len(resp) == 0 {
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "GetTopicMetadata", err.Error()).Inc()
 		return GetTopicMetadataResponse{}, err
 	}
 
@@ -334,6 +344,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		Headers:        kHeaders,
 	}, deliveryChan)
 	if err != nil {
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
 		return nil, err
 	}
 
@@ -353,6 +364,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	if m != nil && m.TopicPartition.Error != nil {
 		logger.Ctx(ctx).Errorw("kafka: error in publishing messages", "error", m.TopicPartition.Error.Error())
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
 		return nil, m.TopicPartition.Error
 	}
 
@@ -397,10 +409,12 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 			}
 		} else if err.(kafkapkg.Error).Code() == kafkapkg.ErrTimedOut {
+			messageBrokerOperationError.WithLabelValues(env, Kafka, "ReceiveMessages", err.Error()).Inc()
 			return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 		} else {
 			// The client will automatically try to recover from all errors.
 			logger.Ctx(ctx).Errorw("kafka: error in receiving messages", "msg", err.Error())
+			messageBrokerOperationError.WithLabelValues(env, Kafka, "ReceiveMessages", err.Error()).Inc()
 			return nil, err
 		}
 	}
@@ -433,6 +447,7 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 	for {
 		if err != nil && err.Error() == kafkapkg.ErrRequestTimedOut.String() && attempt <= 3 {
 			logger.Ctx(ctx).Infow("kafka: retrying commit", "attempt", attempt)
+			messageBrokerOperationError.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset", err.Error()).Inc()
 			resp, err = k.Consumer.CommitOffsets(tps)
 			attempt++
 			time.Sleep(time.Millisecond * 250)
@@ -443,6 +458,7 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 
 	if err != nil {
 		logger.Ctx(ctx).Errorw("kafka: commit failed", "request", request, "error", err.Error())
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset", err.Error()).Inc()
 		return CommitOnTopicResponse{
 			Response: nil,
 		}, err
@@ -508,12 +524,14 @@ func (k *KafkaBroker) Close(ctx context.Context) error {
 	err := k.Consumer.Unsubscribe()
 	if err != nil {
 		logger.Ctx(ctx).Errorw("kafka: consumer unsubscribe failed", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID, "error", err.Error())
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "Close", err.Error()).Inc()
 		return err
 	}
 
 	cerr := k.Consumer.Close()
 	if cerr != nil {
 		logger.Ctx(ctx).Errorw("kafka: consumer close failed", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID, "error", cerr.Error())
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "Close", err.Error()).Inc()
 		return cerr
 	}
 	logger.Ctx(ctx).Infow("kafka: consumer closed...", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID)

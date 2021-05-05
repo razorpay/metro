@@ -49,7 +49,7 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
 		"group.id":           options.GroupID,
-		"auto.offset.reset":  "earliest",
+		"auto.offset.reset":  "latest",
 		"enable.auto.commit": false,
 		"group.instance.id":  id,
 	}

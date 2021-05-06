@@ -140,6 +140,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		startTime := time.Now()
 		postData := bytes.NewBuffer(message.Message.Data)
 		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
+		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())

@@ -68,6 +68,9 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
+				// close the response channel here, since this goroutine is the sender of the channel
+				close(ps.responseChan)
+
 				return gctx.Err()
 			case err = <-ps.subs.GetErrorChannel():
 				logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "err", err.Error())
@@ -111,9 +114,6 @@ func (ps *PushStream) Stop() error {
 	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 	// Stop the pushsubscription
 	close(ps.stopCh)
-
-	// close the response channel
-	close(ps.responseChan)
 
 	// stop the subscriber
 	ps.subs.Stop()

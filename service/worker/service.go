@@ -477,7 +477,7 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 
 		if !found {
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
-			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber)
+			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber, &svc.workerConfig.HTTPClientConfig)
 			svc.workgrp.Go(handler.Start)
 			svc.pushHandlers[newBinding.Key()] = handler
 		}

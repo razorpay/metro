@@ -102,7 +102,8 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	})
 
 	if err != nil {
-		logger.Ctx(ctx).Errorw("subscriber: commit to primary topic failed", "err", err.Error())
+		logger.Ctx(ctx).Errorw("subscriber: commit to primary topic failed",
+			"topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID, "err", err.Error())
 		s.errChan <- err
 		return
 	}
@@ -110,7 +111,8 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	// check max retries.
 	if retryMsg.RetryCount >= maxMessageRetryAttempts {
 		// then push message to the dlq topic
-		logger.Ctx(ctx).Infow("subscriber: max retries exceeded. pushing to dlq topic", "retryMsg", retryMsg, "dlq", s.dlqTopic)
+		logger.Ctx(ctx).Infow("subscriber: max retries exceeded. pushing to dlq topic", "retryMsg", retryMsg,
+			"dlq", s.dlqTopic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 		_, err = s.dlqProducer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 			Topic:     s.dlqTopic,
 			Message:   retryMsg.Data,
@@ -118,14 +120,15 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 		})
 
 		if err != nil {
-			logger.Ctx(ctx).Errorw("subscriber: push to dlq topic failed", "topic", s.dlqTopic, "err", err.Error())
+			logger.Ctx(ctx).Errorw("subscriber: push to dlq topic failed", "topic", s.dlqTopic,
+				"subscription", s.subscription, "subscriberId", s.subscriberID, "err", err.Error())
 			s.errChan <- err
 			return
 		}
 
 		subscriberMessagesRetried.WithLabelValues(env, s.dlqTopic, s.subscription).Inc()
-		logger.Ctx(ctx).Infow("subscriber: msg pushed to dlq topic", "topic", s.dlqTopic, "dlqMsg", retryMsg)
-
+		logger.Ctx(ctx).Infow("subscriber: msg pushed to dlq topic", "topic", s.dlqTopic,
+			"subscription", s.subscription, "subscriberId", s.subscriberID, "dlqMsg", retryMsg)
 		return
 	}
 
@@ -139,19 +142,21 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	})
 
 	if err != nil {
-		logger.Ctx(ctx).Errorw("subscriber: push to retry topic failed", "topic", s.retryTopic, "err", err.Error())
+		logger.Ctx(ctx).Errorw("subscriber: push to retry topic failed", "topic",
+			"subscription", s.subscription, "subscriberId", s.subscriberID, s.retryTopic, "err", err.Error())
 		s.errChan <- err
 		return
 	}
 
 	subscriberMessagesRetried.WithLabelValues(env, s.retryTopic, s.subscription).Inc()
-	logger.Ctx(ctx).Infow("subscriber: msg pushed to retry topic", "topic", s.topic, "retryMsg", retryMsg)
+	logger.Ctx(ctx).Infow("subscriber: msg pushed to retry topic", "topic", s.topic, "subscription", s.subscription,
+		"subscriberId", s.subscriberID, "retryMsg", retryMsg)
 }
 
 // acknowledge messages
 func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
-	logger.Ctx(ctx).Infow("subscriber: got ack request", "ack_request", req.String())
+	logger.Ctx(ctx).Infow("subscriber: got ack request", "ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 
 	tp := req.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
@@ -163,7 +168,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	msgID := req.MessageID
 	// check if message is present in-memory or not
 	if _, ok := stats.consumedMessages[msgID]; !ok {
-		logger.Ctx(ctx).Infow("subscriber: skipping ack as message not found in-memory", "ack_request", req.String())
+		logger.Ctx(ctx).Infow("subscriber: skipping ack as message not found in-memory", "ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 		return
 	}
 
@@ -184,12 +189,12 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
 
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "req offset", req.Offset, "peek offset", peek.Offset)
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "req offset", req.Offset, "peek offset", peek.Offset, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 	if offsetToCommit == peek.Offset {
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
 		shouldCommit = true
 
-		logger.Ctx(ctx).Infow("subscriber: evicted offsets", "stats.evictedButNotCommittedOffsets", stats.evictedButNotCommittedOffsets)
+		logger.Ctx(ctx).Infow("subscriber: evicted offsets", "stats.evictedButNotCommittedOffsets", stats.evictedButNotCommittedOffsets, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 		// find if any previously evicted offsets can be committed as well
 		// eg. if we get an commit for 5, check for 6,7,8...etc have previously been evicted.
 		// in such cases we can commit the max contiguous offset available directly instead of 5.
@@ -201,7 +206,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 				continue
 			}
 			if offsetToCommit != newOffset {
-				logger.Ctx(ctx).Infow("subscriber: updating offset to commit", "old", offsetToCommit, "new", newOffset)
+				logger.Ctx(ctx).Infow("subscriber: updating offset to commit", "old", offsetToCommit, "new", newOffset, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 				offsetToCommit = newOffset
 			}
 			break
@@ -217,13 +222,13 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 			Offset: offsetToCommit + 1,
 		})
 		if err != nil {
-			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "error", err.Error())
+			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID, "error", err.Error())
 			s.errChan <- err
 			return
 		}
 		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
 		stats.maxCommittedOffset = offsetToCommit
-		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "offset", offsetToCommit, "topic-partition", tp)
+		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "offset", offsetToCommit, "topic-partition", tp, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 	}
 
 	removeMessageFromMemory(stats, req.MessageID)
@@ -257,7 +262,7 @@ func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
 // modifyAckDeadline for messages
 func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) {
 
-	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "mod_ack_request", req.String())
+	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "mod_ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 
 	tp := req.ackMessage.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
@@ -270,7 +275,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	msgID := req.ackMessage.MessageID
 	// check if message is present in-memory or not
 	if _, ok := stats.consumedMessages[msgID]; !ok {
-		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "mod_ack_request", req.String())
+		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "mod_ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 		return
 	}
 
@@ -285,6 +290,9 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 
 		// cleanup message from memory
 		removeMessageFromMemory(stats, msgID)
+
+		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription).Inc()
+		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(float64(time.Since(msg.PublishTime).Nanoseconds() / 1e9))
 
 		return
 	}
@@ -330,7 +338,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 			// cleanup message from memory only after a successful push to retry topic
 			removeMessageFromMemory(metadata, peek.MsgID)
 
-			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "msgId", peek.MsgID)
+			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "msgId", peek.MsgID, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 			subscriberMessagesDeadlineEvicted.WithLabelValues(env, s.topic, s.subscription).Inc()
 		}
 	}
@@ -353,7 +361,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 		select {
 		case req := <-s.requestChan:
 			if s.canConsumeMore() == false {
-				logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking")
+				logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 				// check if consumer is paused once maxOutstanding messages limit is hit
 				if s.isPaused == false {
 					// if not, pause all topic-partitions for consumer
@@ -362,7 +370,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
-						logger.Ctx(ctx).Infow("subscriber: pausing consumer")
+						logger.Ctx(ctx).Infow("subscriber: pausing consumer", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Inc()
 						s.isPaused = true
 
@@ -377,7 +385,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 							Topic:     tp.topic,
 							Partition: tp.partition,
 						})
-						logger.Ctx(ctx).Infow("subscriber: resuming consumer")
+						logger.Ctx(ctx).Infow("subscriber: resuming consumer", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 						subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription).Dec()
 					}
 				}
@@ -385,13 +393,13 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 			resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInMs})
 			if err != nil {
-				logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "msg", err.Error())
+				logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID, "msg", err.Error())
 				s.errChan <- err
 				return
 			}
 
 			if len(resp.PartitionOffsetWithMessages) > 0 {
-				logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "message_count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages)
+				logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID, "message_count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages)
 			}
 
 			sm := make([]*metrov1.ReceivedMessage, 0)
@@ -448,7 +456,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 		case <-s.deadlineTickerChan:
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 		case <-ctx.Done():
-			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called")
+			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 			wasConsumerFound := s.bs.RemoveConsumer(s.ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			if wasConsumerFound {
 				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.
@@ -489,6 +497,15 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 
 // Stop the subscriber
 func (s *Subscriber) Stop() {
+	// close all active channels on stop
+	defer close(s.requestChan)
+	defer close(s.responseChan)
+	defer close(s.ackChan)
+	defer close(s.modAckChan)
+	defer close(s.deadlineTickerChan)
+	defer close(s.errChan)
+	defer close(s.closeChan)
+
 	s.cancelFunc()
 	<-s.closeChan
 }

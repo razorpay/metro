@@ -11,6 +11,7 @@ var (
 	env                             string
 	messageBrokerOperationCount     *prometheus.CounterVec
 	messageBrokerOperationTimeTaken *prometheus.HistogramVec
+	messageBrokerOperationError     *prometheus.CounterVec
 )
 
 func init() {
@@ -25,4 +26,8 @@ func init() {
 		Help:    "Time taken for each message broker operation",
 		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 100),
 	}, []string{"env", "broker", "operation"})
+
+	messageBrokerOperationError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_message_broker_operation_error_count",
+	}, []string{"env", "broker", "operation", "error"})
 }

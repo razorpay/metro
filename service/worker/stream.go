@@ -73,8 +73,11 @@ func (ps *PushStream) Start() error {
 
 				return gctx.Err()
 			case err = <-ps.subs.GetErrorChannel():
-				logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "err", err.Error())
-				workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error()).Inc()
+				// if channel is closed, this can return with a nil error value
+				if err != nil {
+					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "err", err.Error())
+					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error()).Inc()
+				}
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{10}
@@ -116,7 +119,9 @@ func (ps *PushStream) Stop() error {
 	close(ps.stopCh)
 
 	// stop the subscriber
-	ps.subs.Stop()
+	if ps.subs != nil {
+		ps.subs.Stop()
+	}
 
 	// wait for stop to complete
 	<-ps.doneCh

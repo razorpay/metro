@@ -157,6 +157,7 @@ mock-gen:
 	@go generate ./...
 	@mockgen --build_flags='--tags=musl' -destination=internal/brokerstore/mocks/mock_brokerstore.go -package=mocks github.com/razorpay/metro/internal/brokerstore IBrokerStore
 	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_broker.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Broker
+	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_admin.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Admin
 	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/topic ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/topic IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/subscription/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscription ICore

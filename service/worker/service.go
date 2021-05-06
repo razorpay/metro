@@ -478,7 +478,18 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 		if !found {
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
 			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber, &svc.workerConfig.HTTPClientConfig)
-			svc.workgrp.Go(handler.Start)
+
+			// run the stream in a separate go rotine, this go routine is not part of the worker error group
+			// as the worker should continue to run if a signle subscription stream exists with error
+			go func(ctx context.Context) {
+				err := handler.Start()
+				if err != nil {
+					logger.Ctx(ctx).Errorw("[worker]: push stream handler exited",
+						"subscription", newBinding.SubscriptionID,
+						"error", err.Error())
+				}
+			}(ctx)
+
 			svc.pushHandlers[newBinding.Key()] = handler
 		}
 	}

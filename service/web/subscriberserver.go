@@ -16,11 +16,11 @@ import (
 
 type subscriberserver struct {
 	brokerStore      brokerstore.IBrokerStore
-	subscriptionCore *subscription.Core
+	subscriptionCore subscription.ICore
 	psm              stream.IManager
 }
 
-func newSubscriberServer(brokerStore brokerstore.IBrokerStore, subscriptionCore *subscription.Core, psm stream.IManager) *subscriberserver {
+func newSubscriberServer(brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, psm stream.IManager) *subscriberserver {
 	return &subscriberserver{brokerStore, subscriptionCore, psm}
 }
 

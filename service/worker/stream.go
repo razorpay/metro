@@ -198,9 +198,9 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subcriptionName:  subName,
 		subscriptionCore: subscriptionCore,
 		subscriberCore:   subscriberCore,
-		doneCh:           make(chan struct{}),
-		stopCh:           make(chan struct{}),
-		responseChan:     make(chan metrov1.PullResponse),
+		doneCh:           make(chan struct{}, 2000),
+		stopCh:           make(chan struct{}, 2000),
+		responseChan:     make(chan metrov1.PullResponse, 2000),
 		httpClient:       NewHTTPClientWithConfig(config),
 	}
 }

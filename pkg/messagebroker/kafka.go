@@ -332,7 +332,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		Value: rc,
 	})
 
-	deliveryChan := make(chan kafkapkg.Event, 1000)
+	deliveryChan := make(chan kafkapkg.Event, 2000)
 	defer close(deliveryChan)
 
 	tp := NormalizeTopicName(request.Topic)

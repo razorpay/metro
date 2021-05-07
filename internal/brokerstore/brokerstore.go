@@ -94,7 +94,7 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	brokerStoreOperationCount.WithLabelValues(env, "GetConsumer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetConsumer").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetConsumer").Observe(time.Now().Sub(startTime).Seconds())
 
 	key := NewKey(op.GroupID, id)
 	consumer, ok := b.consumerMap.Load(key.String())
@@ -125,7 +125,7 @@ func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebro
 	brokerStoreOperationCount.WithLabelValues(env, "RemoveConsumer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveConsumer").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveConsumer").Observe(time.Now().Sub(startTime).Seconds())
 
 	key := NewKey(op.GroupID, id)
 	_, loaded := b.consumerMap.LoadAndDelete(key)
@@ -137,7 +137,7 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	brokerStoreOperationCount.WithLabelValues(env, "GetProducer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetProducer").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetProducer").Observe(time.Now().Sub(startTime).Seconds())
 
 	// TODO: perf and check if single producer for a topic works
 	key := NewKey(b.variant, op.Topic)
@@ -168,7 +168,7 @@ func (b *BrokerStore) GetAdmin(ctx context.Context, options messagebroker.AdminC
 	brokerStoreOperationCount.WithLabelValues(env, "GetAdmin").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetAdmin").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetAdmin").Observe(time.Now().Sub(startTime).Seconds())
 
 	if b.admin != nil {
 		return b.admin, nil

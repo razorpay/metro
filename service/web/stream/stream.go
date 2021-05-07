@@ -165,7 +165,7 @@ func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID strin
 		subscriberID = uuid.New().String()
 	}
 
-	subs, err := subscriberCore.NewSubscriber(server.Context(), subscriberID, subscription, 100, 50, 5000)
+	subs, err := subscriberCore.NewSubscriber(server.Context(), subscriberID, subscription, 100, 1000, 5000)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"time"
@@ -34,7 +36,7 @@ func (ps *PushStream) Start() error {
 	defer close(ps.doneCh)
 
 	var err error
-	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subcriptionName, 100, 50, 0)
+	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subcriptionName, 100, 1000, 0)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
 		return err
@@ -132,10 +134,10 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 	logger.Ctx(ctx).Infow("worker: response", "data", data, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 
 	for _, message := range data.ReceivedMessages {
-		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 		if message.AckId == "" {
 			continue
 		}
+		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 
 		startTime := time.Now()
 		postData := bytes.NewBuffer(message.Message.Data)
@@ -145,9 +147,14 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
 			ps.nack(ctx, message)
+			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
+
+			// discard response.Body after usage
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+
 			return
 		}
-		defer resp.Body.Close()
 
 		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
@@ -160,6 +167,10 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 			ps.nack(ctx, message)
 			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		}
+
+		// discard response.Body after usage
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
 
 		// TODO: read response body if required by publisher later
 	}
@@ -189,7 +200,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
 		stopCh:           make(chan struct{}),
-		responseChan:     make(chan metrov1.PullResponse),
+		responseChan:     make(chan metrov1.PullResponse, 2000),
 		httpClient:       NewHTTPClientWithConfig(config),
 	}
 }

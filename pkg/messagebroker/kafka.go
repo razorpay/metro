@@ -364,7 +364,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	if m != nil && m.TopicPartition.Error != nil {
 		logger.Ctx(ctx).Errorw("kafka: error in publishing messages", "error", m.TopicPartition.Error.Error())
-		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", m.TopicPartition.Error.Error()).Inc()
 		return nil, m.TopicPartition.Error
 	}
 

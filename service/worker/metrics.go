@@ -36,10 +36,6 @@ func init() {
 		Name: "metro_worker_push_endpoint_http_status_code",
 	}, []string{"env", "topic", "subscription", "endpoint", "code"})
 
-	workerPushEndpointHTTPStatusCode = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "metro_worker_push_endpoint_http_status_code",
-	}, []string{"env", "topic", "subscription", "endpoint", "code"})
-
 	workerPushEndpointTimeTaken = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_worker_push_endpoint_time_taken_seconds",
 		Help:    "Time taken to get response from push endpoint",

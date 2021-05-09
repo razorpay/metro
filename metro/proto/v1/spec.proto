@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package google.pubsub.v1;;
+package google.pubsub.v1;
 
 option go_package = "github.com/razorpay/metro-proto/metro/proto/v1;metrov1";
 
@@ -15,14 +15,14 @@ import "google/protobuf/empty.proto";
 // These annotations are used when generating the OpenAPI file.
 option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
     info: {
-        version: "1.0";
-    };
-    external_docs: {
-        url: "https://github.com/razorpay/metro-proto";
-        description: "protobuf definitions for metro";
+        version: "1.0"
     }
-    schemes: HTTP;
-    schemes: HTTPS;
+    external_docs: {
+        url: "https://github.com/razorpay/metro-proto"
+        description: "protobuf definitions for metro"
+    }
+    schemes: HTTP
+    schemes: HTTPS
 };
 
 // HealthCheckAPI defines the health check service.

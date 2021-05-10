@@ -25,7 +25,7 @@ type PushStream struct {
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
-	httpClient       http.Client
+	httpClient       *http.Client
 	responseChan     chan metrov1.PullResponse
 	stopCh           chan struct{}
 	doneCh           chan struct{}
@@ -144,6 +144,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
 		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
+
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
 			ps.nack(ctx, message)
@@ -206,7 +207,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 }
 
 // NewHTTPClientWithConfig return a http client
-func NewHTTPClientWithConfig(config *HTTPClientConfig) http.Client {
+func NewHTTPClientWithConfig(config *HTTPClientConfig) *http.Client {
 	tr := &http.Transport{
 		ResponseHeaderTimeout: time.Duration(config.ResponseHeaderTimeoutMS) * time.Millisecond,
 		DialContext: (&net.Dialer{
@@ -220,5 +221,5 @@ func NewHTTPClientWithConfig(config *HTTPClientConfig) http.Client {
 		ExpectContinueTimeout: time.Duration(config.ExpectContinueTimeoutMS) * time.Millisecond,
 	}
 
-	return http.Client{Transport: tr}
+	return &http.Client{Transport: tr}
 }

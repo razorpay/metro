@@ -24,7 +24,6 @@ type PushStream struct {
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
 	httpClient       http.Client
-	responseChan     chan metrov1.PullResponse
 	stopCh           chan struct{}
 	doneCh           chan struct{}
 }
@@ -68,9 +67,6 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
-				// close the response channel here, since this goroutine is the sender of the channel
-				close(ps.responseChan)
-
 				return gctx.Err()
 			case err = <-ps.subs.GetErrorChannel():
 				// if channel is closed, this can return with a nil error value
@@ -80,32 +76,18 @@ func (ps *PushStream) Start() error {
 				}
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{10}
+				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
 				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				res := <-ps.subs.GetResponseChannel()
-				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res, "count", len(res.ReceivedMessages), "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				ps.responseChan <- res
-			}
-		}
-		logger.Ctx(ps.ctx).Infow("worker: returning from pull stream go routine", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-		return nil
-	})
-
-	errGrp.Go(func() error {
-		// read from response channel and fire a webhook
-		for {
-			select {
-			case <-gctx.Done():
-				return gctx.Err()
-			default:
-				data := <-ps.responseChan
+				// wait for message to be available on the response channel
+				data := <-ps.subs.GetResponseChannel()
+				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", data, "count", len(data.ReceivedMessages), "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 				if data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 					logger.Ctx(ps.ctx).Infow("worker: reading response data from channel", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 					ps.processPushStreamResponse(ps.ctx, subModel, data)
 				}
 			}
 		}
-		logger.Ctx(ps.ctx).Infow("returning from webhook handler go routine", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
+		logger.Ctx(ps.ctx).Infow("worker: returning from pull stream go routine", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 		return nil
 	})
 
@@ -115,7 +97,7 @@ func (ps *PushStream) Start() error {
 // Stop is used to terminate the push subscription processing
 func (ps *PushStream) Stop() error {
 	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-	// Stop the pushsubscription
+	// Stop the push subscription
 	close(ps.stopCh)
 
 	// stop the subscriber
@@ -125,6 +107,7 @@ func (ps *PushStream) Stop() error {
 
 	// wait for stop to complete
 	<-ps.doneCh
+
 	return nil
 }
 
@@ -188,7 +171,6 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
 		stopCh:           make(chan struct{}),
-		responseChan:     make(chan metrov1.PullResponse),
 		httpClient:       NewHTTPClientWithConfig(config),
 	}
 }

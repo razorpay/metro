@@ -59,6 +59,7 @@ type Service struct {
 	pushHandlers       map[string]*PushStream
 	scheduler          *scheduler.Scheduler
 	subscriber         subscriber.ICore
+	nbwatcher          registry.IWatcher
 }
 
 // NewService creates an instance of new worker
@@ -158,7 +159,6 @@ func (svc *Service) Start() error {
 	})
 
 	// Watch for the subscription assignment changes
-	var watcher registry.IWatcher
 	svc.workgrp.Go(func() error {
 		prefix := fmt.Sprintf(common.GetBasePrefix()+nodebinding.Prefix+"%s/", svc.node.ID)
 		logger.Ctx(gctx).Infow("setting up node subscriptions watch", "prefix", prefix)
@@ -172,12 +172,18 @@ func (svc *Service) Start() error {
 			},
 		}
 
-		watcher, err = svc.registry.Watch(gctx, &wh)
+		svc.nbwatcher, err = svc.registry.Watch(gctx, &wh)
 		if err != nil {
 			return err
 		}
 
-		return watcher.StartWatch()
+		err = svc.nbwatcher.StartWatch()
+
+		// close the node binding data channel on watch terminations
+		logger.Ctx(gctx).Infow("watch terminated, closing the node binding data channel")
+		close(svc.nbwatch)
+
+		return err
 	})
 
 	svc.workgrp.Go(func() error {
@@ -208,15 +214,6 @@ func (svc *Service) Start() error {
 		case <-svc.stopCh:
 			err = fmt.Errorf("signal received, stopping worker")
 		}
-
-		logger.Ctx(gctx).Infow("stopping the node subscription watch")
-		if watcher != nil {
-			watcher.StopWatch()
-		}
-
-		// close nodebinding channel to terminate the routine spawning new handlers
-		logger.Ctx(gctx).Infow("closing the node binding data channel")
-		close(svc.nbwatch)
 
 		return err
 	})
@@ -262,7 +259,7 @@ func (svc *Service) Start() error {
 
 	err = svc.workgrp.Wait()
 	if err != nil {
-		logger.Ctx(gctx).Info("worker service error: %s", err.Error())
+		logger.Ctx(gctx).Infof("worker service error: %s", err.Error())
 	}
 	return err
 }
@@ -270,6 +267,13 @@ func (svc *Service) Start() error {
 // Stop the service
 func (svc *Service) Stop() error {
 	logger.Ctx(svc.ctx).Infow("metro stop invoked")
+
+	// First we stop the node bindings watch, this will ensure that no new bindings are created
+	// otherwise leaderelction termination will cause node to be removed, and then nodebindings to be deleted
+	if svc.nbwatcher != nil {
+		logger.Ctx(svc.ctx).Infow("stopping the node subscription watch")
+		svc.nbwatcher.StopWatch()
+	}
 
 	// signal to stop all go routines
 	close(svc.stopCh)

@@ -346,17 +346,21 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 // Run loop
 func (s *Subscriber) Run(ctx context.Context) {
-	ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
+	// for all requests keeping 200ms
 	go func(ctx context.Context, deadlineChan chan bool) {
+		ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
 		for {
 			select {
 			case <-ticker.C:
 				deadlineChan <- true
 			case <-ctx.Done():
+				ticker.Stop()
+				close(deadlineChan)
 				return
 			}
 		}
 	}(ctx, s.deadlineTickerChan)
+
 	for {
 		select {
 		case req := <-s.requestChan:
@@ -502,7 +506,6 @@ func (s *Subscriber) Stop() {
 	defer close(s.responseChan)
 	defer close(s.ackChan)
 	defer close(s.modAckChan)
-	defer close(s.deadlineTickerChan)
 	defer close(s.errChan)
 	defer close(s.closeChan)
 

@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	componentName = flag.String("component", metro.Worker, "component to start")
+	componentName = flag.String("component", metro.Web, "component to start")
 }
 
 func main() {

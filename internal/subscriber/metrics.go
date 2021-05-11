@@ -19,11 +19,12 @@ var (
 	subscriberTimeTakenToModAckMsg             *prometheus.HistogramVec
 	subscriberMemoryMessagesCountTotal         *prometheus.GaugeVec
 	subscriberPausedConsumersTotal             *prometheus.GaugeVec
-
-	subscriberTimeTakenInRequestChannelCase  *prometheus.HistogramVec
-	subscriberTimeTakenInAckChannelCase      *prometheus.HistogramVec
-	subscriberTimeTakenInModAckChannelCase   *prometheus.HistogramVec
-	subscriberTimeTakenInDeadlineChannelCase *prometheus.HistogramVec
+	subscriberTimeTakenInRequestChannelCase    *prometheus.HistogramVec
+	subscriberTimeTakenInAckChannelCase        *prometheus.HistogramVec
+	subscriberTimeTakenInModAckChannelCase     *prometheus.HistogramVec
+	subscriberTimeTakenInDeadlineChannelCase   *prometheus.HistogramVec
+	subscriberTimeTakenToRemoveMsgFromMemory   *prometheus.HistogramVec
+	subscriberTimeTakenToIdentifyNextOffset    *prometheus.HistogramVec
 )
 
 func init() {
@@ -98,4 +99,16 @@ func init() {
 		Help:    "Time taken for the deadline channel case block execution",
 		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
+
+	subscriberTimeTakenToRemoveMsgFromMemory = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "metro_subscriber_remove_message_from_memory_time_taken_seconds",
+		Help:    "Time taken for a message to be removed from the in-memory data structure",
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.1, 200),
+	}, []string{"env"})
+
+	subscriberTimeTakenToIdentifyNextOffset = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "metro_subscriber_identify_next_offset_from_memory_time_taken_seconds",
+		Help:    "Time taken to identify next offset to commit from the in-memory data structure",
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.1, 200),
+	}, []string{"env"})
 }

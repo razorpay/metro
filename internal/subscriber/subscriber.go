@@ -192,6 +192,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
 	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "req offset", req.Offset, "peek offset", peek.Offset, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 	if offsetToCommit == peek.Offset {
+		start := time.Now()
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
 		shouldCommit = true
 
@@ -212,6 +213,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 			}
 			break
 		}
+		subscriberTimeTakenToIdentifyNextOffset.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
 	}
 
 	if shouldCommit {
@@ -245,6 +247,8 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
 // cleans up all occurrences for a given msgId from the internal data-structures
 func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
+	start := time.Now()
+
 	delete(stats.consumedMessages, msgID)
 
 	// remove message from offsetBasedMinHeap
@@ -256,6 +260,8 @@ func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
 	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
 	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
 	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
+
+	subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
 }
 
 // modifyAckDeadline for messages

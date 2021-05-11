@@ -74,17 +74,15 @@ func (ps *PushStream) Start() error {
 					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "err", err.Error())
 					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error()).Inc()
 				}
-			default:
-				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
-				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				// wait for message to be available on the response channel
-				data := <-ps.subs.GetResponseChannel()
+			case data := <-ps.subs.GetResponseChannel():
 				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", data, "count", len(data.ReceivedMessages), "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 				if data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 					logger.Ctx(ps.ctx).Infow("worker: reading response data from channel", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 					ps.processPushStreamResponse(ps.ctx, subModel, data)
 				}
+			default:
+				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
+				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
 			}
 		}
 		logger.Ctx(ps.ctx).Infow("worker: returning from pull stream go routine", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())

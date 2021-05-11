@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"time"
@@ -23,7 +25,7 @@ type PushStream struct {
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
-	httpClient       http.Client
+	httpClient       *http.Client
 	stopCh           chan struct{}
 	doneCh           chan struct{}
 }
@@ -76,7 +78,7 @@ func (ps *PushStream) Start() error {
 				}
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
+				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 50}
 			}
 		}
 		logger.Ctx(ps.ctx).Infow("worker: returning from pull stream go routine", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
@@ -134,13 +136,18 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		startTime := time.Now()
 		postData := bytes.NewBuffer(message.Message.Data)
 		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
-		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
+		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
 			ps.nack(ctx, message)
+
+			// discard response.Body after usage
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+
 			return
 		}
-		defer resp.Body.Close()
 
 		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
@@ -153,6 +160,10 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 			ps.nack(ctx, message)
 			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		}
+
+		// discard response.Body after usage
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
 
 		// TODO: read response body if required by publisher later
 	}
@@ -187,7 +198,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 }
 
 // NewHTTPClientWithConfig return a http client
-func NewHTTPClientWithConfig(config *HTTPClientConfig) http.Client {
+func NewHTTPClientWithConfig(config *HTTPClientConfig) *http.Client {
 	tr := &http.Transport{
 		ResponseHeaderTimeout: time.Duration(config.ResponseHeaderTimeoutMS) * time.Millisecond,
 		DialContext: (&net.Dialer{
@@ -201,5 +212,5 @@ func NewHTTPClientWithConfig(config *HTTPClientConfig) http.Client {
 		ExpectContinueTimeout: time.Duration(config.ExpectContinueTimeoutMS) * time.Millisecond,
 	}
 
-	return http.Client{Transport: tr}
+	return &http.Client{Transport: tr}
 }

@@ -19,6 +19,11 @@ var (
 	subscriberTimeTakenToModAckMsg             *prometheus.HistogramVec
 	subscriberMemoryMessagesCountTotal         *prometheus.GaugeVec
 	subscriberPausedConsumersTotal             *prometheus.GaugeVec
+
+	subscriberTimeTakenInRequestChannelCase  *prometheus.HistogramVec
+	subscriberTimeTakenInAckChannelCase      *prometheus.HistogramVec
+	subscriberTimeTakenInModAckChannelCase   *prometheus.HistogramVec
+	subscriberTimeTakenInDeadlineChannelCase *prometheus.HistogramVec
 )
 
 func init() {
@@ -68,5 +73,29 @@ func init() {
 
 	subscriberPausedConsumersTotal = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_paused_consumers",
+	}, []string{"env", "topic", "subscription"})
+
+	subscriberTimeTakenInRequestChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "metro_subscriber_request_channel_time_taken_seconds",
+		Help:    "Time taken for the request channel case block execution",
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
+	}, []string{"env", "topic", "subscription"})
+
+	subscriberTimeTakenInAckChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "metro_subscriber_ack_channel_time_taken_seconds",
+		Help:    "Time taken for the ack channel case block execution",
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
+	}, []string{"env", "topic", "subscription"})
+
+	subscriberTimeTakenInModAckChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "metro_subscriber_mod_ack_channel_time_taken_seconds",
+		Help:    "Time taken for the mod ack channel case block execution",
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
+	}, []string{"env", "topic", "subscription"})
+
+	subscriberTimeTakenInDeadlineChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "metro_subscriber_deadline_channel_time_taken_seconds",
+		Help:    "Time taken for the deadline channel case block execution",
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
 }

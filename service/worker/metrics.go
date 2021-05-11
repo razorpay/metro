@@ -14,6 +14,7 @@ var (
 	workerPushEndpointHTTPStatusCode *prometheus.CounterVec
 	workerPushEndpointTimeTaken      *prometheus.HistogramVec
 	workerSubscriberErrors           *prometheus.CounterVec
+	workerPushEndpointCallsCount     *prometheus.CounterVec
 )
 
 func init() {
@@ -40,4 +41,8 @@ func init() {
 	workerSubscriberErrors = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_worker_subscriber_errors",
 	}, []string{"env", "topic", "subscription", "error"})
+
+	workerPushEndpointCallsCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_worker_push_endpoint_http_calls",
+	}, []string{"env", "topic", "subscription", "endpoint"})
 }

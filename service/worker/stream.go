@@ -83,7 +83,7 @@ func (ps *PushStream) Start() error {
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 				// check for closed channel before sending request
 				if ps.subs.GetRequestChannel() != nil {
-					ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 1}
+					ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
 					logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 					res := <-ps.subs.GetResponseChannel()
 					logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res, "count", len(res.ReceivedMessages), "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())

@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/razorpay/metro/pkg/logger"
+
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/partitionlocker"
 )
@@ -121,7 +123,9 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 }
 
 // RemoveConsumer deletes the consumer from the store
-func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebroker.ConsumerClientOptions) bool {
+func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) bool {
+	logger.Ctx(ctx).Infow("brokerstore: request to close consumer", "id", id, "groupID", op.GroupID)
+
 	brokerStoreOperationCount.WithLabelValues(env, "RemoveConsumer").Inc()
 
 	startTime := time.Now()
@@ -129,6 +133,8 @@ func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebro
 
 	key := NewKey(op.GroupID, id)
 	_, loaded := b.consumerMap.LoadAndDelete(key)
+
+	logger.Ctx(ctx).Infow("brokerstore: consumer close completed", "id", id, "group_id", op.GroupID, "was_consumer_found", loaded)
 	return loaded
 }
 

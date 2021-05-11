@@ -60,7 +60,6 @@ func (ps *PushStream) Start() error {
 			logger.Ctx(ps.ctx).Infow("worker: subscriber stream received stop signal", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 			err = fmt.Errorf("stop channel received signal for stream, stopping")
 		}
-
 		return err
 	})
 
@@ -146,10 +145,8 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 			// discard response.Body after usage
 			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
-
 			return
 		}
-		defer resp.Body.Close()
 
 		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()

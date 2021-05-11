@@ -85,7 +85,7 @@ func (ps *PushStream) Start() error {
 	})
 
 	errGrp.Go(func() error {
-		// read from response channel and fire a webhook
+		// Read from response channel and process push endpoint
 		for {
 			select {
 			case <-gctx.Done():

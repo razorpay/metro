@@ -81,11 +81,14 @@ func (ps *PushStream) Start() error {
 				}
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 1}
-				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				res := <-ps.subs.GetResponseChannel()
-				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res, "count", len(res.ReceivedMessages), "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				ps.responseChan <- res
+				// check for closed channel before sending request
+				if ps.subs.GetRequestChannel() != nil {
+					ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 1}
+					logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
+					res := <-ps.subs.GetResponseChannel()
+					logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res, "count", len(res.ReceivedMessages), "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
+					ps.responseChan <- res
+				}
 			}
 		}
 		logger.Ctx(ps.ctx).Infow("worker: returning from pull stream go routine", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
@@ -179,13 +182,19 @@ func (ps *PushStream) nack(_ context.Context, message *metrov1.ReceivedMessage) 
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// deadline is set to 0 for nack
 	modackReq := subscriber.NewModAckMessage(ackReq, 0)
-	ps.subs.GetModAckChannel() <- modackReq
+	// check for closed channel before sending request
+	if ps.subs.GetModAckChannel() != nil {
+		ps.subs.GetModAckChannel() <- modackReq
+	}
 }
 
 func (ps *PushStream) ack(_ context.Context, message *metrov1.ReceivedMessage) {
 	logger.Ctx(ps.ctx).Infow("worker: sending ack request to subscriber", "ackId", message.AckId, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 	ackReq := subscriber.ParseAckID(message.AckId)
-	ps.subs.GetAckChannel() <- ackReq
+	// check for closed channel before sending request
+	if ps.subs.GetAckChannel() != nil {
+		ps.subs.GetAckChannel() <- ackReq
+	}
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions

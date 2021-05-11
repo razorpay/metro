@@ -91,8 +91,7 @@ func (ps *PushStream) Start() error {
 			select {
 			case <-gctx.Done():
 				return gctx.Err()
-			default:
-				data := <-ps.subs.GetResponseChannel()
+			case data := <-ps.subs.GetResponseChannel():
 				logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", data, "count", len(data.ReceivedMessages), "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 				if data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 					logger.Ctx(ps.ctx).Infow("worker: reading response data from channel", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())

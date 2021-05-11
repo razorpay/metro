@@ -153,11 +153,11 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
 		if resp.StatusCode == http.StatusOK {
 			// Ack
-			ps.ack(ctx, message)
+			//ps.ack(ctx, message)
 			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		} else {
 			// Nack
-			ps.nack(ctx, message)
+			//ps.nack(ctx, message)
 			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		}
 

@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	deadlineTickerInterval  = 200 * time.Millisecond
 	minAckDeadline          = 10 * time.Minute
 	maxMessageRetryAttempts = 2
 )
@@ -54,9 +55,9 @@ type Subscriber struct {
 	responseChan           chan metrov1.PullResponse
 	ackChan                chan *AckMessage
 	modAckChan             chan *ModAckMessage
+	deadlineTicker         *time.Ticker
 	errChan                chan error
 	closeChan              chan struct{}
-	deadlineTickerChan     chan bool
 	timeoutInMs            int
 	consumer               messagebroker.Consumer // consume messages from primary topic
 	retryProducer          messagebroker.Producer // produce messages to retry topic
@@ -346,21 +347,6 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 // Run loop
 func (s *Subscriber) Run(ctx context.Context) {
-	// for all requests keeping 200ms
-	go func(ctx context.Context, deadlineChan chan bool) {
-		ticker := time.NewTicker(time.Duration(200) * time.Millisecond)
-		for {
-			select {
-			case <-ticker.C:
-				deadlineChan <- true
-			case <-ctx.Done():
-				ticker.Stop()
-				close(deadlineChan)
-				return
-			}
-		}
-	}(ctx, s.deadlineTickerChan)
-
 	for {
 		select {
 		case req := <-s.requestChan:
@@ -468,12 +454,16 @@ func (s *Subscriber) Run(ctx context.Context) {
 			caseStartTime := time.Now()
 			s.modifyAckDeadline(ctx, modAckRequest)
 			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
-		case <-s.deadlineTickerChan:
+		case <-s.deadlineTicker.C:
 			caseStartTime := time.Now()
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-ctx.Done():
 			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
+
+			// stop the ticker
+			s.deadlineTicker.Stop()
+
 			wasConsumerFound := s.bs.RemoveConsumer(s.ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			if wasConsumerFound {
 				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.

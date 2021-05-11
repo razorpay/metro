@@ -39,7 +39,7 @@ func init() {
 	workerPushEndpointTimeTaken = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_worker_push_endpoint_time_taken_seconds",
 		Help:    "Time taken to get response from push endpoint",
-		Buckets: prometheus.ExponentialBuckets(0.0001, 1.25, 200),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription", "endpoint"})
 
 	workerSubscriberErrors = promauto.NewCounterVec(prometheus.CounterOpts{

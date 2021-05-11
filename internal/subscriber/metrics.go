@@ -52,19 +52,19 @@ func init() {
 	subscriberTimeTakenFromPublishToConsumeMsg = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_time_from_publish_to_consume_msg_seconds",
 		Help:    "Time taken for a message from publish to actually being consumed",
-		Buckets: prometheus.ExponentialBuckets(0.0001, 1.25, 200),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
 
 	subscriberTimeTakenToAckMsg = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_time_to_ack_msg_seconds",
 		Help:    "Time taken for a message from publish to actually being acknowledged",
-		Buckets: prometheus.ExponentialBuckets(0.0001, 1.25, 200),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
 
 	subscriberTimeTakenToModAckMsg = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_time_to_mod_ack_msg_seconds",
 		Help:    "Time taken for a message from publish to actually being mod-acknowledged",
-		Buckets: prometheus.ExponentialBuckets(0.0001, 1.25, 200),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
 
 	subscriberMemoryMessagesCountTotal = promauto.NewGaugeVec(prometheus.GaugeOpts{
@@ -78,24 +78,24 @@ func init() {
 	subscriberTimeTakenInRequestChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_request_channel_time_taken_seconds",
 		Help:    "Time taken for the request channel case block execution",
-		Buckets: prometheus.ExponentialBuckets(0.0001, 1.25, 200),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
 
 	subscriberTimeTakenInAckChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_ack_channel_time_taken_seconds",
 		Help:    "Time taken for the ack channel case block execution",
-		Buckets: prometheus.ExponentialBuckets(0.0001, 1.25, 200),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
 
 	subscriberTimeTakenInModAckChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_mod_ack_channel_time_taken_seconds",
 		Help:    "Time taken for the mod ack channel case block execution",
-		Buckets: prometheus.ExponentialBuckets(0.0001, 1.25, 200),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
 
 	subscriberTimeTakenInDeadlineChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_deadline_channel_time_taken_seconds",
 		Help:    "Time taken for the deadline channel case block execution",
-		Buckets: prometheus.ExponentialBuckets(0.0001, 1.25, 200),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 200),
 	}, []string{"env", "topic", "subscription"})
 }

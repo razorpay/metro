@@ -19,7 +19,7 @@ import (
 
 const (
 	deadlineTickerInterval  = 200 * time.Millisecond
-	minAckDeadline          = 10 * time.Minute
+	minAckDeadline          = 1 * time.Minute
 	maxMessageRetryAttempts = 2
 )
 

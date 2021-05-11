@@ -251,13 +251,11 @@ func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
 	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[msgID]
 	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
 	delete(stats.offsetBasedMinHeap.MsgIDToIndexMapping, msgID)
-	heap.Init(&stats.offsetBasedMinHeap)
 
 	// remove same message from deadlineBasedMinHeap
 	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
 	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
 	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
-	heap.Init(&stats.deadlineBasedMinHeap)
 }
 
 // modifyAckDeadline for messages

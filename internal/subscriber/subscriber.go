@@ -19,7 +19,7 @@ import (
 
 const (
 	deadlineTickerInterval  = 200 * time.Millisecond
-	minAckDeadline          = 1 * time.Minute
+	minAckDeadline          = 10 * time.Minute
 	maxMessageRetryAttempts = 2
 )
 
@@ -93,6 +93,8 @@ func (s *Subscriber) GetSubscription() string {
 // commits existing message on primary topic and pushes message to the pre-defined retry topic
 func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 
+	startTime := time.Now()
+
 	// remove message from the primary topic
 	_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 		Topic:     retryMsg.Topic,
@@ -152,6 +154,8 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 	subscriberMessagesRetried.WithLabelValues(env, s.retryTopic, s.subscription).Inc()
 	logger.Ctx(ctx).Infow("subscriber: msg pushed to retry topic", "topic", s.topic, "subscription", s.subscription,
 		"subscriberId", s.subscriberID, "retryMsg", retryMsg)
+
+	subscriberTimeTakenToPushToRetry.WithLabelValues(env).Observe(time.Now().Sub(startTime).Seconds())
 }
 
 // acknowledge messages
@@ -177,6 +181,8 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
 	// if somehow an ack request comes for a message that has met deadline eviction threshold
 	if req.HasHitDeadline() {
+
+		logger.Ctx(ctx).Infow("subscriber: msg hit deadline", "request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 
 		// push to retry queue
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))

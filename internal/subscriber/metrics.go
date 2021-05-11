@@ -25,6 +25,7 @@ var (
 	subscriberTimeTakenInDeadlineChannelCase   *prometheus.HistogramVec
 	subscriberTimeTakenToRemoveMsgFromMemory   *prometheus.HistogramVec
 	subscriberTimeTakenToIdentifyNextOffset    *prometheus.HistogramVec
+	subscriberTimeTakenToPushToRetry           *prometheus.HistogramVec
 )
 
 func init() {
@@ -109,6 +110,12 @@ func init() {
 	subscriberTimeTakenToIdentifyNextOffset = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_identify_next_offset_from_memory_time_taken_seconds",
 		Help:    "Time taken to identify next offset to commit from the in-memory data structure",
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.1, 200),
+	}, []string{"env"})
+
+	subscriberTimeTakenToPushToRetry = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "metro_subscriber_retry_time_taken_seconds",
+		Help:    "Time taken to process retry message",
 		Buckets: prometheus.ExponentialBuckets(0.001, 1.1, 200),
 	}, []string{"env"})
 }

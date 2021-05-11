@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"time"
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
@@ -72,7 +73,7 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		closeChan:              make(chan struct{}),
 		ackChan:                make(chan *AckMessage),
 		modAckChan:             make(chan *ModAckMessage),
-		deadlineTickerChan:     make(chan bool),
+		deadlineTicker:         time.NewTicker(deadlineTickerInterval),
 		timeoutInMs:            timeoutInMs,
 		consumer:               consumer,
 		retryProducer:          retryProducer,

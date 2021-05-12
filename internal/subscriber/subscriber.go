@@ -468,6 +468,15 @@ func (s *Subscriber) Run(ctx context.Context) {
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-ctx.Done():
 			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
+
+			s.deadlineTicker.Stop()
+
+			// close active message channels first to avoid processing more messages post consumer shutdown
+			close(s.requestChan)
+			close(s.responseChan)
+			close(s.ackChan)
+			close(s.modAckChan)
+
 			wasConsumerFound := s.bs.RemoveConsumer(s.ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			if wasConsumerFound {
 				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.
@@ -508,14 +517,10 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 
 // Stop the subscriber
 func (s *Subscriber) Stop() {
-	// close all active channels on stop
-	defer close(s.requestChan)
-	defer close(s.responseChan)
-	defer close(s.ackChan)
-	defer close(s.modAckChan)
-	defer close(s.errChan)
-	defer close(s.closeChan)
-
 	s.cancelFunc()
 	<-s.closeChan
+
+	// close remaining active channels on stop
+	close(s.errChan)
+	close(s.closeChan)
 }

@@ -147,7 +147,7 @@ func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messageb
 		brokerStoreActiveConsumersCount.WithLabelValues(env, key.String()).Dec()
 	}
 
-	logger.Ctx(ctx).Infow("brokerstore: consumer close completed", "id", id, "group_id", op.GroupID, "was_consumer_found", wasConsumerFound)
+	logger.Ctx(ctx).Infow("brokerstore: consumer removal completed", "id", id, "group_id", op.GroupID, "was_consumer_found", wasConsumerFound)
 	return wasConsumerFound
 }
 

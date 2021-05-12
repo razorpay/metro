@@ -20,6 +20,7 @@ import (
 // PushStream provides reads from broker and publishes messages for the push subscription
 type PushStream struct {
 	ctx              context.Context
+	cancelFunc       func()
 	nodeID           string
 	subcriptionName  string
 	subscriptionCore subscription.ICore
@@ -119,17 +120,24 @@ func (ps *PushStream) Start() error {
 // Stop is used to terminate the push subscription processing
 func (ps *PushStream) Stop() error {
 	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-	// Stop the pushsubscription
-	close(ps.stopCh)
-
 	// stop the subscriber
-	if ps.subs != nil {
-		ps.subs.Stop()
-	}
+	ps.stopSubscriber()
+
+	ps.cancelFunc()
+
+	// Stop the push subscription
+	close(ps.stopCh)
 
 	// wait for stop to complete
 	<-ps.doneCh
 	return nil
+}
+
+func (ps *PushStream) stopSubscriber() {
+	// stop the subscriber
+	if ps.subs != nil {
+		ps.subs.Stop()
+	}
 }
 
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data metrov1.PullResponse) {
@@ -177,30 +185,32 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 	}
 }
 
-func (ps *PushStream) nack(_ context.Context, message *metrov1.ReceivedMessage) {
+func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage) {
 	logger.Ctx(ps.ctx).Infow("worker: sending nack request to subscriber", "ackId", message.AckId, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// deadline is set to 0 for nack
 	modackReq := subscriber.NewModAckMessage(ackReq, 0)
 	// check for closed channel before sending request
-	if ps.subs.GetModAckChannel() != nil {
+	if ctx.Err() == nil && ps.subs.GetModAckChannel() != nil {
 		ps.subs.GetModAckChannel() <- modackReq
 	}
 }
 
-func (ps *PushStream) ack(_ context.Context, message *metrov1.ReceivedMessage) {
+func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage) {
 	logger.Ctx(ps.ctx).Infow("worker: sending ack request to subscriber", "ackId", message.AckId, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// check for closed channel before sending request
-	if ps.subs.GetAckChannel() != nil {
+	if ctx.Err() == nil && ps.subs.GetAckChannel() != nil {
 		ps.subs.GetAckChannel() <- ackReq
 	}
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
 func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
+	pushCtx, cancelFunc := context.WithCancel(ctx)
 	return &PushStream{
-		ctx:              ctx,
+		ctx:              pushCtx,
+		cancelFunc:       cancelFunc,
 		nodeID:           nodeID,
 		subcriptionName:  subName,
 		subscriptionCore: subscriptionCore,

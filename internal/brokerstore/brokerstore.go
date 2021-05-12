@@ -131,11 +131,20 @@ func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messageb
 	startTime := time.Now()
 	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveConsumer").Observe(time.Now().Sub(startTime).Seconds())
 
-	key := NewKey(op.GroupID, id)
-	_, loaded := b.consumerMap.LoadAndDelete(key)
+	wasConsumerFound := false
 
-	logger.Ctx(ctx).Infow("brokerstore: consumer close completed", "id", id, "group_id", op.GroupID, "was_consumer_found", loaded)
-	return loaded
+	key := NewKey(op.GroupID, id)
+	b.partitionLock.Lock(key.String())         // lock
+	defer b.partitionLock.Unlock(key.String()) // unlock
+
+	consumer, ok := b.consumerMap.Load(key.String())
+	if ok {
+		wasConsumerFound = true
+		b.consumerMap.Delete(consumer)
+	}
+
+	logger.Ctx(ctx).Infow("brokerstore: consumer close completed", "id", id, "group_id", op.GroupID, "was_consumer_found", wasConsumerFound)
+	return wasConsumerFound
 }
 
 // GetProducer returns for an existing producer instance, if available returns that else creates as new instance

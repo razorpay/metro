@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	env                           string
-	brokerStoreOperationCount     *prometheus.CounterVec
-	brokerStoreOperationTimeTaken *prometheus.HistogramVec
+	env                             string
+	brokerStoreOperationCount       *prometheus.CounterVec
+	brokerStoreActiveConsumersCount *prometheus.GaugeVec
+	brokerStoreOperationTimeTaken   *prometheus.HistogramVec
 )
 
 func init() {
@@ -19,6 +20,10 @@ func init() {
 	brokerStoreOperationCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_broker_store_operation_total_count",
 	}, []string{"env", "operation"})
+
+	brokerStoreActiveConsumersCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metro_broker_store_active_consumers_count",
+	}, []string{"env", "key"})
 
 	brokerStoreOperationTimeTaken = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_broker_store_time_taken_for_operation_sec",

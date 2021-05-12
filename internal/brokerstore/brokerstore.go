@@ -117,6 +117,9 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	if perr != nil {
 		return nil, perr
 	}
+
+	brokerStoreActiveConsumersCount.WithLabelValues(env, key.String()).Inc()
+
 	consumer, _ = b.consumerMap.LoadOrStore(key.String(), newConsumer)
 	b.partitionLock.Unlock(key.String()) // unlock
 	return consumer.(messagebroker.Consumer), nil
@@ -141,6 +144,7 @@ func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messageb
 	if ok {
 		wasConsumerFound = true
 		b.consumerMap.Delete(consumer)
+		brokerStoreActiveConsumersCount.WithLabelValues(env, key.String()).Dec()
 	}
 
 	logger.Ctx(ctx).Infow("brokerstore: consumer close completed", "id", id, "group_id", op.GroupID, "was_consumer_found", wasConsumerFound)

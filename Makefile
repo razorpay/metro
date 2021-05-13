@@ -183,19 +183,19 @@ docs-uml:
 
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
 test-integration-ci:
-	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test ./... -tags=integration,musl
+	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test ./tests/integration/... -tags=integration,musl
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration:
-	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 ./... -tags=integration,musl
+	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 ./tests/integration/... -tags=integration,musl
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:
-	@METRO_TEST_HOST=metro-web PUBSUB_TEST_HOST=pubsub go test -v ./... -tags=compatibility,musl
+	@METRO_TEST_HOST=metro-web PUBSUB_TEST_HOST=pubsub go test -v ./tests/compatibility/... -tags=compatibility,musl
 
 .PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
 test-compat:
-	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test --count=1 -v ./... -tags=compatibility,musl
+	@METRO_TEST_HOST=localhost PUBSUB_TEST_HOST=localhost go test --count=1 -v ./tests/compatibility/... -tags=compatibility,musl
 
 .PHONY: test-unit-prepare
 test-unit-prepare:

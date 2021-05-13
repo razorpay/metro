@@ -483,8 +483,8 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
 			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber, &svc.workerConfig.HTTPClientConfig)
 
-			// run the stream in a separate go rotine, this go routine is not part of the worker error group
-			// as the worker should continue to run if a signle subscription stream exists with error
+			// run the stream in a separate go routine, this go routine is not part of the worker error group
+			// as the worker should continue to run if a single subscription stream exists with error
 			go func(ctx context.Context) {
 				err := handler.Start()
 				if err != nil {

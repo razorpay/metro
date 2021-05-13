@@ -36,8 +36,17 @@ type PushStream struct {
 func (ps *PushStream) Start() error {
 	defer close(ps.doneCh)
 
-	var err error
-	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subcriptionName, 100, 50, 0)
+	var (
+		err error
+		// init these channels and pass to subscriber
+		// the lifecycle of these channels should be maintain by the user
+		subscriberRequestCh = make(chan *subscriber.PullRequest)
+		subscriberAckCh     = make(chan *subscriber.AckMessage)
+		subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
+	)
+
+	ps.subs, err = ps.subscriberCore.NewSubscriberWithCustomChannels(ps.ctx, ps.nodeID, ps.subcriptionName, 100, 50, 0,
+		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
 		return err
@@ -70,6 +79,8 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
+				close(subscriberRequestCh)
+
 				// close the response channel here, since this goroutine is the sender of the channel
 				close(ps.responseChan)
 
@@ -101,6 +112,10 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
+				// close all subscriber channels
+				close(subscriberAckCh)
+				close(subscriberModAckCh)
+
 				return gctx.Err()
 			default:
 				data := <-ps.responseChan

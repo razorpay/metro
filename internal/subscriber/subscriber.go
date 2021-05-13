@@ -92,6 +92,9 @@ func (s *Subscriber) GetSubscription() string {
 
 // commits existing message on primary topic and pushes message to the pre-defined retry topic
 func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
+	if retryMsg == nil {
+		return
+	}
 
 	startTime := time.Now()
 
@@ -160,6 +163,10 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 
 // acknowledge messages
 func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
+
+	if req == nil {
+		return
+	}
 
 	logger.Ctx(ctx).Infow("subscriber: got ack request", "ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 
@@ -253,6 +260,10 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 
 // cleans up all occurrences for a given msgId from the internal data-structures
 func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
+	if stats == nil || msgID == "" {
+		return
+	}
+
 	start := time.Now()
 
 	delete(stats.consumedMessages, msgID)
@@ -272,6 +283,9 @@ func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
 
 // modifyAckDeadline for messages
 func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) {
+	if req == nil {
+		return
+	}
 
 	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "mod_ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 
@@ -471,11 +485,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 			s.deadlineTicker.Stop()
 
-			// close active message channels first to avoid processing more messages post consumer shutdown
-			close(s.requestChan)
+			// close the response channel to stop any new message processing
 			close(s.responseChan)
-			close(s.ackChan)
-			close(s.modAckChan)
 
 			wasConsumerFound := s.bs.RemoveConsumer(s.ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			if wasConsumerFound {
@@ -521,6 +532,11 @@ func (s *Subscriber) Stop() {
 	<-s.closeChan
 
 	// close remaining active channels on stop
-	close(s.errChan)
-	close(s.closeChan)
+	if s.errChan != nil {
+		close(s.errChan)
+	}
+
+	if s.closeChan != nil {
+		close(s.closeChan)
+	}
 }

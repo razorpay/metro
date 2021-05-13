@@ -14,6 +14,9 @@ import (
 // ICore is interface over subscribers core
 type ICore interface {
 	NewSubscriber(ctx context.Context, id string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error)
+	// TODO: cleanup func signature. Too many params!
+	NewSubscriberWithCustomChannels(ctx context.Context, id string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64,
+		requestCh chan *PullRequest, ackCh chan *AckMessage, modAckCh chan *ModAckMessage) (ISubscriber, error)
 }
 
 // Core implements ISubscriber
@@ -28,7 +31,26 @@ func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) *
 }
 
 // NewSubscriber initiates a new subscriber for a given topic
-func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error) {
+func (c *Core) NewSubscriber(ctx context.Context,
+	subscriberID string,
+	subscription string,
+	timeoutInMs int,
+	maxOutstandingMessages int64,
+	maxOutstandingBytes int64) (ISubscriber, error) {
+	return c.NewSubscriberWithCustomChannels(ctx, subscriberID, subscription, timeoutInMs, maxOutstandingMessages, maxOutstandingBytes,
+		make(chan *PullRequest), make(chan *AckMessage), make(chan *ModAckMessage))
+}
+
+// NewSubscriberWithCustomChannels initiates a new subscriber for a given topic and custom channels
+func (c *Core) NewSubscriberWithCustomChannels(ctx context.Context,
+	subscriberID string,
+	subscription string,
+	timeoutInMs int,
+	maxOutstandingMessages int64,
+	maxOutstandingBytes int64,
+	requestCh chan *PullRequest,
+	ackCh chan *AckMessage,
+	modAckCh chan *ModAckMessage) (ISubscriber, error) {
 	subModel, err := c.subscriptionCore.Get(ctx, subscription)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: error fetching subscription", "error", err.Error())
@@ -67,12 +89,12 @@ func (c *Core) NewSubscriber(ctx context.Context, subscriberID string, subscript
 		dlqTopic:               dlqTopic,
 		subscriberID:           subscriberID,
 		subscriptionCore:       c.subscriptionCore,
-		requestChan:            make(chan *PullRequest),
+		requestChan:            requestCh,
 		responseChan:           make(chan metrov1.PullResponse),
 		errChan:                make(chan error),
 		closeChan:              make(chan struct{}),
-		ackChan:                make(chan *AckMessage),
-		modAckChan:             make(chan *ModAckMessage),
+		ackChan:                ackCh,
+		modAckChan:             modAckCh,
 		deadlineTicker:         time.NewTicker(deadlineTickerInterval),
 		timeoutInMs:            timeoutInMs,
 		consumer:               consumer,

@@ -462,10 +462,7 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 		if !found {
 			logger.Ctx(ctx).Infow("binding removed", "key", old.Key())
 			handler := svc.pushHandlers[old.Key()]
-			err := handler.Stop()
-			if err != nil {
-				return err
-			}
+			handler.Stop()
 			delete(svc.pushHandlers, old.Key())
 		}
 	}

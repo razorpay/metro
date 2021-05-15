@@ -41,6 +41,7 @@ type ISubscriber interface {
 	GetErrorChannel() chan error
 	Stop()
 	Run(ctx context.Context)
+	IsActive() bool
 }
 
 // Subscriber consumes messages from a topic
@@ -69,6 +70,7 @@ type Subscriber struct {
 	isPaused               bool
 	ctx                    context.Context
 	bs                     brokerstore.IBrokerStore
+	isActive               bool
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
@@ -526,6 +528,11 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 	return s.modAckChan
 }
 
+// IsActive returns whether the status of the subscriber
+func (s *Subscriber) IsActive() bool {
+	return s.isActive
+}
+
 // Stop the subscriber
 func (s *Subscriber) Stop() {
 	s.cancelFunc()
@@ -539,4 +546,6 @@ func (s *Subscriber) Stop() {
 	if s.closeChan != nil {
 		close(s.closeChan)
 	}
+
+	s.isActive = false
 }

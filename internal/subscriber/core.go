@@ -106,6 +106,7 @@ func (c *Core) NewSubscriberWithCustomChannels(ctx context.Context,
 		consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
 		ctx:                    subsCtx,
 		bs:                     c.bs,
+		isActive:               true,
 	}
 
 	go s.Run(subsCtx)

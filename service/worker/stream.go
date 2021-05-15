@@ -28,13 +28,14 @@ type PushStream struct {
 	subs             subscriber.ISubscriber
 	httpClient       *http.Client
 	responseChan     chan metrov1.PullResponse
-	stopCh           chan struct{}
 	doneCh           chan struct{}
 }
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
 func (ps *PushStream) Start() error {
-	defer close(ps.doneCh)
+	defer func() {
+		ps.doneCh <- struct{}{}
+	}()
 
 	var (
 		err error
@@ -60,18 +61,15 @@ func (ps *PushStream) Start() error {
 	}
 
 	errGrp, gctx := errgroup.WithContext(ps.ctx)
-
 	errGrp.Go(func() error {
 		var err error
 		select {
 		case <-gctx.Done():
 			err = gctx.Err()
 			logger.Ctx(ps.ctx).Infow("worker: subscriber stream context done", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
-		case <-ps.stopCh:
-			logger.Ctx(ps.ctx).Infow("worker: subscriber stream received stop signal", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-			err = fmt.Errorf("stop channel received signal for stream, stopping")
+			return err
 		}
-		return err
+		return nil
 	})
 
 	errGrp.Go(func() error {
@@ -79,12 +77,15 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
+				err = gctx.Err()
+
 				close(subscriberRequestCh)
 
 				// close the response channel here, since this goroutine is the sender of the channel
 				close(ps.responseChan)
 
-				return gctx.Err()
+				logger.Ctx(ps.ctx).Infow("worker: push to subscriber request stream context done", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+				return err
 			case err = <-ps.subs.GetErrorChannel():
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
@@ -112,11 +113,15 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
+				err = gctx.Err()
+
 				// close all subscriber channels
 				close(subscriberAckCh)
 				close(subscriberModAckCh)
 
-				return gctx.Err()
+				logger.Ctx(ps.ctx).Infow("worker: push to endpoint and subscriber ack/mod-ack stream context done", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+
+				return err
 			default:
 				data := <-ps.responseChan
 				if data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
@@ -140,17 +145,16 @@ func (ps *PushStream) Stop() error {
 
 	ps.cancelFunc()
 
-	// Stop the push subscription
-	close(ps.stopCh)
-
-	// wait for stop to complete
 	<-ps.doneCh
+
+	close(ps.doneCh)
+
 	return nil
 }
 
 func (ps *PushStream) stopSubscriber() {
-	// stop the subscriber
-	if ps.subs != nil {
+	// stop the active subscriber
+	if ps.subs != nil && ps.subs.IsActive() {
 		ps.subs.Stop()
 	}
 }
@@ -231,7 +235,6 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriptionCore: subscriptionCore,
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
-		stopCh:           make(chan struct{}),
 		responseChan:     make(chan metrov1.PullResponse),
 		httpClient:       NewHTTPClientWithConfig(config),
 	}

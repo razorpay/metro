@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
 )
@@ -189,6 +191,9 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 	kv, _, err := c.client.KV().Get(key, nil)
 	if err != nil {
 		return nil, err
+	}
+	if kv == nil {
+		return nil, errors.New("key not found")
 	}
 	return kv.Value, nil
 }

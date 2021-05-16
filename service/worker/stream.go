@@ -27,7 +27,6 @@ type PushStream struct {
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
 	httpClient       *http.Client
-	responseChan     chan metrov1.PullResponse
 	stopCh           chan struct{}
 	doneCh           chan struct{}
 }
@@ -66,7 +65,10 @@ func (ps *PushStream) Start() error {
 		select {
 		case <-gctx.Done():
 			err = gctx.Err()
-			logger.Ctx(ps.ctx).Infow("worker: subscriber stream context done", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+			if err != nil {
+				logger.Ctx(ps.ctx).Infow("worker: subscriber stream context done", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+			}
+
 		case <-ps.stopCh:
 			logger.Ctx(ps.ctx).Infow("worker: subscriber stream received stop signal", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 			err = fmt.Errorf("stop channel received signal for stream, stopping")
@@ -79,10 +81,14 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
+				logger.Ctx(ps.ctx).Infow("worker: subscriber request and response stopped", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
+				// close all subscriber channels
 				close(subscriberRequestCh)
+				close(subscriberAckCh)
+				close(subscriberModAckCh)
 
-				// close the response channel here, since this goroutine is the sender of the channel
-				close(ps.responseChan)
+				// stop the subscriber after all the send channels are closed
+				ps.stopSubscriber()
 
 				return gctx.Err()
 			case err = <-ps.subs.GetErrorChannel():
@@ -93,40 +99,15 @@ func (ps *PushStream) Start() error {
 				}
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-				// check for closed channel before sending request
-				if ps.subs.GetRequestChannel() != nil {
-					ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
-					logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-					res := <-ps.subs.GetResponseChannel()
-					logger.Ctx(ps.ctx).Infow("worker: writing subscriber data to channel", "res", res, "count", len(res.ReceivedMessages), "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-					ps.responseChan <- res
-				}
-			}
-		}
-		logger.Ctx(ps.ctx).Infow("worker: returning from pull stream go routine", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-		return nil
-	})
-
-	errGrp.Go(func() error {
-		// read from response channel and fire a webhook
-		for {
-			select {
-			case <-gctx.Done():
-				// close all subscriber channels
-				close(subscriberAckCh)
-				close(subscriberModAckCh)
-
-				return gctx.Err()
-			default:
-				data := <-ps.responseChan
-				if data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-					logger.Ctx(ps.ctx).Infow("worker: reading response data from channel", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
+				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
+				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data response", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
+				data := <-ps.subs.GetResponseChannel()
+				logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
+				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 					ps.processPushStreamResponse(ps.ctx, subModel, data)
 				}
 			}
 		}
-		logger.Ctx(ps.ctx).Infow("returning from webhook handler go routine", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-		return nil
 	})
 
 	return errGrp.Wait()
@@ -135,13 +116,9 @@ func (ps *PushStream) Start() error {
 // Stop is used to terminate the push subscription processing
 func (ps *PushStream) Stop() error {
 	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-	// stop the subscriber
-	ps.stopSubscriber()
 
+	// signal to stop all go routines
 	ps.cancelFunc()
-
-	// Stop the push subscription
-	close(ps.stopCh)
 
 	// wait for stop to complete
 	<-ps.doneCh
@@ -155,7 +132,7 @@ func (ps *PushStream) stopSubscriber() {
 	}
 }
 
-func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data metrov1.PullResponse) {
+func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
 	logger.Ctx(ctx).Infow("worker: response", "data", data, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
 
 	for _, message := range data.ReceivedMessages {
@@ -172,11 +149,6 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
 			ps.nack(ctx, message)
-
-			// discard response.Body after usage
-			io.Copy(ioutil.Discard, resp.Body)
-			resp.Body.Close()
-
 			return
 		}
 
@@ -192,9 +164,9 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
 		}
 
-		// discard response.Body after usage
-		io.Copy(ioutil.Discard, resp.Body)
-		resp.Body.Close()
+		// discard response.Body after usage and ignore errors
+		_, err = io.Copy(ioutil.Discard, resp.Body)
+		err = resp.Body.Close()
 
 		// TODO: read response body if required by publisher later
 	}
@@ -232,7 +204,6 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
 		stopCh:           make(chan struct{}),
-		responseChan:     make(chan metrov1.PullResponse),
 		httpClient:       NewHTTPClientWithConfig(config),
 	}
 }

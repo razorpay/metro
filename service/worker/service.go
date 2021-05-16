@@ -201,9 +201,6 @@ func (svc *Service) Start() error {
 				}
 			}
 		}
-		logger.Ctx(gctx).Infow("exiting from nodebinding updates goroutine", "error", err)
-
-		return nil
 	})
 
 	svc.workgrp.Go(func() error {
@@ -401,7 +398,6 @@ func (svc *Service) lead(ctx context.Context) error {
 
 			}
 		}
-		return nil
 	})
 
 	// wait for done channel to be closed and stop watches if received done

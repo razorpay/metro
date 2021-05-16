@@ -5,11 +5,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/razorpay/metro/internal/brokerstore"
-
-	"github.com/razorpay/metro/internal/subscriber/customheap"
-
 	"github.com/golang/protobuf/proto"
+	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/subscriber/customheap"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -34,7 +32,7 @@ type ISubscriber interface {
 	// the grpc proto is used here as well, to optimise for serialization
 	// and deserialisation, a little unclean but optimal
 	// TODO: figure a better way out
-	GetResponseChannel() chan metrov1.PullResponse
+	GetResponseChannel() chan *metrov1.PullResponse
 	GetRequestChannel() chan *PullRequest
 	GetAckChannel() chan *AckMessage
 	GetModAckChannel() chan *ModAckMessage
@@ -52,7 +50,7 @@ type Subscriber struct {
 	subscriberID           string
 	subscriptionCore       subscription.ICore
 	requestChan            chan *PullRequest
-	responseChan           chan metrov1.PullResponse
+	responseChan           chan *metrov1.PullResponse
 	ackChan                chan *AckMessage
 	modAckChan             chan *ModAckMessage
 	deadlineTicker         *time.Ticker
@@ -465,7 +463,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 					subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
 					subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 				}
-				s.responseChan <- metrov1.PullResponse{ReceivedMessages: sm}
+				s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 			}()
 
 		case ackRequest := <-s.ackChan:
@@ -487,6 +485,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 			// close the response channel to stop any new message processing
 			close(s.responseChan)
+			close(s.errChan)
 
 			wasConsumerFound := s.bs.RemoveConsumer(s.ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			if wasConsumerFound {
@@ -495,7 +494,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 				// in such cases do not attempt to close the consumer again else it will panic
 				s.consumer.Close(s.ctx)
 			}
-			s.closeChan <- struct{}{}
+
+			close(s.closeChan)
 			return
 		}
 	}
@@ -507,7 +507,7 @@ func (s *Subscriber) GetRequestChannel() chan *PullRequest {
 }
 
 // GetResponseChannel returns the chan where response is written
-func (s *Subscriber) GetResponseChannel() chan metrov1.PullResponse {
+func (s *Subscriber) GetResponseChannel() chan *metrov1.PullResponse {
 	return s.responseChan
 }
 
@@ -529,14 +529,6 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 // Stop the subscriber
 func (s *Subscriber) Stop() {
 	s.cancelFunc()
+
 	<-s.closeChan
-
-	// close remaining active channels on stop
-	if s.errChan != nil {
-		close(s.errChan)
-	}
-
-	if s.closeChan != nil {
-		close(s.closeChan)
-	}
 }

@@ -150,6 +150,9 @@ jobs:
           - name: go mod vendor
             run: |
               go mod vendor
+          - name: functional tests
+            run: |
+                make test-functional-ci
           - name: integration tests
             run: |
               make test-integration-ci

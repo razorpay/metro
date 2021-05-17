@@ -12,27 +12,27 @@ import (
 
 func TestValidation_extractTopicMetaAndValidate(t *testing.T) {
 	ctx := context.Background()
-	proj, top, err := ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/test-topic")
+	proj, top, err := ExtractTopicMetaAndValidateForCreate(ctx, "projects/test-project/topics/test-topic")
 	assert.Nil(t, err)
 	assert.Equal(t, "test-project", proj)
 	assert.Equal(t, "test-topic", top)
 
-	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/test-topic$")
+	proj, top, err = ExtractTopicMetaAndValidateForCreate(ctx, "projects/test-project/topics/test-topic$")
 	assert.NotNil(t, err)
 
-	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/test-topic")
+	proj, top, err = ExtractTopicMetaAndValidateForCreate(ctx, "projects/test-project/test-topic")
 	assert.NotNil(t, err)
 
-	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/goog-test-topic")
+	proj, top, err = ExtractTopicMetaAndValidateForCreate(ctx, "projects/test-project/topics/goog-test-topic")
 	assert.NotNil(t, err)
 
-	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/test-topic-retry")
+	proj, top, err = ExtractTopicMetaAndValidateForCreate(ctx, "projects/test-project/topics/test-topic-retry")
 	assert.NotNil(t, err)
 
-	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/test-topic-dlq")
+	proj, top, err = ExtractTopicMetaAndValidateForCreate(ctx, "projects/test-project/topics/test-topic-dlq")
 	assert.NotNil(t, err)
 
-	proj, top, err = ExtractTopicMetaAndValidate(ctx, "projects/test-project/topics/to")
+	proj, top, err = ExtractTopicMetaAndValidateForCreate(ctx, "projects/test-project/topics/to")
 	assert.NotNil(t, err)
 }
 
@@ -45,6 +45,5 @@ func TestValidation_GetValidatedModel(t *testing.T) {
 		Labels: nil,
 	})
 	assert.Nil(t, err)
-
 	assert.Equal(t, m.Name, topic)
 }

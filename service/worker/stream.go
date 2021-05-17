@@ -150,7 +150,9 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		// discard response.Body after usage and ignore errors
 		_, err = io.Copy(ioutil.Discard, resp.Body)
 		err = resp.Body.Close()
-		logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+		if err != nil {
+			logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+		}
 
 		// TODO: read response body if required by publisher later
 	}

@@ -81,7 +81,7 @@ func (ps *PushStream) Start() error {
 				}
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
-				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
+				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 1}
 				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data response", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 				data := <-ps.subs.GetResponseChannel()
 				logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
@@ -128,14 +128,17 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		postData := bytes.NewBuffer(message.Message.Data)
 		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
 		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
-		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
+
+		timeTaken := time.Now().Sub(startTime).Seconds()
+		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(timeTaken)
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
 			ps.nack(ctx, message)
 			return
 		}
 
-		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "time_taken", timeTaken, "subscription",
+			ps.subscriptionName, "subscriberId", ps.subs.GetID())
 		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Ack

@@ -230,13 +230,13 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 //CommitByPartitionAndOffset Commits messages if any
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
-func (p *PulsarBroker) CommitByPartitionAndOffset(_ context.Context, _ CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+func (p *PulsarBroker) CommitByPartitionAndOffset(_ context.Context, _ CommitOnTopicRequest) (*CommitOnTopicResponse, error) {
 	// unused for pulsar
-	return CommitOnTopicResponse{}, nil
+	return &CommitOnTopicResponse{}, nil
 }
 
 // CommitByMsgID Commits a message by ID
-func (p *PulsarBroker) CommitByMsgID(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+func (p *PulsarBroker) CommitByMsgID(ctx context.Context, request CommitOnTopicRequest) (*CommitOnTopicResponse, error) {
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "CommitByMsgID").Inc()
 
 	startTime := time.Now()
@@ -248,7 +248,7 @@ func (p *PulsarBroker) CommitByMsgID(ctx context.Context, request CommitOnTopicR
 		ID: request.ID,
 	})
 
-	return CommitOnTopicResponse{}, nil
+	return &CommitOnTopicResponse{}, nil
 }
 
 // GetTopicMetadata ...

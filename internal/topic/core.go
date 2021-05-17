@@ -169,6 +169,14 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	}
 	prefix := common.GetBasePrefix() + Prefix + projectID + "/" + topicName
 
+	// check if valid topic
+	if ok, err := c.ExistsWithName(ctx, key); !ok {
+		if err != nil {
+			return nil, err
+		}
+		return nil, merror.New(merror.NotFound, "topic not found")
+	}
+
 	model := &Model{}
 	err = c.repo.Get(ctx, prefix, model)
 	if err != nil {

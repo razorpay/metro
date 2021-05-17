@@ -69,14 +69,6 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		return merror.New(merror.NotFound, "project not found")
 	}
 
-	if ok, err = c.topicCore.ExistsWithName(ctx, m.Topic); err != nil {
-		return err
-	}
-	if !ok {
-		logger.Ctx(ctx).Errorw("topic not found", "name", m.Topic)
-		return merror.New(merror.NotFound, "topic not found")
-	}
-
 	var topicModel *topic.Model
 	if topicModel, err = c.topicCore.Get(ctx, m.GetTopic()); err != nil {
 		return err

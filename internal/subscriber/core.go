@@ -13,9 +13,7 @@ import (
 
 // ICore is interface over subscribers core
 type ICore interface {
-	NewSubscriber(ctx context.Context, id string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64) (ISubscriber, error)
-	// TODO: cleanup func signature. Too many params!
-	NewSubscriberWithCustomChannels(ctx context.Context, id string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64,
+	NewSubscriber(ctx context.Context, id string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64,
 		requestCh chan *PullRequest, ackCh chan *AckMessage, modAckCh chan *ModAckMessage) (ISubscriber, error)
 }
 
@@ -36,21 +34,11 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	subscription string,
 	timeoutInMs int,
 	maxOutstandingMessages int64,
-	maxOutstandingBytes int64) (ISubscriber, error) {
-	return c.NewSubscriberWithCustomChannels(ctx, subscriberID, subscription, timeoutInMs, maxOutstandingMessages, maxOutstandingBytes,
-		make(chan *PullRequest), make(chan *AckMessage), make(chan *ModAckMessage))
-}
-
-// NewSubscriberWithCustomChannels initiates a new subscriber for a given topic and custom channels
-func (c *Core) NewSubscriberWithCustomChannels(ctx context.Context,
-	subscriberID string,
-	subscription string,
-	timeoutInMs int,
-	maxOutstandingMessages int64,
 	maxOutstandingBytes int64,
 	requestCh chan *PullRequest,
 	ackCh chan *AckMessage,
 	modAckCh chan *ModAckMessage) (ISubscriber, error) {
+
 	subModel, err := c.subscriptionCore.Get(ctx, subscription)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: error fetching subscription", "error", err.Error())

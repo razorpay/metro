@@ -38,12 +38,12 @@ func (ps *PushStream) Start() error {
 		err error
 		// init these channels and pass to subscriber
 		// the lifecycle of these channels should be maintain by the user
-		subscriberRequestCh = make(chan *subscriber.PullRequest)
-		subscriberAckCh     = make(chan *subscriber.AckMessage)
-		subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
+		subscriberRequestCh = make(chan *subscriber.PullRequest, 2000)
+		subscriberAckCh     = make(chan *subscriber.AckMessage, 2000)
+		subscriberModAckCh  = make(chan *subscriber.ModAckMessage, 2000)
 	)
 
-	ps.subs, err = ps.subscriberCore.NewSubscriberWithCustomChannels(ps.ctx, ps.nodeID, ps.subcriptionName, 100, 50, 0,
+	ps.subs, err = ps.subscriberCore.NewSubscriberWithCustomChannels(ps.ctx, ps.nodeID, ps.subcriptionName, 100, 100, 0,
 		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())

@@ -90,7 +90,7 @@ func (c *Core) NewSubscriberWithCustomChannels(ctx context.Context,
 		subscriberID:           subscriberID,
 		subscriptionCore:       c.subscriptionCore,
 		requestChan:            requestCh,
-		responseChan:           make(chan metrov1.PullResponse),
+		responseChan:           make(chan *metrov1.PullResponse),
 		errChan:                make(chan error),
 		closeChan:              make(chan struct{}),
 		ackChan:                ackCh,
@@ -106,7 +106,6 @@ func (c *Core) NewSubscriberWithCustomChannels(ctx context.Context,
 		consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
 		ctx:                    subsCtx,
 		bs:                     c.bs,
-		isActive:               true,
 	}
 
 	go s.Run(subsCtx)

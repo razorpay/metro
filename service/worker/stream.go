@@ -81,7 +81,7 @@ func (ps *PushStream) Start() error {
 				}
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
-				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 1}
+				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
 				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data response", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 				data := <-ps.subs.GetResponseChannel()
 				logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())

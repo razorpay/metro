@@ -24,7 +24,7 @@ func init() {
 	messageBrokerOperationTimeTaken = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_message_broker_time_taken_for_operation_sec",
 		Help:    "Time taken for each message broker operation",
-		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 100),
+		Buckets: prometheus.ExponentialBuckets(0.0001, 1.1, 300),
 	}, []string{"env", "broker", "operation"})
 
 	messageBrokerOperationError = promauto.NewCounterVec(prometheus.CounterOpts{

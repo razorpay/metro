@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/rs/xid"
@@ -18,13 +16,6 @@ import (
 const (
 	messageID  = "messageID"
 	retryCount = "retryCount"
-
-	maxCommitTimeout = 1 * time.Second
-)
-
-var (
-	// ErrCommitTimedOut error for kafka commit timeouts
-	ErrCommitTimedOut = errors.New("commit timed out")
 )
 
 // KafkaBroker for kafka
@@ -448,9 +439,7 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Inc()
 
 	startTime := time.Now()
-	defer func() {
-		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Observe(time.Now().Sub(startTime).Seconds())
-	}()
+	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Observe(time.Now().Sub(startTime).Seconds())
 
 	logger.Ctx(ctx).Infow("kafka: commit request received", "request", request)
 
@@ -463,29 +452,18 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 	tps := make([]kafkapkg.TopicPartition, 0)
 	tps = append(tps, tp)
 
-	var (
-		resp []kafkapkg.TopicPartition
-		err  error
-	)
-
-	select {
-	case <-time.After(maxCommitTimeout):
-		messageBrokerOperationError.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset", ErrCommitTimedOut.Error()).Inc()
-		return nil, ErrCommitTimedOut
-	default:
-		resp, err = k.Consumer.CommitOffsets(tps)
-		attempt := 1
-		for {
-			if err != nil && err.Error() == kafkapkg.ErrRequestTimedOut.String() && attempt <= 3 {
-				logger.Ctx(ctx).Infow("kafka: retrying commit", "attempt", attempt)
-				messageBrokerOperationError.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset", err.Error()).Inc()
-				resp, err = k.Consumer.CommitOffsets(tps)
-				attempt++
-				time.Sleep(time.Millisecond * 100)
-				continue
-			}
-			break
+	attempt := 1
+	resp, err := k.Consumer.CommitOffsets(tps)
+	for {
+		if err != nil && err.Error() == kafkapkg.ErrRequestTimedOut.String() && attempt <= 3 {
+			logger.Ctx(ctx).Infow("kafka: retrying commit", "attempt", attempt)
+			messageBrokerOperationError.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset", err.Error()).Inc()
+			resp, err = k.Consumer.CommitOffsets(tps)
+			attempt++
+			time.Sleep(time.Millisecond * 250)
+			continue
 		}
+		break
 	}
 
 	if err != nil {

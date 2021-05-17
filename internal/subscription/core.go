@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
@@ -37,6 +39,10 @@ func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore) *Core
 
 // CreateSubscription creates a subscription for a given topic
 func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
+	// assign a random ID to each subscription
+	// this will be used as the `group.instance.id` when spawning a consumer on this subscription
+	m.ID = uuid.New().String()
+
 	subscriptionOperationCount.WithLabelValues(env, "CreateSubscription").Inc()
 
 	startTime := time.Now()

@@ -7,8 +7,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/google/uuid"
-
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -66,7 +64,6 @@ func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, 
 	}
 
 	m := &Model{
-		ID:                             uuid.New().String(),
 		Name:                           req.GetName(),
 		Topic:                          topicName,
 		Labels:                         req.GetLabels(),

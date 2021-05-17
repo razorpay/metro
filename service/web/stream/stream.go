@@ -128,6 +128,12 @@ func (s *pullStream) run() error {
 	}
 }
 
+func (s *pullStream) closeSubscriberChannels() {
+	close(s.subscriptionSubscriber.GetRequestChannel())
+	close(s.subscriptionSubscriber.GetAckChannel())
+	close(s.subscriptionSubscriber.GetModAckChannel())
+}
+
 // read requests / error off the active server stream
 func (s *pullStream) receive() {
 	req, err := s.server.Recv()
@@ -148,6 +154,8 @@ func (s *pullStream) modifyAckDeadline(_ context.Context, req *subscriber.ModAck
 
 func (s *pullStream) stop() {
 	s.subscriptionSubscriber.Stop()
+	s.closeSubscriberChannels()
+
 	logger.Ctx(s.ctx).Infow("stopped subscriber...", "subscriberId", s.subscriberID)
 
 	// notify stream manager to cleanup subscriber held in-memory
@@ -165,7 +173,17 @@ func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID strin
 		subscriberID = uuid.New().String()
 	}
 
-	subs, err := subscriberCore.NewSubscriber(server.Context(), subscriberID, subscription, 100, 50, 5000)
+	var (
+		// init these channels and pass to subscriber
+		// the lifecycle of these channels should be maintain by the user
+		subscriberRequestCh = make(chan *subscriber.PullRequest)
+		subscriberAckCh     = make(chan *subscriber.AckMessage)
+		subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
+	)
+
+	subs, err := subscriberCore.NewSubscriber(server.Context(), subscriberID, subscription, 100, 50, 5000,
+		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
+
 	if err != nil {
 		return nil, err
 	}

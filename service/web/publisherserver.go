@@ -26,6 +26,13 @@ func newPublisherServer(brokerStore brokerstore.IBrokerStore, topicCore topic.IC
 // Produce messages to a topic
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
 	logger.Ctx(ctx).Infow("produce request received", "req", req.Topic)
+
+	if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
+		return nil, merror.ToGRPCError(err)
+	} else if !ok {
+		return nil, merror.New(merror.NotFound, "topic not found")
+	}
+
 	msgIDs, err := s.publisher.Publish(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)

@@ -201,9 +201,6 @@ func (svc *Service) Start() error {
 				}
 			}
 		}
-		logger.Ctx(gctx).Infow("exiting from nodebinding updates goroutine", "error", err)
-
-		return nil
 	})
 
 	svc.workgrp.Go(func() error {
@@ -401,7 +398,6 @@ func (svc *Service) lead(ctx context.Context) error {
 
 			}
 		}
-		return nil
 	})
 
 	// wait for done channel to be closed and stop watches if received done
@@ -462,10 +458,7 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 		if !found {
 			logger.Ctx(ctx).Infow("binding removed", "key", old.Key())
 			handler := svc.pushHandlers[old.Key()]
-			err := handler.Stop()
-			if err != nil {
-				return err
-			}
+			handler.Stop()
 			delete(svc.pushHandlers, old.Key())
 		}
 	}
@@ -483,8 +476,8 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
 			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber, &svc.workerConfig.HTTPClientConfig)
 
-			// run the stream in a separate go rotine, this go routine is not part of the worker error group
-			// as the worker should continue to run if a signle subscription stream exists with error
+			// run the stream in a separate go routine, this go routine is not part of the worker error group
+			// as the worker should continue to run if a single subscription stream exists with error
 			go func(ctx context.Context) {
 				err := handler.Start()
 				if err != nil {

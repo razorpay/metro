@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/razorpay/metro/pkg/logger"
+
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/partitionlocker"
 )
@@ -94,7 +96,7 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	brokerStoreOperationCount.WithLabelValues(env, "GetConsumer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetConsumer").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetConsumer").Observe(time.Now().Sub(startTime).Seconds())
 
 	key := NewKey(op.GroupID, id)
 	consumer, ok := b.consumerMap.Load(key.String())
@@ -115,21 +117,41 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	if perr != nil {
 		return nil, perr
 	}
+
+	brokerStoreActiveConsumersCount.WithLabelValues(env, key.String()).Inc()
+
 	consumer, _ = b.consumerMap.LoadOrStore(key.String(), newConsumer)
 	b.partitionLock.Unlock(key.String()) // unlock
 	return consumer.(messagebroker.Consumer), nil
 }
 
 // RemoveConsumer deletes the consumer from the store
-func (b *BrokerStore) RemoveConsumer(_ context.Context, id string, op messagebroker.ConsumerClientOptions) bool {
+func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) bool {
+	logger.Ctx(ctx).Infow("brokerstore: request to close consumer", "id", id, "groupID", op.GroupID)
+
 	brokerStoreOperationCount.WithLabelValues(env, "RemoveConsumer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveConsumer").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveConsumer").Observe(time.Now().Sub(startTime).Seconds())
+
+	wasConsumerFound := false
 
 	key := NewKey(op.GroupID, id)
-	_, loaded := b.consumerMap.LoadAndDelete(key)
-	return loaded
+	b.partitionLock.Lock(key.String())         // lock
+	defer b.partitionLock.Unlock(key.String()) // unlock
+
+	consumer, ok := b.consumerMap.Load(key.String())
+	if ok {
+		wasConsumerFound = true
+		b.consumerMap.Delete(consumer)
+		brokerStoreActiveConsumersCount.WithLabelValues(env, key.String()).Dec()
+	}
+
+	if wasConsumerFound {
+		logger.Ctx(ctx).Infow("brokerstore: consumer removal completed", "id", id, "group_id", op.GroupID)
+	}
+
+	return wasConsumerFound
 }
 
 // GetProducer returns for an existing producer instance, if available returns that else creates as new instance
@@ -137,7 +159,7 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	brokerStoreOperationCount.WithLabelValues(env, "GetProducer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetProducer").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetProducer").Observe(time.Now().Sub(startTime).Seconds())
 
 	// TODO: perf and check if single producer for a topic works
 	key := NewKey(b.variant, op.Topic)
@@ -168,7 +190,7 @@ func (b *BrokerStore) GetAdmin(ctx context.Context, options messagebroker.AdminC
 	brokerStoreOperationCount.WithLabelValues(env, "GetAdmin").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetAdmin").Observe(float64(time.Since(startTime).Nanoseconds() / 1e9))
+	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetAdmin").Observe(time.Now().Sub(startTime).Seconds())
 
 	if b.admin != nil {
 		return b.admin, nil

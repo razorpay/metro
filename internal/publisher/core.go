@@ -54,8 +54,8 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 			return nil, err
 		}
 		msgIDs = append(msgIDs, msgResp.MessageID)
+		publisherMessagesPublished.WithLabelValues(env, req.Topic).Inc()
 	}
-	publisherMessagesPublished.WithLabelValues(env, req.Topic).Add(float64(len(msgIDs)))
 
 	return msgIDs, nil
 }

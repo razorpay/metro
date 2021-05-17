@@ -166,6 +166,10 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		return
 	}
 
+	ackStartTime := time.Now()
+	defer logger.Ctx(ctx).Infow("subscriber: ack request end", "ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID,
+		"ack_time_taken", time.Now().Sub(ackStartTime).Seconds())
+
 	logger.Ctx(ctx).Infow("subscriber: got ack request", "ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 
 	tp := req.ToTopicPartition()

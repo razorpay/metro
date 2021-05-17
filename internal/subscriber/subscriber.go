@@ -360,6 +360,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 			// cleanup message from memory only after a successful push to retry topic
 			removeMessageFromMemory(metadata, peek.MsgID)
+			s.logInMemoryStats()
 
 			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "msgId", peek.MsgID, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 			subscriberMessagesDeadlineEvicted.WithLabelValues(env, s.topic, s.subscription).Inc()
@@ -464,15 +465,18 @@ func (s *Subscriber) Run(ctx context.Context) {
 					subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 				}
 				s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+				s.logInMemoryStats()
 			}()
 
 		case ackRequest := <-s.ackChan:
 			caseStartTime := time.Now()
 			s.acknowledge(ctx, ackRequest)
+			s.logInMemoryStats()
 			subscriberTimeTakenInAckChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case modAckRequest := <-s.modAckChan:
 			caseStartTime := time.Now()
 			s.modifyAckDeadline(ctx, modAckRequest)
+			s.logInMemoryStats()
 			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-s.deadlineTicker.C:
 			caseStartTime := time.Now()
@@ -502,6 +506,24 @@ func (s *Subscriber) Run(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (s *Subscriber) logInMemoryStats() {
+	st := make(map[string]interface{})
+
+	for tp, stats := range s.consumedMessageStats {
+		total := map[string]interface{}{
+			"offsetBasedMinHeap_size":            stats.offsetBasedMinHeap.Len(),
+			"deadlineBasedMinHeap_size":          stats.deadlineBasedMinHeap.Len(),
+			"consumedMessages_size":              len(stats.consumedMessages),
+			"evictedButNotCommittedOffsets_size": len(stats.evictedButNotCommittedOffsets),
+			"maxCommittedOffset":                 stats.maxCommittedOffset,
+		}
+		st[tp.String()] = total
+	}
+
+	logger.Ctx(s.ctx).Infow("subscriber: in-memory stats", "stats", st,
+		"topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 }
 
 // GetRequestChannel returns the chan from where request is received

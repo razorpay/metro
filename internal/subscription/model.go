@@ -13,6 +13,7 @@ const (
 // Model for a subscription
 type Model struct {
 	common.BaseModel
+	ID                             string
 	Name                           string
 	Topic                          string
 	Labels                         map[string]string
@@ -22,11 +23,16 @@ type Model struct {
 	ExtractedTopicName             string
 	ExtractedSubscriptionName      string
 
-	// DeadLetterTopic keeps the topic name used for deadlettering, this will be created with subscription and
+	// DeadLetterTopic keeps the topic name used for dead lettering, this will be created with subscription and
 	// will be visible to subscriber, subscriber can create subscription over this topic to read messages from this
 	DeadLetterTopic string
 
 	// TODO: add remaining fields from spec.proto
+}
+
+// GetID returns the unique identifier for the subscription
+func (m *Model) GetID() string {
+	return m.ID
 }
 
 // Key returns the key for storing subscriptions in the registry

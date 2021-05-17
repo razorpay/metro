@@ -96,7 +96,9 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	brokerStoreOperationCount.WithLabelValues(env, "GetConsumer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetConsumer").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		brokerStoreOperationTimeTaken.WithLabelValues(env, "GetConsumer").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	key := NewKey(op.GroupID, id)
 	consumer, ok := b.consumerMap.Load(key.String())
@@ -132,7 +134,9 @@ func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messageb
 	brokerStoreOperationCount.WithLabelValues(env, "RemoveConsumer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveConsumer").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveConsumer").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	wasConsumerFound := false
 
@@ -159,7 +163,9 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	brokerStoreOperationCount.WithLabelValues(env, "GetProducer").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetProducer").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		brokerStoreOperationTimeTaken.WithLabelValues(env, "GetProducer").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	// TODO: perf and check if single producer for a topic works
 	key := NewKey(b.variant, op.Topic)
@@ -190,7 +196,9 @@ func (b *BrokerStore) GetAdmin(ctx context.Context, options messagebroker.AdminC
 	brokerStoreOperationCount.WithLabelValues(env, "GetAdmin").Inc()
 
 	startTime := time.Now()
-	defer brokerStoreOperationTimeTaken.WithLabelValues(env, "GetAdmin").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		brokerStoreOperationTimeTaken.WithLabelValues(env, "GetAdmin").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	if b.admin != nil {
 		return b.admin, nil

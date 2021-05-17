@@ -43,17 +43,17 @@ func (ps *PushStream) Start() error {
 		subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
 	)
 
-	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subscriptionName, 100, 50, 0,
-		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
-	if err != nil {
-		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
-		return err
-	}
-
 	// get subscription Model details
 	subModel, err := ps.subscriptionCore.Get(ps.ctx, ps.subscriptionName)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorf("error fetching subscription: %s", err.Error())
+		return err
+	}
+
+	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, subModel.GetID(), ps.subscriptionName, 100, 50, 0,
+		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
+	if err != nil {
+		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
 		return err
 	}
 
@@ -137,7 +137,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 
 		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
-		if resp.StatusCode == http.StatusOK {
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Ack
 			ps.ack(ctx, message)
 			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()

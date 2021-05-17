@@ -33,7 +33,9 @@ func (c *Core) CreateNodeBinding(ctx context.Context, m *Model) error {
 	nodeBindingOperationCount.WithLabelValues(env, "CreateNodeBinding").Inc()
 
 	startTime := time.Now()
-	defer nodeBindingOperationTimeTaken.WithLabelValues(env, "CreateNodeBinding").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		nodeBindingOperationTimeTaken.WithLabelValues(env, "CreateNodeBinding").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	ok, err := c.Exists(ctx, m.Key())
 	if err != nil {
@@ -50,7 +52,9 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 	nodeBindingOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
-	defer nodeBindingOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		nodeBindingOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	logger.Ctx(ctx).Infow("exists query on nodebinding", "key", key)
 	ok, err := c.repo.Exists(ctx, key)
@@ -66,7 +70,9 @@ func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 	nodeBindingOperationCount.WithLabelValues(env, "ListKeys").Inc()
 
 	startTime := time.Now()
-	defer nodeBindingOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		nodeBindingOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	prefix = common.GetBasePrefix() + prefix
 	return c.repo.ListKeys(ctx, prefix)
@@ -77,7 +83,9 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	nodeBindingOperationCount.WithLabelValues(env, "List").Inc()
 
 	startTime := time.Now()
-	defer nodeBindingOperationTimeTaken.WithLabelValues(env, "List").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		nodeBindingOperationTimeTaken.WithLabelValues(env, "List").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	prefix = common.GetBasePrefix() + prefix
 
@@ -98,7 +106,9 @@ func (c *Core) DeleteNodeBinding(ctx context.Context, m *Model) error {
 	nodeBindingOperationCount.WithLabelValues(env, "DeleteNodeBinding").Inc()
 
 	startTime := time.Now()
-	defer nodeBindingOperationTimeTaken.WithLabelValues(env, "DeleteNodeBinding").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		nodeBindingOperationTimeTaken.WithLabelValues(env, "DeleteNodeBinding").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	if ok, err := c.Exists(ctx, m.Key()); !ok {
 		if err != nil {

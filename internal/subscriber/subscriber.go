@@ -167,8 +167,10 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	}
 
 	ackStartTime := time.Now()
-	defer logger.Ctx(ctx).Infow("subscriber: ack request end", "ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID,
-		"ack_time_taken", time.Now().Sub(ackStartTime).Seconds())
+	defer func() {
+		logger.Ctx(ctx).Infow("subscriber: ack request end", "ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID,
+			"ack_time_taken", time.Now().Sub(ackStartTime).Seconds())
+	}()
 
 	logger.Ctx(ctx).Infow("subscriber: got ack request", "ack_request", req.String(), "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 
@@ -380,7 +382,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 			// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
 			func() {
 				caseStartTime := time.Now()
-				defer subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
+				defer func() {
+					subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
+				}()
 
 				if s.canConsumeMore() == false {
 					logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)

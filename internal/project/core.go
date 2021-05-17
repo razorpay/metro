@@ -32,7 +32,9 @@ func (c *Core) CreateProject(ctx context.Context, m *Model) error {
 	projectOperationCount.WithLabelValues(env, "CreateProject").Inc()
 
 	startTime := time.Now()
-	defer projectOperationTimeTaken.WithLabelValues(env, "CreateProject").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		projectOperationTimeTaken.WithLabelValues(env, "CreateProject").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	ok, err := c.Exists(ctx, m.Key())
 	if err != nil {
@@ -49,7 +51,9 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 	projectOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
-	defer projectOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		projectOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	logger.Ctx(ctx).Infow("exists query on project", "key", key)
 	ok, err := c.repo.Exists(ctx, key)
@@ -65,7 +69,9 @@ func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
 	projectOperationCount.WithLabelValues(env, "ExistsWithID").Inc()
 
 	startTime := time.Now()
-	defer projectOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		projectOperationTimeTaken.WithLabelValues(env, "ExistsWithID").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	return c.Exists(ctx, common.GetBasePrefix()+Prefix+id)
 }
@@ -75,7 +81,9 @@ func (c *Core) DeleteProject(ctx context.Context, m *Model) error {
 	projectOperationCount.WithLabelValues(env, "DeleteProject").Inc()
 
 	startTime := time.Now()
-	defer projectOperationTimeTaken.WithLabelValues(env, "DeleteProject").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		projectOperationTimeTaken.WithLabelValues(env, "DeleteProject").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	if ok, err := c.Exists(ctx, m.Key()); !ok {
 		if err != nil {

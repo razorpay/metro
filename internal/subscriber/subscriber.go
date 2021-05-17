@@ -483,6 +483,9 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 			s.deadlineTicker.Stop()
 
+			// dereference the in-memory map of messages
+			s.consumedMessageStats = nil
+
 			// close the response channel to stop any new message processing
 			close(s.responseChan)
 			close(s.errChan)

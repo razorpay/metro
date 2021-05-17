@@ -27,7 +27,6 @@ type PushStream struct {
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
 	httpClient       *http.Client
-	stopCh           chan struct{}
 	doneCh           chan struct{}
 }
 
@@ -59,23 +58,6 @@ func (ps *PushStream) Start() error {
 	}
 
 	errGrp, gctx := errgroup.WithContext(ps.ctx)
-
-	errGrp.Go(func() error {
-		var err error
-		select {
-		case <-gctx.Done():
-			err = gctx.Err()
-			if err != nil {
-				logger.Ctx(ps.ctx).Infow("worker: subscriber stream context done", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
-			}
-
-		case <-ps.stopCh:
-			logger.Ctx(ps.ctx).Infow("worker: subscriber stream received stop signal", "subscription", ps.subcriptionName, "subscriberId", ps.subs.GetID())
-			err = fmt.Errorf("stop channel received signal for stream, stopping")
-		}
-		return err
-	})
-
 	errGrp.Go(func() error {
 		// Read from broker and publish to response channel in a go routine
 		for {
@@ -122,6 +104,7 @@ func (ps *PushStream) Stop() error {
 
 	// wait for stop to complete
 	<-ps.doneCh
+
 	return nil
 }
 
@@ -204,7 +187,6 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriptionCore: subscriptionCore,
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
-		stopCh:           make(chan struct{}),
 		httpClient:       NewHTTPClientWithConfig(config),
 	}
 }

@@ -52,6 +52,7 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 		"auto.offset.reset":  "latest",
 		"enable.auto.commit": false,
 		"group.instance.id":  id,
+		"request.timeout.ms": 500,
 	}
 
 	logger.Ctx(ctx).Infow("kafka consumer: initializing new", "configMap", configMap, "options", options, "id", id)
@@ -460,7 +461,7 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 			messageBrokerOperationError.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset", err.Error()).Inc()
 			resp, err = k.Consumer.CommitOffsets(tps)
 			attempt++
-			time.Sleep(time.Millisecond * 250)
+			time.Sleep(time.Millisecond * 100)
 			continue
 		}
 		break

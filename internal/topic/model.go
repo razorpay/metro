@@ -15,9 +15,14 @@ const (
 
 	// DeadLetterTopicSuffix every primary topic subscription will have a dlq topic with this suffix as well
 	DeadLetterTopicSuffix = "-dlq"
+)
 
+var (
 	// DefaultNumPartitions default no of partitions for a topic
-	DefaultNumPartitions = 1
+	DefaultNumPartitions int = 1
+
+	// MaxAllowedNumPartitions sets a limit the max no. of partitions allowed for a topic
+	MaxAllowedNumPartitions int = 5
 )
 
 // Model for a topic

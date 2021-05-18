@@ -26,14 +26,23 @@ func init() {
 func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) {
 	p, t, err := ExtractTopicMetaAndValidate(ctx, req.GetName())
 	if err != nil {
-		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topics] name: (name=%s)", req.Name)
+		return nil, merror.Newf(merror.InvalidArgument, "invalid [topics] name: (name=%s)", req.Name)
 	}
 	m := &Model{}
 	m.Name = req.GetName()
 	m.Labels = req.GetLabels()
 	m.ExtractedProjectID = p
 	m.ExtractedTopicName = t
-	m.NumPartitions = DefaultNumPartitions
+
+	partitions := DefaultNumPartitions
+	if req.GetNumPartitions() > 0 {
+		if int(req.GetNumPartitions()) > MaxAllowedNumPartitions {
+			return nil, merror.Newf(merror.InvalidArgument, "max allowed partitions for a topic is [%v]", MaxAllowedNumPartitions)
+		}
+		partitions = int(req.GetNumPartitions())
+	}
+	m.NumPartitions = partitions
+
 	return m, nil
 }
 

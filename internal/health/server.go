@@ -3,10 +3,10 @@ package health
 import (
 	"context"
 
+	"github.com/razorpay/metro/pkg/logger"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 // Server has methods implementing of server rpc.
@@ -20,11 +20,13 @@ func NewServer(core *Core) *Server {
 }
 
 // Check returns service's serving status.
-func (h *Server) Check(_ context.Context, req *metrov1.HealthCheckRequest) (*metrov1.HealthCheckResponse, error) {
+func (h *Server) Check(ctx context.Context, req *metrov1.HealthCheckRequest) (*metrov1.HealthCheckResponse, error) {
 	if !h.core.IsHealthy() {
+		logger.Ctx(ctx).Debugw("metro health check", "status", "Unhealthy")
 		return nil, status.Error(codes.Unavailable, "Unhealthy")
 	}
 
+	logger.Ctx(ctx).Debugw("metro health check", "status", "Healthy")
 	return &metrov1.HealthCheckResponse{
 		ServingStatus: metrov1.HealthCheckResponse_SERVING_STATUS_SERVING,
 	}, nil

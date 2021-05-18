@@ -181,6 +181,14 @@ mock-gen-clean:
 docs-uml:
 	@go-plantuml generate --recursive --directories cmd --directories internal --directories pkg --out $(DOCS_DIR)/$(UML_OUT_FILE)
 
+.PHONY: test-functional-ci ## run functional tests on ci (github actions)
+test-functional-ci:
+	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test ./tests/functional/... -tags=functional,musl
+
+.PHONY: test-functional ## run integration tests locally (metro service needs to be up)
+test-functional:
+	@METRO_TEST_HOST=localhost go test --count=1 ./tests/functional/... -tags=functional,musl
+
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
 test-integration-ci:
 	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test ./tests/integration/... -tags=integration,musl

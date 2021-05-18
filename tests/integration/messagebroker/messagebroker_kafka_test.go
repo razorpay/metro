@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/stretchr/testify/assert"
 )

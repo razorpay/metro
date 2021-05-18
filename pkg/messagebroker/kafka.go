@@ -440,7 +440,9 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Inc()
 
 	startTime := time.Now()
-	defer messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	logger.Ctx(ctx).Infow("kafka: commit request received", "request", request)
 

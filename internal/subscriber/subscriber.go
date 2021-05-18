@@ -243,7 +243,9 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		})
 		if err != nil {
 			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID, "error", err.Error())
-			// TODO : push to retry here?
+			if err == messagebroker.ErrCommitTimedOut {
+				s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
+			}
 			s.errChan <- err
 			return
 		}

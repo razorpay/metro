@@ -28,6 +28,7 @@ type PushStream struct {
 	subs             subscriber.ISubscriber
 	httpClient       *http.Client
 	doneCh           chan struct{}
+	notifyCh         chan error
 }
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
@@ -54,8 +55,13 @@ func (ps *PushStream) Start() error {
 		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+		// notifies the worker that subscriber creation has errored out
+		ps.notifyCh <- err
 		return err
 	}
+
+	// notifies the worker that subscriber creation has completed
+	ps.notifyCh <- nil
 
 	errGrp, gctx := errgroup.WithContext(ps.ctx)
 	errGrp.Go(func() error {
@@ -80,12 +86,12 @@ func (ps *PushStream) Start() error {
 					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
-				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+				//logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
-				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+				//logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 				data := <-ps.subs.GetResponseChannel()
 				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+					//logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 					ps.processPushStreamResponse(ps.ctx, subModel, data)
 				}
 			}
@@ -182,7 +188,7 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig, notifyCh chan error) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
 	return &PushStream{
 		ctx:              pushCtx,
@@ -193,6 +199,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
 		httpClient:       NewHTTPClientWithConfig(config),
+		notifyCh:         notifyCh,
 	}
 }
 

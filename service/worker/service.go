@@ -457,9 +457,11 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 
 		if !found {
 			logger.Ctx(ctx).Infow("binding removed", "key", old.Key())
-			handler := svc.pushHandlers[old.Key()]
-			handler.Stop()
-			delete(svc.pushHandlers, old.Key())
+			if handler, ok := svc.pushHandlers[old.Key()]; ok && handler != nil {
+				logger.Ctx(ctx).Infow("handler found, stopping..", "key", old.Key())
+				handler.Stop()
+				delete(svc.pushHandlers, old.Key())
+			}
 		}
 	}
 

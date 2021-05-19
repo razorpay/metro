@@ -198,7 +198,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		// push to retry queue
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
-		removeMessageFromMemory(stats, req.MessageID)
+		s.removeMessageFromMemory(stats, req.MessageID)
 
 		return
 	}
@@ -251,7 +251,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "offset", offsetToCommit, "topic-partition", tp, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
 	}
 
-	removeMessageFromMemory(stats, req.MessageID)
+	s.removeMessageFromMemory(stats, req.MessageID)
 
 	// add to eviction map only in case of any out of order eviction
 	if offsetToCommit > stats.maxCommittedOffset {
@@ -263,7 +263,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
-func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
+func (s *Subscriber) removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
 	if stats == nil || msgID == "" {
 		return
 	}
@@ -282,6 +282,7 @@ func removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
 	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
 	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
 
+	subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Dec()
 	subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
 }
 
@@ -318,7 +319,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
 		// cleanup message from memory
-		removeMessageFromMemory(stats, msgID)
+		s.removeMessageFromMemory(stats, msgID)
 
 		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Inc()
 		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
@@ -365,7 +366,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 			s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
 			// cleanup message from memory only after a successful push to retry topic
-			removeMessageFromMemory(metadata, peek.MsgID)
+			s.removeMessageFromMemory(metadata, peek.MsgID)
 			s.logInMemoryStats()
 
 			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "msgId", peek.MsgID, "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID)
@@ -473,7 +474,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 					sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
 
 					subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription, s.subscriberID).Inc()
-					subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
+					subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Add(float64(len(s.consumedMessageStats[tp].consumedMessages)))
 					subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 				}
 

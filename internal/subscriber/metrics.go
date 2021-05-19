@@ -71,7 +71,7 @@ func init() {
 
 	subscriberMemoryMessagesCountTotal = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_in_memory_messages_count",
-	}, []string{"env", "topic", "subscription"})
+	}, []string{"env", "topic", "subscription", "subscriberId"})
 
 	subscriberPausedConsumersTotal = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_paused_consumers",

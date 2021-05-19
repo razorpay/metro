@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/razorpay/metro/internal/common"
@@ -57,6 +58,7 @@ type Service struct {
 	nodebindingCache   []*nodebinding.Model
 	nbwatch            chan []registry.Pair
 	pushHandlers       map[string]*PushStream
+	pushHandlersLock   *sync.Mutex
 	scheduler          *scheduler.Scheduler
 	subscriber         subscriber.ICore
 	nbwatcher          registry.IWatcher
@@ -77,6 +79,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
 		pushHandlers:     map[string]*PushStream{},
+		pushHandlersLock: &sync.Mutex{},
 		nbwatch:          make(chan []registry.Pair),
 	}
 }
@@ -456,12 +459,18 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 		}
 
 		if !found {
-			logger.Ctx(ctx).Infow("binding removed", "key", old.Key())
-			if handler, ok := svc.pushHandlers[old.Key()]; ok && handler != nil {
-				logger.Ctx(ctx).Infow("handler found, stopping", "key", old.Key())
-				handler.Stop()
-				delete(svc.pushHandlers, old.Key())
-			}
+			func() {
+				svc.pushHandlersLock.Lock()
+				defer svc.pushHandlersLock.Unlock()
+
+				logger.Ctx(ctx).Infow("binding removed", "key", old.Key())
+				if handler, ok := svc.pushHandlers[old.Key()]; ok && handler != nil {
+					logger.Ctx(ctx).Infow("handler found, stopping", "key", old.Key())
+					handler.Stop()
+					delete(svc.pushHandlers, old.Key())
+				}
+
+			}()
 		}
 	}
 

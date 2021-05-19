@@ -51,7 +51,7 @@ func (ps *PushStream) Start() error {
 		return err
 	}
 
-	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subscriptionName, 100, 100, 0,
+	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subscriptionName, 100, 50, 0,
 		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
@@ -87,7 +87,7 @@ func (ps *PushStream) Start() error {
 				}
 			default:
 				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
-				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 20}
+				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
 				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 				data := <-ps.subs.GetResponseChannel()
 				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {

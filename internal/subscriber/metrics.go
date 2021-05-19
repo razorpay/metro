@@ -33,7 +33,7 @@ func init() {
 
 	subscriberMessagesConsumed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_subscriber_messages_consumed",
-	}, []string{"env", "topic", "subscription"})
+	}, []string{"env", "topic", "subscription", "subscriberId"})
 
 	subscriberMessagesRetried = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_subscriber_messages_retried",
@@ -41,11 +41,11 @@ func init() {
 
 	subscriberMessagesAckd = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_subscriber_messages_ackd",
-	}, []string{"env", "topic", "subscription"})
+	}, []string{"env", "topic", "subscription", "subscriberId"})
 
 	subscriberMessagesModAckd = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_subscriber_messages_mod_ackd",
-	}, []string{"env", "topic", "subscription"})
+	}, []string{"env", "topic", "subscription", "subscriberId"})
 
 	subscriberMessagesDeadlineEvicted = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_subscriber_messages_deadline_evicted",
@@ -75,7 +75,7 @@ func init() {
 
 	subscriberPausedConsumersTotal = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_paused_consumers",
-	}, []string{"env", "topic", "subscription"})
+	}, []string{"env", "topic", "subscription", "subscriberId"})
 
 	subscriberTimeTakenInRequestChannelCase = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_subscriber_request_channel_time_taken_seconds",

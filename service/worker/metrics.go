@@ -22,11 +22,11 @@ func init() {
 
 	workerMessagesAckd = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_worker_messages_ackd",
-	}, []string{"env", "topic", "subscription", "endpoint"})
+	}, []string{"env", "topic", "subscription", "endpoint", "subscriberId"})
 
 	workerMessagesNAckd = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_worker_messages_nackd",
-	}, []string{"env", "topic", "subscription", "endpoint"})
+	}, []string{"env", "topic", "subscription", "endpoint", "subscriberId"})
 
 	workerPushEndpointHTTPStatusCode = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_worker_push_endpoint_http_status_code",
@@ -40,9 +40,9 @@ func init() {
 
 	workerSubscriberErrors = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_worker_subscriber_errors",
-	}, []string{"env", "topic", "subscription", "error"})
+	}, []string{"env", "topic", "subscription", "error", "subscriberId"})
 
 	workerPushEndpointCallsCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_worker_push_endpoint_http_calls",
-	}, []string{"env", "topic", "subscription", "endpoint"})
+	}, []string{"env", "topic", "subscription", "endpoint", "subscriberId"})
 }

@@ -13,7 +13,6 @@ const (
 // Model for a subscription
 type Model struct {
 	common.BaseModel
-	ID                             string
 	Name                           string
 	Topic                          string
 	Labels                         map[string]string
@@ -28,11 +27,6 @@ type Model struct {
 	DeadLetterTopic string
 
 	// TODO: add remaining fields from spec.proto
-}
-
-// GetID returns the unique identifier for the subscription
-func (m *Model) GetID() string {
-	return m.ID
 }
 
 // Key returns the key for storing subscriptions in the registry

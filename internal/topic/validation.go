@@ -26,7 +26,7 @@ func init() {
 func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) {
 	p, t, err := ExtractTopicMetaAndValidate(ctx, req.GetName())
 	if err != nil {
-		return nil, merror.Newf(merror.InvalidArgument, "invalid [topics] name: (name=%s)", req.Name)
+		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topics] name: (name=%s)", req.Name)
 	}
 	m := &Model{}
 	m.Name = req.GetName()

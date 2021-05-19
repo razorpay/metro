@@ -52,7 +52,6 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 		"auto.offset.reset":  "latest",
 		"enable.auto.commit": false,
 		"group.instance.id":  id,
-		"request.timeout.ms": 500,
 	}
 
 	logger.Ctx(ctx).Infow("kafka consumer: initializing new", "configMap", configMap, "options", options, "id", id)

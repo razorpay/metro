@@ -50,7 +50,7 @@ func (ps *PushStream) Start() error {
 		return err
 	}
 
-	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, subModel.GetID(), ps.subscriptionName, 100, 50, 0,
+	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subscriptionName, 100, 50, 0,
 		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
@@ -77,15 +77,15 @@ func (ps *PushStream) Start() error {
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
 					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "err", err.Error())
-					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error()).Inc()
+					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
-				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
-				logger.Ctx(ps.ctx).Infow("worker: waiting for subscriber data response", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 				data := <-ps.subs.GetResponseChannel()
-				logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
+					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
 					ps.processPushStreamResponse(ps.ctx, subModel, data)
 				}
 			}
@@ -127,7 +127,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		startTime := time.Now()
 		postData := bytes.NewBuffer(message.Message.Data)
 		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
-		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
+		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 
 		timeTaken := time.Now().Sub(startTime).Seconds()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(timeTaken)
@@ -143,11 +143,11 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Ack
 			ps.ack(ctx, message)
-			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
+			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		} else {
 			// Nack
 			ps.nack(ctx, message)
-			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
+			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		}
 
 		// discard response.Body after usage and ignore errors

@@ -11,8 +11,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/razorpay/metro/tests/mockserver"
-
 	"cloud.google.com/go/pubsub"
 	"github.com/google/uuid"
 	"google.golang.org/api/option"
@@ -23,9 +21,8 @@ var metroGrpcHost string
 var metroHttpHost string
 var projectId string
 var client *pubsub.Client
-var server *mockserver.MockServer
-var reqChan chan *http.Request
-var respChan chan *http.Response
+var mockServerPushEndpoint string
+var mockServerMetricEndpoint string
 
 func TestMain(m *testing.M) {
 	// all pretest setup
@@ -44,6 +41,8 @@ func setup() {
 
 	metroGrpcHost = fmt.Sprintf("%s:8081", os.Getenv("METRO_TEST_HOST"))
 	metroHttpHost = fmt.Sprintf("http://%s:8082", os.Getenv("METRO_TEST_HOST"))
+	mockServerPushEndpoint = fmt.Sprintf("http://%s:8099/push", os.Getenv("MOCK_SERVER_HOST"))
+	mockServerMetricEndpoint = fmt.Sprintf("http://%s:8099/stats", os.Getenv("MOCK_SERVER_HOST"))
 
 	// create project in metro
 	setupTestProjects()
@@ -57,13 +56,6 @@ func setup() {
 	if err != nil {
 		os.Exit(5)
 	}
-
-	// init the chanels
-	reqChan = make(chan *http.Request)
-	respChan = make(chan *http.Response)
-
-	// starts the mock server at
-	setupMockServer()
 }
 
 func setupTestProjects() {
@@ -90,20 +82,4 @@ func teardown() {
 	if err != nil || r.StatusCode != 200 {
 		os.Exit(4)
 	}
-
-	// stop the server
-	server.Stop(context.Background())
-}
-
-func setupMockServer() {
-	server = &mockserver.MockServer{
-		ReqCh: reqChan,
-		ResCh: respChan,
-	}
-	go func() {
-		err := server.Start(context.Background())
-		if err != nil {
-			os.Exit(6)
-		}
-	}()
 }

@@ -189,7 +189,6 @@ test-functional-ci:
 test-functional:
 	@METRO_TEST_HOST=localhost MOCK_SERVER_HOST=localhost go test --count=1 ./tests/functional/... -tags=functional,musl
 
-
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
 test-integration-ci:
 	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test ./tests/integration/... -tags=integration,musl

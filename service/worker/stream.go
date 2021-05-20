@@ -33,7 +33,6 @@ type PushStream struct {
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
 func (ps *PushStream) Start() error {
-	defer close(ps.doneCh)
 
 	var (
 		err error
@@ -76,7 +75,10 @@ func (ps *PushStream) Start() error {
 				close(subscriberModAckCh)
 
 				// stop the subscriber after all the send channels are closed
-				ps.stopSubscriber()
+				func() {
+					defer close(ps.doneCh)
+					ps.stopSubscriber()
+				}()
 
 				return gctx.Err()
 			case err = <-ps.subs.GetErrorChannel():
@@ -138,7 +140,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		timeTaken := time.Now().Sub(startTime).Seconds()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(timeTaken)
 		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error(), "time_taken", timeTaken)
 			ps.nack(ctx, message)
 			return
 		}

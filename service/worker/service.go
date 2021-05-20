@@ -450,9 +450,10 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 	}
 
 	for _, old := range oldBindings {
+		oldKey := old.Key()
 		found := false
 		for _, newBinding := range newBindings {
-			if old.Key() == newBinding.Key() {
+			if oldKey == newBinding.Key() {
 				found = true
 				break
 			}
@@ -463,13 +464,17 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 				svc.pushHandlersLock.Lock()
 				defer svc.pushHandlersLock.Unlock()
 
-				logger.Ctx(ctx).Infow("binding removed", "key", old.Key())
-				if handler, ok := svc.pushHandlers[old.Key()]; ok && handler != nil {
-					logger.Ctx(ctx).Infow("handler found, stopping", "key", old.Key())
-					handler.Stop()
-					delete(svc.pushHandlers, old.Key())
+				logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
+				if handler, ok := svc.pushHandlers[oldKey]; ok && handler != nil {
+					go func(ctx context.Context) {
+						logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
+						err := handler.Stop()
+						if err == nil {
+							logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
+						}
+					}(ctx)
+					delete(svc.pushHandlers, oldKey)
 				}
-
 			}()
 		}
 	}
@@ -499,7 +504,7 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 				}
 			}(ctx)
 
-			// store in map only if subscriber creation succeeds
+			// store only if subscriber creation succeeds
 			error := <-notifyCh
 			if error == nil {
 				svc.pushHandlers[newBinding.Key()] = handler

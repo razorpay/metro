@@ -22,7 +22,7 @@ var (
 	DefaultNumPartitions int = 1
 
 	// MaxAllowedNumPartitions sets a limit the max no. of partitions allowed for a topic
-	MaxAllowedNumPartitions int = 5
+	MaxAllowedNumPartitions int = 25
 )
 
 // Model for a topic

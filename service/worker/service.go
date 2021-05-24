@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/razorpay/metro/internal/common"
@@ -57,6 +58,7 @@ type Service struct {
 	nodebindingCache   []*nodebinding.Model
 	nbwatch            chan []registry.Pair
 	pushHandlers       map[string]*PushStream
+	pushHandlersLock   *sync.Mutex
 	scheduler          *scheduler.Scheduler
 	subscriber         subscriber.ICore
 	nbwatcher          registry.IWatcher
@@ -77,6 +79,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
 		pushHandlers:     map[string]*PushStream{},
+		pushHandlersLock: &sync.Mutex{},
 		nbwatch:          make(chan []registry.Pair),
 	}
 }
@@ -447,19 +450,32 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 	}
 
 	for _, old := range oldBindings {
+		oldKey := old.Key()
 		found := false
 		for _, newBinding := range newBindings {
-			if old.Key() == newBinding.Key() {
+			if oldKey == newBinding.Key() {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			logger.Ctx(ctx).Infow("binding removed", "key", old.Key())
-			handler := svc.pushHandlers[old.Key()]
-			handler.Stop()
-			delete(svc.pushHandlers, old.Key())
+			func() {
+				svc.pushHandlersLock.Lock()
+				defer svc.pushHandlersLock.Unlock()
+
+				logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
+				if handler, ok := svc.pushHandlers[oldKey]; ok && handler != nil {
+					go func(ctx context.Context) {
+						logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
+						err := handler.Stop()
+						if err == nil {
+							logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
+						}
+					}(ctx)
+					delete(svc.pushHandlers, oldKey)
+				}
+			}()
 		}
 	}
 
@@ -473,8 +489,9 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 		}
 
 		if !found {
+			notifyCh := make(chan error)
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
-			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber, &svc.workerConfig.HTTPClientConfig)
+			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber, &svc.workerConfig.HTTPClientConfig, notifyCh)
 
 			// run the stream in a separate go routine, this go routine is not part of the worker error group
 			// as the worker should continue to run if a single subscription stream exists with error
@@ -487,7 +504,12 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 				}
 			}(ctx)
 
-			svc.pushHandlers[newBinding.Key()] = handler
+			// store only if subscriber creation succeeds
+			error := <-notifyCh
+			if error == nil {
+				svc.pushHandlers[newBinding.Key()] = handler
+			}
+			close(notifyCh)
 		}
 	}
 

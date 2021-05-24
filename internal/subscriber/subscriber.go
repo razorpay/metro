@@ -280,6 +280,8 @@ func (s *Subscriber) removeMessageFromMemory(stats *ConsumptionMetadata, msgID s
 	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
 	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
 
+	s.logInMemoryStats()
+
 	subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Dec()
 	subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
 }

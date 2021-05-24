@@ -37,6 +37,25 @@ func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) 
 	return m, nil
 }
 
+// GetValidatedAdminModel validates an incoming proto request and returns the model
+func GetValidatedAdminModel(ctx context.Context, req *metrov1.AdminTopic) (*Model, error) {
+	p, t, err := ExtractTopicMetaAndValidateForCreate(ctx, req.GetName())
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topics] name: (name=%s)", req.Name)
+	}
+	m := &Model{}
+	m.Name = req.GetName()
+	m.Labels = req.GetLabels()
+	m.ExtractedProjectID = p
+	m.ExtractedTopicName = t
+
+	if req.NumPartitions <= 0 {
+		return nil, merror.Newf(merror.InvalidArgument, "Invalid [num_partitions]: (value=%v)", req.NumPartitions)
+	}
+	m.NumPartitions = int(req.NumPartitions)
+	return m, nil
+}
+
 // ExtractTopicMetaAndValidateForCreate extracts and validates the topic details, additionally for topic create
 // it checks if name can collide with dlq topics
 func ExtractTopicMetaAndValidateForCreate(ctx context.Context, name string) (string, string, error) {

@@ -40,7 +40,9 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	subscriptionOperationCount.WithLabelValues(env, "CreateSubscription").Inc()
 
 	startTime := time.Now()
-	defer subscriptionOperationTimeTaken.WithLabelValues(env, "CreateSubscription").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "CreateSubscription").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	// the order of checks which google pub/sub does
 	// 1. check if subscription project exists
@@ -113,7 +115,9 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 	subscriptionOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
-	defer subscriptionOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	ok, err := c.repo.Exists(ctx, key)
 	if err != nil {
@@ -128,7 +132,9 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 	subscriptionOperationCount.WithLabelValues(env, "DeleteSubscription").Inc()
 
 	startTime := time.Now()
-	defer subscriptionOperationTimeTaken.WithLabelValues(env, "DeleteSubscription").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "DeleteSubscription").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedSubscriptionProjectID); !ok {
 		if err != nil {
@@ -150,7 +156,9 @@ func (c *Core) DeleteProjectSubscriptions(ctx context.Context, projectID string)
 	subscriptionOperationCount.WithLabelValues(env, "DeleteProjectSubscriptions").Inc()
 
 	startTime := time.Now()
-	defer subscriptionOperationTimeTaken.WithLabelValues(env, "DeleteProjectSubscriptions").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "DeleteProjectSubscriptions").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	if projectID == "" {
 		return merror.Newf(merror.InvalidArgument, "invalid projectID: %s", projectID)
@@ -166,7 +174,9 @@ func (c *Core) GetTopicFromSubscriptionName(ctx context.Context, subscription st
 	subscriptionOperationCount.WithLabelValues(env, "GetTopicFromSubscriptionName").Inc()
 
 	startTime := time.Now()
-	defer subscriptionOperationTimeTaken.WithLabelValues(env, "GetTopicFromSubscriptionName").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "GetTopicFromSubscriptionName").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	m, err := c.Get(ctx, subscription)
 
@@ -181,7 +191,9 @@ func (c *Core) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 	subscriptionOperationCount.WithLabelValues(env, "ListKeys").Inc()
 
 	startTime := time.Now()
-	defer subscriptionOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "ListKeys").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	prefix = common.GetBasePrefix() + prefix
 	return c.repo.ListKeys(ctx, prefix)
@@ -192,7 +204,9 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	subscriptionOperationCount.WithLabelValues(env, "List").Inc()
 
 	startTime := time.Now()
-	defer subscriptionOperationTimeTaken.WithLabelValues(env, "List").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "List").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	prefix = common.GetBasePrefix() + prefix
 
@@ -213,7 +227,9 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	subscriptionOperationCount.WithLabelValues(env, "Get").Inc()
 
 	startTime := time.Now()
-	defer subscriptionOperationTimeTaken.WithLabelValues(env, "Get").Observe(time.Now().Sub(startTime).Seconds())
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "Get").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	projectID, subscriptionName, err := extractSubscriptionMetaAndValidate(ctx, key)
 	if err != nil {

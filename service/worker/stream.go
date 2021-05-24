@@ -77,7 +77,7 @@ func (ps *PushStream) Start() error {
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
 					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "err", err.Error())
-					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error()).Inc()
+					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
 				logger.Ctx(ps.ctx).Infow("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
@@ -127,7 +127,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		startTime := time.Now()
 		postData := bytes.NewBuffer(message.Message.Data)
 		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
-		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
+		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
@@ -140,11 +140,11 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		if resp.StatusCode == http.StatusOK {
 			// Ack
 			ps.ack(ctx, message)
-			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
+			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		} else {
 			// Nack
 			ps.nack(ctx, message)
-			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Inc()
+			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		}
 
 		// discard response.Body after usage and ignore errors

@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	adminv1 "github.com/razorpay/metro/rpc/admin/v1"
+
 	"github.com/razorpay/metro/pkg/logger"
 
 	"github.com/razorpay/metro/service/web/stream"
@@ -17,7 +19,7 @@ import (
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/registry"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -82,7 +84,7 @@ func (svc *Service) Start() error {
 			metrov1.RegisterPublisherServer(server, newPublisherServer(brokerStore, topicCore, publisher))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore, subscriptionCore, topicCore, brokerStore))
 			metrov1.RegisterSubscriberServer(server, newSubscriberServer(brokerStore, subscriptionCore, streamManager))
-			metrov1.RegisterAdminAPIServer(server, newAdminServer(projectCore, subscriptionCore, topicCore, brokerStore))
+			adminv1.RegisterAdminAPIServer(server, newAdminServer(projectCore, subscriptionCore, topicCore, brokerStore))
 			return nil
 		},
 		getInterceptors()...,

@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
 	"github.com/stretchr/testify/assert"
 )
 

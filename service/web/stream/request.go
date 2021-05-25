@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/razorpay/metro/internal/subscriber"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
 )
 
 // ParsedStreamingPullRequest ...

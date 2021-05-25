@@ -18,7 +18,8 @@ import (
 	mocks3 "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	mocks5 "github.com/razorpay/metro/pkg/messagebroker/mocks"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	adminv1 "github.com/razorpay/metro/rpc/admin/v1"
+	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -132,7 +133,7 @@ func TestAdminServer_CreateAdminTopicSuccess(t *testing.T) {
 	server := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCore, mockBrokerStore)
 
 	ctx := context.Background()
-	req := &metrov1.AdminTopic{
+	req := &adminv1.AdminTopic{
 		Name:          "projects/project123/topics/test-topic",
 		Labels:        map[string]string{"foo": "bar"},
 		NumPartitions: 2,
@@ -159,7 +160,7 @@ func TestAdminServer_CreateAdminTopicFailure(t *testing.T) {
 	server := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCore, nil)
 
 	ctx := context.Background()
-	req := &metrov1.AdminTopic{
+	req := &adminv1.AdminTopic{
 		Name:          "projects/project123/topics/test-topic",
 		Labels:        map[string]string{"foo": "bar"},
 		NumPartitions: 5,

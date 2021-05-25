@@ -12,7 +12,8 @@ import (
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/pkg/logger"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	adminv1 "github.com/razorpay/metro/rpc/admin/v1"
+	pubsubv1 "github.com/razorpay/metro/rpc/pubsub/v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -28,7 +29,7 @@ func newAdminServer(projectCore project.ICore, subscriptionCore subscription.ICo
 }
 
 // CreateProject creates a new project
-func (s adminServer) CreateProject(ctx context.Context, req *metrov1.Project) (*metrov1.Project, error) {
+func (s adminServer) CreateProject(ctx context.Context, req *pubsubv1.Project) (*pubsubv1.Project, error) {
 	logger.Ctx(ctx).Infow("request received to create project", "id", req.ProjectId)
 	p, err := project.GetValidatedModelForCreate(ctx, req)
 	if err != nil {
@@ -42,7 +43,7 @@ func (s adminServer) CreateProject(ctx context.Context, req *metrov1.Project) (*
 }
 
 // DeleteProject creates a new project
-func (s adminServer) DeleteProject(ctx context.Context, req *metrov1.Project) (*emptypb.Empty, error) {
+func (s adminServer) DeleteProject(ctx context.Context, req *pubsubv1.Project) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("request received to delete project", "id", req.ProjectId)
 	p, err := project.GetValidatedModelForDelete(ctx, req)
 	if err != nil {
@@ -70,7 +71,7 @@ func (s adminServer) DeleteProject(ctx context.Context, req *metrov1.Project) (*
 	return &emptypb.Empty{}, nil
 }
 
-func (s adminServer) CreateTopic(ctx context.Context, req *metrov1.AdminTopic) (*metrov1.AdminTopic, error) {
+func (s adminServer) CreateTopic(ctx context.Context, req *adminv1.AdminTopic) (*adminv1.AdminTopic, error) {
 
 	logger.Ctx(ctx).Infow("received admin request to create topic",
 		"name", req.Name, "num_partitions", req.NumPartitions)

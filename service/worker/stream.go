@@ -32,6 +32,8 @@ type PushStream struct {
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
 func (ps *PushStream) Start() error {
+	defer close(ps.doneCh)
+
 	var (
 		err error
 		// init these channels and pass to subscriber
@@ -68,10 +70,7 @@ func (ps *PushStream) Start() error {
 				close(subscriberModAckCh)
 
 				// stop the subscriber after all the send channels are closed
-				func() {
-					defer close(ps.doneCh)
-					ps.stopSubscriber()
-				}()
+				ps.stopSubscriber()
 
 				return gctx.Err()
 			case err = <-ps.subs.GetErrorChannel():

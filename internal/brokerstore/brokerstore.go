@@ -87,6 +87,8 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 	return &BrokerStore{
 		variant:       variant,
 		bConfig:       config,
+		producerMap:   sync.Map{},
+		consumerMap:   sync.Map{},
 		partitionLock: partitionlocker.NewPartitionLocker(&sync.Mutex{}),
 	}, nil
 }

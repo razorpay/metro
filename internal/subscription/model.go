@@ -22,7 +22,7 @@ type Model struct {
 	ExtractedTopicName             string
 	ExtractedSubscriptionName      string
 
-	// DeadLetterTopic keeps the topic name used for deadlettering, this will be created with subscription and
+	// DeadLetterTopic keeps the topic name used for dead lettering, this will be created with subscription and
 	// will be visible to subscriber, subscriber can create subscription over this topic to read messages from this
 	DeadLetterTopic string
 

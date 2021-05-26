@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/razorpay/metro/internal/common"
@@ -56,7 +57,7 @@ type Service struct {
 	subCache           []*subscription.Model
 	nodebindingCache   []*nodebinding.Model
 	nbwatch            chan []registry.Pair
-	pushHandlers       map[string]*PushStream
+	pushHandlers       sync.Map
 	scheduler          *scheduler.Scheduler
 	subscriber         subscriber.ICore
 	nbwatcher          registry.IWatcher
@@ -76,7 +77,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
-		pushHandlers:     map[string]*PushStream{},
+		pushHandlers:     sync.Map{},
 		nbwatch:          make(chan []registry.Pair),
 	}
 }
@@ -277,12 +278,13 @@ func (svc *Service) Stop() error {
 
 	// stop all push stream handlers
 	logger.Ctx(svc.ctx).Infow("metro stop: stopping all push handlers")
-	for _, handler := range svc.pushHandlers {
-		err := handler.Stop()
+	svc.pushHandlers.Range(func(_, handler interface{}) bool {
+		err := handler.(*PushStream).Stop()
 		if err != nil {
 			logger.Ctx(svc.ctx).Infow("error stopping stream handler", "error", err)
 		}
-	}
+		return true
+	})
 
 	// signal the grpc server go routine
 	svc.grpcServer.GracefulStop()
@@ -447,19 +449,25 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 	}
 
 	for _, old := range oldBindings {
+		oldKey := old.Key()
 		found := false
 		for _, newBinding := range newBindings {
-			if old.Key() == newBinding.Key() {
+			if oldKey == newBinding.Key() {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			logger.Ctx(ctx).Infow("binding removed", "key", old.Key())
-			handler := svc.pushHandlers[old.Key()]
-			handler.Stop()
-			delete(svc.pushHandlers, old.Key())
+			logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
+			if handler, ok := svc.pushHandlers.Load(oldKey); ok && handler != nil {
+				logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
+				err := handler.(*PushStream).Stop()
+				if err == nil {
+					logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
+				}
+				svc.pushHandlers.Delete(oldKey)
+			}
 		}
 	}
 
@@ -487,7 +495,8 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 				}
 			}(ctx)
 
-			svc.pushHandlers[newBinding.Key()] = handler
+			// store the handler
+			svc.pushHandlers.Store(newBinding.Key(), handler)
 		}
 	}
 

@@ -459,19 +459,15 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 		}
 
 		if !found {
-			func() {
-				logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
-				if handler, ok := svc.pushHandlers.Load(oldKey); ok && handler != nil {
-					go func(ctx context.Context) {
-						logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
-						err := handler.(*PushStream).Stop()
-						if err == nil {
-							logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
-						}
-					}(ctx)
-					svc.pushHandlers.Delete(oldKey)
+			logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
+			if handler, ok := svc.pushHandlers.Load(oldKey); ok && handler != nil {
+				logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
+				err := handler.(*PushStream).Stop()
+				if err == nil {
+					logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
 				}
-			}()
+				svc.pushHandlers.Delete(oldKey)
+			}
 		}
 	}
 

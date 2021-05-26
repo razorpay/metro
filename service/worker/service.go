@@ -57,8 +57,7 @@ type Service struct {
 	subCache           []*subscription.Model
 	nodebindingCache   []*nodebinding.Model
 	nbwatch            chan []registry.Pair
-	pushHandlers       map[string]*PushStream
-	pushHandlersLock   *sync.Mutex
+	pushHandlers       sync.Map
 	scheduler          *scheduler.Scheduler
 	subscriber         subscriber.ICore
 	nbwatcher          registry.IWatcher
@@ -78,8 +77,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
-		pushHandlers:     map[string]*PushStream{},
-		pushHandlersLock: &sync.Mutex{},
+		pushHandlers:     sync.Map{},
 		nbwatch:          make(chan []registry.Pair),
 	}
 }
@@ -280,12 +278,13 @@ func (svc *Service) Stop() error {
 
 	// stop all push stream handlers
 	logger.Ctx(svc.ctx).Infow("metro stop: stopping all push handlers")
-	for _, handler := range svc.pushHandlers {
-		err := handler.Stop()
+	svc.pushHandlers.Range(func(_, handler interface{}) bool {
+		err := handler.(*PushStream).Stop()
 		if err != nil {
 			logger.Ctx(svc.ctx).Infow("error stopping stream handler", "error", err)
 		}
-	}
+		return true
+	})
 
 	// signal the grpc server go routine
 	svc.grpcServer.GracefulStop()
@@ -461,19 +460,16 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 
 		if !found {
 			func() {
-				svc.pushHandlersLock.Lock()
-				defer svc.pushHandlersLock.Unlock()
-
 				logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
-				if handler, ok := svc.pushHandlers[oldKey]; ok && handler != nil {
+				if handler, ok := svc.pushHandlers.Load(oldKey); ok && handler != nil {
 					go func(ctx context.Context) {
 						logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
-						err := handler.Stop()
+						err := handler.(*PushStream).Stop()
 						if err == nil {
 							logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
 						}
 					}(ctx)
-					delete(svc.pushHandlers, oldKey)
+					svc.pushHandlers.Delete(oldKey)
 				}
 			}()
 		}
@@ -507,7 +503,7 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 			// store only if subscriber creation succeeds
 			error := <-notifyCh
 			if error == nil {
-				svc.pushHandlers[newBinding.Key()] = handler
+				svc.pushHandlers.Store(newBinding.Key(), handler)
 			}
 			close(notifyCh)
 		}

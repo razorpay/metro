@@ -91,7 +91,7 @@ func Test_CreatePushSubscription(t *testing.T) {
 		pubsub.SubscriptionConfig{
 			Topic: topic,
 			PushConfig: pubsub.PushConfig{
-				Endpoint: "http://localhost:8099/push",
+				Endpoint: mockServerPushEndpoint,
 			},
 		})
 

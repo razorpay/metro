@@ -28,7 +28,6 @@ type PushStream struct {
 	subs             subscriber.ISubscriber
 	httpClient       *http.Client
 	doneCh           chan struct{}
-	notifyCh         chan error
 }
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
@@ -46,8 +45,6 @@ func (ps *PushStream) Start() error {
 		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
-		// notifies the worker that subscriber creation has errored out
-		ps.notifyCh <- err
 		return err
 	}
 
@@ -57,9 +54,6 @@ func (ps *PushStream) Start() error {
 		logger.Ctx(ps.ctx).Errorf("error fetching subscription: %s", err.Error())
 		return err
 	}
-
-	// notifies the worker that subscriber creation has completed
-	ps.notifyCh <- nil
 
 	errGrp, gctx := errgroup.WithContext(ps.ctx)
 	errGrp.Go(func() error {
@@ -186,7 +180,7 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig, notifyCh chan error) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
 	return &PushStream{
 		ctx:              pushCtx,
@@ -197,7 +191,6 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
 		httpClient:       NewHTTPClientWithConfig(config),
-		notifyCh:         notifyCh,
 	}
 }
 

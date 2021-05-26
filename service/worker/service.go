@@ -485,9 +485,8 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 		}
 
 		if !found {
-			notifyCh := make(chan error)
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
-			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber, &svc.workerConfig.HTTPClientConfig, notifyCh)
+			handler := NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, svc.subscriptionCore, svc.subscriber, &svc.workerConfig.HTTPClientConfig)
 
 			// run the stream in a separate go routine, this go routine is not part of the worker error group
 			// as the worker should continue to run if a single subscription stream exists with error
@@ -500,12 +499,8 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 				}
 			}(ctx)
 
-			// store only if subscriber creation succeeds
-			error := <-notifyCh
-			if error == nil {
-				svc.pushHandlers.Store(newBinding.Key(), handler)
-			}
-			close(notifyCh)
+			// store the handler
+			svc.pushHandlers.Store(newBinding.Key(), handler)
 		}
 	}
 

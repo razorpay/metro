@@ -503,27 +503,11 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 		return err
 	}
 
+	// Delete any binding where subscription is removed, This needs to be handlled before nodes updates
+	// as node update will cause subscsriptions to be rescheduled on other nodes
 	validBindings := []*nodebinding.Model{}
-	// Delete any binding where node is removed
-	for _, nb := range nodeBindings {
-		found := false
-		for _, node := range svc.nodeCache {
-			if node.ID == nb.NodeID {
-				found = true
-				break
-			}
-		}
 
-		if !found {
-			svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
-		} else {
-			validBindings = append(validBindings, nb)
-		}
-	}
-	// update the binding list after deletions
-	nodeBindings = validBindings
-
-	// Delete any binding where subscription is removed
+	// TODO: Optimize O(N*M) to O(N+M)
 	for _, nb := range nodeBindings {
 		found := false
 		for _, sub := range svc.subCache {
@@ -542,6 +526,46 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 	// update the binding list after deletions
 	nodeBindings = validBindings
 
+	// Reschedule any binding where node is removed
+	validBindings = []*nodebinding.Model{}
+	invalidBindings := []*nodebinding.Model{}
+
+	// TODO: Optimize O(N*M) to O(N+M)
+	for _, nb := range nodeBindings {
+		found := false
+		for _, node := range svc.nodeCache {
+			if node.ID == nb.NodeID {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			invalidBindings = append(invalidBindings, nb)
+			svc.nodeBindingCore.DeleteNodeBinding(ctx, nb)
+		} else {
+			validBindings = append(validBindings, nb)
+		}
+	}
+
+	// update the binding list after deletions
+	nodeBindings = validBindings
+
+	// Reschedule Bindings which are invalid due to node failures
+	for _, nb := range invalidBindings {
+		logger.Ctx(ctx).Infow("rescheduling subscription on nodes", "key", nb.SubscriptionID)
+
+		sub, serr := svc.subscriptionCore.Get(ctx, nb.SubscriptionID)
+		if serr != nil {
+			return serr
+		}
+
+		serr = svc.scheduleSubscription(ctx, sub, &nodeBindings)
+		if serr != nil {
+			return serr
+		}
+	}
+
 	// Create bindings for new subscriptions
 	for _, sub := range svc.subCache {
 		found := false
@@ -553,7 +577,7 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 		}
 
 		if !found {
-			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "key", sub.Name)
+			logger.Ctx(ctx).Infow("scheduling subscription on nodes", "subscription", sub.Name, "topic", sub.Topic)
 
 			topicM, terr := svc.topicCore.Get(ctx, sub.Topic)
 			if terr != nil {
@@ -561,20 +585,28 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 			}
 
 			for i := 0; i < topicM.NumPartitions; i++ {
-				nb, serr := svc.scheduler.Schedule(sub, nodeBindings, svc.nodeCache)
+				serr := svc.scheduleSubscription(ctx, sub, &nodeBindings)
 				if serr != nil {
 					return serr
 				}
-
-				berr := svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
-				if berr != nil {
-					return berr
-				}
-
-				nodeBindings = append(nodeBindings, nb)
 			}
 		}
 	}
+	return nil
+}
+
+func (svc *Service) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model) error {
+	nb, serr := svc.scheduler.Schedule(sub, *nodeBindings, svc.nodeCache)
+	if serr != nil {
+		return serr
+	}
+
+	berr := svc.nodeBindingCore.CreateNodeBinding(ctx, nb)
+	if berr != nil {
+		return berr
+	}
+
+	*nodeBindings = append(*nodeBindings, nb)
 	return nil
 }
 

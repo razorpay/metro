@@ -66,6 +66,7 @@ services:
 
   consul:
     image: consul:1.9.0
+    hostname: consul
     container_name: metro-consul
     networks:
       - app-network

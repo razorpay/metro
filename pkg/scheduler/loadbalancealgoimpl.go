@@ -21,7 +21,7 @@ func (p NodeCountList) Len() int           { return len(p) }
 func (p NodeCountList) Less(i, j int) bool { return p[i].Count < p[j].Count }
 func (p NodeCountList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-// LoadBalanceAlgoImpl implemnts load based scheduler algorithm
+// LoadBalanceAlgoImpl implements load based scheduler algorithm
 type LoadBalanceAlgoImpl struct {
 }
 

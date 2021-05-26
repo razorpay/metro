@@ -560,7 +560,7 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 			return serr
 		}
 
-		serr = svc.scheduleSubscription(ctx, sub, nodeBindings)
+		serr = svc.scheduleSubscription(ctx, sub, &nodeBindings)
 		if serr != nil {
 			return serr
 		}
@@ -585,7 +585,7 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 			}
 
 			for i := 0; i < topicM.NumPartitions; i++ {
-				serr := svc.scheduleSubscription(ctx, sub, nodeBindings)
+				serr := svc.scheduleSubscription(ctx, sub, &nodeBindings)
 				if serr != nil {
 					return serr
 				}
@@ -595,8 +595,8 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 	return nil
 }
 
-func (svc *Service) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings []*nodebinding.Model) error {
-	nb, serr := svc.scheduler.Schedule(sub, nodeBindings, svc.nodeCache)
+func (svc *Service) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model) error {
+	nb, serr := svc.scheduler.Schedule(sub, *nodeBindings, svc.nodeCache)
 	if serr != nil {
 		return serr
 	}
@@ -606,7 +606,7 @@ func (svc *Service) scheduleSubscription(ctx context.Context, sub *subscription.
 		return berr
 	}
 
-	nodeBindings = append(nodeBindings, nb)
+	*nodeBindings = append(*nodeBindings, nb)
 	return nil
 }
 

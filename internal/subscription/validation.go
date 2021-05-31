@@ -16,8 +16,8 @@ var subscriptionNameRegex *regexp.Regexp
 
 const (
 	// used as keys in the subscription push config attributes
-	attributeKey    = "key"
-	attributeSecret = "secret"
+	attributeUsername = "username"
+	attributePassword = "password"
 )
 
 func init() {
@@ -47,22 +47,22 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	if req.GetPushConfig() != nil && req.GetPushConfig().GetAttributes() != nil {
 		pushAttr := req.GetPushConfig().GetAttributes()
 
-		var key, secret string
-		if k, ok := pushAttr[attributeKey]; ok {
-			if strings.Trim(k, " ") == "" {
+		var username, password string
+		if u, ok := pushAttr[attributeUsername]; ok {
+			if strings.Trim(u, " ") == "" {
 				return nil, merror.New(merror.InvalidArgument, "Invalid [Username] for push endpoint")
 			}
-			key = k
+			username = u
 		}
 
-		if s, ok := pushAttr[attributeSecret]; ok {
-			if strings.Trim(s, " ") == "" {
+		if p, ok := pushAttr[attributePassword]; ok {
+			if strings.Trim(p, " ") == "" {
 				return nil, merror.New(merror.InvalidArgument, "Invalid [Password] for push endpoint")
 			}
-			secret = s
+			password = p
 		}
 
-		m.Auth = NewAuth(key, secret)
+		m.Auth = NewAuth(username, password)
 	}
 	return m, nil
 }

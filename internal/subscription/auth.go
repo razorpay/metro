@@ -9,11 +9,11 @@ type Auth struct {
 }
 
 // NewAuth returns a new auth model
-func NewAuth(key, secret string) *Auth {
+func NewAuth(username, password string) *Auth {
 	a := &Auth{}
-	a.Username = key
+	a.Username = username
 	// store Password only after encoding it
-	a.Password = common.Encode(secret)
+	a.Password = common.Encode(password)
 	return a
 }
 

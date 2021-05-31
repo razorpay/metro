@@ -126,7 +126,11 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 
 		startTime := time.Now()
 		postData := bytes.NewBuffer(message.Message.Data)
-		resp, err := ps.httpClient.Post(subModel.PushEndpoint, "application/json", postData)
+		req, err := http.NewRequest("POST", subModel.PushEndpoint, postData)
+		if subModel.HasAuth() {
+			req.SetBasicAuth(subModel.GetAuth().GetUsername(), subModel.GetAuth().GetPassword())
+		}
+		resp, err := ps.httpClient.Do(req)
 		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
 		if err != nil {

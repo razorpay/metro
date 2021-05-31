@@ -110,7 +110,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	return c.repo.Create(ctx, m)
 }
 
-// Exists checks if subscription exists for a given key
+// Exists checks if subscription exists for a given Username
 func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 	subscriptionOperationCount.WithLabelValues(env, "Exists").Inc()
 
@@ -121,7 +121,7 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 
 	ok, err := c.repo.Exists(ctx, key)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("error in executing exists", "msg", err.Error(), "key", key)
+		logger.Ctx(ctx).Errorw("error in executing exists", "msg", err.Error(), "Username", key)
 		return false, err
 	}
 	return ok, nil
@@ -222,7 +222,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	return out, nil
 }
 
-// Get returns subscription with the given key
+// Get returns subscription with the given Username
 func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	subscriptionOperationCount.WithLabelValues(env, "Get").Inc()
 
@@ -237,7 +237,7 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	}
 	prefix := common.GetBasePrefix() + Prefix + projectID + "/" + subscriptionName
 
-	logger.Ctx(ctx).Infow("fetching subscription", "key", prefix)
+	logger.Ctx(ctx).Infow("fetching subscription", "Username", prefix)
 
 	model := &Model{}
 	err = c.repo.Get(ctx, prefix, model)

@@ -14,6 +14,12 @@ import (
 
 var subscriptionNameRegex *regexp.Regexp
 
+const (
+	// used as keys in the subscription push config attributes
+	attributeKey    = "key"
+	attributeSecret = "secret"
+)
+
 func init() {
 	var err error
 	// https://github.com/googleapis/googleapis/blob/69697504d9eba1d064820c3085b4750767be6d08/google/pubsub/v1/pubsub.proto#L636
@@ -36,6 +42,28 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	}
 	m.ExtractedTopicName = t
 	m.ExtractedTopicProjectID = p
+
+	// set push auth
+	if req.GetPushConfig() != nil && req.GetPushConfig().GetAttributes() != nil {
+		pushAttr := req.GetPushConfig().GetAttributes()
+
+		var key, secret string
+		if k, ok := pushAttr[attributeKey]; ok {
+			if strings.Trim(k, " ") == "" {
+				return nil, merror.New(merror.InvalidArgument, "Invalid [Username] for push endpoint")
+			}
+			key = k
+		}
+
+		if s, ok := pushAttr[attributeSecret]; ok {
+			if strings.Trim(s, " ") == "" {
+				return nil, merror.New(merror.InvalidArgument, "Invalid [Password] for push endpoint")
+			}
+			secret = s
+		}
+
+		m.Auth = NewAuth(key, secret)
+	}
 	return m, nil
 }
 

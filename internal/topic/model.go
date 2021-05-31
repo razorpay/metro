@@ -40,7 +40,7 @@ func (m *Model) Prefix() string {
 	return common.GetBasePrefix() + Prefix + m.ExtractedProjectID + "/"
 }
 
-// IsDeadLetterTopic checks if the topic is a deadlettertopic created for dlq support on subscription
+// IsDeadLetterTopic checks if the topic is a dead letter topic created for dlq support on subscription
 func (m *Model) IsDeadLetterTopic() bool {
 	return strings.HasSuffix(m.ExtractedTopicName, DeadLetterTopicSuffix)
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
-	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"golang.org/x/sync/errgroup"
 )
 

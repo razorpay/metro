@@ -94,8 +94,7 @@ buf-deps:
 .PHONY: proto-generate ## Compile protobuf to pb files
 proto-generate:
 	@echo "\n + Generating pb language bindings\n"
-	@buf generate --path ./metro-proto/metro/pubsub
-	@buf generate --path ./metro-proto/metro/admin
+	@buf generate --path ./metro-proto/metro/proto
 	# Generate static assets for OpenAPI UI
 	@statik -m -f -src third_party/OpenAPI/
 

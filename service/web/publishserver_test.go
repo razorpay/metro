@@ -14,7 +14,7 @@ import (
 	mocks2 "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	mocks4 "github.com/razorpay/metro/pkg/messagebroker/mocks"
-	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
 

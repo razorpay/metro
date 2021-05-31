@@ -6,10 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	adminv1 "github.com/razorpay/metro/rpc/admin/v1"
-
 	"github.com/razorpay/metro/internal/merror"
-	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 var topicNameRegex *regexp.Regexp
@@ -40,7 +38,7 @@ func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) 
 }
 
 // GetValidatedAdminModel validates an incoming proto request and returns the model
-func GetValidatedAdminModel(ctx context.Context, req *adminv1.AdminTopic) (*Model, error) {
+func GetValidatedAdminModel(ctx context.Context, req *metrov1.AdminTopic) (*Model, error) {
 	p, t, err := ExtractTopicMetaAndValidateForCreate(ctx, req.GetName())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topics] name: (name=%s)", req.Name)

@@ -25,7 +25,7 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/scheduler"
-	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )

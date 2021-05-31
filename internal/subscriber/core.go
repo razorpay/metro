@@ -8,7 +8,7 @@ import (
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
-	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 // ICore is interface over subscribers core

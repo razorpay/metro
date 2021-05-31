@@ -8,7 +8,7 @@ import (
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
-	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/razorpay/metro/service/web/stream"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/emptypb"

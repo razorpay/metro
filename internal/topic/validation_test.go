@@ -6,8 +6,7 @@ import (
 	"context"
 	"testing"
 
-	adminv1 "github.com/razorpay/metro/rpc/admin/v1"
-	metrov1 "github.com/razorpay/metro/rpc/pubsub/v1"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,7 +54,7 @@ func TestValidation_GetValidatedAdminModel(t *testing.T) {
 
 	topic := "projects/test-project/topics/test-topic"
 	numPartitions := 5
-	m, err := GetValidatedAdminModel(ctx, &adminv1.AdminTopic{
+	m, err := GetValidatedAdminModel(ctx, &metrov1.AdminTopic{
 		Name:          topic,
 		Labels:        nil,
 		NumPartitions: int32(numPartitions),
@@ -70,7 +69,7 @@ func TestValidation_GetValidatedAdminModel_Error(t *testing.T) {
 
 	topic := "projects/test-project/topics/test-topic"
 	numPartitions := -1 // wrong value
-	_, err := GetValidatedAdminModel(ctx, &adminv1.AdminTopic{
+	_, err := GetValidatedAdminModel(ctx, &metrov1.AdminTopic{
 		Name:          topic,
 		Labels:        nil,
 		NumPartitions: int32(numPartitions),

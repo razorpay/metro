@@ -574,6 +574,8 @@ func (k *KafkaBroker) Close(ctx context.Context) error {
 }
 
 // AddTopicPartitions adds partitions to an existing topic
+// NOTE: Use with extreme caution! Calling this will result in a consumer-group re-balance and
+// could result in undesired behaviour if the topic is being used for ordered messages.
 func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPartitionRequest) (*AddTopicPartitionResponse, error) {
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "AddTopicPartitions").Inc()
 

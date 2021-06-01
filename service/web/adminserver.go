@@ -76,7 +76,7 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 	logger.Ctx(ctx).Infow("received admin request to modify topic",
 		"name", req.Name, "num_partitions", req.NumPartitions)
 
-	m, err := topic.GetValidatedAdminModel(ctx, req)
+	m, err := topic.GetValidatedTopicForAdminUpdate(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}

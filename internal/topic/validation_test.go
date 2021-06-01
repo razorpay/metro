@@ -54,7 +54,7 @@ func TestValidation_GetValidatedAdminModel(t *testing.T) {
 
 	topic := "projects/test-project/topics/test-topic"
 	numPartitions := 5
-	m, err := GetValidatedAdminModel(ctx, &metrov1.AdminTopic{
+	m, err := GetValidatedTopicForAdminUpdate(ctx, &metrov1.AdminTopic{
 		Name:          topic,
 		Labels:        nil,
 		NumPartitions: int32(numPartitions),
@@ -69,7 +69,7 @@ func TestValidation_GetValidatedAdminModel_Error(t *testing.T) {
 
 	topic := "projects/test-project/topics/test-topic"
 	numPartitions := -1 // wrong value
-	_, err := GetValidatedAdminModel(ctx, &metrov1.AdminTopic{
+	_, err := GetValidatedTopicForAdminUpdate(ctx, &metrov1.AdminTopic{
 		Name:          topic,
 		Labels:        nil,
 		NumPartitions: int32(numPartitions),

@@ -62,7 +62,10 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 			password = p
 		}
 
-		m.Auth = NewAuth(username, password)
+		// set auth only if both needed values were sent
+		if username != "" && password != "" {
+			m.Auth = NewAuth(username, password)
+		}
 	}
 	return m, nil
 }

@@ -45,7 +45,7 @@ func (c *Core) CreateNode(ctx context.Context, m *Model) error {
 	if ok {
 		return merror.Newf(merror.AlreadyExists, "node with id %s already exists", m.ID)
 	}
-	return c.repo.Create(ctx, m)
+	return c.repo.Save(ctx, m)
 }
 
 // Exists to check if the node exists with fully qualified consul key

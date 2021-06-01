@@ -44,7 +44,7 @@ func (c *Core) CreateNodeBinding(ctx context.Context, m *Model) error {
 	if ok {
 		return merror.Newf(merror.AlreadyExists, "nodebinding with id %s already exists", m.Key())
 	}
-	return c.repo.Create(ctx, m)
+	return c.repo.Save(ctx, m)
 }
 
 // Exists to check if the nodebinding exists with fully qualified consul key

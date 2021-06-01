@@ -10,7 +10,7 @@ import (
 
 // IRepo is an interface over common repo functionality
 type IRepo interface {
-	Create(ctx context.Context, m IModel) error
+	Save(ctx context.Context, m IModel) error
 	Exists(ctx context.Context, key string) (bool, error)
 	Delete(ctx context.Context, m IModel) error
 	DeleteTree(ctx context.Context, key string) error
@@ -23,8 +23,8 @@ type BaseRepo struct {
 	Registry registry.IRegistry
 }
 
-// Create puts the model in the registry
-func (r BaseRepo) Create(ctx context.Context, m IModel) error {
+// Save puts the model in the registry
+func (r BaseRepo) Save(ctx context.Context, m IModel) error {
 	b, err := json.Marshal(m)
 	if err != nil {
 		logger.Ctx(ctx).Error("error in json marshal", "msg", err.Error())

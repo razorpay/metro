@@ -107,7 +107,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		}
 	}
 
-	return c.repo.Create(ctx, m)
+	return c.repo.Save(ctx, m)
 }
 
 // Exists checks if subscription exists for a given key

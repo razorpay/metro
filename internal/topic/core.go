@@ -71,7 +71,7 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 	}
 
 	// create regsitry entry
-	return c.repo.Create(ctx, m)
+	return c.repo.Save(ctx, m)
 }
 
 // CreateRetryTopic creates a retry topic for the given primary topic and name
@@ -89,7 +89,7 @@ func (c *Core) CreateDeadLetterTopic(ctx context.Context, model *Model) error {
 	}
 
 	// create registry entry
-	return c.repo.Create(ctx, model)
+	return c.repo.Save(ctx, model)
 }
 
 // UpdateTopic implements topic updation
@@ -108,7 +108,7 @@ func (c *Core) UpdateTopic(ctx context.Context, m *Model) error {
 		return merror.New(merror.NotFound, "topic not found")
 	}
 
-	return c.repo.Create(ctx, m)
+	return c.repo.Save(ctx, m)
 }
 
 // Exists checks if the topic exists with a given key

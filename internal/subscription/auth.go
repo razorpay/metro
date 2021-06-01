@@ -1,6 +1,8 @@
 package subscription
 
-import "github.com/razorpay/metro/internal/common"
+import (
+	"github.com/razorpay/metro/pkg/utils"
+)
 
 // Auth holds basic auth credentials for push endpoint
 type Auth struct {
@@ -13,7 +15,7 @@ func NewAuth(username, password string) *Auth {
 	a := &Auth{}
 	a.Username = username
 	// store Password only after encoding it
-	a.Password = common.Encode(password)
+	a.Password = utils.Encode(password)
 	return a
 }
 
@@ -25,5 +27,5 @@ func (auth *Auth) GetUsername() string {
 // GetPassword returns the auth Password
 func (auth *Auth) GetPassword() string {
 	// decode before reading Password
-	return common.Decode(auth.Password)
+	return utils.Decode(auth.Password)
 }

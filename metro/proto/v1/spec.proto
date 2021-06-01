@@ -79,6 +79,18 @@ service AdminService {
             tags: "Project"
         };
     }
+
+    rpc ModifyTopic(AdminTopic) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            put: "/v1/admin/{name=projects/*/topics/*}"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Modify an already created topic params"
+            description: "Modifies an existing topic"
+            tags: "AdminTopic"
+        };
+    }
 }
 
 message Project {
@@ -723,4 +735,17 @@ message ModifyAckDeadlineRequest {
     int32 ack_deadline_seconds = 3 [(google.api.field_behavior) = REQUIRED];
 }
 
+// An admin topic resource.
+message AdminTopic {
+    // Required. The name of the topic. It must have the format
+    // `"projects/{project}/topics/{topic}"`. `{topic}` must start with a letter,
+    // and contain only letters (`[A-Za-z]`), numbers (`[0-9]`), dashes (`-`),
+    // underscores (`_`), periods (`.`), tildes (`~`), plus (`+`) or percent
+    // signs (`%`). It must be between 3 and 255 characters in length, and it
+    // must not start with `"goog"`.
+    string name = 1 [(google.api.field_behavior) = REQUIRED];
 
+    map<string, string> labels = 2;
+
+    int32 num_partitions = 3;
+}

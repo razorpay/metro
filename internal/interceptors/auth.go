@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/base64"
+	"regexp"
 	"strings"
 
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -18,6 +19,16 @@ import (
 const (
 	authorizationHeaderKey = "authorization"
 )
+
+var usernameRegex *regexp.Regexp
+
+func init() {
+	var err error
+	usernameRegex, err = regexp.Compile("([a-z][a-z0-9]{5,29})__[a-zA-Z0-9]{6}")
+	if err != nil {
+		panic(err)
+	}
+}
 
 // UnaryServerAuthInterceptor creates an authenticator interceptor with the given AuthFunc
 func UnaryServerAuthInterceptor(authFunc grpc_auth.AuthFunc) grpc.UnaryServerInterceptor {
@@ -75,24 +86,30 @@ func AppAuth(ctx context.Context, projectCore project.ICore) (context.Context, e
 		return ctx, err
 	}
 
-	if !strings.Contains(user, project.PartSeparator) {
+	// check if the username is of the expected format
+	if !usernameRegex.MatchString(user) {
 		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
 	}
 
+	// extract out the projectID from the username
 	projectID := strings.Split(user, project.PartSeparator)[0]
 
+	// lookup the project
 	project, err := projectCore.Get(ctx, projectID)
 	if err != nil {
 		return ctx, err
 	}
 
+	// check if the project auth map contains the given username
 	if _, ok := project.AppAuth[user]; !ok {
 		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
 	}
 
+	// extract out the user specific auth details
 	authM := project.AppAuth[user]
 
 	expectedPassword := authM.GetPassword()
+	// check the header password matches the expected password
 	if !secureCompare(expectedPassword, string(password)) {
 		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
 	}

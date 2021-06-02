@@ -217,12 +217,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 	}
 
 	for _, obj := range ret {
-		subsModel := obj.(*Model)
-
-		// unset the password from subscription listing
-		subsModel.Auth.Password = ""
-
-		out = append(out, subsModel)
+		out = append(out, obj.(*Model))
 	}
 	return out, nil
 }
@@ -249,9 +244,5 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// unset the password from subscription listing
-	model.Auth.Password = ""
-
 	return model, nil
 }

@@ -21,6 +21,7 @@ type Model struct {
 	ExtractedSubscriptionProjectID string
 	ExtractedTopicName             string
 	ExtractedSubscriptionName      string
+	Auth                           *Auth
 
 	// DeadLetterTopic keeps the topic name used for dead lettering, this will be created with subscription and
 	// will be visible to subscriber, subscriber can create subscription over this topic to read messages from this
@@ -29,12 +30,12 @@ type Model struct {
 	// TODO: add remaining fields from spec.proto
 }
 
-// Key returns the key for storing subscriptions in the registry
+// Key returns the Key for storing subscriptions in the registry
 func (m *Model) Key() string {
 	return m.Prefix() + m.ExtractedSubscriptionName
 }
 
-// Prefix returns the key prefix
+// Prefix returns the Key prefix
 func (m *Model) Prefix() string {
 	return common.GetBasePrefix() + Prefix + m.ExtractedSubscriptionProjectID + "/"
 }
@@ -61,4 +62,14 @@ func (m *Model) GetDeadLetterTopic() string {
 		return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix)
 	}
 	return m.DeadLetterTopic
+}
+
+// GetAuth returns the auth for the push endpoint
+func (m *Model) GetAuth() *Auth {
+	return m.Auth
+}
+
+// HasAuth returns true if a subscription has auth for push endpoint
+func (m *Model) HasAuth() bool {
+	return m.Auth != nil
 }

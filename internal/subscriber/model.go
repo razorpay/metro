@@ -2,13 +2,14 @@ package subscriber
 
 import (
 	"container/heap"
-	"encoding/base64"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/razorpay/metro/pkg/utils"
 
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -110,31 +111,31 @@ func (a *AckMessage) BuildAckID() string {
 	builder := strings.Builder{}
 
 	// append server host
-	builder.WriteString(encode(currentHostIP))
+	builder.WriteString(utils.Encode(currentHostIP))
 	builder.WriteString(ackIDSeparator)
 
 	// append subscriber id
-	builder.WriteString(encode(a.SubscriberID))
+	builder.WriteString(utils.Encode(a.SubscriberID))
 	builder.WriteString(ackIDSeparator)
 
 	// append topic name
-	builder.WriteString(encode(a.Topic))
+	builder.WriteString(utils.Encode(a.Topic))
 	builder.WriteString(ackIDSeparator)
 
 	// append topic partition
-	builder.WriteString(encode(fmt.Sprintf("%v", a.Partition)))
+	builder.WriteString(utils.Encode(fmt.Sprintf("%v", a.Partition)))
 	builder.WriteString(ackIDSeparator)
 
 	// append partition offset
-	builder.WriteString(encode(fmt.Sprintf("%v", a.Offset)))
+	builder.WriteString(utils.Encode(fmt.Sprintf("%v", a.Offset)))
 	builder.WriteString(ackIDSeparator)
 
 	// append ack deadline
-	builder.WriteString(encode(fmt.Sprintf("%v", a.Deadline)))
+	builder.WriteString(utils.Encode(fmt.Sprintf("%v", a.Deadline)))
 	builder.WriteString(ackIDSeparator)
 
 	// append message id
-	builder.WriteString(encode(a.MessageID))
+	builder.WriteString(utils.Encode(a.MessageID))
 
 	a.AckID = builder.String()
 
@@ -157,18 +158,18 @@ func ParseAckID(ackID string) *AckMessage {
 	parts := strings.Split(ackID, ackIDSeparator)
 
 	// TODO : add validations
-	partition, _ := strconv.ParseInt(decode(parts[3]), 10, 0)
-	offset, _ := strconv.ParseInt(decode(parts[4]), 10, 0)
-	deadline, _ := strconv.ParseInt(decode(parts[5]), 10, 0)
+	partition, _ := strconv.ParseInt(utils.Decode(parts[3]), 10, 0)
+	offset, _ := strconv.ParseInt(utils.Decode(parts[4]), 10, 0)
+	deadline, _ := strconv.ParseInt(utils.Decode(parts[5]), 10, 0)
 
 	return &AckMessage{
-		ServerAddress: decode(parts[0]),
-		SubscriberID:  decode(parts[1]),
-		Topic:         decode(parts[2]),
+		ServerAddress: utils.Decode(parts[0]),
+		SubscriberID:  utils.Decode(parts[1]),
+		Topic:         utils.Decode(parts[2]),
 		Partition:     int32(partition),
 		Offset:        int32(offset),
 		Deadline:      int32(deadline),
-		MessageID:     decode(parts[6]),
+		MessageID:     utils.Decode(parts[6]),
 		AckID:         ackID,
 	}
 }
@@ -199,15 +200,6 @@ func lookupAndSetIP() {
 	if currentHostIP == "" {
 		panic("failed to lookup host ip")
 	}
-}
-
-func encode(input string) string {
-	return base64.StdEncoding.EncodeToString([]byte(input))
-}
-
-func decode(input string) string {
-	decoded, _ := base64.StdEncoding.DecodeString(input)
-	return string(decoded)
 }
 
 // ToTopicPartition ...

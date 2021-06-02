@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"github.com/razorpay/metro/internal/auth"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/topic"
 )
@@ -21,7 +22,7 @@ type Model struct {
 	ExtractedSubscriptionProjectID string
 	ExtractedTopicName             string
 	ExtractedSubscriptionName      string
-	Auth                           *Auth
+	Auth                           *auth.Auth
 
 	// DeadLetterTopic keeps the topic name used for dead lettering, this will be created with subscription and
 	// will be visible to subscriber, subscriber can create subscription over this topic to read messages from this
@@ -65,7 +66,7 @@ func (m *Model) GetDeadLetterTopic() string {
 }
 
 // GetAuth returns the auth for the push endpoint
-func (m *Model) GetAuth() *Auth {
+func (m *Model) GetAuth() *auth.Auth {
 	return m.Auth
 }
 

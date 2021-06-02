@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"strings"
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -109,6 +110,65 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 	if uerr := s.topicCore.UpdateTopic(ctx, m); uerr != nil {
 		return nil, merror.ToGRPCError(uerr)
 	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func (s adminServer) CreateProjectAccessKey(ctx context.Context, req *metrov1.ProjectAccessKey) (*metrov1.ProjectAccessKey, error) {
+
+	logger.Ctx(ctx).Infow("received request to create new auth key", "projectID", req.ProjectId)
+
+	// query existing project
+	project, err := s.projectCore.Get(ctx, req.ProjectId)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	// generate new auth keys
+	authM := project.NewAuthKey()
+
+	// update the project model with the newly generated auth key
+	err = s.projectCore.UpdateProject(ctx, project)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	logger.Ctx(ctx).Infow("request to create new auth key completed", "projectID", req.ProjectId, "username", authM.GetUsername())
+
+	return &metrov1.ProjectAccessKey{
+		ProjectId: project.ProjectID,
+		Username:  authM.GetUsername(),
+		Password:  authM.GetPassword(),
+	}, nil
+}
+
+func (s adminServer) DeleteProjectAccessKey(ctx context.Context, req *metrov1.ProjectAccessKey) (*emptypb.Empty, error) {
+	logger.Ctx(ctx).Infow("received request to delete existing auth key", "projectID", req.ProjectId, "username", req.Username)
+
+	// query existing project
+	project, err := s.projectCore.Get(ctx, req.ProjectId)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	// validate the username provided
+	if strings.Trim(req.Username, " ") == "" {
+		return nil, merror.New(merror.InvalidArgument, "invalid username")
+	}
+
+	// delete existing auth key
+	found := project.DeleteAuthKey(req.Username)
+	if !found {
+		return nil, merror.New(merror.InvalidArgument, "username not found")
+	}
+
+	// update the project model with the deleted auth key
+	err = s.projectCore.UpdateProject(ctx, project)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	logger.Ctx(ctx).Infow("request to delete existing auth key completed", "projectID", req.ProjectId, "username", req.Username)
 
 	return &emptypb.Empty{}, nil
 }

@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/razorpay/metro/internal/auth"
+
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -64,7 +66,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 
 		// set auth only if both needed values were sent
 		if username != "" && password != "" {
-			m.Auth = NewAuth(username, password)
+			m.Auth = auth.NewAuth(username, password)
 		}
 	}
 	return m, nil

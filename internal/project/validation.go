@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/razorpay/metro/internal/auth"
+
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
@@ -49,6 +51,7 @@ func fromProto(proto *metrov1.Project) *Model {
 	m.Name = proto.GetName()
 	m.ProjectID = proto.GetProjectId()
 	m.Labels = proto.GetLabels()
+	m.AppAuth = make(map[string]*auth.Auth)
 	return m
 }
 

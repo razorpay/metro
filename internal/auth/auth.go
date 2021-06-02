@@ -1,4 +1,4 @@
-package subscription
+package auth
 
 import (
 	"github.com/razorpay/metro/pkg/utils"
@@ -6,8 +6,9 @@ import (
 
 // Auth holds basic auth credentials for push endpoint
 type Auth struct {
-	Username string
-	Password string
+	Username string `json:"username"`
+	Password string `json:"password"`
+	// in future, this model can contain some ACL as well
 }
 
 // NewAuth returns a new auth model

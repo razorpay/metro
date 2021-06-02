@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"github.com/razorpay/metro/internal/interceptors"
 
@@ -163,6 +164,11 @@ func (svc *Service) Stop() error {
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {
+	// skip auth from test mode executions
+	if os.Getenv("EXEC_MODE") == "test" {
+		return []grpc.UnaryServerInterceptor{}
+	}
+
 	return []grpc.UnaryServerInterceptor{
 		interceptors.UnaryServerAuthInterceptor(func(ctx context.Context) (context.Context, error) {
 			return ctx, nil

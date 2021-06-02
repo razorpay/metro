@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/razorpay/metro/internal/interceptors"
+	"github.com/razorpay/metro/internal/project"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscription"
@@ -15,13 +18,14 @@ import (
 )
 
 type subscriberserver struct {
+	projectCore      project.ICore
 	brokerStore      brokerstore.IBrokerStore
 	subscriptionCore subscription.ICore
 	psm              stream.IManager
 }
 
-func newSubscriberServer(brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, psm stream.IManager) *subscriberserver {
-	return &subscriberserver{brokerStore, subscriptionCore, psm}
+func newSubscriberServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, psm stream.IManager) *subscriberserver {
+	return &subscriberserver{projectCore, brokerStore, subscriptionCore, psm}
 }
 
 // CreateSubscription to create a new subscription
@@ -153,4 +157,8 @@ func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.Mo
 		return nil, merror.ToGRPCError(err)
 	}
 	return new(emptypb.Empty), nil
+}
+
+func (s subscriberserver) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+	return interceptors.AppAuth(ctx, s.projectCore)
 }

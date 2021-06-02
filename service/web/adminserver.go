@@ -4,6 +4,10 @@ import (
 	"context"
 	"strings"
 
+	"github.com/razorpay/metro/internal/interceptors"
+
+	"github.com/razorpay/metro/internal/auth"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/pkg/messagebroker"
 
@@ -18,14 +22,15 @@ import (
 )
 
 type adminServer struct {
+	admin            *auth.Auth
 	projectCore      project.ICore
 	subscriptionCore subscription.ICore
 	topicCore        topic.ICore
 	brokerStore      brokerstore.IBrokerStore
 }
 
-func newAdminServer(projectCore project.ICore, subscriptionCore subscription.ICore, topicCore topic.ICore, brokerStore brokerstore.IBrokerStore) *adminServer {
-	return &adminServer{projectCore, subscriptionCore, topicCore, brokerStore}
+func newAdminServer(admin *auth.Auth, projectCore project.ICore, subscriptionCore subscription.ICore, topicCore topic.ICore, brokerStore brokerstore.IBrokerStore) *adminServer {
+	return &adminServer{admin, projectCore, subscriptionCore, topicCore, brokerStore}
 }
 
 // CreateProject creates a new project
@@ -171,4 +176,9 @@ func (s adminServer) DeleteProjectAccessKey(ctx context.Context, req *metrov1.Pr
 	logger.Ctx(ctx).Infow("request to delete existing auth key completed", "projectID", req.ProjectId, "username", req.Username)
 
 	return &emptypb.Empty{}, nil
+}
+
+func (s adminServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+	//return appAuth(ctx , s.projectCore)
+	return interceptors.AdminAuth(ctx, s.admin)
 }

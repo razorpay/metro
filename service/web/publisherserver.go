@@ -3,6 +3,9 @@ package web
 import (
 	"context"
 
+	"github.com/razorpay/metro/internal/interceptors"
+	"github.com/razorpay/metro/internal/project"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/publisher"
@@ -14,13 +17,14 @@ import (
 )
 
 type publisherServer struct {
+	projectCore project.ICore
 	brokerStore brokerstore.IBrokerStore
 	topicCore   topic.ICore
 	publisher   publisher.IPublisher
 }
 
-func newPublisherServer(brokerStore brokerstore.IBrokerStore, topicCore topic.ICore, publisher publisher.IPublisher) *publisherServer {
-	return &publisherServer{brokerStore: brokerStore, topicCore: topicCore, publisher: publisher}
+func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, topicCore topic.ICore, publisher publisher.IPublisher) *publisherServer {
+	return &publisherServer{projectCore: projectCore, brokerStore: brokerStore, topicCore: topicCore, publisher: publisher}
 }
 
 // Produce messages to a topic
@@ -85,4 +89,8 @@ func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTop
 		return nil, merror.ToGRPCError(err)
 	}
 	return &emptypb.Empty{}, nil
+}
+
+func (s publisherServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+	return interceptors.AppAuth(ctx, s.projectCore)
 }

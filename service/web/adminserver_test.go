@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/razorpay/metro/internal/auth"
+
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/golang/mock/gomock"
@@ -29,7 +31,13 @@ func TestAdminServer_CreateProject(t *testing.T) {
 		ProjectId: "test-project-id",
 		Labels:    map[string]string{"foo": "bar"},
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
+
+	admin := &auth.Auth{
+		Username: "u",
+		Password: "p",
+	}
+
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForCreate(ctx, projectProto)
 	assert.Nil(t, err)
@@ -50,7 +58,13 @@ func TestAdminServer_CreateProjectValidationFailure(t *testing.T) {
 		ProjectId: "test-project-id-",
 		Labels:    map[string]string{"foo": "bar"},
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
+
+	admin := &auth.Auth{
+		Username: "u",
+		Password: "p",
+	}
+
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
 	ctx := context.Background()
 	p, err := adminServer.CreateProject(ctx, projectProto)
 	assert.Nil(t, p)
@@ -68,7 +82,13 @@ func TestAdminServer_CreateProjectFailure(t *testing.T) {
 		ProjectId: "test-project-id",
 		Labels:    map[string]string{"foo": "bar"},
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
+
+	admin := &auth.Auth{
+		Username: "u",
+		Password: "p",
+	}
+
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForCreate(ctx, projectProto)
 	assert.Nil(t, err)
@@ -87,7 +107,13 @@ func TestAdminServer_DeleteProject(t *testing.T) {
 	projectProto := &metrov1.Project{
 		ProjectId: "test-project-id",
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCore, nil)
+
+	admin := &auth.Auth{
+		Username: "u",
+		Password: "p",
+	}
+
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForDelete(ctx, projectProto)
 	assert.Nil(t, err)
@@ -109,7 +135,12 @@ func TestAdminServer_DeleteProjectValidationFailure(t *testing.T) {
 	projectProto := &metrov1.Project{
 		ProjectId: "",
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCore, nil)
+
+	admin := &auth.Auth{
+		Username: "u",
+		Password: "p",
+	}
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, nil)
 	ctx := context.Background()
 
 	p, err := adminServer.DeleteProject(ctx, projectProto)

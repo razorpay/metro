@@ -4,6 +4,12 @@ import (
 	"github.com/razorpay/metro/pkg/utils"
 )
 
+// IAuth define the auth model contract
+type IAuth interface {
+	GetUsername() string
+	GetPassword() string
+}
+
 // Auth holds basic auth credentials for push endpoint
 type Auth struct {
 	Username string `json:"username"`

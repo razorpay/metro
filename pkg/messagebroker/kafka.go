@@ -606,8 +606,10 @@ func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPa
 	}
 
 	if request.NumPartitions == currPartitionCount {
-		// same partition count
-		return nil, fmt.Errorf("topic [%v]: new partition count [%v] cannot be same as current [%v]", tp, request.NumPartitions, currPartitionCount)
+		// same partition count, do not error out
+		return &AddTopicPartitionResponse{
+			Response: nil,
+		}, nil
 	} else if request.NumPartitions < currPartitionCount {
 		// less partition count
 		return nil, fmt.Errorf("topic [%v]: new partition count [%v] cannot be less as current than [%v]", tp, request.NumPartitions, currPartitionCount)

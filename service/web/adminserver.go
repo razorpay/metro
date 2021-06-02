@@ -179,6 +179,5 @@ func (s adminServer) DeleteProjectAccessKey(ctx context.Context, req *metrov1.Pr
 }
 
 func (s adminServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
-	//return appAuth(ctx , s.projectCore)
 	return interceptors.AdminAuth(ctx, s.admin)
 }

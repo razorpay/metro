@@ -195,6 +195,12 @@ func (svc *Service) Start() error {
 				return gctx.Err()
 			case pairs := <-svc.nbwatch:
 				logger.Ctx(gctx).Infow("received data from node bindings channel", "pairs", pairs)
+
+				// pairs can be be nil if it returns because of closing of channel
+				if pairs == nil {
+					return nil
+				}
+
 				err = svc.handleNodeBindingUpdates(gctx, pairs)
 				if err != nil {
 					logger.Ctx(gctx).Infow("error processing nodebinding updates", "error", err)
@@ -276,15 +282,7 @@ func (svc *Service) Stop() error {
 	// signal to stop all go routines
 	close(svc.stopCh)
 
-	// stop all push stream handlers
-	logger.Ctx(svc.ctx).Infow("metro stop: stopping all push handlers")
-	svc.pushHandlers.Range(func(_, handler interface{}) bool {
-		err := handler.(*PushStream).Stop()
-		if err != nil {
-			logger.Ctx(svc.ctx).Infow("error stopping stream handler", "error", err)
-		}
-		return true
-	})
+	svc.stopPushHandlers()
 
 	// signal the grpc server go routine
 	svc.grpcServer.GracefulStop()
@@ -306,6 +304,26 @@ func (svc *Service) Stop() error {
 	return nil
 }
 
+func (svc *Service) stopPushHandlers() {
+	// stop all push stream handlers
+	logger.Ctx(svc.ctx).Infow("metro stop: stopping all push handlers")
+	wg := sync.WaitGroup{}
+	svc.pushHandlers.Range(func(_, handler interface{}) bool {
+		wg.Add(1)
+		ps := handler.(*PushStream)
+		go func(ps *PushStream, wg *sync.WaitGroup) {
+			defer wg.Done()
+
+			err := ps.Stop()
+			if err != nil {
+				logger.Ctx(svc.ctx).Infow("error stopping stream handler", "error", err)
+			}
+		}(ps, &wg)
+		return true
+	})
+	wg.Wait()
+}
+
 func (svc *Service) lead(ctx context.Context) error {
 	logger.Ctx(ctx).Infof("Node %s elected as new leader", svc.node.ID)
 
@@ -315,8 +333,8 @@ func (svc *Service) lead(ctx context.Context) error {
 		gctx                    context.Context
 	)
 
-	nodeWatchData := make(chan struct{})
-	subWatchData := make(chan struct{})
+	nodeWatchData := make(chan *struct{})
+	subWatchData := make(chan *struct{})
 
 	svc.leadgrp, gctx = errgroup.WithContext(ctx)
 
@@ -325,7 +343,7 @@ func (svc *Service) lead(ctx context.Context) error {
 		WatchPath: common.GetBasePrefix() + node.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
-			nodeWatchData <- struct{}{}
+			nodeWatchData <- &struct{}{}
 		},
 	}
 
@@ -340,7 +358,7 @@ func (svc *Service) lead(ctx context.Context) error {
 		WatchPath: common.GetBasePrefix() + subscription.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("subscriptions watch handler data", "pairs", pairs)
-			subWatchData <- struct{}{}
+			subWatchData <- &struct{}{}
 		},
 	}
 
@@ -366,7 +384,10 @@ func (svc *Service) lead(ctx context.Context) error {
 			select {
 			case <-gctx.Done():
 				return gctx.Err()
-			case <-subWatchData:
+			case val := <-subWatchData:
+				if val == nil {
+					return nil
+				}
 				allSubs, serr := svc.subscriptionCore.List(gctx, subscription.Prefix)
 				if serr != nil {
 					logger.Ctx(gctx).Errorw("error fetching new subscription list", "error", serr)
@@ -386,7 +407,10 @@ func (svc *Service) lead(ctx context.Context) error {
 					// just log the error, we want to retry the sub update failures
 					logger.Ctx(gctx).Infow("error processing subscription updates", "error", serr)
 				}
-			case <-nodeWatchData:
+			case val := <-nodeWatchData:
+				if val == nil {
+					return nil
+				}
 				nodes, nerr := svc.nodeCore.List(gctx, node.Prefix)
 				if nerr != nil {
 					logger.Ctx(gctx).Errorw("error fetching new node list", "error", nerr)
@@ -462,10 +486,12 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 			logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
 			if handler, ok := svc.pushHandlers.Load(oldKey); ok && handler != nil {
 				logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
-				err := handler.(*PushStream).Stop()
-				if err == nil {
-					logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
-				}
+				go func(ctx context.Context) {
+					err := handler.(*PushStream).Stop()
+					if err == nil {
+						logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
+					}
+				}(ctx)
 				svc.pushHandlers.Delete(oldKey)
 			}
 		}

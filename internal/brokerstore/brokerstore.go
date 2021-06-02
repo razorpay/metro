@@ -107,7 +107,9 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	if ok {
 		return consumer.(messagebroker.Consumer), nil
 	}
-	b.partitionLock.Lock(key.String())              // lock
+	b.partitionLock.Lock(key.String())         // lock
+	defer b.partitionLock.Unlock(key.String()) // unlock
+
 	consumer, ok = b.consumerMap.Load(key.String()) // double-check
 	if ok {
 		return consumer.(messagebroker.Consumer), nil
@@ -123,9 +125,7 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	}
 
 	brokerStoreActiveConsumersCount.WithLabelValues(env, key.String()).Inc()
-
 	consumer, _ = b.consumerMap.LoadOrStore(key.String(), newConsumer)
-	b.partitionLock.Unlock(key.String()) // unlock
 	return consumer.(messagebroker.Consumer), nil
 }
 
@@ -175,7 +175,9 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	if ok {
 		return producer.(messagebroker.Producer), nil
 	}
-	b.partitionLock.Lock(key.String())              // lock
+	b.partitionLock.Lock(key.String())         // lock
+	defer b.partitionLock.Unlock(key.String()) // unlock
+
 	producer, ok = b.producerMap.Load(key.String()) // double-check
 	if ok {
 		return producer.(messagebroker.Producer), nil
@@ -189,7 +191,6 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 		return nil, perr
 	}
 	producer, _ = b.producerMap.LoadOrStore(key.String(), newProducer)
-	b.partitionLock.Unlock(key.String()) // unlock
 	return producer.(messagebroker.Producer), nil
 }
 

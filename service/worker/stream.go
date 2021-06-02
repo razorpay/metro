@@ -46,7 +46,7 @@ func (ps *PushStream) Start() error {
 	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subscriptionName, 100, 50, 0,
 		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
-		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "error", err.Error())
 		return err
 	}
 
@@ -97,7 +97,7 @@ func (ps *PushStream) Start() error {
 
 // Stop is used to terminate the push subscription processing
 func (ps *PushStream) Stop() error {
-	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subscriptionName)
 
 	// signal to stop all go routines
 	ps.cancelFunc()
@@ -111,6 +111,7 @@ func (ps *PushStream) Stop() error {
 func (ps *PushStream) stopSubscriber() {
 	// stop the subscriber
 	if ps.subs != nil {
+		logger.Ctx(ps.ctx).Infow("worker: stopping subscriber", "subscription", ps.subscriptionName, "subcriber_id", ps.subs.GetID())
 		ps.subs.Stop()
 	}
 }

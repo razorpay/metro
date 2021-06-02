@@ -25,7 +25,7 @@ func TestCore_CreateProject(t *testing.T) {
 	project := getDummyProjectModel()
 	ctx := context.Background()
 	mockRepo.EXPECT().Exists(ctx, project.Key())
-	mockRepo.EXPECT().Create(ctx, project)
+	mockRepo.EXPECT().Save(ctx, project)
 	err := core.CreateProject(ctx, project)
 	assert.NoError(t, err)
 }

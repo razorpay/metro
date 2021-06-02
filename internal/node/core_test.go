@@ -25,7 +25,7 @@ func TestCore_CreateNode(t *testing.T) {
 	node := getDummyNodeModel()
 	ctx := context.Background()
 	mockRepo.EXPECT().Exists(ctx, node.Key())
-	mockRepo.EXPECT().Create(ctx, node)
+	mockRepo.EXPECT().Save(ctx, node)
 	err := core.CreateNode(ctx, node)
 	assert.NoError(t, err)
 }

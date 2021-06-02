@@ -43,7 +43,7 @@ func (c *Core) CreateProject(ctx context.Context, m *Model) error {
 	if ok {
 		return merror.Newf(merror.AlreadyExists, "project with id %s already exists", m.ProjectID)
 	}
-	return c.repo.Create(ctx, m)
+	return c.repo.Save(ctx, m)
 }
 
 // Exists to check if the project exists with fully qualified consul key

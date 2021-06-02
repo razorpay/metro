@@ -16,6 +16,9 @@ type Admin interface {
 
 	// deletes an existing topic
 	DeleteTopic(context.Context, DeleteTopicRequest) (DeleteTopicResponse, error)
+
+	// adds partitions to an existing topic
+	AddTopicPartitions(context.Context, AddTopicPartitionRequest) (*AddTopicPartitionResponse, error)
 }
 
 // Producer for produce operations

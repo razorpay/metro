@@ -29,7 +29,7 @@ func TestAdminServer_CreateProject(t *testing.T) {
 		ProjectId: "test-project-id",
 		Labels:    map[string]string{"foo": "bar"},
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre)
+	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForCreate(ctx, projectProto)
 	assert.Nil(t, err)
@@ -50,7 +50,7 @@ func TestAdminServer_CreateProjectValidationFailure(t *testing.T) {
 		ProjectId: "test-project-id-",
 		Labels:    map[string]string{"foo": "bar"},
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre)
+	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
 	ctx := context.Background()
 	p, err := adminServer.CreateProject(ctx, projectProto)
 	assert.Nil(t, p)
@@ -68,7 +68,7 @@ func TestAdminServer_CreateProjectFailure(t *testing.T) {
 		ProjectId: "test-project-id",
 		Labels:    map[string]string{"foo": "bar"},
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre)
+	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCOre, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForCreate(ctx, projectProto)
 	assert.Nil(t, err)
@@ -87,7 +87,7 @@ func TestAdminServer_DeleteProject(t *testing.T) {
 	projectProto := &metrov1.Project{
 		ProjectId: "test-project-id",
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCore)
+	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCore, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForDelete(ctx, projectProto)
 	assert.Nil(t, err)
@@ -109,7 +109,7 @@ func TestAdminServer_DeleteProjectValidationFailure(t *testing.T) {
 	projectProto := &metrov1.Project{
 		ProjectId: "",
 	}
-	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCore)
+	adminServer := newAdminServer(mockProjectCore, mockSubscriptionCore, mockTopicCore, nil)
 	ctx := context.Background()
 
 	p, err := adminServer.DeleteProject(ctx, projectProto)

@@ -25,7 +25,7 @@ func TestCore_CreateNodeBinding(t *testing.T) {
 	nodebinding := getDummyNodeBindingModel()
 	ctx := context.Background()
 	mockRepo.EXPECT().Exists(ctx, nodebinding.Key())
-	mockRepo.EXPECT().Create(ctx, nodebinding)
+	mockRepo.EXPECT().Save(ctx, nodebinding)
 	err := core.CreateNodeBinding(ctx, nodebinding)
 	assert.NoError(t, err)
 }

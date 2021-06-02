@@ -220,6 +220,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 		NumPartitions:     request.NumPartitions,
 		ReplicationFactor: 1,
 	}
+
 	topics = append(topics, ts)
 	topicsResp, err := k.Admin.CreateTopics(ctx, topics, kafkapkg.SetAdminOperationTimeout(59*time.Second))
 	if err != nil {
@@ -570,4 +571,71 @@ func (k *KafkaBroker) Close(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("kafka: consumer closed...", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID)
 
 	return nil
+}
+
+// AddTopicPartitions adds partitions to an existing topic
+// NOTE: Use with extreme caution! Calling this will result in a consumer-group re-balance and
+// could result in undesired behaviour if the topic is being used for ordered messages.
+func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPartitionRequest) (*AddTopicPartitionResponse, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "AddTopicPartitions").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "AddTopicPartitions").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	tp := NormalizeTopicName(request.Name)
+	metadata, merr := k.Admin.GetMetadata(&tp, false, 1000)
+	if merr != nil {
+		logger.Ctx(ctx).Errorw("kafka: admin getMetadata() failed", "topic", request.NumPartitions, "error", merr.Error())
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "AddTopicPartitions", merr.Error()).Inc()
+		return nil, merr
+	}
+
+	// fetch the topic metadata and check the current partition count
+	if _, ok := metadata.Topics[tp]; !ok {
+		// invalid topic
+		return nil, fmt.Errorf("topic [%v] not found", tp)
+	}
+
+	// metadata contains non-existent topic names as well with partition count as zero
+	currPartitionCount := len(metadata.Topics[tp].Partitions)
+	if currPartitionCount == 0 {
+		// invalid topic
+		return nil, fmt.Errorf("topic [%v] not found", tp)
+	}
+
+	if request.NumPartitions == currPartitionCount {
+		// same partition count, do not error out
+		return &AddTopicPartitionResponse{
+			Response: nil,
+		}, nil
+	} else if request.NumPartitions < currPartitionCount {
+		// less partition count
+		return nil, fmt.Errorf("topic [%v]: new partition count [%v] cannot be less as current than [%v]", tp, request.NumPartitions, currPartitionCount)
+	}
+
+	logger.Ctx(ctx).Infow("kafka: request to add topic partitions", "topic", tp,
+		"current_partitions", currPartitionCount, "new_partitions", request.NumPartitions)
+
+	ps := kafkapkg.PartitionsSpecification{
+		Topic:      tp,
+		IncreaseTo: request.NumPartitions,
+	}
+
+	pss := make([]kafkapkg.PartitionsSpecification, 0)
+	pss = append(pss, ps)
+
+	resp, err := k.Admin.CreatePartitions(ctx, pss, nil)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: request to add topic partitions failed", "topic", tp, "numPartitions", request.NumPartitions,
+			"error", err.Error())
+		return nil, err
+	}
+
+	logger.Ctx(ctx).Infow("kafka: request to add topic partitions completed", "topic", tp, "numPartitions", request.NumPartitions,
+		"resp", resp)
+	return &AddTopicPartitionResponse{
+		Response: resp,
+	}, nil
 }

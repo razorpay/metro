@@ -300,3 +300,9 @@ func (p *PulsarBroker) Close(_ context.Context) error {
 	p.Consumer.Close()
 	return nil
 }
+
+// AddTopicPartitions adds partitions to an existing topic
+func (p *PulsarBroker) AddTopicPartitions(_ context.Context, _ AddTopicPartitionRequest) (*AddTopicPartitionResponse, error) {
+	// unused for pulsar
+	return nil, nil
+}

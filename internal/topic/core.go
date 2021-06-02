@@ -15,6 +15,7 @@ import (
 // ICore is an interface over topic core
 type ICore interface {
 	CreateTopic(ctx context.Context, model *Model) error
+	UpdateTopic(ctx context.Context, model *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
@@ -70,7 +71,7 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 	}
 
 	// create regsitry entry
-	return c.repo.Create(ctx, m)
+	return c.repo.Save(ctx, m)
 }
 
 // CreateRetryTopic creates a retry topic for the given primary topic and name
@@ -79,7 +80,7 @@ func (c *Core) CreateRetryTopic(ctx context.Context, model *Model) error {
 	return c.createBrokerTopic(ctx, model)
 }
 
-// CreateDeadLetterTopic creates a deadletter topic for the given primary topic and name
+// CreateDeadLetterTopic creates a dead letter topic for the given primary topic and name
 func (c *Core) CreateDeadLetterTopic(ctx context.Context, model *Model) error {
 	// create broker topic
 	err := c.createBrokerTopic(ctx, model)
@@ -88,7 +89,26 @@ func (c *Core) CreateDeadLetterTopic(ctx context.Context, model *Model) error {
 	}
 
 	// create registry entry
-	return c.repo.Create(ctx, model)
+	return c.repo.Save(ctx, model)
+}
+
+// UpdateTopic implements topic updation
+func (c *Core) UpdateTopic(ctx context.Context, m *Model) error {
+	startTime := time.Now()
+	defer func() {
+		topicOperationTimeTaken.WithLabelValues(env, "UpdateTopic").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	// validate if the topic exists
+	ok, err := c.Exists(ctx, m.Key())
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return merror.New(merror.NotFound, "topic not found")
+	}
+
+	return c.repo.Save(ctx, m)
 }
 
 // Exists checks if the topic exists with a given key

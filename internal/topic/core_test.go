@@ -30,7 +30,7 @@ func TestCore_CreateTopic(t *testing.T) {
 	mockBrokerStore.EXPECT().GetAdmin(ctx, messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
 	mockAdmin.EXPECT().CreateTopic(ctx, messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
 	mockTopicRepo.EXPECT().Exists(ctx, common.GetBasePrefix()+"topics/test-project/test-topic")
-	mockTopicRepo.EXPECT().Create(ctx, dTopic)
+	mockTopicRepo.EXPECT().Save(ctx, dTopic)
 	err := topicCore.CreateTopic(ctx, dTopic)
 	assert.Nil(t, err)
 }

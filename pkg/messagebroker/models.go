@@ -12,6 +12,12 @@ type CreateTopicRequest struct {
 	NumPartitions int
 }
 
+// AddTopicPartitionRequest ...
+type AddTopicPartitionRequest struct {
+	Name          string
+	NumPartitions int
+}
+
 // DeleteTopicRequest ...
 type DeleteTopicRequest struct {
 	Name           string
@@ -52,6 +58,11 @@ type GetTopicMetadataRequest struct {
 
 // CreateTopicResponse ...
 type CreateTopicResponse struct {
+	Response interface{}
+}
+
+// AddTopicPartitionResponse ...
+type AddTopicPartitionResponse struct {
 	Response interface{}
 }
 

@@ -46,4 +46,33 @@ func TestValidation_GetValidatedModel(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, m.Name, topic)
+	assert.Equal(t, m.NumPartitions, DefaultNumPartitions)
+}
+
+func TestValidation_GetValidatedAdminModel(t *testing.T) {
+	ctx := context.Background()
+
+	topic := "projects/test-project/topics/test-topic"
+	numPartitions := 5
+	m, err := GetValidatedTopicForAdminUpdate(ctx, &metrov1.AdminTopic{
+		Name:          topic,
+		Labels:        nil,
+		NumPartitions: int32(numPartitions),
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, m.Name, topic)
+	assert.Equal(t, m.NumPartitions, numPartitions)
+}
+
+func TestValidation_GetValidatedAdminModel_Error(t *testing.T) {
+	ctx := context.Background()
+
+	topic := "projects/test-project/topics/test-topic"
+	numPartitions := -1 // wrong value
+	_, err := GetValidatedTopicForAdminUpdate(ctx, &metrov1.AdminTopic{
+		Name:          topic,
+		Labels:        nil,
+		NumPartitions: int32(numPartitions),
+	})
+	assert.NotNil(t, err)
 }

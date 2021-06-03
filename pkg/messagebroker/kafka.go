@@ -218,7 +218,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 	ts := kafkapkg.TopicSpecification{
 		Topic:             tp,
 		NumPartitions:     request.NumPartitions,
-		ReplicationFactor: 1,
+		ReplicationFactor: len(k.Config.Brokers),
 	}
 
 	topics = append(topics, ts)

@@ -9,6 +9,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	mocks "github.com/razorpay/metro/internal/brokerstore/mocks"
+	mocks6 "github.com/razorpay/metro/internal/credentials/mocks/core"
+	mocks5 "github.com/razorpay/metro/internal/project/mocks/core"
 	mocks3 "github.com/razorpay/metro/internal/publisher/mocks/core"
 	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/internal/topic/mocks/core"
@@ -24,7 +26,9 @@ func TestPublishServer_CreateTopicSuccess(t *testing.T) {
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
 	admin := mocks4.NewMockAdmin(ctrl)
-	server := newPublisherServer(brokerStore, topicCore, publisher)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	ctx := context.Background()
 	req := &metrov1.Topic{
@@ -45,10 +49,12 @@ func TestPublishServer_CreateTopicSuccess(t *testing.T) {
 
 func TestPublishServer_CreateTopicFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
-	server := newPublisherServer(brokerStore, topicCore, publisher)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	ctx := context.Background()
 	req := &metrov1.Topic{
@@ -65,10 +71,12 @@ func TestPublishServer_CreateTopicFailure(t *testing.T) {
 
 func TestPublishServer_DeleteTopicSuccess(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
-	server := newPublisherServer(brokerStore, topicCore, publisher)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	ctx := context.Background()
 	req := &metrov1.DeleteTopicRequest{
@@ -85,10 +93,12 @@ func TestPublishServer_DeleteTopicSuccess(t *testing.T) {
 
 func TestPublishServer_DeleteTopicFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
-	server := newPublisherServer(brokerStore, topicCore, publisher)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	ctx := context.Background()
 	req := &metrov1.DeleteTopicRequest{
@@ -104,10 +114,12 @@ func TestPublishServer_DeleteTopicFailure(t *testing.T) {
 
 func TestPublishServer_PublishSuccess(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
-	server := newPublisherServer(brokerStore, topicCore, publisher)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	ctx := context.Background()
 	req := &metrov1.PublishRequest{
@@ -123,10 +135,12 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 
 func TestPublishServer_PublishFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
-	server := newPublisherServer(brokerStore, topicCore, publisher)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	ctx := context.Background()
 	req := &metrov1.PublishRequest{
@@ -142,10 +156,12 @@ func TestPublishServer_PublishFailure(t *testing.T) {
 
 func TestPublishServer_PublishFailure_OnWrongTopic(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
-	server := newPublisherServer(brokerStore, topicCore, publisher)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	ctx := context.Background()
 	req := &metrov1.PublishRequest{

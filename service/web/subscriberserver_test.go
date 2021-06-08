@@ -9,6 +9,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
+	mocks5 "github.com/razorpay/metro/internal/credentials/mocks/core"
+	mocks4 "github.com/razorpay/metro/internal/project/mocks/core"
 	"github.com/razorpay/metro/internal/subscription"
 	mocks2 "github.com/razorpay/metro/internal/subscription/mocks/core"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -20,10 +22,12 @@ import (
 
 func TestSubscriberServer_CreateSubscription(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.Subscription{
@@ -42,10 +46,12 @@ func TestSubscriberServer_CreateSubscription(t *testing.T) {
 
 func TestSubscriberServer_CreateSubscriptionFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.Subscription{
@@ -64,10 +70,12 @@ func TestSubscriberServer_CreateSubscriptionFailure(t *testing.T) {
 
 func TestSubscriberServer_Acknowledge(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.AcknowledgeRequest{
@@ -86,10 +94,12 @@ func TestSubscriberServer_Acknowledge(t *testing.T) {
 
 func TestSubscriberServer_AcknowledgeFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.AcknowledgeRequest{
@@ -108,10 +118,12 @@ func TestSubscriberServer_AcknowledgeFailure(t *testing.T) {
 
 func TestSubscriberServer_Pull(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.PullRequest{
@@ -127,10 +139,12 @@ func TestSubscriberServer_Pull(t *testing.T) {
 
 func TestSubscriberServer_DeleteSubscription(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.DeleteSubscriptionRequest{
@@ -148,10 +162,12 @@ func TestSubscriberServer_DeleteSubscription(t *testing.T) {
 
 func TestSubscriberServer_DeleteSubscriptionFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.DeleteSubscriptionRequest{
@@ -169,10 +185,12 @@ func TestSubscriberServer_DeleteSubscriptionFailure(t *testing.T) {
 
 func TestSubscriberServer_ModifyAckDeadline(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.ModifyAckDeadlineRequest{
@@ -192,10 +210,12 @@ func TestSubscriberServer_ModifyAckDeadline(t *testing.T) {
 
 func TestSubscriberServer_ModifyAckDeadlineFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	server := newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 
 	ctx := context.Background()
 	req := &metrov1.ModifyAckDeadlineRequest{
@@ -215,8 +235,10 @@ func TestSubscriberServer_ModifyAckDeadlineFailure(t *testing.T) {
 
 func TestSubscriberServer_StreamingPull(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
-	newSubscriberServer(brokerStore, subscriptionCore, manager)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 }

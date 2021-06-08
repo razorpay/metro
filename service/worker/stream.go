@@ -127,8 +127,8 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		startTime := time.Now()
 		postData := bytes.NewBuffer(message.Message.Data)
 		req, err := http.NewRequest("POST", subModel.PushEndpoint, postData)
-		if subModel.HasAuth() {
-			req.SetBasicAuth(subModel.GetAuth().GetUsername(), subModel.GetAuth().GetPassword())
+		if subModel.HasCredentials() {
+			req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
 		}
 		resp, err := ps.httpClient.Do(req)
 		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()

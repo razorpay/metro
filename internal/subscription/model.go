@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/topic"
 )
 
@@ -21,7 +22,7 @@ type Model struct {
 	ExtractedSubscriptionProjectID string
 	ExtractedTopicName             string
 	ExtractedSubscriptionName      string
-	Auth                           *Auth
+	Credentials                    credentials.ICredentials
 
 	// DeadLetterTopic keeps the topic name used for dead lettering, this will be created with subscription and
 	// will be visible to subscriber, subscriber can create subscription over this topic to read messages from this
@@ -55,7 +56,7 @@ func (m *Model) GetRetryTopic() string {
 	return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.RetryTopicSuffix)
 }
 
-// GetDeadLetterTopic returns the topic used for deadlettering for subscription
+// GetDeadLetterTopic returns the topic used for dead lettering for subscription
 func (m *Model) GetDeadLetterTopic() string {
 	if m.DeadLetterTopic == "" {
 		// adding this for backward compatibility as older models will not have persisted DLQ topic name
@@ -64,12 +65,12 @@ func (m *Model) GetDeadLetterTopic() string {
 	return m.DeadLetterTopic
 }
 
-// GetAuth returns the auth for the push endpoint
-func (m *Model) GetAuth() *Auth {
-	return m.Auth
+// GetCredentials returns the credentials for the push endpoint
+func (m *Model) GetCredentials() credentials.ICredentials {
+	return m.Credentials
 }
 
-// HasAuth returns true if a subscription has auth for push endpoint
-func (m *Model) HasAuth() bool {
-	return m.Auth != nil
+// HasCredentials returns true if a subscription has credentials for push endpoint
+func (m *Model) HasCredentials() bool {
+	return m.Credentials != nil
 }

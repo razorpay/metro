@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/tracing"
@@ -18,6 +19,7 @@ type Config struct {
 	Worker        worker.Config
 	Registry      registry.Config
 	OpenAPIServer openapiserver.Config
+	Admin         credentials.Model
 }
 
 // App contains application-specific config values

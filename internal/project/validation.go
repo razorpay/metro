@@ -37,7 +37,7 @@ func getValidatedModel(ctx context.Context, req *metrov1.Project) (*Model, error
 	if req.ProjectId == "" {
 		return nil, fmt.Errorf("projectId cannot be empty")
 	}
-	if !isValidProjectID(ctx, req.ProjectId) {
+	if !IsValidProjectID(ctx, req.ProjectId) {
 		return nil, fmt.Errorf("not a valid projectID")
 	}
 	return fromProto(req), nil
@@ -52,7 +52,8 @@ func fromProto(proto *metrov1.Project) *Model {
 	return m
 }
 
-func isValidProjectID(ctx context.Context, projectID string) bool {
+// IsValidProjectID validates the projectID
+func IsValidProjectID(ctx context.Context, projectID string) bool {
 	if strings.HasSuffix(projectID, "-") {
 		logger.Ctx(ctx).Error("projectID cannot end with a trailing hyphen")
 		return false

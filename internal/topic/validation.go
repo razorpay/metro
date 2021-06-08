@@ -6,6 +6,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/pkg/errors"
+	"github.com/razorpay/metro/internal/credentials"
+
 	"github.com/razorpay/metro/internal/merror"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
@@ -25,9 +28,12 @@ func init() {
 // GetValidatedModel validates an incoming proto request and returns the model
 func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) {
 	p, t, err := ExtractTopicMetaAndValidateForCreate(ctx, req.GetName())
-	if err != nil {
+	if errors.Is(err, credentials.UnauthenticatedError) {
+		return nil, err
+	} else if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topics] name: (name=%s)", req.Name)
 	}
+
 	m := &Model{}
 	m.Name = req.GetName()
 	m.Labels = req.GetLabels()
@@ -91,6 +97,10 @@ func ExtractTopicMetaAndValidate(ctx context.Context, name string) (projectID st
 	if strings.HasSuffix(topicName, RetryTopicSuffix) {
 		err = fmt.Errorf("topic name cannot end with " + RetryTopicSuffix)
 		return "", "", err
+	}
+
+	if !credentials.IsAuthorized(ctx, projectID) {
+		return "", "", credentials.UnauthenticatedError
 	}
 
 	return projectID, topicName, nil

@@ -4,6 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/razorpay/metro/internal/credentials"
+
+	"github.com/razorpay/metro/internal/interceptors"
+	"github.com/razorpay/metro/internal/project"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscription"
@@ -15,13 +20,15 @@ import (
 )
 
 type subscriberserver struct {
+	projectCore      project.ICore
 	brokerStore      brokerstore.IBrokerStore
 	subscriptionCore subscription.ICore
+	credentialCore   credentials.ICore
 	psm              stream.IManager
 }
 
-func newSubscriberServer(brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, psm stream.IManager) *subscriberserver {
-	return &subscriberserver{brokerStore, subscriptionCore, psm}
+func newSubscriberServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, credentialCore credentials.ICore, psm stream.IManager) *subscriberserver {
+	return &subscriberserver{projectCore, brokerStore, subscriptionCore, credentialCore, psm}
 }
 
 // CreateSubscription to create a new subscription
@@ -31,6 +38,7 @@ func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.S
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
+
 	err = s.subscriptionCore.CreateSubscription(ctx, m)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
@@ -134,6 +142,7 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
+
 	err = s.subscriptionCore.DeleteSubscription(ctx, m)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
@@ -153,4 +162,8 @@ func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.Mo
 		return nil, merror.ToGRPCError(err)
 	}
 	return new(emptypb.Empty), nil
+}
+
+func (s subscriberserver) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+	return interceptors.AppAuth(ctx, s.credentialCore)
 }

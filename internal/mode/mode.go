@@ -2,15 +2,16 @@ package mode
 
 import "os"
 
-var Env string
+// Mode return the execution mode
+var Mode string
 
 func init() {
-	Env = os.Getenv("EXEC_MODE")
+	Mode = os.Getenv("EXEC_MODE")
 }
 
 // IsTestMode return the execution mode
 func IsTestMode() bool {
-	if Env == "" || Env == "test" {
+	if Mode == "" || Mode == "test" {
 		return true
 	}
 	return false

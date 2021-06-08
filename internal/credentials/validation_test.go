@@ -40,9 +40,9 @@ func TestValidation_fromProto(t *testing.T) {
 
 func TestValidation_IsAuthorized1(t *testing.T) {
 
-	mode.Env = "dev"
+	mode.Mode = "dev"
 	defer func() {
-		mode.Env = ""
+		mode.Mode = ""
 	}()
 
 	ctx := context.WithValue(context.Background(), CtxKey, NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
@@ -51,9 +51,9 @@ func TestValidation_IsAuthorized1(t *testing.T) {
 
 func TestValidation_IsAuthorized2(t *testing.T) {
 
-	mode.Env = "dev"
+	mode.Mode = "dev"
 	defer func() {
-		mode.Env = ""
+		mode.Mode = ""
 	}()
 
 	ctx := context.WithValue(context.Background(), CtxKey, NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))

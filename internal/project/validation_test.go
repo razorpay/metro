@@ -24,14 +24,14 @@ func TestValidation_FromProto(t *testing.T) {
 
 func TestValidation_isValidProjectID(t *testing.T) {
 	ctx := context.Background()
-	ok := isValidProjectID(ctx, "invalid-")
+	ok := IsValidProjectID(ctx, "invalid-")
 	assert.False(t, ok)
-	ok = isValidProjectID(ctx, "invld")
+	ok = IsValidProjectID(ctx, "invld")
 	assert.False(t, ok)
-	ok = isValidProjectID(ctx, "invalidID")
+	ok = IsValidProjectID(ctx, "invalidID")
 	assert.False(t, ok)
-	ok = isValidProjectID(ctx, "valid01id")
+	ok = IsValidProjectID(ctx, "valid01id")
 	assert.True(t, ok)
-	ok = isValidProjectID(ctx, "valid-01-id")
+	ok = IsValidProjectID(ctx, "valid-01-id")
 	assert.True(t, ok)
 }

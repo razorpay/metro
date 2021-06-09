@@ -4,6 +4,12 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/razorpay/metro/internal/app"
+
+	"github.com/razorpay/metro/internal/credentials"
+
+	"github.com/razorpay/metro/internal/interceptors"
+
 	"github.com/razorpay/metro/pkg/logger"
 
 	"github.com/razorpay/metro/service/web/stream"
@@ -32,14 +38,16 @@ type Service struct {
 	health             *health.Core
 	webConfig          *Config
 	registryConfig     *registry.Config
+	admin              *credentials.Model
 }
 
 // NewService creates an instance of new producer service
-func NewService(ctx context.Context, webConfig *Config, registryConfig *registry.Config) *Service {
+func NewService(ctx context.Context, admin *credentials.Model, webConfig *Config, registryConfig *registry.Config) *Service {
 	return &Service{
 		ctx:            ctx,
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
+		admin:          admin,
 	}
 }
 
@@ -70,6 +78,8 @@ func (svc *Service) Start() error {
 
 	subscriptionCore := subscription.NewCore(subscription.NewRepo(r), projectCore, topicCore)
 
+	credentialsCore := credentials.NewCore(credentials.NewRepo(r), projectCore)
+
 	publisher := publisher.NewCore(brokerStore)
 
 	streamManager := stream.NewStreamManager(svc.ctx, subscriptionCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
@@ -79,9 +89,9 @@ func (svc *Service) Start() error {
 		svc.webConfig.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
-			metrov1.RegisterPublisherServer(server, newPublisherServer(brokerStore, topicCore, publisher))
-			metrov1.RegisterAdminServiceServer(server, newAdminServer(projectCore, subscriptionCore, topicCore, brokerStore))
-			metrov1.RegisterSubscriberServer(server, newSubscriberServer(brokerStore, subscriptionCore, streamManager))
+			metrov1.RegisterPublisherServer(server, newPublisherServer(projectCore, brokerStore, topicCore, credentialsCore, publisher))
+			metrov1.RegisterAdminServiceServer(server, newAdminServer(svc.admin, projectCore, subscriptionCore, topicCore, credentialsCore, brokerStore))
+			metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, credentialsCore, streamManager))
 			return nil
 		},
 		getInterceptors()...,
@@ -158,5 +168,14 @@ func (svc *Service) Stop() error {
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {
-	return []grpc.UnaryServerInterceptor{}
+	// skip auth from test mode executions
+	if app.IsTestMode() {
+		return []grpc.UnaryServerInterceptor{}
+	}
+
+	return []grpc.UnaryServerInterceptor{
+		interceptors.UnaryServerAuthInterceptor(func(ctx context.Context) (context.Context, error) {
+			return ctx, nil
+		}),
+	}
 }

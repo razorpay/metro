@@ -39,7 +39,7 @@ type IRegistry interface {
 	// Acquire a lock for a registration_id on a given key and value pair
 	Acquire(string, string, []byte) (bool, error)
 
-	// Release a lock for a restration_id on a given key and value pair
+	// Release a lock for a registration_id on a given key and value pair
 	Release(string, string, string) bool
 
 	// Watch on a key/keyprefix in registry

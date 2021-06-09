@@ -95,6 +95,8 @@ func (c *Core) CreateDeadLetterTopic(ctx context.Context, model *Model) error {
 // UpdateTopic implements topic updation
 func (c *Core) UpdateTopic(ctx context.Context, m *Model) error {
 	startTime := time.Now()
+
+	topicOperationCount.WithLabelValues(env, "UpdateTopic").Inc()
 	defer func() {
 		topicOperationTimeTaken.WithLabelValues(env, "UpdateTopic").Observe(time.Now().Sub(startTime).Seconds())
 	}()

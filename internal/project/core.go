@@ -12,6 +12,7 @@ import (
 // ICore is an interface over project core
 type ICore interface {
 	CreateProject(ctx context.Context, m *Model) error
+	Get(ctx context.Context, key string) (*Model, error)
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithID(ctx context.Context, id string) (bool, error)
 	DeleteProject(ctx context.Context, m *Model) error
@@ -62,6 +63,26 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 	return ok, nil
+}
+
+// Get returns project with the given key
+func (c *Core) Get(ctx context.Context, projectID string) (*Model, error) {
+	projectOperationCount.WithLabelValues(env, "Get").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		projectOperationTimeTaken.WithLabelValues(env, "Get").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	prefix := common.GetBasePrefix() + Prefix + projectID
+	logger.Ctx(ctx).Infow("fetching project", "key", prefix)
+
+	model := &Model{}
+	err := c.repo.Get(ctx, prefix, model)
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
 }
 
 // ExistsWithID to check if the project exists with the projectID

@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	// Prefix for all nods keys in the registry
+	// Prefix for all node keys in the registry
 	Prefix = "nodes/"
 )
 

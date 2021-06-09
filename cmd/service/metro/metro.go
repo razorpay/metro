@@ -57,6 +57,10 @@ func Init(ctx context.Context, env string, componentName string) {
 		log.Fatalf("%v config missing", componentName)
 	}
 
+	if appConfig.Admin.Username == "" || appConfig.Admin.Password == "" {
+		log.Fatal("admin credentials missing")
+	}
+
 	err = boot.InitMonitoring(env, appConfig.App, appConfig.Sentry, appConfig.Tracing)
 
 	if err != nil {

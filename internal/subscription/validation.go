@@ -2,11 +2,13 @@ package subscription
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 
+	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -40,6 +42,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topic] name: (name=%s)", req.Topic)
 	}
+
 	m.ExtractedTopicName = t
 	m.ExtractedTopicProjectID = p
 
@@ -62,9 +65,9 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 			password = p
 		}
 
-		// set auth only if both needed values were sent
+		// set credentials only if both needed values were sent
 		if username != "" && password != "" {
-			m.Auth = NewAuth(username, password)
+			m.Credentials = credentials.NewCredential(username, password)
 		}
 	}
 	return m, nil
@@ -78,7 +81,9 @@ func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) 
 func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
 	// validate and extract the subscription fields from the name
 	p, s, err := extractSubscriptionMetaAndValidate(ctx, req.GetName())
-	if err != nil {
+	if errors.Is(err, credentials.UnauthenticatedError) {
+		return nil, err
+	} else if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] name: (name=%s)", req.Name)
 	}
 
@@ -140,6 +145,10 @@ func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (proje
 	if strings.HasPrefix(subscriptionName, "goog") {
 		err = fmt.Errorf("subscription name cannot start with goog")
 		return "", "", err
+	}
+
+	if !credentials.IsAuthorized(ctx, projectID) {
+		return "", "", credentials.UnauthenticatedError
 	}
 
 	return projectID, subscriptionName, nil

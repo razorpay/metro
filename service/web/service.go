@@ -4,8 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/razorpay/metro/internal/app"
+
 	"github.com/razorpay/metro/internal/credentials"
-	"github.com/razorpay/metro/internal/mode"
 
 	"github.com/razorpay/metro/internal/interceptors"
 
@@ -168,7 +169,7 @@ func (svc *Service) Stop() error {
 
 func getInterceptors() []grpc.UnaryServerInterceptor {
 	// skip auth from test mode executions
-	if mode.IsTestMode() {
+	if app.IsTestMode() {
 		return []grpc.UnaryServerInterceptor{}
 	}
 

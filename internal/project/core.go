@@ -16,7 +16,6 @@ type ICore interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithID(ctx context.Context, id string) (bool, error)
 	DeleteProject(ctx context.Context, m *Model) error
-	UpdateProject(ctx context.Context, m *Model) error
 }
 
 // Core implements all business logic for project
@@ -115,23 +114,4 @@ func (c *Core) DeleteProject(ctx context.Context, m *Model) error {
 	}
 
 	return c.repo.Delete(ctx, m)
-}
-
-// UpdateProject implements project updation
-func (c *Core) UpdateProject(ctx context.Context, m *Model) error {
-	startTime := time.Now()
-	defer func() {
-		projectOperationTimeTaken.WithLabelValues(env, "UpdateProject").Observe(time.Now().Sub(startTime).Seconds())
-	}()
-
-	// validate if the project exists
-	ok, err := c.Exists(ctx, m.Key())
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return merror.New(merror.NotFound, "project not found")
-	}
-
-	return c.repo.Save(ctx, m)
 }

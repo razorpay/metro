@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/razorpay/metro/internal/mode"
+	"github.com/razorpay/metro/internal/app"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -56,7 +56,7 @@ func IsValidUsername(username string) bool {
 
 // IsAuthorized checks if the projectID from the auth matches the projectID being accessed
 func IsAuthorized(ctx context.Context, projectID string) bool {
-	if mode.IsTestMode() {
+	if app.IsTestMode() {
 		return true
 	}
 

@@ -6,7 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/razorpay/metro/internal/mode"
+	"github.com/razorpay/metro/internal/app"
+
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,9 +41,9 @@ func TestValidation_fromProto(t *testing.T) {
 
 func TestValidation_IsAuthorized1(t *testing.T) {
 
-	mode.Mode = "dev"
+	app.Env = "dev"
 	defer func() {
-		mode.Mode = ""
+		app.Env = ""
 	}()
 
 	ctx := context.WithValue(context.Background(), CtxKey, NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
@@ -51,9 +52,9 @@ func TestValidation_IsAuthorized1(t *testing.T) {
 
 func TestValidation_IsAuthorized2(t *testing.T) {
 
-	mode.Mode = "dev"
+	app.Env = "dev"
 	defer func() {
-		mode.Mode = ""
+		app.Env = ""
 	}()
 
 	ctx := context.WithValue(context.Background(), CtxKey, NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))

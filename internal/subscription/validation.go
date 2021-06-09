@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/razorpay/metro/internal/credentials"
-
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"

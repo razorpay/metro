@@ -3,13 +3,11 @@ package web
 import (
 	"context"
 
-	"github.com/razorpay/metro/internal/credentials"
-
-	"github.com/razorpay/metro/internal/interceptors"
-	"github.com/razorpay/metro/internal/project"
-
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/credentials"
+	"github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/internal/merror"
+	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"

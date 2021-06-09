@@ -8,7 +8,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/credentials"
-
 	"github.com/razorpay/metro/internal/merror"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )

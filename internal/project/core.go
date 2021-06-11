@@ -2,9 +2,9 @@ package project
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/pkg/logger"

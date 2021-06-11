@@ -2,6 +2,7 @@ package boot
 
 import (
 	"context"
+
 	"github.com/razorpay/metro/internal/config"
 	logpkg "github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"

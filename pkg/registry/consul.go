@@ -2,13 +2,12 @@ package registry
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
+	"github.com/opentracing/opentracing-go"
+	"github.com/pkg/errors"
 )
 
 // ConsulClient ...

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 	"strconv"
 	"strings"
 	"time"
 
 	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/rs/xid"
 )

@@ -3,9 +3,9 @@ package publisher
 import (
 	"context"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"

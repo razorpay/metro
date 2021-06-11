@@ -3,8 +3,8 @@ package nodebinding
 import (
 	"context"
 	"encoding/json"
-	"github.com/opentracing/opentracing-go"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/pkg/registry"
 )

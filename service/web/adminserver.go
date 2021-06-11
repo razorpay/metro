@@ -2,20 +2,17 @@ package web
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
 
+	"github.com/opentracing/opentracing-go"
+	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/interceptors"
-
-	"github.com/razorpay/metro/internal/brokerstore"
-	"github.com/razorpay/metro/pkg/messagebroker"
-
-	"github.com/razorpay/metro/internal/subscription"
-	"github.com/razorpay/metro/internal/topic"
-
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
+	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 )

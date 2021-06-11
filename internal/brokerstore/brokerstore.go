@@ -3,13 +3,12 @@ package brokerstore
 import (
 	"context"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/pkg/logger"
-
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/partitionlocker"
 )

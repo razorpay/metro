@@ -2,8 +2,8 @@ package web
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/interceptors"

@@ -3,15 +3,13 @@ package web
 import (
 	"context"
 	"fmt"
+
 	"github.com/opentracing/opentracing-go"
-
-	"github.com/razorpay/metro/internal/credentials"
-
-	"github.com/razorpay/metro/internal/interceptors"
-	"github.com/razorpay/metro/internal/project"
-
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/credentials"
+	"github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/internal/merror"
+	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"

@@ -2,9 +2,9 @@ package topic
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"

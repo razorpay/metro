@@ -3,8 +3,8 @@ package common
 import (
 	"context"
 	"encoding/json"
-	"github.com/opentracing/opentracing-go"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
 )

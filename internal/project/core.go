@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go"
 	"time"
 
 	"github.com/razorpay/metro/internal/common"
@@ -30,6 +31,9 @@ func NewCore(repo IRepo) *Core {
 
 // CreateProject creates a new project
 func (c *Core) CreateProject(ctx context.Context, m *Model) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ProjectCore.CreateProject")
+	defer span.Finish()
+
 	projectOperationCount.WithLabelValues(env, "CreateProject").Inc()
 
 	startTime := time.Now()
@@ -49,6 +53,9 @@ func (c *Core) CreateProject(ctx context.Context, m *Model) error {
 
 // Exists to check if the project exists with fully qualified consul key
 func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ProjectCore.Exists")
+	defer span.Finish()
+
 	projectOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
@@ -67,6 +74,9 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 
 // Get returns project with the given key
 func (c *Core) Get(ctx context.Context, projectID string) (*Model, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ProjectCore.Get")
+	defer span.Finish()
+
 	projectOperationCount.WithLabelValues(env, "Get").Inc()
 
 	startTime := time.Now()
@@ -87,6 +97,9 @@ func (c *Core) Get(ctx context.Context, projectID string) (*Model, error) {
 
 // ExistsWithID to check if the project exists with the projectID
 func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ProjectCore.ExistsWithID")
+	defer span.Finish()
+
 	projectOperationCount.WithLabelValues(env, "ExistsWithID").Inc()
 
 	startTime := time.Now()
@@ -99,6 +112,9 @@ func (c *Core) ExistsWithID(ctx context.Context, id string) (bool, error) {
 
 // DeleteProject deletes a project and all resources in it
 func (c *Core) DeleteProject(ctx context.Context, m *Model) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ProjectCore.DeleteProject")
+	defer span.Finish()
+
 	projectOperationCount.WithLabelValues(env, "DeleteProject").Inc()
 
 	startTime := time.Now()

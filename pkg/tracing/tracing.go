@@ -12,6 +12,13 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	// Tracer is used for creating spans for distributed tracing
+	tracer opentracing.Tracer
+	// Closer holds an instance to the RequestTracing object's Closer.
+	closer io.Closer
+)
+
 // Config ... struct expected by Init func to initialize jaeger tracing client.
 type Config struct {
 	LogSpans           bool   // when set to true, reporter logs all submitted spans
@@ -22,8 +29,7 @@ type Config struct {
 
 // Init initialises opentracing tracer. Returns tracer for tracing spans &
 // closer for flushing in-memory spans before app shutdown.
-func Init(cnf Config, zlog *zap.Logger) (opentracing.Tracer, io.Closer, error) {
-
+func Init(cnf Config, zlog *zap.Logger) error {
 	config := &jaegerconfig.Configuration{
 		ServiceName: cnf.ServiceName,
 		Sampler: &jaegerconfig.SamplerConfig{
@@ -37,16 +43,24 @@ func Init(cnf Config, zlog *zap.Logger) (opentracing.Tracer, io.Closer, error) {
 		Disabled: cnf.Disabled,
 	}
 
-	tracer, closer, err := config.NewTracer(
+	var err error
+	tracer, closer, err = config.NewTracer(
 		jaegerconfig.Logger(jaegerzap.NewLogger(zlog)),
 		jaegerconfig.Metrics(prometheus.New()),
 	)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	opentracing.SetGlobalTracer(tracer)
 
-	return tracer, closer, nil
+	return nil
+}
 
+func Close() error {
+	if closer == nil {
+		return nil
+	}
+
+	return closer.Close()
 }

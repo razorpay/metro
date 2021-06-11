@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"strconv"
 	"strings"
 	"time"
@@ -204,6 +205,9 @@ func readKafkaCerts(certDir string) (*kafkaCerts, error) {
 
 // CreateTopic creates a new topic if not available
 func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.CreateTopic")
+	defer span.Finish()
+
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "CreateTopic").Inc()
 
 	startTime := time.Now()
@@ -248,6 +252,9 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 
 // DeleteTopic deletes an existing topic
 func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicRequest) (DeleteTopicResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.DeleteTopic")
+	defer span.Finish()
+
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "DeleteTopic").Inc()
 
 	startTime := time.Now()
@@ -271,7 +278,10 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 }
 
 // GetTopicMetadata fetches the given topics metadata stored in the broker
-func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.GetMetadata")
+	defer span.Finish()
+
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "GetTopicMetadata").Inc()
 
 	startTime := time.Now()
@@ -305,6 +315,9 @@ func (k *KafkaBroker) GetTopicMetadata(_ context.Context, request GetTopicMetada
 
 // SendMessage sends a message on the topic
 func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.SendMessage")
+	defer span.Finish()
+
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "SendMessage").Inc()
 
 	startTime := time.Now()
@@ -391,6 +404,9 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.ReceiveMessages")
+	defer span.Finish()
+
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "ReceiveMessages").Inc()
 
 	startTime := time.Now()
@@ -452,6 +468,9 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 //This func will commit the message consumed
 //by all the previous calls to GetMessages
 func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.CommitByPartitionAndOffset")
+	defer span.Finish()
+
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "CommitByPartitionAndOffset").Inc()
 
 	startTime := time.Now()
@@ -506,7 +525,10 @@ func (k *KafkaBroker) CommitByMsgID(_ context.Context, _ CommitOnTopicRequest) (
 }
 
 // Pause pause the consumer
-func (k *KafkaBroker) Pause(_ context.Context, request PauseOnTopicRequest) error {
+func (k *KafkaBroker) Pause(ctx context.Context, request PauseOnTopicRequest) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.Pause")
+	defer span.Finish()
+
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Pause").Inc()
 
 	startTime := time.Now()

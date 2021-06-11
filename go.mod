@@ -7,6 +7,7 @@ require (
 	github.com/apache/pulsar-client-go v0.3.0
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20210115012126-2456729a54ca // indirect
 	github.com/armon/go-metrics v0.3.6 // indirect
+	github.com/bykof/go-plantuml v1.0.0 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.6.1
 	github.com/danieljoos/wincred v1.1.0 // indirect

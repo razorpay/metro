@@ -62,7 +62,7 @@ func (svc *Service) Start() error {
 		return err
 	}
 
-	r, err := registry.NewRegistry(svc.ctx, svc.registryConfig)
+	r, err := registry.NewRegistry(svc.registryConfig)
 	if err != nil {
 		return err
 	}

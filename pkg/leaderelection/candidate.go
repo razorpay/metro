@@ -57,7 +57,7 @@ func (c *Candidate) Run(ctx context.Context) error {
 	var err error
 
 	logger.Ctx(ctx).Info("registering node with registry")
-	c.sessionID, err = c.registry.Register(c.config.Name, c.config.LeaseDuration)
+	c.sessionID, err = c.registry.Register(ctx, c.config.Name, c.config.LeaseDuration)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("node registering failed with error", "error", err.Error())
 		return err
@@ -69,7 +69,7 @@ func (c *Candidate) Run(ctx context.Context) error {
 	if merr != nil {
 		logger.Ctx(ctx).Errorw("error converting node model to json", "error", err.Error())
 	}
-	acquired, aerr := c.registry.Acquire(c.sessionID, c.node.Key(), value)
+	acquired, aerr := c.registry.Acquire(ctx, c.sessionID, c.node.Key(), value)
 
 	if aerr != nil || !acquired {
 		logger.Ctx(ctx).Errorw("failed to acquire node key", "key", c.node.Key(), "error", aerr.Error())
@@ -81,7 +81,7 @@ func (c *Candidate) Run(ctx context.Context) error {
 	// Renew session periodically
 	grp.Go(func() error {
 		logger.Ctx(ctx).Infow("staring renew process for node key", "key", c.node.Key())
-		return c.registry.RenewPeriodic(c.sessionID, c.config.LeaseDuration, gctx.Done())
+		return c.registry.RenewPeriodic(ctx, c.sessionID, c.config.LeaseDuration, gctx.Done())
 	})
 
 	// watch the leader key
@@ -136,7 +136,7 @@ func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
 	}
 
 	logger.Ctx(ctx).Info("leader election attempting to acquire key")
-	acquired, aerr := c.registry.Acquire(c.sessionID, c.config.LockPath, []byte(time.Now().String()))
+	acquired, aerr := c.registry.Acquire(ctx, c.sessionID, c.config.LockPath, []byte(time.Now().String()))
 	if aerr != nil {
 		logger.Ctx(ctx).Errorw("failed to acquire node key", "key", c.node.Key(), "error", aerr.Error())
 		c.errCh <- aerr
@@ -168,7 +168,7 @@ func (c *Candidate) release(ctx context.Context) bool {
 	}
 
 	// deregister node, which releases lock as well
-	if err := c.registry.Deregister(c.sessionID); err != nil {
+	if err := c.registry.Deregister(ctx, c.sessionID); err != nil {
 		logger.Ctx(ctx).Error("Failed to deregister node: %v", err)
 		return false
 	}

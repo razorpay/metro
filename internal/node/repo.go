@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"encoding/json"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/pkg/registry"
@@ -28,6 +29,9 @@ func NewRepo(registry registry.IRegistry) IRepo {
 
 // List returns a slice of Nodes matching prefix
 func (r *Repo) List(ctx context.Context, prefix string) ([]common.IModel, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "NodeRepository.List")
+	defer span.Finish()
+
 	pairs, err := r.Registry.List(ctx, prefix)
 	if err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
@@ -11,7 +12,6 @@ import (
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
-	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -31,6 +31,8 @@ func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrok
 // Produce messages to a topic
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
 	logger.Ctx(ctx).Infow("produce request received", "req", req.Topic)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.Publish")
+	defer span.Finish()
 
 	if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
 		return nil, merror.ToGRPCError(err)
@@ -48,6 +50,9 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 
 // CreateTopic creates a new topic
 func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*metrov1.Topic, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.CreateTopic")
+	defer span.Finish()
+
 	logger.Ctx(ctx).Infow("received request to create topic", "name", req.Name)
 	m, err := topic.GetValidatedModel(ctx, req)
 	if err != nil {
@@ -59,25 +64,14 @@ func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*
 		return nil, merror.ToGRPCError(err)
 	}
 
-	admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
-	if aerr != nil {
-		return nil, merror.ToGRPCError(aerr)
-	}
-
-	// create primary topic
-	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
-		Name:          req.GetName(),
-		NumPartitions: m.NumPartitions,
-	})
-	if terr != nil {
-		return nil, merror.ToGRPCError(terr)
-	}
-
 	return req, nil
 }
 
 // Delete a topic
 func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTopicRequest) (*emptypb.Empty, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.DeleteTopic")
+	defer span.Finish()
+
 	logger.Ctx(ctx).Infow("received request to delete topic", "name", req.Topic)
 	// Delete topic but not the subscriptions for it
 	// the subscriptions would get tagged to _deleted_topic_

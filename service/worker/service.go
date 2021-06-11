@@ -102,7 +102,7 @@ func (svc *Service) Start() error {
 
 	// Init the Registry
 	// TODO: move to component init ?
-	svc.registry, err = registry.NewRegistry(svc.ctx, svc.registryConfig)
+	svc.registry, err = registry.NewRegistry(svc.registryConfig)
 	if err != nil {
 		return err
 	}

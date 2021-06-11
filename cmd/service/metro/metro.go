@@ -76,9 +76,9 @@ func Init(ctx context.Context, env string, componentName string) {
 
 // Run handles the component execution lifecycle
 func Run(ctx context.Context) {
-	// Shutdown tracer
+	// Shutdown monitoring
 	defer func() {
-		err := boot.Closer.Close()
+		err := boot.Close()
 		if err != nil {
 			log.Fatalf("error closing tracer: %v", err)
 		}

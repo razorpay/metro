@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go"
 	"time"
 
 	"github.com/pkg/errors"
@@ -12,7 +13,6 @@ import (
 
 // ConsulClient ...
 type ConsulClient struct {
-	ctx    context.Context
 	client *api.Client
 }
 
@@ -22,7 +22,7 @@ type ConsulConfig struct {
 }
 
 // NewConsulClient creates a new consul client
-func NewConsulClient(ctx context.Context, config *ConsulConfig) (IRegistry, error) {
+func NewConsulClient(config *ConsulConfig) (IRegistry, error) {
 	client, err := api.NewClient(&config.Config)
 
 	if err != nil {
@@ -30,13 +30,12 @@ func NewConsulClient(ctx context.Context, config *ConsulConfig) (IRegistry, erro
 	}
 
 	return &ConsulClient{
-		ctx:    ctx,
 		client: client,
 	}, nil
 }
 
 // Register is used for node registration which creates a session to consul
-func (c *ConsulClient) Register(name string, ttl time.Duration) (string, error) {
+func (c *ConsulClient) Register(ctx context.Context, name string, ttl time.Duration) (string, error) {
 	registryOperationCount.WithLabelValues(env, "Register").Inc()
 
 	startTime := time.Now()
@@ -58,7 +57,7 @@ func (c *ConsulClient) Register(name string, ttl time.Duration) (string, error) 
 }
 
 // IsRegistered is used checking the registration status
-func (c *ConsulClient) IsRegistered(sessionID string) bool {
+func (c *ConsulClient) IsRegistered(ctx context.Context, sessionID string) bool {
 	registryOperationCount.WithLabelValues(env, "IsRegistered").Inc()
 
 	startTime := time.Now()
@@ -72,7 +71,7 @@ func (c *ConsulClient) IsRegistered(sessionID string) bool {
 }
 
 // Renew renews consul session
-func (c *ConsulClient) Renew(sessionID string) error {
+func (c *ConsulClient) Renew(ctx context.Context, sessionID string) error {
 	registryOperationCount.WithLabelValues(env, "Renew").Inc()
 
 	startTime := time.Now()
@@ -86,7 +85,7 @@ func (c *ConsulClient) Renew(sessionID string) error {
 }
 
 // RenewPeriodic renews consul session periodically until doneCh signals done
-func (c *ConsulClient) RenewPeriodic(sessionID string, ttl time.Duration, doneCh <-chan struct{}) error {
+func (c *ConsulClient) RenewPeriodic(ctx context.Context, sessionID string, ttl time.Duration, doneCh <-chan struct{}) error {
 	registryOperationCount.WithLabelValues(env, "RenewPeriodic").Inc()
 
 	startTime := time.Now()
@@ -98,7 +97,7 @@ func (c *ConsulClient) RenewPeriodic(sessionID string, ttl time.Duration, doneCh
 }
 
 // Deregister node, destroy consul session
-func (c *ConsulClient) Deregister(sessionID string) error {
+func (c *ConsulClient) Deregister(ctx context.Context, sessionID string) error {
 	registryOperationCount.WithLabelValues(env, "Deregister").Inc()
 
 	startTime := time.Now()
@@ -112,7 +111,7 @@ func (c *ConsulClient) Deregister(sessionID string) error {
 }
 
 // Acquire a lock
-func (c *ConsulClient) Acquire(sessionID string, key string, value []byte) (bool, error) {
+func (c *ConsulClient) Acquire(ctx context.Context, sessionID string, key string, value []byte) (bool, error) {
 	registryOperationCount.WithLabelValues(env, "Acquire").Inc()
 
 	startTime := time.Now()
@@ -134,7 +133,7 @@ func (c *ConsulClient) Acquire(sessionID string, key string, value []byte) (bool
 }
 
 // Release a lock
-func (c *ConsulClient) Release(sessionID string, key string, value string) bool {
+func (c *ConsulClient) Release(ctx context.Context, sessionID string, key string, value string) bool {
 	registryOperationCount.WithLabelValues(env, "Release").Inc()
 
 	startTime := time.Now()
@@ -184,7 +183,10 @@ func (c *ConsulClient) Watch(ctx context.Context, wh *WatchConfig) (IWatcher, er
 }
 
 // Put a key value pair
-func (c *ConsulClient) Put(key string, value []byte) error {
+func (c *ConsulClient) Put(ctx context.Context, key string, value []byte) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.Put")
+	defer span.Finish()
+
 	registryOperationCount.WithLabelValues(env, "Put").Inc()
 
 	startTime := time.Now()
@@ -201,6 +203,9 @@ func (c *ConsulClient) Put(key string, value []byte) error {
 
 // Get returns a value for a key
 func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.Get")
+	defer span.Finish()
+
 	registryOperationCount.WithLabelValues(env, "Get").Inc()
 
 	startTime := time.Now()
@@ -220,6 +225,9 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 
 // List returns a slice of pairs for a key prefix
 func (c *ConsulClient) List(ctx context.Context, prefix string) ([]Pair, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.List")
+	defer span.Finish()
+
 	registryOperationCount.WithLabelValues(env, "List").Inc()
 
 	startTime := time.Now()
@@ -246,6 +254,9 @@ func (c *ConsulClient) List(ctx context.Context, prefix string) ([]Pair, error) 
 
 // ListKeys returns a value for a key
 func (c *ConsulClient) ListKeys(ctx context.Context, key string) ([]string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.ListKeys")
+	defer span.Finish()
+
 	registryOperationCount.WithLabelValues(env, "ListKeys").Inc()
 
 	startTime := time.Now()
@@ -268,7 +279,10 @@ func (c *ConsulClient) ListKeys(ctx context.Context, key string) ([]string, erro
 }
 
 // Exists checks the existence of a key
-func (c *ConsulClient) Exists(key string) (bool, error) {
+func (c *ConsulClient) Exists(ctx context.Context, key string) (bool, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.Exists")
+	defer span.Finish()
+
 	registryOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
@@ -287,7 +301,10 @@ func (c *ConsulClient) Exists(key string) (bool, error) {
 }
 
 // DeleteTree deletes all keys under a prefix
-func (c *ConsulClient) DeleteTree(key string) error {
+func (c *ConsulClient) DeleteTree(ctx context.Context, key string) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.DeleteTree")
+	defer span.Finish()
+
 	registryOperationCount.WithLabelValues(env, "DeleteTree").Inc()
 
 	startTime := time.Now()

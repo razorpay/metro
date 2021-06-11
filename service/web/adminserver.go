@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/interceptors"
@@ -35,6 +36,9 @@ func newAdminServer(admin *credentials.Model, projectCore project.ICore, subscri
 // CreateProject creates a new project
 func (s adminServer) CreateProject(ctx context.Context, req *metrov1.Project) (*metrov1.Project, error) {
 	logger.Ctx(ctx).Infow("request received to create project", "id", req.ProjectId)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "AdminServer.CreateProject")
+	defer span.Finish()
+
 	p, err := project.GetValidatedModelForCreate(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
@@ -49,6 +53,9 @@ func (s adminServer) CreateProject(ctx context.Context, req *metrov1.Project) (*
 // DeleteProject creates a new project
 func (s adminServer) DeleteProject(ctx context.Context, req *metrov1.Project) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("request received to delete project", "id", req.ProjectId)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "AdminServer.DeleteProject")
+	defer span.Finish()
+
 	p, err := project.GetValidatedModelForDelete(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)

@@ -3,6 +3,7 @@ package publisher
 import (
 	"context"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -23,6 +24,9 @@ func NewCore(bs brokerstore.IBrokerStore) *Core {
 
 // Publish messages
 func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherCore.Publish")
+	defer span.Finish()
+
 	producer, err := p.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutMs: 500})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in getting producer", "msg", err.Error())

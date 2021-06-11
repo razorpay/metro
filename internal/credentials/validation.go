@@ -7,12 +7,11 @@ import (
 	"strings"
 
 	"github.com/razorpay/metro/internal/app"
-
+	"github.com/razorpay/metro/internal/project"
+	"github.com/razorpay/metro/pkg/logger"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/razorpay/metro/internal/project"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 var (
@@ -57,6 +56,7 @@ func IsValidUsername(username string) bool {
 // IsAuthorized checks if the projectID from the auth matches the projectID being accessed
 func IsAuthorized(ctx context.Context, projectID string) bool {
 	if app.IsTestMode() {
+		logger.Ctx(ctx).Debugw("skipping auth", "projectID", projectID)
 		return true
 	}
 

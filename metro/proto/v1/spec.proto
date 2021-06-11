@@ -778,3 +778,12 @@ message AdminTopic {
 
     int32 num_partitions = 3;
 }
+
+// Request made on the push endpoint
+message PushEndpointRequest {
+    // Required. The messages to publish.
+    PubsubMessage message = 1 [(google.api.field_behavior) = REQUIRED];
+
+    // Required. The message in the request was published for this subscription.
+    string subscription = 2 [(google.api.field_behavior) = REQUIRED];
+}

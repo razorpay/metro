@@ -61,6 +61,7 @@ func Init(cnf Config, zlog *zap.Logger) error {
 	return nil
 }
 
+// Close calls the closer function if initialized
 func Close() error {
 	if closer == nil {
 		return nil

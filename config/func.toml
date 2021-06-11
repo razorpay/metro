@@ -8,7 +8,7 @@
     serviceName           = "metro"
     logSpans              = false
     localAgentHostPort    = "localhost:6831"
-    disabled              = true
+    disabled              = false
 [sentry]
     appName               = "metro"
     dsn                   = "dummy"

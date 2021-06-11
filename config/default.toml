@@ -66,5 +66,5 @@
     scheme                = "http"
 
 [admin]
-    username = "admin"
-    password = "password"
+    username = ""
+    password = ""

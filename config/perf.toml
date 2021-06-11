@@ -7,7 +7,8 @@
 [tracing]
     serviceName           = "metro"
     logSpans              = false
-    localAgentHostPort    = "localhost:6831"
+    localAgentHost        = "localhost"
+    localAgentPort        = "6831"
     disabled              = false
 [sentry]
     appName               = "metro"

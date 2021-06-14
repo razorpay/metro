@@ -4,9 +4,8 @@ package credentials
 
 import (
 	"context"
+	"os"
 	"testing"
-
-	"github.com/razorpay/metro/internal/app"
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
@@ -41,9 +40,10 @@ func TestValidation_fromProto(t *testing.T) {
 
 func TestValidation_IsAuthorized1(t *testing.T) {
 
-	app.Env = "non-dev"
+	currEnv := os.Getenv("APP_ENV")
+	os.Setenv("APP_ENV", "non-dev")
 	defer func() {
-		app.Env = "dev"
+		os.Setenv("APP_ENV", currEnv)
 	}()
 
 	ctx := context.WithValue(context.Background(), CtxKey, NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
@@ -52,9 +52,10 @@ func TestValidation_IsAuthorized1(t *testing.T) {
 
 func TestValidation_IsAuthorized2(t *testing.T) {
 
-	app.Env = "non-dev"
+	currEnv := os.Getenv("APP_ENV")
+	os.Setenv("APP_ENV", "non-dev")
 	defer func() {
-		app.Env = "dev"
+		os.Setenv("APP_ENV", currEnv)
 	}()
 
 	ctx := context.WithValue(context.Background(), CtxKey, NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))

@@ -306,3 +306,9 @@ func (p *PulsarBroker) AddTopicPartitions(_ context.Context, _ AddTopicPartition
 	// unused for pulsar
 	return nil, nil
 }
+
+// IsHealthy checks the health of pulsar
+func (p *PulsarBroker) IsHealthy() (bool, error) {
+	err := p.Admin.Brokers().HealthCheck()
+	return err == nil, err
+}

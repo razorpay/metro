@@ -2,13 +2,17 @@ package health
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
+	"github.com/razorpay/metro/pkg/registry"
 )
 
 // Checker interface for health
 type Checker interface {
+	name() string
 	checkHealth() (bool, error)
 }
 
@@ -43,8 +47,8 @@ func (c *Core) IsHealthy() bool {
 			continue
 		}
 		isHealthy, err := checker.checkHealth()
-		if !isHealthy {
-			logger.Ctx(context.TODO()).Errorw("health check failed", "msg", err)
+		if !isHealthy || err != nil {
+			logger.Ctx(context.TODO()).Errorw("health check failed", "service_to_check", checker.name(), "error", err)
 			return false
 		}
 	}
@@ -60,13 +64,38 @@ func (c *Core) MarkUnhealthy() {
 	c.isMarkedUnhealthy = true
 }
 
-type dbHealthChecker struct{}
-
-func (d *dbHealthChecker) checkHealth() (bool, error) {
-	return true, nil
+type registryHealthChecker struct {
+	service  string
+	registry registry.IRegistry
 }
 
-// NewDBHealthChecker returns a db health checker
-func NewDBHealthChecker() Checker {
-	return &dbHealthChecker{}
+func (r *registryHealthChecker) checkHealth() (bool, error) {
+	return r.registry.IsAlive()
+}
+
+func (r *registryHealthChecker) name() string {
+	return fmt.Sprintf("registry:%v", r.service)
+}
+
+// NewRegistryHealthChecker returns a registry health checker
+func NewRegistryHealthChecker(service string, registry registry.IRegistry) Checker {
+	return &registryHealthChecker{service, registry}
+}
+
+type brokerHealthChecker struct {
+	service string
+	admin   messagebroker.Admin
+}
+
+func (b *brokerHealthChecker) checkHealth() (bool, error) {
+	return b.admin.IsHealthy()
+}
+
+func (b *brokerHealthChecker) name() string {
+	return fmt.Sprintf("broker:%v", b.service)
+}
+
+// NewBrokerHealthChecker returns a broker health checker
+func NewBrokerHealthChecker(service string, admin messagebroker.Admin) Checker {
+	return &brokerHealthChecker{service, admin}
 }

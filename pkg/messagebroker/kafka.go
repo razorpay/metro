@@ -9,6 +9,7 @@ import (
 	"time"
 
 	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/rs/xid"
 )
@@ -80,6 +81,7 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 	logger.Ctx(ctx).Infow("kafka consumer: initialized")
 
 	return &KafkaBroker{
+		Ctx:      ctx,
 		Consumer: c,
 		Config:   bConfig,
 		COptions: options,
@@ -124,6 +126,7 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	logger.Ctx(ctx).Infow("kafka producer: initialized")
 
 	return &KafkaBroker{
+		Ctx:      ctx,
 		Producer: p,
 		Config:   bConfig,
 		POptions: options,
@@ -169,6 +172,7 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 	logger.Ctx(ctx).Infow("kafka admin: initialized")
 
 	return &KafkaBroker{
+		Ctx:      ctx,
 		Admin:    a,
 		Config:   bConfig,
 		AOptions: options,
@@ -638,4 +642,30 @@ func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPa
 	return &AddTopicPartitionResponse{
 		Response: resp,
 	}, nil
+}
+
+// IsHealthy checks the health of the kafka
+func (k *KafkaBroker) IsHealthy() (bool, error) {
+	doneCh := make(chan healthResponse)
+
+	go func() {
+		string, err := k.Admin.ClusterID(k.Ctx)
+		doneCh <- healthResponse{
+			isHealthy: string != "",
+			error:     err,
+		}
+	}()
+
+	select {
+	// adding a strict timeout here to avoid a blocking call
+	case <-time.After(time.Second * 1):
+		return false, errors.New("kafka: timed out")
+	case resp := <-doneCh:
+		return resp.isHealthy, resp.error
+	}
+}
+
+type healthResponse struct {
+	isHealthy bool
+	error     error
 }

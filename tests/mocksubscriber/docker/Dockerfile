@@ -1,5 +1,5 @@
 #build stage
-FROM golang:1.15.5-alpine3.12 as builder
+FROM golang:1.16.5-alpine3.13 as builder
 
 ENV CGO_ENABLED 1
 ARG GIT_COMMIT_HASH
@@ -13,7 +13,7 @@ WORKDIR $SRC_DIR
 RUN go build -o mock-server tests/mocksubscriber/cmd/main.go
 
 # final stage
-FROM alpine:3.12
+FROM alpine:3.13
 
 COPY --from=builder /src/mock-server /app/
 COPY ./tests/mocksubscriber/docker/entrypoint.sh /app/

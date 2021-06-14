@@ -22,7 +22,7 @@ RPC_ROOT := "rpc/"
 
 
 BUF_BIN := /usr/local/bin
-BUF_VERSION := 0.32.0
+BUF_VERSION := 0.43.2
 BUF_BINARY_NAME := buf
 BUF_UNAME_OS := $(shell uname -s)
 BUF_UNAME_ARCH := $(shell uname -m)
@@ -75,15 +75,14 @@ setup-git-hooks:
 deps: buf-deps
 	@echo "\n + Fetching buf dependencies \n"
 	# https://github.com/johanbrandhorst/grpc-gateway-boilerplate/blob/master/Makefile
-	@go install \
-		google.golang.org/protobuf/cmd/protoc-gen-go \
-		google.golang.org/grpc/cmd/protoc-gen-go-grpc \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
-		github.com/rakyll/statik
-	@go install golang.org/x/lint/golint
-	@go install github.com/bykof/go-plantuml
-	@go install github.com/golang/mock/mockgen
+	@go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+	@go install github.com/rakyll/statik@latest
+	@go install golang.org/x/lint/golint@latest
+	@go install github.com/bykof/go-plantuml@v1.0.0
+	@go install github.com/golang/mock/mockgen@latest
 
 buf-deps:
 	curl -sSL \

@@ -1,10 +1,12 @@
+name: PR Workflow
+
 on: [push]
 jobs:
     tests:
       runs-on: ubuntu-latest
-      container: golang:1.15.5-alpine3.12
+      container: golang:1.16.5-alpine3.13
       continue-on-error: false
-      name: checks and unit tests
+      name: Unit tests
       steps:
         - name: checkout
           id: checkout
@@ -86,7 +88,7 @@ jobs:
             EXEC_MODE: test
     integration-tests:
         runs-on: ubuntu-latest
-        container: golang:1.15.5-alpine3.12
+        container: golang:1.16.5-alpine3.13
         continue-on-error: false
         name: integration and compatibility tests
         needs: build
@@ -204,3 +206,4 @@ jobs:
           - name: compatibility tests
             run: |
               make test-compat-ci
+

@@ -8,22 +8,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/razorpay/metro/internal/common"
-
-	"github.com/razorpay/metro/internal/subscriber"
-
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/server"
+	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/leaderelection"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/scheduler"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -94,20 +93,30 @@ func (svc *Service) Start() error {
 
 	svc.workgrp, gctx = errgroup.WithContext(svc.ctx)
 
-	// Define server handlers
-	healthCore, err := health.NewCore(nil) //TODO: Add checkers
-	if err != nil {
-		return err
-	}
-
 	// Init the Registry
-	// TODO: move to component init ?
 	svc.registry, err = registry.NewRegistry(svc.ctx, svc.registryConfig)
 	if err != nil {
 		return err
 	}
 
 	svc.brokerStore, err = brokerstore.NewBrokerStore(svc.workerConfig.Broker.Variant, &svc.workerConfig.Broker.BrokerConfig)
+	if err != nil {
+		return err
+	}
+
+	// init registry health checker
+	registryHealthChecker := health.NewRegistryHealthChecker(svc.registryConfig.Driver, svc.registry)
+
+	brokerStore, berr := brokerstore.NewBrokerStore(svc.workerConfig.Broker.Variant, &svc.workerConfig.Broker.BrokerConfig)
+	if berr != nil {
+		return berr
+	}
+	admin, _ := brokerStore.GetAdmin(svc.ctx, messagebroker.AdminClientOptions{})
+	// init broker health checker
+	brokerHealthChecker := health.NewBrokerHealthChecker(svc.workerConfig.Broker.Variant, admin)
+
+	// register broker and registry health checkers on the health server
+	healthCore, err := health.NewCore(registryHealthChecker, brokerHealthChecker)
 	if err != nil {
 		return err
 	}

@@ -2,9 +2,6 @@ package app
 
 import "os"
 
-// Env holds the current environment
-var Env string
-
 // GetEnv returns the current environment, prod, dev etc
 func GetEnv() string {
 	// Fetch env for bootstrapping
@@ -16,10 +13,10 @@ func GetEnv() string {
 	return environment
 }
 
-// IsTestMode checks if the current env is a test mode env or not
-// TODO find a way to remove the need for this in the future
+// IsTestMode return true if the current execution env is test mode
 func IsTestMode() bool {
-	if Env == "" || Env == "test" || Env == "dev_docker" {
+	env := GetEnv()
+	if env == "test" || env == "dev" || env == "dev_docker" {
 		return true
 	}
 	return false

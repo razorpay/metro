@@ -3,6 +3,7 @@ package worker
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -126,7 +127,9 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		}
 
 		startTime := time.Now()
-		postData := bytes.NewBuffer(message.Message.Data)
+		pushRequest := newPushEndpointRequest(message, subModel.Key())
+		postBody, _ := json.Marshal(pushRequest)
+		postData := bytes.NewBuffer(postBody)
 		req, err := http.NewRequest("POST", subModel.PushEndpoint, postData)
 		if subModel.HasCredentials() {
 			req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
@@ -214,4 +217,11 @@ func NewHTTPClientWithConfig(config *HTTPClientConfig) *http.Client {
 	}
 
 	return &http.Client{Transport: tr}
+}
+
+func newPushEndpointRequest(message *metrov1.ReceivedMessage, subscription string) *metrov1.PushEndpointRequest {
+	return &metrov1.PushEndpointRequest{
+		Message:      message.Message,
+		Subscription: subscription,
+	}
 }

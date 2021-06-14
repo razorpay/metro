@@ -1,13 +1,12 @@
 module github.com/razorpay/metro
 
-go 1.15
+go 1.16
 
 require (
 	cloud.google.com/go/pubsub v1.9.0
 	github.com/apache/pulsar-client-go v0.3.0
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20210115012126-2456729a54ca // indirect
 	github.com/armon/go-metrics v0.3.6 // indirect
-	github.com/bykof/go-plantuml v1.0.0 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/confluentinc/confluent-kafka-go v1.6.1
 	github.com/danieljoos/wincred v1.1.0 // indirect
@@ -58,7 +57,7 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
 	golang.org/x/text v0.3.6 // indirect
-	golang.org/x/tools v0.1.2 // indirect
+	golang.org/x/tools v0.1.3 // indirect
 	google.golang.org/api v0.36.0
 	google.golang.org/genproto v0.0.0-20210315173758-2651cd453018
 	google.golang.org/grpc v1.37.0-dev.0.20210309003715-fce74a94bdff

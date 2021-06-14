@@ -44,7 +44,7 @@ func Init(ctx context.Context, env string, componentName string) {
 		log.Fatalf("invalid componentName given as input: [%v]", componentName)
 	}
 
-	log.Printf("starting component : [%v]", componentName)
+	log.Printf("starting component: [%v] in env: [%v]", componentName, env)
 
 	// read the componentName config for env
 	var appConfig config.Config

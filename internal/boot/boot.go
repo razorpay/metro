@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/config"
 	logpkg "github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
@@ -20,7 +21,7 @@ var (
 )
 
 // InitMonitoring is used to setup logger, tracing and sentry for monitoring
-func InitMonitoring(env string, app config.App, sentry sentry.Config, tracing tracingpkg.Config) error {
+func InitMonitoring(env string, config config.App, sentry sentry.Config, tracing tracingpkg.Config) error {
 	// Initializes Sentry monitoring client.
 	s, err := sentrypkg.InitSentry(&sentry, env)
 	if err != nil {
@@ -29,9 +30,9 @@ func InitMonitoring(env string, app config.App, sentry sentry.Config, tracing tr
 
 	// Initializes logging driver.
 	servicekv := map[string]interface{}{
-		"appEnv":        app.Env,
-		"serviceName":   app.ServiceName,
-		"gitCommitHash": app.GitCommitHash,
+		"appEnv":        app.GetEnv(),
+		"serviceName":   config.ServiceName,
+		"gitCommitHash": config.GitCommitHash,
 	}
 	logger, err := logpkg.NewLogger(env, servicekv, s)
 	if err != nil {

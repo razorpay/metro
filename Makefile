@@ -22,7 +22,7 @@ RPC_ROOT := "rpc/"
 
 
 BUF_BIN := /usr/local/bin
-BUF_VERSION := 0.32.0
+BUF_VERSION := 0.43.2
 BUF_BINARY_NAME := buf
 BUF_UNAME_OS := $(shell uname -s)
 BUF_UNAME_ARCH := $(shell uname -m)
@@ -82,7 +82,7 @@ deps: buf-deps
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
 		github.com/rakyll/statik
 	@go install golang.org/x/lint/golint
-	@go install github.com/bykof/go-plantuml
+	@go install github.com/bykof/go-plantuml@v1.0.0
 	@go install github.com/golang/mock/mockgen
 
 buf-deps:

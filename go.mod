@@ -8,7 +8,7 @@ require (
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20210115012126-2456729a54ca // indirect
 	github.com/armon/go-metrics v0.3.6 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
-	github.com/confluentinc/confluent-kafka-go v1.6.1
+	github.com/confluentinc/confluent-kafka-go v1.7.0 // indirect
 	github.com/danieljoos/wincred v1.1.0 // indirect
 	github.com/dvsekhvalnov/jose2go v0.0.0-20201001154944-b09cfaf05951 // indirect
 	github.com/fatih/color v1.10.0 // indirect
@@ -62,6 +62,7 @@ require (
 	google.golang.org/genproto v0.0.0-20210315173758-2651cd453018
 	google.golang.org/grpc v1.37.0-dev.0.20210309003715-fce74a94bdff
 	google.golang.org/protobuf v1.25.1-0.20210303022638-839ce436895b
+	gopkg.in/confluentinc/confluent-kafka-go.v1 v1.7.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 

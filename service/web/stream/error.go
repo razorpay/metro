@@ -1,6 +1,6 @@
 package stream
 
-import kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
+import kafkapkg "gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 
 var retryableKafkaErrorCodes map[kafkapkg.ErrorCode]bool
 

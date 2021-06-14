@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/rs/xid"
+	kafkapkg "gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 const (

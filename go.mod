@@ -13,9 +13,8 @@ require (
 	github.com/dvsekhvalnov/jose2go v0.0.0-20201001154944-b09cfaf05951 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/getsentry/sentry-go v0.8.0
-	github.com/golang/mock v1.4.4
+	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.4.4-0.20210303013846-acacf8158c9a
-	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -34,7 +33,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.7.1
+	github.com/prometheus/client_golang v1.11.0
 	github.com/rakyll/statik v0.1.7
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rs/xid v1.2.1
@@ -59,9 +58,9 @@ require (
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/tools v0.1.3 // indirect
 	google.golang.org/api v0.36.0
-	google.golang.org/genproto v0.0.0-20210315173758-2651cd453018
+	google.golang.org/genproto v0.0.0-20210315173758-2651cd453018 // indirect
 	google.golang.org/grpc v1.37.0-dev.0.20210309003715-fce74a94bdff
-	google.golang.org/protobuf v1.25.1-0.20210303022638-839ce436895b
+	google.golang.org/protobuf v1.26.0-rc.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 

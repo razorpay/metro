@@ -26,7 +26,7 @@ require (
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6 // indirect
 	github.com/klauspost/compress v1.11.13 // indirect
 	github.com/kris-nova/lolgopher v0.0.0-20210112022122-73f0047e8b65 // indirect
-	github.com/magiconair/properties v1.8.4
+	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-runewidth v0.0.10 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.4 // indirect

@@ -3,7 +3,8 @@ module github.com/razorpay/metro
 go 1.16
 
 require (
-	cloud.google.com/go/pubsub v1.9.0
+	cloud.google.com/go v0.84.0 // indirect
+	cloud.google.com/go/pubsub v1.11.0
 	github.com/apache/pulsar-client-go v0.3.0
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20210115012126-2456729a54ca // indirect
 	github.com/armon/go-metrics v0.3.6 // indirect
@@ -13,8 +14,9 @@ require (
 	github.com/dvsekhvalnov/jose2go v0.0.0-20201001154944-b09cfaf05951 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/getsentry/sentry-go v0.8.0
-	github.com/golang/mock v1.4.4
-	github.com/golang/protobuf v1.4.4-0.20210303013846-acacf8158c9a
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/mock v1.6.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -26,7 +28,7 @@ require (
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6 // indirect
 	github.com/klauspost/compress v1.11.13 // indirect
 	github.com/kris-nova/lolgopher v0.0.0-20210112022122-73f0047e8b65 // indirect
-	github.com/magiconair/properties v1.8.4
+	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-runewidth v0.0.10 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
@@ -45,22 +47,24 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/streamnative/pulsarctl v0.4.3-0.20210116042116-1fe5d713915c
 	github.com/stretchr/testify v1.7.0
-	github.com/uber/jaeger-client-go v2.24.0+incompatible
-	github.com/uber/jaeger-lib v2.2.0+incompatible
+	github.com/uber/jaeger-client-go v2.29.1+incompatible
+	github.com/uber/jaeger-lib v2.4.1+incompatible
 	go.opencensus.io v0.23.0 // indirect
+	go.uber.org/atomic v1.8.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/oauth2 v0.0.0-20210113205817-d3ed898aa8a3 // indirect
+	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/tools v0.1.3 // indirect
-	google.golang.org/api v0.36.0
-	google.golang.org/genproto v0.0.0-20210315173758-2651cd453018 // indirect
-	google.golang.org/grpc v1.37.0-dev.0.20210309003715-fce74a94bdff
-	google.golang.org/protobuf v1.26.0-rc.1
+	google.golang.org/api v0.48.0
+	google.golang.org/genproto v0.0.0-20210614182748-5b3b54cad159
+	google.golang.org/grpc v1.38.0
+	google.golang.org/protobuf v1.26.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 

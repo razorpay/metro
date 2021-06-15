@@ -303,7 +303,7 @@ func (c *ConsulClient) DeleteTree(key string) error {
 }
 
 // IsAlive checks the health of the consul
-func (c *ConsulClient) IsAlive() (bool, error) {
+func (c *ConsulClient) IsAlive(_ context.Context) (bool, error) {
 	health, _, err := c.client.Health().Checks("any", nil)
 	return health.AggregatedStatus() == api.HealthPassing, err
 }

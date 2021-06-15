@@ -64,5 +64,5 @@ type IRegistry interface {
 	DeleteTree(key string) error
 
 	// IsAlive checks the health of the registry
-	IsAlive() (bool, error)
+	IsAlive(context.Context) (bool, error)
 }

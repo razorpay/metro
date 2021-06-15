@@ -21,7 +21,7 @@ type Admin interface {
 	AddTopicPartitions(context.Context, AddTopicPartitionRequest) (*AddTopicPartitionResponse, error)
 
 	// checks health of underlying broker
-	IsHealthy() (bool, error)
+	IsHealthy(context.Context) (bool, error)
 }
 
 // Producer for produce operations

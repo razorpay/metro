@@ -25,7 +25,6 @@ type KafkaBroker struct {
 	Producer *kafkapkg.Producer
 	Consumer *kafkapkg.Consumer
 	Admin    *kafkapkg.AdminClient
-	Ctx      context.Context
 
 	// holds the broker config
 	Config *BrokerConfig
@@ -81,7 +80,6 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 	logger.Ctx(ctx).Infow("kafka consumer: initialized")
 
 	return &KafkaBroker{
-		Ctx:      ctx,
 		Consumer: c,
 		Config:   bConfig,
 		COptions: options,
@@ -126,7 +124,6 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	logger.Ctx(ctx).Infow("kafka producer: initialized")
 
 	return &KafkaBroker{
-		Ctx:      ctx,
 		Producer: p,
 		Config:   bConfig,
 		POptions: options,
@@ -172,7 +169,6 @@ func newKafkaAdminClient(ctx context.Context, bConfig *BrokerConfig, options *Ad
 	logger.Ctx(ctx).Infow("kafka admin: initialized")
 
 	return &KafkaBroker{
-		Ctx:      ctx,
 		Admin:    a,
 		Config:   bConfig,
 		AOptions: options,
@@ -645,11 +641,11 @@ func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPa
 }
 
 // IsHealthy checks the health of the kafka
-func (k *KafkaBroker) IsHealthy() (bool, error) {
+func (k *KafkaBroker) IsHealthy(ctx context.Context) (bool, error) {
 	doneCh := make(chan healthResponse)
 
 	go func() {
-		string, err := k.Admin.ClusterID(k.Ctx)
+		string, err := k.Admin.ClusterID(ctx)
 		doneCh <- healthResponse{
 			isHealthy: string != "",
 			error:     err,

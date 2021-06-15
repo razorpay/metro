@@ -14,7 +14,6 @@ import (
 
 // PulsarBroker for pulsar
 type PulsarBroker struct {
-	Ctx      context.Context
 	Consumer pulsar.Consumer
 	Producer pulsar.Producer
 	Admin    pulsarctl.Client
@@ -63,7 +62,6 @@ func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, id stri
 	}
 
 	return &PulsarBroker{
-		Ctx:      ctx,
 		Config:   bConfig,
 		Consumer: c,
 		COptions: options,
@@ -103,7 +101,6 @@ func newPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options
 	}
 
 	return &PulsarBroker{
-		Ctx:      ctx,
 		Config:   bConfig,
 		Producer: p,
 		POptions: options,
@@ -132,7 +129,6 @@ func newPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *A
 	}
 
 	return &PulsarBroker{
-		Ctx:      ctx,
 		Config:   bConfig,
 		AOptions: options,
 		Admin:    admin,
@@ -308,7 +304,7 @@ func (p *PulsarBroker) AddTopicPartitions(_ context.Context, _ AddTopicPartition
 }
 
 // IsHealthy checks the health of pulsar
-func (p *PulsarBroker) IsHealthy() (bool, error) {
+func (p *PulsarBroker) IsHealthy(_ context.Context) (bool, error) {
 	err := p.Admin.Brokers().HealthCheck()
 	return err == nil, err
 }

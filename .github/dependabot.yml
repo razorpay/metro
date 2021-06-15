@@ -3,6 +3,13 @@ updates:
   - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
+      day: sunday
       time: "04:00"
       timezone: Asia/Calcutta
+    assignees:
+      - "shivasishdas"
+    reviewers:
+      - "sunnyagg"
+      - "shivasishdas"
+

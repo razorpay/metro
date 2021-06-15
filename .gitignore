@@ -13,9 +13,6 @@ vendor/*
 # App Binaries.
 bin/*
 
-# Documentation. Use `make docs` to generate
-docs/*
-
 # Ignores all mock/* directories in project.
 # These are created by mockgen tool and only servers unit tests when they run.
 mock/

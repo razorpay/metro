@@ -4,26 +4,22 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/razorpay/metro/internal/app"
-
-	"github.com/razorpay/metro/internal/credentials"
-
-	"github.com/razorpay/metro/internal/interceptors"
-
-	"github.com/razorpay/metro/pkg/logger"
-
-	"github.com/razorpay/metro/service/web/stream"
-
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/health"
+	"github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	"github.com/razorpay/metro/service/web/stream"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -57,19 +53,26 @@ func (svc *Service) Start() error {
 	grp, gctx := errgroup.WithContext(svc.ctx)
 
 	// Define server handlers
-	healthCore, err := health.NewCore(nil) //TODO: Add checkers
-	if err != nil {
-		return err
-	}
-
 	r, err := registry.NewRegistry(svc.registryConfig)
 	if err != nil {
 		return err
 	}
 
+	// init registry health checker
+	registryHealthChecker := health.NewRegistryHealthChecker(svc.registryConfig.Driver, r)
+
 	brokerStore, berr := brokerstore.NewBrokerStore(svc.webConfig.Broker.Variant, &svc.webConfig.Broker.BrokerConfig)
 	if berr != nil {
 		return berr
+	}
+	admin, _ := brokerStore.GetAdmin(svc.ctx, messagebroker.AdminClientOptions{})
+	// init broker health checker
+	brokerHealthChecker := health.NewBrokerHealthChecker(svc.webConfig.Broker.Variant, admin)
+
+	// register broker and registry health checkers on the health server
+	healthCore, err := health.NewCore(registryHealthChecker, brokerHealthChecker)
+	if err != nil {
+		return err
 	}
 
 	projectCore := project.NewCore(project.NewRepo(r))

@@ -21,7 +21,7 @@ func NewServer(core *Core) *Server {
 
 // Check returns service's serving status.
 func (h *Server) Check(ctx context.Context, req *metrov1.HealthCheckRequest) (*metrov1.HealthCheckResponse, error) {
-	if !h.core.IsHealthy() {
+	if !h.core.IsHealthy(ctx) {
 		logger.Ctx(ctx).Debugw("metro health check", "status", "Unhealthy")
 		return nil, status.Error(codes.Unavailable, "Unhealthy")
 	}

@@ -10,8 +10,10 @@ import (
 
 	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/opentracing/opentracing-go"
-	"github.com/razorpay/metro/pkg/logger"
+	"github.com/pkg/errors"
 	"github.com/rs/xid"
+
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 const (
@@ -25,7 +27,6 @@ type KafkaBroker struct {
 	Producer *kafkapkg.Producer
 	Consumer *kafkapkg.Consumer
 	Admin    *kafkapkg.AdminClient
-	Ctx      context.Context
 
 	// holds the broker config
 	Config *BrokerConfig
@@ -660,4 +661,18 @@ func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPa
 	return &AddTopicPartitionResponse{
 		Response: resp,
 	}, nil
+}
+
+// IsHealthy checks the health of the kafka
+func (k *KafkaBroker) IsHealthy(ctx context.Context) (bool, error) {
+	string, err := k.Admin.ClusterID(ctx)
+	if string != "" {
+		return true, nil
+	}
+
+	if ctx.Err() == context.DeadlineExceeded || err == context.DeadlineExceeded {
+		return false, errors.New("kafka: timed out")
+	}
+
+	return false, err
 }

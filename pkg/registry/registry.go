@@ -62,4 +62,7 @@ type IRegistry interface {
 
 	// DeleteTree deletes all keys under a prefix
 	DeleteTree(ctx context.Context, key string) error
+
+	// IsAlive checks the health of the registry
+	IsAlive(context.Context) (bool, error)
 }

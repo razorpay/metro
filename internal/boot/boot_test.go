@@ -46,6 +46,4 @@ func TestBoot_InitMonitoring(t *testing.T) {
 	)
 
 	assert.Nil(t, err)
-	assert.NotNil(t, Tracer)
-	assert.NotNil(t, Closer)
 }

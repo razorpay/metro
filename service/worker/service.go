@@ -94,7 +94,7 @@ func (svc *Service) Start() error {
 	svc.workgrp, gctx = errgroup.WithContext(svc.ctx)
 
 	// Init the Registry
-	svc.registry, err = registry.NewRegistry(svc.ctx, svc.registryConfig)
+	svc.registry, err = registry.NewRegistry(svc.registryConfig)
 	if err != nil {
 		return err
 	}

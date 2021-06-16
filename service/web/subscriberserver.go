@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/razorpay/metro/internal/credentials"
-
-	"github.com/razorpay/metro/internal/interceptors"
-	"github.com/razorpay/metro/internal/project"
-
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/credentials"
+	"github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/internal/merror"
+	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -34,6 +33,9 @@ func newSubscriberServer(projectCore project.ICore, brokerStore brokerstore.IBro
 // CreateSubscription to create a new subscription
 func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.Subscription) (*metrov1.Subscription, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to create subscription", "name", req.Name, "topic", req.Topic)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.CreateSubscription")
+	defer span.Finish()
+
 	m, err := subscription.GetValidatedModelForCreate(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
@@ -49,6 +51,9 @@ func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.S
 // Acknowledge a message
 func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to ack messages", "ack_req", req.String())
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.Acknowledge")
+	defer span.Finish()
 
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	if parseErr != nil {
@@ -138,6 +143,10 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 // DeleteSubscription deletes a subscription
 func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to delete subscription", "name", req.Subscription)
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.DeleteSubscription")
+	defer span.Finish()
+
 	m, err := subscription.GetValidatedModelForDelete(ctx, &metrov1.Subscription{Name: req.Subscription})
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
@@ -152,6 +161,10 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 
 func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to modack messages", "mod_ack_req", req.String())
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.ModifyAckDeadline")
+	defer span.Finish()
+
 	parsedReq, parseErr := stream.NewParsedModifyAckDeadlineRequest(req)
 	if parseErr != nil {
 		logger.Ctx(ctx).Errorw("subscriberserver: error is parsing modack request", "request", req, "error", parseErr.Error())

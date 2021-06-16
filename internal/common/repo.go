@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
 )
@@ -25,31 +26,46 @@ type BaseRepo struct {
 
 // Save puts the model in the registry
 func (r BaseRepo) Save(ctx context.Context, m IModel) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.Save")
+	defer span.Finish()
+
 	b, err := json.Marshal(m)
 	if err != nil {
 		logger.Ctx(ctx).Error("error in json marshal", "msg", err.Error())
 		return err
 	}
-	return r.Registry.Put(m.Key(), b)
+	return r.Registry.Put(ctx, m.Key(), b)
 }
 
 // Exists to check if the key exists in the registry
 func (r BaseRepo) Exists(ctx context.Context, key string) (bool, error) {
-	return r.Registry.Exists(key)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.Exists")
+	defer span.Finish()
+
+	return r.Registry.Exists(ctx, key)
 }
 
 // Delete deletes all keys under a model key
 func (r BaseRepo) Delete(ctx context.Context, m IModel) error {
-	return r.Registry.DeleteTree(m.Key())
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.Delete")
+	defer span.Finish()
+
+	return r.Registry.DeleteTree(ctx, m.Key())
 }
 
 // DeleteTree deletes all keys under a prefix
 func (r BaseRepo) DeleteTree(ctx context.Context, key string) error {
-	return r.Registry.DeleteTree(key)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.DeleteTree")
+	defer span.Finish()
+
+	return r.Registry.DeleteTree(ctx, key)
 }
 
 // Get populates m with value corresponding to key
 func (r BaseRepo) Get(ctx context.Context, key string, m IModel) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.Get")
+	defer span.Finish()
+
 	b, err := r.Registry.Get(ctx, key)
 	if err != nil {
 		return err
@@ -63,6 +79,9 @@ func (r BaseRepo) Get(ctx context.Context, key string, m IModel) error {
 
 // ListKeys populates keys with key list corresponding to prefix
 func (r BaseRepo) ListKeys(ctx context.Context, prefix string) ([]string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.ListKeys")
+	defer span.Finish()
+
 	keys, err := r.Registry.ListKeys(ctx, prefix)
 	if err != nil {
 		return nil, err

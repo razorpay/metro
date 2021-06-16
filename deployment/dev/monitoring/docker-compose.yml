@@ -9,7 +9,6 @@ volumes:
   grafana_data: {}
 
 services:
-
   prometheus:
     image: prom/prometheus:v2.19.2
     container_name: rzp-prometheus
@@ -39,8 +38,13 @@ services:
     networks:
       - rzp-dev-monitoring
     ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
       - "16686:16686"
-
+      - "14268:14268"
+      - "9411:9411"
   grafana:
     image: grafana/grafana:7.0.4
     container_name: rzp-grafana

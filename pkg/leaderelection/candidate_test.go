@@ -50,12 +50,14 @@ func TestLeaderElectionRun(t *testing.T) {
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	watcherMock := mocks.NewMockIWatcher(ctrl)
 
-	registryMock.EXPECT().Register("leaderelection-test", 30*time.Second).Return("id", nil).Times(1)
-	registryMock.EXPECT().IsRegistered("id").Return(true).AnyTimes()
-	registryMock.EXPECT().Deregister("id").Return(nil).Times(1)
-	registryMock.EXPECT().Acquire("id", common.GetBasePrefix()+"nodes/node01", gomock.Any()).Return(true, nil).AnyTimes()
-	registryMock.EXPECT().Acquire("id", common.GetBasePrefix()+"leader/election/test", gomock.Any()).Return(true, nil).AnyTimes()
-	registryMock.EXPECT().RenewPeriodic(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	ctx := context.Background()
+
+	registryMock.EXPECT().Register(gomock.Any(), "leaderelection-test", 30*time.Second).Return("id", nil).Times(1)
+	registryMock.EXPECT().IsRegistered(gomock.Any(), "id").Return(true).AnyTimes()
+	registryMock.EXPECT().Deregister(gomock.Any(), "id").Return(nil).Times(1)
+	registryMock.EXPECT().Acquire(gomock.Any(), "id", common.GetBasePrefix()+"nodes/node01", gomock.Any()).Return(true, nil).AnyTimes()
+	registryMock.EXPECT().Acquire(gomock.Any(), "id", common.GetBasePrefix()+"leader/election/test", gomock.Any()).Return(true, nil).AnyTimes()
+	registryMock.EXPECT().RenewPeriodic(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	registryMock.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(watcherMock, nil).AnyTimes()
 
 	config := getConfig()
@@ -81,7 +83,7 @@ func TestLeaderElectionRun(t *testing.T) {
 	watcherMock.EXPECT().StopWatch().Return().Times(1)
 
 	// run leader election, it should call only expected registry calls as defined above
-	c.Run(context.Background())
+	c.Run(ctx)
 
 	assert.Equal(t, "", c.sessionID)
 	assert.Equal(t, false, c.IsLeader())

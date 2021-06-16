@@ -53,7 +53,7 @@ func (svc *Service) Start() error {
 	grp, gctx := errgroup.WithContext(svc.ctx)
 
 	// Define server handlers
-	r, err := registry.NewRegistry(svc.ctx, svc.registryConfig)
+	r, err := registry.NewRegistry(svc.registryConfig)
 	if err != nil {
 		return err
 	}

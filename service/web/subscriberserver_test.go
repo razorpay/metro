@@ -38,7 +38,7 @@ func TestSubscriberServer_CreateSubscription(t *testing.T) {
 	m, err := subscription.GetValidatedModelForCreate(ctx, req)
 	assert.Nil(t, err)
 
-	subscriptionCore.EXPECT().CreateSubscription(ctx, m).Times(1).Return(nil)
+	subscriptionCore.EXPECT().CreateSubscription(gomock.Any(), m).Times(1).Return(nil)
 	res, err := server.CreateSubscription(ctx, req)
 	assert.Nil(t, err)
 	assert.Equal(t, res, req)
@@ -62,7 +62,7 @@ func TestSubscriberServer_CreateSubscriptionFailure(t *testing.T) {
 	m, err := subscription.GetValidatedModelForCreate(ctx, req)
 	assert.Nil(t, err)
 
-	subscriptionCore.EXPECT().CreateSubscription(ctx, m).Times(1).Return(fmt.Errorf("error"))
+	subscriptionCore.EXPECT().CreateSubscription(gomock.Any(), m).Times(1).Return(fmt.Errorf("error"))
 	res, err := server.CreateSubscription(ctx, req)
 	assert.NotNil(t, err)
 	assert.Nil(t, res)
@@ -85,7 +85,7 @@ func TestSubscriberServer_Acknowledge(t *testing.T) {
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	assert.Nil(t, parseErr)
 
-	manager.EXPECT().Acknowledge(ctx, parsedReq).Times(1).Return(nil)
+	manager.EXPECT().Acknowledge(gomock.Any(), parsedReq).Times(1).Return(nil)
 
 	res, err := server.Acknowledge(ctx, req)
 	assert.Nil(t, err)
@@ -109,7 +109,7 @@ func TestSubscriberServer_AcknowledgeFailure(t *testing.T) {
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	assert.Nil(t, parseErr)
 
-	manager.EXPECT().Acknowledge(ctx, parsedReq).Times(1).Return(fmt.Errorf("error"))
+	manager.EXPECT().Acknowledge(gomock.Any(), parsedReq).Times(1).Return(fmt.Errorf("error"))
 
 	res, err := server.Acknowledge(ctx, req)
 	assert.NotNil(t, err)
@@ -154,7 +154,7 @@ func TestSubscriberServer_DeleteSubscription(t *testing.T) {
 	m, err := subscription.GetValidatedModelForDelete(ctx, &metrov1.Subscription{Name: req.Subscription})
 	assert.Nil(t, err)
 
-	subscriptionCore.EXPECT().DeleteSubscription(ctx, m).Times(1).Return(nil)
+	subscriptionCore.EXPECT().DeleteSubscription(gomock.Any(), m).Times(1).Return(nil)
 	res, err := server.DeleteSubscription(ctx, req)
 	assert.Nil(t, err)
 	assert.Equal(t, &emptypb.Empty{}, res)
@@ -177,7 +177,7 @@ func TestSubscriberServer_DeleteSubscriptionFailure(t *testing.T) {
 	m, err := subscription.GetValidatedModelForDelete(ctx, &metrov1.Subscription{Name: req.Subscription})
 	assert.Nil(t, err)
 
-	subscriptionCore.EXPECT().DeleteSubscription(ctx, m).Times(1).Return(fmt.Errorf("error"))
+	subscriptionCore.EXPECT().DeleteSubscription(gomock.Any(), m).Times(1).Return(fmt.Errorf("error"))
 	res, err := server.DeleteSubscription(ctx, req)
 	assert.Nil(t, res)
 	assert.NotNil(t, err)
@@ -202,7 +202,7 @@ func TestSubscriberServer_ModifyAckDeadline(t *testing.T) {
 	parsedReq, parseErr := stream.NewParsedModifyAckDeadlineRequest(req)
 	assert.Nil(t, parseErr)
 
-	manager.EXPECT().ModifyAcknowledgement(ctx, parsedReq).Return(nil)
+	manager.EXPECT().ModifyAcknowledgement(gomock.Any(), parsedReq).Return(nil)
 	res, err := server.ModifyAckDeadline(ctx, req)
 	assert.Nil(t, err)
 	assert.Equal(t, &emptypb.Empty{}, res)
@@ -227,7 +227,7 @@ func TestSubscriberServer_ModifyAckDeadlineFailure(t *testing.T) {
 	parsedReq, parseErr := stream.NewParsedModifyAckDeadlineRequest(req)
 	assert.Nil(t, parseErr)
 
-	manager.EXPECT().ModifyAcknowledgement(ctx, parsedReq).Return(fmt.Errorf("error"))
+	manager.EXPECT().ModifyAcknowledgement(gomock.Any(), parsedReq).Return(fmt.Errorf("error"))
 	res, err := server.ModifyAckDeadline(ctx, req)
 	assert.NotNil(t, err)
 	assert.Nil(t, res)

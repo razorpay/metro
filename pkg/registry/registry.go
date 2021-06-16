@@ -21,32 +21,32 @@ func (pair *Pair) String() string {
 type IRegistry interface {
 	// Register a node with the Registry with a given name
 	// Returns a Registration id or error
-	Register(string, time.Duration) (string, error)
+	Register(ctx context.Context, name string, ttl time.Duration) (string, error)
 
 	// Deregister a node which was registered with a id
 	// Returns error on failure
-	Deregister(string) error
+	Deregister(ctx context.Context, id string) error
 
 	// IsRegistered checks is node with registration_id is registred with registry
-	IsRegistered(string) bool
+	IsRegistered(ctx context.Context, id string) bool
 
 	// Renew a regestration using registration_id
-	Renew(string) error
+	Renew(ctx context.Context, id string) error
 
 	// RenewPeriodic renews a registration id periodically based on TTL
-	RenewPeriodic(string, time.Duration, <-chan struct{}) error
+	RenewPeriodic(ctx context.Context, id string, ttl time.Duration, doneCh <-chan struct{}) error
 
 	// Acquire a lock for a registration_id on a given key and value pair
-	Acquire(string, string, []byte) (bool, error)
+	Acquire(ctx context.Context, id string, key string, value []byte) (bool, error)
 
 	// Release a lock for a registration_id on a given key and value pair
-	Release(string, string, string) bool
+	Release(ctx context.Context, id string, key string, value string) bool
 
 	// Watch on a key/keyprefix in registry
 	Watch(ctx context.Context, wh *WatchConfig) (IWatcher, error)
 
 	// Put a key value pair
-	Put(key string, value []byte) error
+	Put(ctx context.Context, key string, value []byte) error
 
 	// Get returns a value for a key
 	Get(ctx context.Context, key string) ([]byte, error)
@@ -58,10 +58,10 @@ type IRegistry interface {
 	List(ctx context.Context, prefix string) ([]Pair, error)
 
 	// Exists checks the existence of a key
-	Exists(key string) (bool, error)
+	Exists(ctx context.Context, key string) (bool, error)
 
 	// DeleteTree deletes all keys under a prefix
-	DeleteTree(key string) error
+	DeleteTree(ctx context.Context, key string) error
 
 	// IsAlive checks the health of the registry
 	IsAlive(context.Context) (bool, error)

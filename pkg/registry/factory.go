@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -11,10 +10,10 @@ const (
 )
 
 // NewRegistry initializes the registry instance based on Config
-func NewRegistry(ctx context.Context, config *Config) (IRegistry, error) {
+func NewRegistry(config *Config) (IRegistry, error) {
 	switch config.Driver {
 	case Consul:
-		r, err := NewConsulClient(ctx, &config.ConsulConfig)
+		r, err := NewConsulClient(&config.ConsulConfig)
 		if err != nil {
 			return nil, err
 		}

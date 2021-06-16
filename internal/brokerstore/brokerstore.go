@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/pkg/logger"
-
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/partitionlocker"
 )
@@ -95,6 +95,9 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 
 // GetConsumer returns for an existing consumer instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.GetConsumer")
+	defer span.Finish()
+
 	brokerStoreOperationCount.WithLabelValues(env, "GetConsumer").Inc()
 
 	startTime := time.Now()
@@ -133,6 +136,9 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) bool {
 	logger.Ctx(ctx).Infow("brokerstore: request to close consumer", "id", id, "groupID", op.GroupID)
 
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.RemoveConsumer")
+	defer span.Finish()
+
 	brokerStoreOperationCount.WithLabelValues(env, "RemoveConsumer").Inc()
 
 	startTime := time.Now()
@@ -162,6 +168,9 @@ func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messageb
 
 // GetProducer returns for an existing producer instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.GetProducer")
+	defer span.Finish()
+
 	brokerStoreOperationCount.WithLabelValues(env, "GetProducer").Inc()
 
 	startTime := time.Now()
@@ -196,6 +205,9 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 
 // GetAdmin returns for an existing admin instance, if available returns that else creates as new instance
 func (b *BrokerStore) GetAdmin(ctx context.Context, options messagebroker.AdminClientOptions) (messagebroker.Admin, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.GetAdmin")
+	defer span.Finish()
+
 	brokerStoreOperationCount.WithLabelValues(env, "GetAdmin").Inc()
 
 	startTime := time.Now()

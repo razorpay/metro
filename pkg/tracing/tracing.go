@@ -32,7 +32,7 @@ type Config struct {
 // Init initialises opentracing tracer. Returns tracer for tracing spans &
 // closer for flushing in-memory spans before app shutdown.
 func Init(cnf Config, zlog *zap.Logger) error {
-	hostPath := fmt.Sprintf("%s:%s", cnf.Host, cnf.Port)
+	hostPortPath := fmt.Sprintf("%s:%s", cnf.Host, cnf.Port)
 
 	config := &jaegerconfig.Configuration{
 		ServiceName: cnf.ServiceName,
@@ -42,7 +42,7 @@ func Init(cnf Config, zlog *zap.Logger) error {
 		},
 		Reporter: &jaegerconfig.ReporterConfig{
 			LogSpans:           cnf.LogSpans,
-			LocalAgentHostPort: hostPath,
+			LocalAgentHostPort: hostPortPath,
 		},
 		Disabled: cnf.Disabled,
 	}

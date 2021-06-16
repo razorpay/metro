@@ -14,8 +14,6 @@ import (
 	mocks3 "github.com/razorpay/metro/internal/publisher/mocks/core"
 	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/internal/topic/mocks/core"
-	"github.com/razorpay/metro/pkg/messagebroker"
-	mocks4 "github.com/razorpay/metro/pkg/messagebroker/mocks"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,7 +25,6 @@ func TestPublishServer_CreateTopicSuccess(t *testing.T) {
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
-	admin := mocks4.NewMockAdmin(ctrl)
 	mockProjectCore := mocks5.NewMockICore(ctrl)
 	mockCredentialsCore := mocks6.NewMockICore(ctrl)
 	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
@@ -40,8 +37,6 @@ func TestPublishServer_CreateTopicSuccess(t *testing.T) {
 	assert.Nil(t, err)
 
 	topicCore.EXPECT().CreateTopic(gomock.Any(), topicModel).Times(1).Return(nil)
-	brokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Times(1).Return(admin, nil)
-	admin.EXPECT().CreateTopic(gomock.Any(), gomock.Any()).Times(1).Return(messagebroker.CreateTopicResponse{}, nil)
 
 	tp, err := server.CreateTopic(ctx, req)
 	assert.Equal(t, req, tp)

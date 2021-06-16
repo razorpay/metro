@@ -1,0 +1,69 @@
+[app]
+    appEnv                = "prod"
+    serviceName           = "metro"
+    shutdownTimeout       = 2
+    shutdownDelay         = 2
+    gitCommitHash         = "nil"
+[tracing]
+    serviceName           = "metro"
+    logSpans              = false
+    localAgentHostPort    = "localhost:6831"
+    disabled              = true
+[sentry]
+    appName               = "metro"
+    dsn                   = "dummy"
+    mock                  = true
+    errorLevel            = 1
+
+[web]
+    [web.broker]
+        variant               = "kafka"
+        [web.broker.brokerconfig]
+            brokers       = ["localhost:9092"]
+            enableTLS     = true
+            certDir       = "/app/configs/"
+    [web.interfaces]
+        [web.interfaces.api]
+            GrpcServerAddress               = "0.0.0.0:8081"
+            HttpServerAddress               = "0.0.0.0:8082"
+            InternalHttpServerAddress       = "0.0.0.0:9000"
+
+[worker]
+    [worker.broker]
+        variant               = "kafka"
+        [worker.broker.brokerconfig]
+            brokers       = ["localhost:9092"]
+            enableTLS     = true
+            certDir       = "/app/configs/"
+    [worker.interfaces]
+        [worker.interfaces.api]
+            GrpcServerAddress               = "0.0.0.0:8083"
+            HttpServerAddress               = "0.0.0.0:8084"
+            InternalHttpServerAddress       = "0.0.0.0:9001"
+    [worker.httpclientconfig]
+            connectTimeoutMs        = 2000
+            connKeepAliveMs         = 0
+            expectContinueTimeoutMs = 0
+            idleConnTimeoutMs       = 60000
+            maxAllIdleConns         = 1000
+            maxHostIdleConns        = 1000
+            responseHeaderTimeoutMs = 25000
+            tlsHandshakeTimeoutMs   = 2000
+
+[registry]
+    driver                    = "consul"
+    [registry.consulconfig]
+        [registry.consulconfig.config]
+            address            = "localhost:8500"
+            token              = ""
+            scheme             = "https"
+            caPem              = ""
+
+[openAPIServer]
+    httpServerAddress     = "0.0.0.0:3000"
+    grpcGatewayAddress    = "localhost:8085"
+    scheme                = "http"
+
+[admin]
+    username = ""
+    password = ""

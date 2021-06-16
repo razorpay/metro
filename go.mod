@@ -13,7 +13,7 @@ require (
 	github.com/danieljoos/wincred v1.1.0 // indirect
 	github.com/dvsekhvalnov/jose2go v0.0.0-20201001154944-b09cfaf05951 // indirect
 	github.com/fatih/color v1.10.0 // indirect
-	github.com/getsentry/sentry-go v0.8.0
+	github.com/getsentry/sentry-go v0.10.0
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
@@ -57,7 +57,7 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	google.golang.org/api v0.48.0
-	google.golang.org/genproto v0.0.0-20210614182748-5b3b54cad159
+	google.golang.org/genproto v0.0.0-20210614182748-5b3b54cad159 // indirect
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 )

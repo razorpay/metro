@@ -8,7 +8,7 @@ updates:
       time: "04:00"
       timezone: Asia/Calcutta
     ignore:
-      - dependency-name: *
+      - dependency-name: "*"
         update-types: ["version-update:semver-minor"]
     assignees:
       - "shivasishdas"

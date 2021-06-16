@@ -9,7 +9,8 @@ import (
 
 // Checker interface for health
 type Checker interface {
-	checkHealth() (bool, error)
+	name() string
+	checkHealth(ctx context.Context) (bool, error)
 }
 
 // Core holds business logic and/or orchestrator of other things in the package.
@@ -26,7 +27,7 @@ func NewCore(checkers ...Checker) (*Core, error) {
 
 // IsHealthy checks if the app has been marked unhealthy. If so it'll return false. Otherwise, it'll check the application
 // health and return a boolean value based on the health check result.
-func (c *Core) IsHealthy() bool {
+func (c *Core) IsHealthy(ctx context.Context) bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	// Server has been marked as unhealthy. No point in doing a health check.
@@ -42,9 +43,9 @@ func (c *Core) IsHealthy() bool {
 		if checker == nil {
 			continue
 		}
-		isHealthy, err := checker.checkHealth()
-		if !isHealthy {
-			logger.Ctx(context.TODO()).Errorw("health check failed", "msg", err)
+		isHealthy, err := checker.checkHealth(ctx)
+		if !isHealthy || err != nil {
+			logger.Ctx(context.TODO()).Errorw("health check failed", "service_to_check", checker.name(), "error", err)
 			return false
 		}
 	}
@@ -58,15 +59,4 @@ func (c *Core) MarkUnhealthy() {
 	defer c.mutex.Unlock()
 
 	c.isMarkedUnhealthy = true
-}
-
-type dbHealthChecker struct{}
-
-func (d *dbHealthChecker) checkHealth() (bool, error) {
-	return true, nil
-}
-
-// NewDBHealthChecker returns a db health checker
-func NewDBHealthChecker() Checker {
-	return &dbHealthChecker{}
 }

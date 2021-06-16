@@ -19,6 +19,9 @@ type Admin interface {
 
 	// adds partitions to an existing topic
 	AddTopicPartitions(context.Context, AddTopicPartitionRequest) (*AddTopicPartitionResponse, error)
+
+	// checks health of underlying broker
+	IsHealthy(context.Context) (bool, error)
 }
 
 // Producer for produce operations

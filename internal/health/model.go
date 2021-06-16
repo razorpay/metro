@@ -3,6 +3,7 @@ package health
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
@@ -32,7 +33,9 @@ type brokerHealthChecker struct {
 }
 
 func (b *brokerHealthChecker) checkHealth(ctx context.Context) (bool, error) {
-	return b.admin.IsHealthy(ctx)
+	newCtx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Second*1))
+	defer cancel()
+	return b.admin.IsHealthy(newCtx)
 }
 
 func (b *brokerHealthChecker) name() string {

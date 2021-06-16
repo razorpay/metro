@@ -642,26 +642,14 @@ func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPa
 
 // IsHealthy checks the health of the kafka
 func (k *KafkaBroker) IsHealthy(ctx context.Context) (bool, error) {
-	doneCh := make(chan healthResponse)
-
-	go func() {
-		string, err := k.Admin.ClusterID(ctx)
-		doneCh <- healthResponse{
-			isHealthy: string != "",
-			error:     err,
-		}
-	}()
-
-	select {
-	// adding a strict timeout here to avoid a blocking call
-	case <-time.After(time.Second * 1):
-		return false, errors.New("kafka: timed out")
-	case resp := <-doneCh:
-		return resp.isHealthy, resp.error
+	string, err := k.Admin.ClusterID(ctx)
+	if string != "" {
+		return true, nil
 	}
-}
 
-type healthResponse struct {
-	isHealthy bool
-	error     error
+	if ctx.Err() == context.DeadlineExceeded || err == context.DeadlineExceeded {
+		return false, errors.New("kafka: timed out")
+	}
+
+	return false, err
 }

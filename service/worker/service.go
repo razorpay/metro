@@ -98,7 +98,7 @@ func (svc *Service) Start() error {
 	if err != nil {
 		return err
 	}
-	
+
 	svc.brokerStore, err = brokerstore.NewBrokerStore(svc.workerConfig.Broker.Variant, &svc.workerConfig.Broker.BrokerConfig)
 	if err != nil {
 		return err

@@ -16,7 +16,7 @@ func TestBaseRepo_Create(t *testing.T) {
 	mockRegistry := mocks.NewMockIRegistry(ctrl)
 	repo := &BaseRepo{mockRegistry}
 	ctx := context.Background()
-	mockRegistry.EXPECT().Put("sample-key", []byte("{}"))
+	mockRegistry.EXPECT().Put(gomock.Any(), "sample-key", []byte("{}"))
 	err := repo.Save(ctx, &sampleModel{})
 	assert.Nil(t, err)
 }

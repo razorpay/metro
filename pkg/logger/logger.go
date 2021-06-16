@@ -24,7 +24,6 @@ var (
 
 // NewLogger sets up an instance of the sugared zap logging driver
 func NewLogger(env string, serviceKV map[string]interface{}, hookCore zapcore.Core) (*zap.SugaredLogger, error) {
-
 	var err error
 	var slogger *zap.Logger
 	logonce.Do(func() {

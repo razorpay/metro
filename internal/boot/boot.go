@@ -2,22 +2,13 @@ package boot
 
 import (
 	"context"
-	"io"
 
-	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/config"
 	logpkg "github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
 	sentrypkg "github.com/razorpay/metro/pkg/monitoring/sentry"
 	tracingpkg "github.com/razorpay/metro/pkg/tracing"
-)
-
-var (
-	// Tracer is used for creating spans for distributed tracing
-	Tracer opentracing.Tracer
-	// Closer holds an instance to the RequestTracing object's Closer.
-	Closer io.Closer
 )
 
 // InitMonitoring is used to setup logger, tracing and sentry for monitoring
@@ -38,12 +29,20 @@ func InitMonitoring(env string, config config.App, sentry sentry.Config, tracing
 	if err != nil {
 		return err
 	}
-	Tracer, Closer, err = tracingpkg.Init(tracing, logger.Desugar())
+	err = tracingpkg.Init(tracing, logger.Desugar())
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// Close is used to stop any init component
+func Close() error {
+	// Close the tracer
+	err := tracingpkg.Close()
+
+	return err
 }
 
 // NewContext adds core key-value e.g. service name, git hash etc to

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
@@ -39,6 +40,9 @@ func NewCore(repo IRepo, projectCore project.ICore, brokerStore brokerstore.IBro
 
 // CreateTopic implements topic creation
 func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "TopicCore.CreateTopic")
+	defer span.Finish()
+
 	topicOperationCount.WithLabelValues(env, "CreateTopic").Inc()
 
 	startTime := time.Now()
@@ -115,6 +119,9 @@ func (c *Core) UpdateTopic(ctx context.Context, m *Model) error {
 
 // Exists checks if the topic exists with a given key
 func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "TopicCore.Exists")
+	defer span.Finish()
+
 	topicOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
@@ -148,6 +155,9 @@ func (c *Core) ExistsWithName(ctx context.Context, name string) (bool, error) {
 
 // DeleteTopic deletes a topic and all resources associated with it
 func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "TopicCore.DeleteTopic")
+	defer span.Finish()
+
 	topicOperationCount.WithLabelValues(env, "DeleteTopic").Inc()
 
 	startTime := time.Now()
@@ -190,6 +200,9 @@ func (c *Core) DeleteProjectTopics(ctx context.Context, projectID string) error 
 
 // Get returns topic with the given key
 func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "TopicCore.Get")
+	defer span.Finish()
+
 	topicOperationCount.WithLabelValues(env, "Get").Inc()
 
 	startTime := time.Now()

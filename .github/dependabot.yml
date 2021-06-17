@@ -3,6 +3,16 @@ updates:
   - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
+      day: sunday
       time: "04:00"
       timezone: Asia/Calcutta
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor"]
+    assignees:
+      - "shivasishdas"
+    reviewers:
+      - "sunnyagg"
+      - "shivasishdas"
+

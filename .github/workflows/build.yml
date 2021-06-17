@@ -16,23 +16,12 @@ jobs:
         - name: install prerequisites
           run: |
             apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl
-        - name: lint-check
+        - name: static code validattion
           run: |
-            make lint-check
-        - name: goimports-check
+            make lint-check goimports-check
+        - name: generate proto and mocks
           run: |
-            make goimports-check
-        - name: deps
-          run: |
-            make deps
-        - name: proto-generate
-          run: |
-            make proto-generate
-        - name: mock-gen
-          run: |
-            make mock-gen
-        - name: go mod vendor
-          run: |
+            make deps proto-generate mock-gen
             go mod vendor
         - name: test unit
           run: |
@@ -185,17 +174,9 @@ jobs:
           - name: install prerequisites
             run: |
               apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl
-          - name: deps
+          - name: setup
             run: |
-              make deps
-          - name: proto-generate
-            run: |
-              make proto-generate
-          - name: mock-gen
-            run: |
-              make mock-gen
-          - name: go mod vendor
-            run: |
+              make deps proto-generate
               go mod vendor
           - name: functional tests
             run: |
@@ -206,4 +187,3 @@ jobs:
           - name: compatibility tests
             run: |
               make test-compat-ci
-

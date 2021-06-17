@@ -195,7 +195,6 @@ jobs:
         - name: setup
           run: |
             make deps proto-generate
-            go mod vendor
         - name: functional tests
           run: |
               make test-functional-ci

@@ -24,6 +24,7 @@ jobs:
     container: golang:1.16.5-alpine3.13
     continue-on-error: false
     name: Unit tests
+    needs: [cancel]
     steps:
       - name: checkout
         id: checkout

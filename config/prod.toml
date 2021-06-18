@@ -42,7 +42,7 @@
             HttpServerAddress               = "0.0.0.0:8084"
             InternalHttpServerAddress       = "0.0.0.0:9001"
     [worker.httpclientconfig]
-            connectTimeoutMs        = 2000
+            connectTimeoutMs        = 10000
             connKeepAliveMs         = 0
             expectContinueTimeoutMs = 0
             idleConnTimeoutMs       = 60000

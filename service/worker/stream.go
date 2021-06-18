@@ -23,6 +23,7 @@ type PushStream struct {
 	ctx              context.Context
 	cancelFunc       func()
 	nodeID           string
+	subscription     *subscription.Model
 	subscriptionName string
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
@@ -38,7 +39,7 @@ func (ps *PushStream) Start() error {
 	var (
 		err error
 		// init these channels and pass to subscriber
-		// the lifecycle of these channels should be maintain by the user
+		// the lifecycle of these channels should be maintained by the user
 		subscriberRequestCh = make(chan *subscriber.PullRequest)
 		subscriberAckCh     = make(chan *subscriber.AckMessage)
 		subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
@@ -48,13 +49,6 @@ func (ps *PushStream) Start() error {
 		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "error", err.Error())
-		return err
-	}
-
-	// get subscription Model details
-	subModel, err := ps.subscriptionCore.Get(ps.ctx, ps.subscriptionName)
-	if err != nil {
-		logger.Ctx(ps.ctx).Errorf("error fetching subscription: %s", err.Error())
 		return err
 	}
 
@@ -78,7 +72,7 @@ func (ps *PushStream) Start() error {
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
 					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "err", err.Error())
-					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error(), ps.subs.GetID()).Inc()
+					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.ExtractedSubscriptionName, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
 				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
@@ -87,7 +81,7 @@ func (ps *PushStream) Start() error {
 				data := <-ps.subs.GetResponseChannel()
 				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
-					ps.processPushStreamResponse(ps.ctx, subModel, data)
+					ps.processPushStreamResponse(ps.ctx, ps.subscription, data)
 				}
 			}
 		}
@@ -189,15 +183,31 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 // NewPushStream return a push stream obj which is used for push subscriptions
 func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
+
+	// get subscription Model details
+	subModel, err := subscriptionCore.Get(pushCtx, subName)
+	if err != nil {
+		logger.Ctx(pushCtx).Errorf("error fetching subscription: %s", err.Error())
+		return nil
+	}
+
+	// set http connection timeout from the subscription
+	if subModel.AckDeadlineSec != 0 {
+		// make sure to convert sec to milli-sec
+		config.ConnectTimeoutMS = int(subModel.AckDeadlineSec) * 1e3
+	}
+	httpclient := NewHTTPClientWithConfig(config)
+
 	return &PushStream{
 		ctx:              pushCtx,
 		cancelFunc:       cancelFunc,
 		nodeID:           nodeID,
+		subscription:     subModel,
 		subscriptionName: subName,
 		subscriptionCore: subscriptionCore,
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
-		httpClient:       NewHTTPClientWithConfig(config),
+		httpClient:       httpclient,
 	}
 }
 

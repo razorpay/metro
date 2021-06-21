@@ -90,9 +90,16 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 		//return errors.New("reached max active stream limit for subscription")
 	}
 
+	// get subscription Model details
+	subModel, err := s.subscriptionCore.Get(server.Context(), req.Subscription)
+	if err != nil {
+		logger.Ctx(server.Context()).Errorf("error fetching subscription: %s", err.Error())
+		return err
+	}
+
 	pullStream, err := newPullStream(server,
 		req.ClientID,
-		req.Subscription,
+		subModel,
 		subscriber.NewCore(s.bs, s.subscriptionCore),
 		errGroup,
 		s.cleanupCh,

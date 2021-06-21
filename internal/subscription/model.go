@@ -1,8 +1,6 @@
 package subscription
 
 import (
-	"strings"
-
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/topic"
@@ -32,11 +30,6 @@ type Model struct {
 	DeadLetterTopic string
 
 	// TODO: add remaining fields from spec.proto
-}
-
-// NormalizedKey returns the Key with '/' replaced with '_' to be used safely within the broker constructs
-func (m *Model) NormalizedKey() string {
-	return strings.Replace(m.Key(), "/", "_", -1)
 }
 
 // Key returns the Key for storing subscriptions in the registry

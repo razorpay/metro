@@ -3,7 +3,6 @@
 package subscription
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/razorpay/metro/internal/common"
@@ -31,10 +30,4 @@ func TestModel_Prefix(t *testing.T) {
 func TestModel_Key(t *testing.T) {
 	dSubscription := getDummySubscriptionModel()
 	assert.Equal(t, dSubscription.Prefix()+dSubscription.ExtractedSubscriptionName, dSubscription.Key())
-}
-
-func TestModel_NormalizedKey(t *testing.T) {
-	dSubscription := getDummySubscriptionModel()
-	dKEy := strings.Replace(dSubscription.Prefix()+dSubscription.ExtractedSubscriptionName, "/", "_", -1)
-	assert.Equal(t, dKEy, dSubscription.NormalizedKey())
 }

@@ -13,7 +13,7 @@ import (
 
 // ICore is interface over subscribers core
 type ICore interface {
-	NewSubscriber(ctx context.Context, id string, subscription string, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64,
+	NewSubscriber(ctx context.Context, id string, subscription *subscription.Model, timeoutInMs int, maxOutstandingMessages int64, maxOutstandingBytes int64,
 		requestCh chan *PullRequest, ackCh chan *AckMessage, modAckCh chan *ModAckMessage) (ISubscriber, error)
 }
 
@@ -31,7 +31,7 @@ func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) *
 // NewSubscriber initiates a new subscriber for a given topic
 func (c *Core) NewSubscriber(ctx context.Context,
 	subscriberID string,
-	subscription string,
+	subscription *subscription.Model,
 	timeoutInMs int,
 	maxOutstandingMessages int64,
 	maxOutstandingBytes int64,
@@ -39,17 +39,11 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	ackCh chan *AckMessage,
 	modAckCh chan *ModAckMessage) (ISubscriber, error) {
 
-	subModel, err := c.subscriptionCore.Get(ctx, subscription)
-	if err != nil {
-		logger.Ctx(ctx).Errorw("subscriber: error fetching subscription", "error", err.Error())
-		return nil, err
-	}
+	topic := messagebroker.NormalizeTopicName(subscription.Topic)
+	retryTopic := messagebroker.NormalizeTopicName(subscription.GetRetryTopic())
+	dlqTopic := messagebroker.NormalizeTopicName(subscription.GetDeadLetterTopic())
 
-	topic := messagebroker.NormalizeTopicName(subModel.Topic)
-	retryTopic := messagebroker.NormalizeTopicName(subModel.GetRetryTopic())
-	dlqTopic := messagebroker.NormalizeTopicName(subModel.GetDeadLetterTopic())
-
-	groupID := subscription
+	groupID := subscription.Name
 
 	consumer, err := c.bs.GetConsumer(ctx, subscriberID, messagebroker.ConsumerClientOptions{Topics: []string{topic, retryTopic}, GroupID: groupID})
 	if err != nil {
@@ -71,7 +65,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	s := &Subscriber{
-		subscription:           subscription,
+		subscription:           subscription.Name,
 		topic:                  topic,
 		retryTopic:             retryTopic,
 		dlqTopic:               dlqTopic,

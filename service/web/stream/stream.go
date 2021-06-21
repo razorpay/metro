@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/razorpay/metro/internal/subscriber"
+	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"golang.org/x/sync/errgroup"
@@ -165,7 +165,7 @@ func (s *pullStream) stop() {
 	}
 }
 
-func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription string, subscriberCore subscriber.ICore, errGroup *errgroup.Group, cleanupCh chan cleanupMessage) (*pullStream, error) {
+func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription *subscription.Model, subscriberCore subscriber.ICore, errGroup *errgroup.Group, cleanupCh chan cleanupMessage) (*pullStream, error) {
 
 	// use the clientID as the subscriberID if provided
 	subscriberID := clientID

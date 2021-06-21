@@ -23,7 +23,7 @@ type PushStream struct {
 	ctx              context.Context
 	cancelFunc       func()
 	nodeID           string
-	subscriptionName string
+	subscription     *subscription.Model
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
@@ -38,23 +38,16 @@ func (ps *PushStream) Start() error {
 	var (
 		err error
 		// init these channels and pass to subscriber
-		// the lifecycle of these channels should be maintain by the user
+		// the lifecycle of these channels should be maintained by the user
 		subscriberRequestCh = make(chan *subscriber.PullRequest)
 		subscriberAckCh     = make(chan *subscriber.AckMessage)
 		subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
 	)
 
-	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subscriptionName, 100, 50, 0,
+	ps.subs, err = ps.subscriberCore.NewSubscriber(ps.ctx, ps.nodeID, ps.subscription, 100, 50, 0,
 		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
-		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscriptionName, "error", err.Error())
-		return err
-	}
-
-	// get subscription Model details
-	subModel, err := ps.subscriptionCore.Get(ps.ctx, ps.subscriptionName)
-	if err != nil {
-		logger.Ctx(ps.ctx).Errorf("error fetching subscription: %s", err.Error())
+		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscription.Name, "error", err.Error())
 		return err
 	}
 
@@ -64,7 +57,7 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
-				logger.Ctx(ps.ctx).Infow("worker: subscriber request and response stopped", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+				logger.Ctx(ps.ctx).Infow("worker: subscriber request and response stopped", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
 				// close all subscriber channels
 				close(subscriberRequestCh)
 				close(subscriberAckCh)
@@ -77,17 +70,17 @@ func (ps *PushStream) Start() error {
 			case err = <-ps.subs.GetErrorChannel():
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
-					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "err", err.Error())
-					workerSubscriberErrors.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, err.Error(), ps.subs.GetID()).Inc()
+					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID(), "err", err.Error())
+					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
-				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
-				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
 				data := <-ps.subs.GetResponseChannel()
 				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
-					ps.processPushStreamResponse(ps.ctx, subModel, data)
+					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+					ps.processPushStreamResponse(ps.ctx, ps.subscription, data)
 				}
 			}
 		}
@@ -98,7 +91,7 @@ func (ps *PushStream) Start() error {
 
 // Stop is used to terminate the push subscription processing
 func (ps *PushStream) Stop() error {
-	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subscriptionName)
+	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subscription.Name)
 
 	// signal to stop all go routines
 	ps.cancelFunc()
@@ -112,16 +105,16 @@ func (ps *PushStream) Stop() error {
 func (ps *PushStream) stopSubscriber() {
 	// stop the subscriber
 	if ps.subs != nil {
-		logger.Ctx(ps.ctx).Infow("worker: stopping subscriber", "subscription", ps.subscriptionName, "subcriber_id", ps.subs.GetID())
+		logger.Ctx(ps.ctx).Infow("worker: stopping subscriber", "subscription", ps.subscription.Name, "subcriber_id", ps.subs.GetID())
 		ps.subs.Stop()
 	}
 }
 
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
-	logger.Ctx(ctx).Infow("worker: response", "data", data, "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+	logger.Ctx(ctx).Infow("worker: response", "data", data, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
 
 	for _, message := range data.ReceivedMessages {
-		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
 		if message.AckId == "" {
 			continue
 		}
@@ -134,16 +127,17 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		if subModel.HasCredentials() {
 			req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
 		}
+		logger.Ctx(ps.ctx).Infow("worker: posting messages to subscription url", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID(), "endpoint", subModel.PushEndpoint)
 		resp, err := ps.httpClient.Do(req)
 		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
 		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID(), "error", err.Error())
 			ps.nack(ctx, message)
 			return
 		}
 
-		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
 		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Ack
@@ -159,7 +153,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		_, err = io.Copy(ioutil.Discard, resp.Body)
 		err = resp.Body.Close()
 		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID(), "error", err.Error())
+			logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID(), "error", err.Error())
 		}
 
 		// TODO: read response body if required by publisher later
@@ -167,7 +161,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 }
 
 func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage) {
-	logger.Ctx(ps.ctx).Infow("worker: sending nack request to subscriber", "ackId", message.AckId, "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+	logger.Ctx(ps.ctx).Infow("worker: sending nack request to subscriber", "ackId", message.AckId, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// deadline is set to 0 for nack
 	modackReq := subscriber.NewModAckMessage(ackReq, 0)
@@ -178,7 +172,7 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 }
 
 func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage) {
-	logger.Ctx(ps.ctx).Infow("worker: sending ack request to subscriber", "ackId", message.AckId, "subscription", ps.subscriptionName, "subscriberId", ps.subs.GetID())
+	logger.Ctx(ps.ctx).Infow("worker: sending ack request to subscriber", "ackId", message.AckId, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// check for closed channel before sending request
 	if ps.subs.GetAckChannel() != nil {
@@ -189,15 +183,30 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 // NewPushStream return a push stream obj which is used for push subscriptions
 func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
+
+	// get subscription Model details
+	subModel, err := subscriptionCore.Get(pushCtx, subName)
+	if err != nil {
+		logger.Ctx(pushCtx).Errorf("error fetching subscription: %s", err.Error())
+		return nil
+	}
+
+	// set http connection timeout from the subscription
+	if subModel.AckDeadlineSec != 0 {
+		// make sure to convert sec to milli-sec
+		config.ConnectTimeoutMS = int(subModel.AckDeadlineSec) * 1e3
+	}
+	httpclient := NewHTTPClientWithConfig(config)
+
 	return &PushStream{
 		ctx:              pushCtx,
 		cancelFunc:       cancelFunc,
 		nodeID:           nodeID,
-		subscriptionName: subName,
+		subscription:     subModel,
 		subscriptionCore: subscriptionCore,
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
-		httpClient:       NewHTTPClientWithConfig(config),
+		httpClient:       httpclient,
 	}
 }
 

@@ -18,6 +18,7 @@ type Model struct {
 	Topic                          string
 	Labels                         map[string]string
 	PushEndpoint                   string
+	AckDeadlineSec                 int32
 	ExtractedTopicProjectID        string
 	ExtractedSubscriptionProjectID string
 	ExtractedTopicName             string

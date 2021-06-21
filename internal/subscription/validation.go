@@ -45,6 +45,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 
 	m.ExtractedTopicName = t
 	m.ExtractedTopicProjectID = p
+	m.AckDeadlineSec = req.GetAckDeadlineSeconds()
 
 	// set push auth
 	if req.GetPushConfig() != nil && req.GetPushConfig().GetAttributes() != nil {

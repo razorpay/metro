@@ -46,10 +46,9 @@ The following table offers some guidance in choosing the appropriate delivery me
 
 |Pull|Push|
 |---|---|
-|Large volume of messages (many more than 1/second).|Multiple topics that must be processed by the same webhook.
+|Large volume of messages (many more than 1/second). Efficiency and throughput of message processing is critical.|Multiple topics that must be processed by the same webhook.
 |
-|Efficiency and throughput of message processing is critical.|App Engine Standard and Cloud Functions subscribers.
-|
+
 
 The following table compares pull and push delivery:
 
@@ -57,6 +56,6 @@ The following table compares pull and push delivery:
 |---|---|---|
 |Endpoints|Any device on the internet that has authorized credentials is able to call the Metro API.|An HTTPS server with non-self-signed certificate accessible on the public web. The receiving endpoint may be decoupled from the Metro subscription, so that messages from multiple subscriptions may be sent to a single endpoint.|
 |Load balancing|Multiple subscribers can make pull calls to the same "shared" subscription. Each subscriber will receive a subset of the messages.|The push endpoint can be a load balancer.|
-|Configuration|No configuration is necessary.|No configuration is necessary for App Engine apps in the same project as the subscriber.</br>Verification of push endpoints is not required in the Google Cloud Console. Endpoints must be reachable via DNS names and have SSL certificates installed.|
+|Configuration|No configuration is necessary.|Endpoints must be reachable via DNS names and have SSL certificates installed.|
 |Flow control|The subscriber client controls the rate of delivery.The subscriber can dynamically modify the ack deadline, allowing message processing to be arbitrarily long.|The Metro server automatically implements flow control. There is no need to handle message flow at the client side, although it is possible to indicate that the client cannot handle the current message load by passing back an HTTP error.|
 |Efficiency and throughput|Achieves high throughput at low CPU and bandwidth by allowing batched delivery and acknowledgments as well as massively parallel consumption. May be inefficient if aggressive polling is used to minimize message delivery time.|Delivers one message per request and limits maximum number of outstanding messages.|

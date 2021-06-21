@@ -35,4 +35,4 @@ If you set a dead-letter topic, you can also set the following subscription prop
 * Maximum number of delivery attempts: The default is 5 delivery attempts and you can specify between 5-100 delivery attempts.
 * Project with the dead-letter topic: If the dead-letter topic is in a different project from the subscription, you must specify the project with the dead-letter topic.
 
-You can't enable message ordering and use a dead-letter topic. Pub/Sub forwards messages to dead-letter topics on a best-effort basis, which might prevent Metro from redelivering messages in order.
+You can't enable message ordering and use a dead-letter topic. Metro forwards messages to dead-letter topics on a best-effort basis, which might prevent Metro from redelivering messages in order.

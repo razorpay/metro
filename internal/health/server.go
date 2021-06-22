@@ -15,6 +15,7 @@ type Server struct {
 	core *Core
 }
 
+// ReadinessCheck checks only for the responsiveness of the service
 func (h *Server) ReadinessCheck(ctx context.Context, _ *emptypb.Empty) (*metrov1.HealthCheckResponse, error) {
 	if !h.core.IsHealthy(ctx) {
 		logger.Ctx(ctx).Debugw("metro health check", "status", "Unhealthy")
@@ -27,6 +28,7 @@ func (h *Server) ReadinessCheck(ctx context.Context, _ *emptypb.Empty) (*metrov1
 	}, nil
 }
 
+// LivenessCheck checks responsiveness of all the dependant resources that the service is using
 func (h *Server) LivenessCheck(ctx context.Context, _ *emptypb.Empty) (*metrov1.HealthCheckResponse, error) {
 	logger.Ctx(ctx).Debugw("metro liveness check", "status", "Healthy")
 	return &metrov1.HealthCheckResponse{

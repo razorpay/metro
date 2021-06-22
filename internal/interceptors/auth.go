@@ -93,7 +93,7 @@ func AppAuth(ctx context.Context, credentialCore credentials.ICore) (context.Con
 		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
 	}
 
-	newCtx := context.WithValue(ctx, credentials.CtxKey, credentials.NewCredential(user, string(password)))
+	newCtx := context.WithValue(ctx, credentials.CtxKey.String(), credentials.NewCredential(user, string(password)))
 	return newCtx, nil
 }
 

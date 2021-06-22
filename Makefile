@@ -77,8 +77,8 @@ deps: buf-deps
 	# https://github.com/johanbrandhorst/grpc-gateway-boilerplate/blob/master/Makefile
 	@go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
-	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v2.4.0
+	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v2.4.0
 	@go install github.com/rakyll/statik@latest
 	@go install golang.org/x/lint/golint@latest
 	@go install github.com/bykof/go-plantuml@v1.0.0

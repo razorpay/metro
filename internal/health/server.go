@@ -7,11 +7,31 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Server has methods implementing of server rpc.
 type Server struct {
 	core *Core
+}
+
+func (h *Server) ReadinessCheck(ctx context.Context, _ *emptypb.Empty) (*metrov1.HealthCheckResponse, error) {
+	if !h.core.IsHealthy(ctx) {
+		logger.Ctx(ctx).Debugw("metro health check", "status", "Unhealthy")
+		return nil, status.Error(codes.Unavailable, "Unhealthy")
+	}
+
+	logger.Ctx(ctx).Debugw("metro readiness check", "status", "Healthy")
+	return &metrov1.HealthCheckResponse{
+		ServingStatus: metrov1.HealthCheckResponse_SERVING_STATUS_SERVING,
+	}, nil
+}
+
+func (h *Server) LivenessCheck(ctx context.Context, _ *emptypb.Empty) (*metrov1.HealthCheckResponse, error) {
+	logger.Ctx(ctx).Debugw("metro liveness check", "status", "Healthy")
+	return &metrov1.HealthCheckResponse{
+		ServingStatus: metrov1.HealthCheckResponse_SERVING_STATUS_SERVING,
+	}, nil
 }
 
 // NewServer returns a health server

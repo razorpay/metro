@@ -91,6 +91,7 @@ func (svc *Service) Start() error {
 		grp,
 		svc.webConfig.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
+			metrov1.RegisterStatusCheckAPIServer(server, health.NewServer(healthCore))
 			metrov1.RegisterHealthCheckAPIServer(server, health.NewServer(healthCore))
 			metrov1.RegisterPublisherServer(server, newPublisherServer(projectCore, brokerStore, topicCore, credentialsCore, publisher))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(svc.admin, projectCore, subscriptionCore, topicCore, credentialsCore, brokerStore))
@@ -107,7 +108,12 @@ func (svc *Service) Start() error {
 		grp,
 		svc.webConfig.Interfaces.API.HTTPServerAddress,
 		func(mux *runtime.ServeMux) error {
-			err := metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(gctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			err := metrov1.RegisterStatusCheckAPIHandlerFromEndpoint(gctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			if err != nil {
+				return err
+			}
+
+			err = metrov1.RegisterHealthCheckAPIHandlerFromEndpoint(gctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 			if err != nil {
 				return err
 			}

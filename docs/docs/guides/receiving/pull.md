@@ -10,11 +10,9 @@ grand_parent: How to Guides
 Metro supports both push and pull message delivery. For an overview and comparison of pull and push subscriptions, see the [Subscriber Overview](overview.md). This document describes pull delivery. For a discussion of push delivery, see the [Push Subscriber Guide](push.md).
 
 ## Asynchronous Pull
-Using asynchronous pulling provides higher throughput in your application, by not requiring your application to block for new messages. Messages can be received in your application using a long running message listener, and acknowledged one message at a time, as shown in the example below. Java, Python, .NET, Go, and Ruby clients use the StreamingPull service API to implement the asynchronous client API efficiently.
+Using asynchronous pulling provides higher throughput in your application, by not requiring your application to block for new messages. Messages can be received in your application using a long running message listener, and acknowledged one message at a time.
 
-Not all client libraries support asynchronously pulling messages. To learn about synchronously pulling messages, see Synchronous Pull.
-
-For more information, see the API Reference documentation in your programming language.
+Not all client libraries support asynchronously pulling messages. To learn about synchronously pulling messages, see [Synchronous Pull](#synchronous-pull).
 
 ## Processing Custom Attributes
 This sample shows how to pull messages asynchronously and retrieve the custom attributes from metadata:

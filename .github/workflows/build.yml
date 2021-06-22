@@ -2,97 +2,104 @@ name: PR Workflow
 
 on: [push]
 jobs:
-    tests:
+  # Job to cancel the previous jobs before running the subsequent jobs
+  cancel:
+    runs-on: ubuntu-latest
+    name: Cancel previous runs
+    if: always()
+    steps:
+      - uses: styfle/cancel-workflow-action@d57d93c3a8110b00c3a2c0b64b8516013c9fd4c9
+        if: github.ref != 'refs/heads/master'
+        name: cancel old workflows
+        id: cancel
+        with:
+          access_token: ${{ github.token }}
+      - if: github.ref == 'refs/heads/master'
+        name: Don't cancel old workflows
+        id: dont_cancel
+        run: |
+          echo "Don't cancel old workflow"
+  tests:
+    runs-on: ubuntu-latest
+    container: golang:1.16.5-alpine3.13
+    continue-on-error: false
+    name: Unit tests
+    needs: [cancel]
+    steps:
+      - name: checkout
+        id: checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+      - name: install prerequisites
+        run: |
+          apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl
+      - name: static code validattion
+        run: |
+          make lint-check goimports-check
+      - name: generate proto and mocks
+        run: |
+          make deps proto-generate mock-gen
+          go mod vendor
+      - name: test unit
+        run: |
+          make test-unit
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    name: build
+    needs: tests
+    steps:
+      - name: checkout
+        id: checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      - name: docker login
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: build metro image
+        uses: docker/build-push-action@v2
+        with:
+          tags: razorpay/metro:${{ github.sha }}
+          push: true
+          file: build/docker/Dockerfile
+          build-args: GIT_COMMIT_HASH=${{ github.sha }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+        env:
+          GIT_COMMIT_HASH: ${{ github.sha }}
+          APP_ENV: dev_docker
+          EXEC_MODE: test
+      - name: build mock server image
+        uses: docker/build-push-action@v2
+        with:
+          tags: razorpay/metro:mock-subscriber-${{ github.sha }}
+          push: true
+          file: tests/mocksubscriber/docker/Dockerfile
+          build-args: GIT_COMMIT_HASH=${{ github.sha }}
+        env:
+          GIT_COMMIT_HASH: ${{ github.sha }}
+          APP_ENV: dev_docker
+          EXEC_MODE: test
+  integration-tests:
       runs-on: ubuntu-latest
       container: golang:1.16.5-alpine3.13
       continue-on-error: false
-      name: Unit tests
-      steps:
-        - name: checkout
-          id: checkout
-          uses: actions/checkout@v1
-          with:
-            submodules: true
-        - name: install prerequisites
-          run: |
-            apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl
-        - name: lint-check
-          run: |
-            make lint-check
-        - name: goimports-check
-          run: |
-            make goimports-check
-        - name: deps
-          run: |
-            make deps
-        - name: proto-generate
-          run: |
-            make proto-generate
-        - name: mock-gen
-          run: |
-            make mock-gen
-        - name: go mod vendor
-          run: |
-            go mod vendor
-        - name: test unit
-          run: |
-            make test-unit
-    build:
-      runs-on: ubuntu-latest
-      continue-on-error: false
-      name: build
-      needs: tests
-      steps:
-        - name: checkout
-          id: checkout
-          uses: actions/checkout@v2
-          with:
-            submodules: true
-        - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@v1
-        - name: Cache Docker layers
-          uses: actions/cache@v2
-          with:
-            path: /tmp/.buildx-cache
-            key: ${{ runner.os }}-buildx-${{ github.sha }}
-            restore-keys: |
-              ${{ runner.os }}-buildx-
-        - name: docker login
-          uses: docker/login-action@v1
-          with:
-            username: ${{ secrets.DOCKER_USERNAME }}
-            password: ${{ secrets.DOCKER_PASSWORD }}
-        - name: build metro image
-          uses: docker/build-push-action@v2
-          with:
-            tags: razorpay/metro:${{ github.sha }}
-            push: true
-            file: build/docker/Dockerfile
-            build-args: GIT_COMMIT_HASH=${{ github.sha }}
-            cache-from: type=local,src=/tmp/.buildx-cache
-            cache-to: type=local,dest=/tmp/.buildx-cache
-          env:
-            GIT_COMMIT_HASH: ${{ github.sha }}
-            APP_ENV: dev_docker
-            EXEC_MODE: test
-        - name: build mock server image
-          uses: docker/build-push-action@v2
-          with:
-            tags: razorpay/metro:mock-subscriber-${{ github.sha }}
-            push: true
-            file: tests/mocksubscriber/docker/Dockerfile
-            build-args: GIT_COMMIT_HASH=${{ github.sha }}
-          env:
-            GIT_COMMIT_HASH: ${{ github.sha }}
-            APP_ENV: dev_docker
-            EXEC_MODE: test
-    integration-tests:
-        runs-on: ubuntu-latest
-        container: golang:1.16.5-alpine3.13
-        continue-on-error: false
-        name: integration and compatibility tests
-        needs: build
-        services:
+      name: integration and compatibility tests
+      needs: build
+      services:
 #            pulsar:
 #              image: apachepulsar/pulsar:2.6.2
 #              entrypoint: ["bin/pulsar","standalone"]
@@ -104,106 +111,96 @@ jobs:
 #                interval: 30s
 #                timeout: 10s
 #                retries: 5
-            kafka-zookeeper:
-              image: confluentinc/cp-zookeeper:6.0.0
-              ports:
-                - "2181:2181"
-              env:
-                ZOOKEEPER_CLIENT_PORT: 2181
-                ZOOKEEPER_TICK_TIME: 2000
-              options: --health-cmd "nc -z localhost 2181" --health-interval 60s --health-timeout 5s --health-retries 5
-            kafka-broker:
-              image: confluentinc/cp-server:6.0.0
-              ports:
-                - "9092:9092"
-                - "9101:9101"
-              options: --health-cmd "nc -z localhost 9092" --health-interval 60s --health-timeout 5s --health-retries 5
-              env:
-                KAFKA_BROKER_ID: 1
-                KAFKA_ZOOKEEPER_CONNECT: 'kafka-zookeeper:2181'
-                KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-                KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker:29092,PLAINTEXT_HOST://kafka-broker:9092
-                KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
-                KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-                KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-                KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
-                KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
-                KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-                KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-                KAFKA_JMX_PORT: 9101
-                KAFKA_JMX_HOSTNAME: localhost
-                KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-                CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka-broker:29092
-                CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
-                CONFLUENT_METRICS_ENABLE: 'true'
-                CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
-            consul:
-              image: consul:1.9.0
-              ports:
-                - "8500:8500"
-              options: --health-cmd "nc -z localhost 8500"
-            metro-web:
-              image: razorpay/metro:${{ github.sha }}
-              ports:
-                - "8081:8081"
-                - "8082:8082"
-              env:
-                APP_ENV: dev_docker
-                COMPONENT: web
-                GIT_COMMIT_HASH: ${{ github.sha }}
-                EXEC_MODE: test
-              options: --health-cmd "nc -z localhost 8082"
-            metro-worker:
-              image: razorpay/metro:${{ github.sha }}
-              ports:
-                - "8083:8083"
-                - "8086:8084"
-              env:
-                APP_ENV: dev_docker
-                COMPONENT: worker
-                GIT_COMMIT_HASH: ${{ github.sha }}
-                EXEC_MODE: test
-            mock-server:
-              image: razorpay/metro:mock-subscriber-${{ github.sha }}
-              ports:
-                - "8099:8099"
-              env:
-                APP_ENV: dev_docker
-                GIT_COMMIT_HASH: ${{ github.sha }}
-                EXEC_MODE: test
-            pubsub:
-              image: adhawk/google-pubsub-emulator
-              ports:
-                - "8085:8085"
-              options: --health-cmd "nc -z localhost 8085"
-        steps:
-          - name: checkout
-            id: checkout
-            uses: actions/checkout@v1
-            with:
-              submodules: true
-          - name: install prerequisites
-            run: |
-              apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl
-          - name: deps
-            run: |
-              make deps
-          - name: proto-generate
-            run: |
-              make proto-generate
-          - name: mock-gen
-            run: |
-              make mock-gen
-          - name: go mod vendor
-            run: |
-              go mod vendor
-          - name: functional tests
-            run: |
-                make test-functional-ci
-          - name: integration tests
-            run: |
-              make test-integration-ci
-          - name: compatibility tests
-            run: |
-              make test-compat-ci
-
+          kafka-zookeeper:
+            image: confluentinc/cp-zookeeper:6.0.0
+            ports:
+              - "2181:2181"
+            env:
+              ZOOKEEPER_CLIENT_PORT: 2181
+              ZOOKEEPER_TICK_TIME: 2000
+            options: --health-cmd "nc -z localhost 2181" --health-interval 60s --health-timeout 5s --health-retries 5
+          kafka-broker:
+            image: confluentinc/cp-server:6.0.0
+            ports:
+              - "9092:9092"
+              - "9101:9101"
+            options: --health-cmd "nc -z localhost 9092" --health-interval 60s --health-timeout 5s --health-retries 5
+            env:
+              KAFKA_BROKER_ID: 1
+              KAFKA_ZOOKEEPER_CONNECT: 'kafka-zookeeper:2181'
+              KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+              KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker:29092,PLAINTEXT_HOST://kafka-broker:9092
+              KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+              KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+              KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+              KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+              KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+              KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+              KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+              KAFKA_JMX_PORT: 9101
+              KAFKA_JMX_HOSTNAME: localhost
+              KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+              CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka-broker:29092
+              CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
+              CONFLUENT_METRICS_ENABLE: 'true'
+              CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
+          consul:
+            image: consul:1.9.0
+            ports:
+              - "8500:8500"
+            options: --health-cmd "nc -z localhost 8500"
+          metro-web:
+            image: razorpay/metro:${{ github.sha }}
+            ports:
+              - "8081:8081"
+              - "8082:8082"
+            env:
+              APP_ENV: dev_docker
+              COMPONENT: web
+              GIT_COMMIT_HASH: ${{ github.sha }}
+              EXEC_MODE: test
+            options: --health-cmd "nc -z localhost 8082"
+          metro-worker:
+            image: razorpay/metro:${{ github.sha }}
+            ports:
+              - "8083:8083"
+              - "8086:8084"
+            env:
+              APP_ENV: dev_docker
+              COMPONENT: worker
+              GIT_COMMIT_HASH: ${{ github.sha }}
+              EXEC_MODE: test
+          mock-server:
+            image: razorpay/metro:mock-subscriber-${{ github.sha }}
+            ports:
+              - "8099:8099"
+            env:
+              APP_ENV: dev_docker
+              GIT_COMMIT_HASH: ${{ github.sha }}
+              EXEC_MODE: test
+          pubsub:
+            image: adhawk/google-pubsub-emulator
+            ports:
+              - "8085:8085"
+            options: --health-cmd "nc -z localhost 8085"
+      steps:
+        - name: checkout
+          id: checkout
+          uses: actions/checkout@v1
+          with:
+            submodules: true
+        - name: install prerequisites
+          run: |
+            apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl
+        - name: setup
+          run: |
+            make deps proto-generate
+        - name: functional tests
+          run: |
+              make test-functional-ci
+        - name: integration tests
+          run: |
+            make test-integration-ci
+        - name: compatibility tests
+          run: |
+            make test-compat-ci

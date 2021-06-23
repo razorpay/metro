@@ -25,27 +25,7 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
     schemes: HTTPS
 };
 
-// HealthCheckAPI defines the health check service.
-service HealthCheckAPI {
-    // Check returns HealthCheckResponse for the requested service.
-    rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {
-        option (google.api.http) = {
-            // Route to this method from GET requests to /v1/healthcheck
-            get: "/v1/healthcheck"
-        };
-        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
-            summary: "Do a healthcheck"
-            description: "Do a healthcheck on the server."
-            tags: "Healthcheck"
-        };
-    }
-}
-
-message HealthCheckRequest {
-    string service = 1;
-}
-
-message HealthCheckResponse {
+message StatusCheckResponse {
     // ServingStatus denotes the status of the service.
     enum ServingStatus {
         SERVING_STATUS_INVALID = 0;
@@ -54,6 +34,33 @@ message HealthCheckResponse {
         SERVING_STATUS_NOT_SERVING = 3;
     }
     ServingStatus serving_status = 1;
+}
+
+// StatusCheckAPI defines the liveness and readiness check service.
+service StatusCheckAPI {
+    rpc ReadinessCheck(google.protobuf.Empty) returns (StatusCheckResponse) {
+        option (google.api.http) = {
+            // Route to this method from GET requests to /v1/readiness
+            get: "/v1/readiness"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Do a readiness check"
+            description: "Checks responsiveness of all the dependant resources that the service is using"
+            tags: "StatusCheck"
+        };
+    }
+
+    rpc LivenessCheck(google.protobuf.Empty) returns (StatusCheckResponse) {
+        option (google.api.http) = {
+            // Route to this method from GET requests to /v1/liveness
+            get: "/v1/liveness"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Do a liveness check"
+            description: "Checks only for the responsiveness of the service"
+            tags: "StatusCheck"
+        };
+    }
 }
 
 service AdminService {

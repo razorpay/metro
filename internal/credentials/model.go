@@ -19,10 +19,18 @@ const (
 
 	// perf10__656f81 : sample username format
 	usernameFormat = "%v%v%v"
-
-	// CtxKey identified credentials will be populated in ctx with this key
-	CtxKey = "CredentialsCtxKey"
 )
+
+var (
+	// CtxKey identified credentials will be populated in ctx with this key
+	CtxKey = contextKey("CredentialsCtxKey")
+)
+
+type contextKey string
+
+func (c contextKey) String() string {
+	return string(c)
+}
 
 // Model for a credential
 type Model struct {

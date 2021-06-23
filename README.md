@@ -1,9 +1,11 @@
 # 🚇 metro <!-- omit in toc -->
 ![build](https://github.com/razorpay/metro/workflows/.github/workflows/build.yml/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/razorpay/metro)](https://goreportcard.com/report/github.com/razorpay/metro)
+[![codecov](https://codecov.io/gh/razorpay/metro/branch/master/graph/badge.svg)](https://codecov.io/gh/razorpay/metro)
 <a href="https://somsubhra.com/github-release-stats/?username=razorpay&repository=metro">
   <img alt="Github Releases Stats" src="https://img.shields.io/github/downloads/razorpay/metro/total.svg?logo=github">
 </a>
-<a href="https://starcharts.herokuapp.com/razorpay/metro"><img alt="Stars" src="https://img.shields.io/github/stars/razorpay/metro.svg?style=social"></a>
+[![GoDoc](https://godoc.org/github.com/razorpay/metro?status.svg)](https://godoc.org/github.com/razorpay/metro) <a href="https://starcharts.herokuapp.com/razorpay/metro"><img alt="Stars" src="https://img.shields.io/github/stars/razorpay/metro.svg?style=social"></a>
 
 Fast and reliable message transport between microservices!
 

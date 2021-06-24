@@ -2,13 +2,14 @@ package registry
 
 import (
 	"context"
-	"github.com/razorpay/metro/pkg/logger"
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 // ConsulClient ...

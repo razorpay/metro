@@ -6,13 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/hashicorp/consul/api"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 )
 

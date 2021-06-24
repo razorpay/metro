@@ -5,12 +5,12 @@ package registry
 import (
 	"context"
 	"encoding/json"
-	"github.com/hashicorp/consul/api"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
 )
 

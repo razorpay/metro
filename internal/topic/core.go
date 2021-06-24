@@ -74,7 +74,7 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 		return err
 	}
 
-	// create regsitry entry
+	// create registry entry
 	return c.repo.Save(ctx, m)
 }
 

@@ -30,7 +30,7 @@ type IRegistry interface {
 	// IsRegistered checks is node with registration_id is registred with registry
 	IsRegistered(ctx context.Context, id string) bool
 
-	// Renew a regestration using registration_id
+	// Renew a registration using registration_id
 	Renew(ctx context.Context, id string) error
 
 	// RenewPeriodic renews a registration id periodically based on TTL

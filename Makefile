@@ -209,7 +209,7 @@ test-compat:
 .PHONY: test-unit-prepare
 test-unit-prepare:
 	@mkdir -p $(TMP_DIR)
-	@go list ./... | grep -v tests > $(TMP_DIR)/$(PKG_LIST_TMP_FILE)
+	@go list ./... | grep -Ev 'tests|mocks' > $(TMP_DIR)/$(PKG_LIST_TMP_FILE)
 
 .PHONY: test-unit ## Run unit tests
 test-unit: test-unit-prepare

@@ -192,11 +192,11 @@ test-functional:
 	@METRO_TEST_HOST=localhost MOCK_SERVER_HOST=localhost go test --count=1 ./tests/functional/... -tags=functional,musl
 
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
-test-integration-ci:
+test-integration-ci: test-unit-prepare
 	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test -tags=integration,musl -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE) ./tests/integration/...
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
-test-integration:
+test-integration: test-unit-prepare
 	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 -tags=integration,musl -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE) ./tests/integration/...
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)

@@ -68,7 +68,7 @@ func (c *ConsulClient) IsRegistered(ctx context.Context, sessionID string) bool 
 
 	session, _, err := c.client.Session().Info(sessionID, nil)
 	if err != nil {
-		logger.Ctx(ctx).Infow("failed to get session info", "error", err.Error())
+		logger.Ctx(ctx).Errorw("failed to get session info", "error", err.Error())
 		return false
 	}
 
@@ -88,7 +88,7 @@ func (c *ConsulClient) Renew(ctx context.Context, sessionID string) error {
 
 	// if err is nil, it means client failed to renew session
 	if err != nil {
-		logger.Ctx(ctx).Infow("failed to renew consul session", "error", err.Error())
+		logger.Ctx(ctx).Errorw("failed to renew consul session", "error", err.Error())
 		return err
 	}
 
@@ -124,7 +124,7 @@ func (c *ConsulClient) Deregister(ctx context.Context, sessionID string) error {
 
 	_, err := c.client.Session().Destroy(sessionID, nil)
 	if err != nil {
-		logger.Ctx(ctx).Infow("failed to destroy consul session", "ID", sessionID, "error", err.Error())
+		logger.Ctx(ctx).Errorw("failed to destroy consul session", "ID", sessionID, "error", err.Error())
 	}
 
 	return err
@@ -146,7 +146,7 @@ func (c *ConsulClient) Acquire(ctx context.Context, sessionID string, key string
 	}, nil)
 
 	if err != nil {
-		logger.Ctx(ctx).Infow("error in consul acquire call", "ID", sessionID, "key", key, "error", err.Error())
+		logger.Ctx(ctx).Errorw("error in consul acquire call", "ID", sessionID, "key", key, "error", err.Error())
 		return false, err
 	}
 

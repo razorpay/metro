@@ -43,10 +43,6 @@ func validateKafkaProducerClientConfig(options *ProducerClientOptions) error {
 		return fmt.Errorf("kafka: empty topic name")
 	}
 
-	if options.Partition < 0 {
-		return fmt.Errorf("kafka: invalid partition")
-	}
-
 	if options.TimeoutMs > 60000 {
 		return fmt.Errorf("kafka: operation timeout above the allowed value of 60secs")
 	}

@@ -8,6 +8,7 @@ import (
 
 // BrokerConfig holds broker's configuration
 type BrokerConfig struct {
+	// A list of host/port pairs to use for establishing the initial connection to the broker cluster
 	Brokers             []string
 	EnableTLS           bool
 	UserCertificate     string
@@ -46,16 +47,21 @@ type AdminConfig struct{}
 
 // ConsumerClientOptions holds client specific configuration for consumer
 type ConsumerClientOptions struct {
-	Topics       []string
+	// Specify a list of topics to consume messages from
+	Topics []string
+	// Specify the subscription name for this consumer. Only used for pulsar
 	Subscription string
-	GroupID      string
-	Partition    int
+	// A unique string that identifies the consumer group this consumer belongs to.
+	GroupID string
+	// A unique identifier of the consumer instance provided by the end user.
+	// Only non-empty strings are permitted. If set, the consumer is treated as a static member,
+	// which means that only one instance with this ID is allowed in the consumer group at any time
+	GroupInstanceID string
 }
 
 // ProducerClientOptions holds client specific configuration for producer
 type ProducerClientOptions struct {
 	Topic     string
-	Partition int
 	TimeoutMs int64
 }
 

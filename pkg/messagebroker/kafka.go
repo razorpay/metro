@@ -38,7 +38,7 @@ type KafkaBroker struct {
 }
 
 // newKafkaConsumerClient returns a kafka consumer
-func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id string, options *ConsumerClientOptions) (Consumer, error) {
+func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 	err := validateKafkaConsumerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
@@ -51,13 +51,13 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, id strin
 
 	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
-		"group.id":           options.GroupID,
 		"auto.offset.reset":  "latest",
 		"enable.auto.commit": false,
-		"group.instance.id":  id,
+		"group.id":           options.GroupID,
+		"group.instance.id":  options.GroupInstanceID,
 	}
 
-	logger.Ctx(ctx).Infow("kafka consumer: initializing new", "configMap", configMap, "options", options, "id", id)
+	logger.Ctx(ctx).Infow("kafka consumer: initializing new", "configMap", configMap, "options", options)
 
 	if bConfig.EnableTLS {
 		certs, err := readKafkaCerts(bConfig.CertDir)

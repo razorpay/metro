@@ -65,7 +65,6 @@ func Test_validateKafkaConsumerBrokerConfig(t *testing.T) {
 func Test_validateKafkaProducerClientConfig(t *testing.T) {
 	op1 := ProducerClientOptions{
 		Topic:     "t1",
-		Partition: 0,
 		TimeoutMs: 100,
 	}
 
@@ -73,18 +72,11 @@ func Test_validateKafkaProducerClientConfig(t *testing.T) {
 
 	ops := []ProducerClientOptions{
 		{
-			Topic:     "t2",
-			Partition: -1,
-			TimeoutMs: 100,
-		},
-		{
 			Topic:     "",
-			Partition: 0,
 			TimeoutMs: 100,
 		},
 		{
 			Topic:     "t3",
-			Partition: 0,
 			TimeoutMs: 300000,
 		},
 	}
@@ -92,5 +84,4 @@ func Test_validateKafkaProducerClientConfig(t *testing.T) {
 	for _, op := range ops {
 		assert.NotNil(t, validateKafkaProducerClientConfig(&op))
 	}
-
 }

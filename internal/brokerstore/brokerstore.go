@@ -61,7 +61,7 @@ type BrokerStore struct {
 type IBrokerStore interface {
 
 	// GetConsumer returns for an existing consumer instance, if available returns that else creates as new instance
-	GetConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
+	GetConsumer(ctx context.Context, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
 
 	// RemoveConsumer deletes the consumer from the store
 	RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) bool
@@ -94,7 +94,7 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 }
 
 // GetConsumer returns for an existing consumer instance, if available returns that else creates as new instance
-func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
+func (b *BrokerStore) GetConsumer(ctx context.Context, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.GetConsumer")
 	defer span.Finish()
 
@@ -105,7 +105,7 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 		brokerStoreOperationTimeTaken.WithLabelValues(env, "GetConsumer").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	key := NewKey(op.GroupID, id)
+	key := NewKey(op.GroupID, op.GroupInstanceID)
 	consumer, ok := b.consumerMap.Load(key.String())
 	if ok {
 		return consumer.(messagebroker.Consumer), nil
@@ -119,7 +119,6 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, id string, op messagebrok
 	}
 	newConsumer, perr := messagebroker.NewConsumerClient(ctx,
 		b.variant,
-		id,
 		b.bConfig,
 		&op,
 	)

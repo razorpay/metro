@@ -12,7 +12,7 @@ import (
 
 // Server has methods implementing of server rpc.
 type Server struct {
-	core *Core
+	core ICore
 }
 
 // ReadinessCheck checks only for the responsiveness of the service
@@ -37,7 +37,7 @@ func (h *Server) LivenessCheck(ctx context.Context, _ *emptypb.Empty) (*metrov1.
 }
 
 // NewServer returns a health server
-func NewServer(core *Core) *Server {
+func NewServer(core ICore) *Server {
 	return &Server{core: core}
 }
 

@@ -8,6 +8,8 @@ import (
 	"github.com/hashicorp/consul/api/watch"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 // ConsulClient ...
@@ -64,7 +66,11 @@ func (c *ConsulClient) IsRegistered(ctx context.Context, sessionID string) bool 
 		registryOperationTimeTaken.WithLabelValues(env, "IsRegistered").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	session, _, _ := c.client.Session().Info(sessionID, nil)
+	session, _, err := c.client.Session().Info(sessionID, nil)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to get session info", "error", err.Error())
+		return false
+	}
 
 	return session != nil
 }
@@ -78,9 +84,21 @@ func (c *ConsulClient) Renew(ctx context.Context, sessionID string) error {
 		registryOperationTimeTaken.WithLabelValues(env, "Renew").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	_, _, err := c.client.Session().Renew(sessionID, nil)
+	sessionEntry, _, err := c.client.Session().Renew(sessionID, nil)
 
-	return err
+	// if err is nil, it means client failed to renew session
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to renew consul session", "error", err.Error())
+		return err
+	}
+
+	// if err is nil and sessionEntry is nil, session already expired before renew
+	if sessionEntry == nil {
+		return api.ErrSessionExpired
+	}
+
+	// session successfully renewed
+	return nil
 }
 
 // RenewPeriodic renews consul session periodically until doneCh signals done
@@ -105,6 +123,9 @@ func (c *ConsulClient) Deregister(ctx context.Context, sessionID string) error {
 	}()
 
 	_, err := c.client.Session().Destroy(sessionID, nil)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to destroy consul session", "ID", sessionID, "error", err.Error())
+	}
 
 	return err
 }
@@ -125,6 +146,7 @@ func (c *ConsulClient) Acquire(ctx context.Context, sessionID string, key string
 	}, nil)
 
 	if err != nil {
+		logger.Ctx(ctx).Errorw("error in consul acquire call", "ID", sessionID, "key", key, "error", err.Error())
 		return false, err
 	}
 

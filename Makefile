@@ -14,7 +14,8 @@ TMP_DIR := ".tmp"
 DOCS_DIR := "docs"
 UML_OUT_FILE := "uml_graph.puml"
 PKG_LIST_TMP_FILE := "app.packages"
-COVERAGE_TMP_FILE := "app.cov"
+UNIT_COVERAGE_TMP_FILE := "app-unit.cov"
+INTG_COVERAGE_TMP_FILE := "app-integration.cov"
 UNIT_TEST_EXCLUSIONS_FILE := "unit-test.exclusions"
 # Proto gen info
 PROTO_ROOT := "metro-proto/"
@@ -191,12 +192,12 @@ test-functional:
 	@METRO_TEST_HOST=localhost MOCK_SERVER_HOST=localhost go test --count=1 ./tests/functional/... -tags=functional,musl
 
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
-test-integration-ci:
-	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test ./tests/integration/... -tags=integration,musl
+test-integration-ci: test-unit-prepare
+	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test -tags=integration,musl -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE) ./tests/integration/...
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
-test-integration:
-	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 ./tests/integration/... -tags=integration,musl
+test-integration: test-unit-prepare
+	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 -tags=integration,musl -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE) ./tests/integration/...
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:
@@ -209,12 +210,12 @@ test-compat:
 .PHONY: test-unit-prepare
 test-unit-prepare:
 	@mkdir -p $(TMP_DIR)
-	@go list ./... | grep -v tests > $(TMP_DIR)/$(PKG_LIST_TMP_FILE)
+	@go list ./... | grep -Ev 'tests|mocks|statik|rpc' > $(TMP_DIR)/$(PKG_LIST_TMP_FILE)
 
 .PHONY: test-unit ## Run unit tests
 test-unit: test-unit-prepare
-	@APP_ENV=dev_docker go test --count=1 -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(COVERAGE_TMP_FILE) ./...
-	@go tool cover -func=$(TMP_DIR)/$(COVERAGE_TMP_FILE)
+	@APP_ENV=dev_docker go test --count=1 -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE) ./...
+	@go tool cover -func=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE)
 
 .PHONY: help ## Display this help screen
 help:

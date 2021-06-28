@@ -183,6 +183,12 @@ mock-gen-clean:
 docs-uml:
 	@go-plantuml generate --recursive --directories cmd --directories internal --directories pkg --out $(DOCS_DIR)/$(UML_OUT_FILE)
 
+docs-gh:
+	ruby -v
+	bundle -v
+	cd docs; bundle install
+	cd docs; bundle exec jekyll serve
+
 .PHONY: test-functional-ci ## run functional tests on ci (github actions)
 test-functional-ci:
 	@METRO_TEST_HOST=metro-web MOCK_SERVER_HOST=mock-server go test ./tests/functional/... -tags=functional,musl

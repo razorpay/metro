@@ -201,11 +201,11 @@ test-functional:
 
 .PHONY: test-integration-ci ## run integration tests on ci (github actions)
 test-integration-ci: test-unit-prepare
-	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test -tags=integration,musl -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE) ./tests/integration/...
+	@METRO_TEST_HOST=metro-web KAFKA_TEST_HOST=kafka-broker go test -tags=integration,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE) ./tests/integration/...
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration: test-unit-prepare
-	@METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 -tags=integration,musl -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE) ./tests/integration/...
+    @METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test --count=1 -tags=integration,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g')  -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE) ./tests/integration/...
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:

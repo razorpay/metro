@@ -17,8 +17,13 @@ type Core struct {
 	bs brokerstore.IBrokerStore
 }
 
+// ICore is an interface over publisher core
+type ICore interface {
+	Publish(ctx context.Context, req *metrov1.PublishRequest) ([]string, error)
+}
+
 // NewCore returns a new publisher
-func NewCore(bs brokerstore.IBrokerStore) *Core {
+func NewCore(bs brokerstore.IBrokerStore) ICore {
 	return &Core{bs}
 }
 

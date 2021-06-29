@@ -28,7 +28,7 @@ type PulsarBroker struct {
 }
 
 // newPulsarConsumerClient returns a pulsar consumer
-func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, id string, options *ConsumerClientOptions) (Consumer, error) {
+func newPulsarConsumerClient(_ context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 
 	err := validatePulsarConsumerBrokerConfig(bConfig)
 	if err != nil {
@@ -54,7 +54,7 @@ func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, id stri
 		Topics:           options.Topics,
 		SubscriptionName: options.Subscription,
 		Type:             pulsar.SubscriptionType(bConfig.Consumer.SubscriptionType),
-		Name:             id,
+		Name:             options.GroupInstanceID,
 	})
 
 	if err != nil {
@@ -69,7 +69,7 @@ func newPulsarConsumerClient(ctx context.Context, bConfig *BrokerConfig, id stri
 }
 
 // newPulsarProducerClient returns a pulsar producer
-func newPulsarProducerClient(ctx context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
+func newPulsarProducerClient(_ context.Context, bConfig *BrokerConfig, options *ProducerClientOptions) (Producer, error) {
 
 	err := validatePulsarProducerBrokerConfig(bConfig)
 	if err != nil {

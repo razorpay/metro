@@ -34,7 +34,7 @@ type Core struct {
 }
 
 // NewCore returns an instance of Core
-func NewCore(repo IRepo, projectCore project.ICore, brokerStore brokerstore.IBrokerStore) *Core {
+func NewCore(repo IRepo, projectCore project.ICore, brokerStore brokerstore.IBrokerStore) ICore {
 	return &Core{repo, projectCore, brokerStore}
 }
 

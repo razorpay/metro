@@ -24,7 +24,7 @@ type Core struct {
 }
 
 // NewCore returns a new core
-func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) *Core {
+func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) ICore {
 	return &Core{bs: bs, subscriptionCore: subscriptionCore}
 }
 
@@ -45,7 +45,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 
 	groupID := subscription.Name
 
-	consumer, err := c.bs.GetConsumer(ctx, subscriberID, messagebroker.ConsumerClientOptions{Topics: []string{topic, retryTopic}, GroupID: groupID})
+	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{topic, retryTopic}, GroupID: groupID, GroupInstanceID: subscriberID})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: failed to create consumer", "error", err.Error())
 		return nil, err

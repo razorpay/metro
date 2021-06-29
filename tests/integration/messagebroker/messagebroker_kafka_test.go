@@ -31,7 +31,7 @@ func Test_CreateValidTopic(t *testing.T) {
 	assert.NotNil(t, resp)
 
 	// create consumer to fetch topic metadata
-	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-1", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
 		Topics:  []string{topic},
 		GroupID: "dummy-group-2",
 	})
@@ -148,7 +148,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	}
 
 	// now consume the messages and assert the message ids generated in the previous step
-	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-1", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
 		Topics:  []string{topic},
 		GroupID: "dummy-group-1",
 	})
@@ -173,7 +173,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.Equal(t, 0, len(resp.PartitionOffsetWithMessages))
 
 	// spwan a new consumer and try to re-receive after commit and make sure no new messages are available
-	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", "id-2", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
 		Topics:  []string{topic},
 		GroupID: "dummy-group-1",
 	})

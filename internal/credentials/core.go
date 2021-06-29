@@ -25,7 +25,7 @@ type Core struct {
 }
 
 // NewCore returns an instance of Core
-func NewCore(repo IRepo, projectCore project.ICore) *Core {
+func NewCore(repo IRepo, projectCore project.ICore) ICore {
 	return &Core{repo, projectCore}
 }
 

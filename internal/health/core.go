@@ -20,8 +20,14 @@ type Core struct {
 	checkers          []Checker
 }
 
+// ICore is an interface over health core
+type ICore interface {
+	IsHealthy(ctx context.Context) bool
+	MarkUnhealthy()
+}
+
 // NewCore creates a new health core.
-func NewCore(checkers ...Checker) (*Core, error) {
+func NewCore(checkers ...Checker) (ICore, error) {
 	return &Core{isMarkedUnhealthy: false, mutex: &sync.Mutex{}, checkers: checkers}, nil
 }
 

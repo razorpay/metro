@@ -31,7 +31,7 @@ type Service struct {
 	grpcServer         *grpc.Server
 	httpServer         *http.Server
 	internalHTTPServer *http.Server
-	health             *health.Core
+	health             health.ICore
 	webConfig          *Config
 	registryConfig     *registry.Config
 	admin              *credentials.Model

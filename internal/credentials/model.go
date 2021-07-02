@@ -100,7 +100,7 @@ func (m *Model) MarkAdmin() {
 	m.IsAdmin = true
 }
 
-// IsAdmin returns true if credentials are for admin
+// IsAdminType returns true if credentials are for admin
 func (m *Model) IsAdminType() bool {
 	return m.IsAdmin
 }

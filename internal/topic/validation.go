@@ -45,7 +45,9 @@ func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) 
 // GetValidatedTopicForAdminUpdate validates an incoming proto request and returns the model
 func GetValidatedTopicForAdminUpdate(ctx context.Context, req *metrov1.AdminTopic) (*Model, error) {
 	p, t, err := ExtractTopicMetaAndValidateForCreate(ctx, req.GetName())
-	if err != nil {
+	if errors.Is(err, credentials.UnauthenticatedError) {
+		return nil, err
+	} else if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topics] name: (name=%s)", req.Name)
 	}
 	m := &Model{}

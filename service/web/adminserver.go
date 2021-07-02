@@ -119,6 +119,9 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 		return nil, merror.ToGRPCError(uerr)
 	}
 
+	logger.Ctx(ctx).Infow("admin request to modify topic completed",
+		"name", req.Name, "new_partitions", req.NumPartitions)
+
 	return &emptypb.Empty{}, nil
 }
 

@@ -38,6 +38,7 @@ type Model struct {
 	Username  string `json:"username"`
 	Password  string `json:"password"`
 	ProjectID string `json:"project_id"`
+	IsAdmin   bool   `json:"is_admin"`
 	// in future, this model can contain some ACL as well
 }
 
@@ -46,6 +47,7 @@ type ICredentials interface {
 	GetUsername() string
 	GetPassword() string
 	GetProjectID() string
+	IsAdminType() bool
 }
 
 // Key returns the key for storing credentials in the registry
@@ -69,6 +71,19 @@ func NewCredential(username, password string) ICredentials {
 	return m
 }
 
+// NewAdminCredential returns a new admin credential model
+func NewAdminCredential(username, password string) ICredentials {
+	m := &Model{}
+	m.Username = username
+	// store Password only after encoding it
+	m.Password = utils.Encode(password)
+	// extract projectID from username
+	m.ProjectID = GetProjectIDFromUsername(username)
+	// mark the credentials as admin type
+	m.MarkAdmin()
+	return m
+}
+
 // GetUsername returns the credential Username
 func (m *Model) GetUsername() string {
 	return m.Username
@@ -78,6 +93,16 @@ func (m *Model) GetUsername() string {
 func (m *Model) GetPassword() string {
 	// decode before reading Password
 	return utils.Decode(m.Password)
+}
+
+// MarkAdmin marks the credentials as admin
+func (m *Model) MarkAdmin() {
+	m.IsAdmin = true
+}
+
+// IsAdmin returns true if credentials are for admin
+func (m *Model) IsAdminType() bool {
+	return m.IsAdmin
 }
 
 // GetProjectID returns the credential projectID

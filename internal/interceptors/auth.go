@@ -108,5 +108,6 @@ func AdminAuth(ctx context.Context, admin *credentials.Model) (context.Context, 
 		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
 	}
 
-	return ctx, nil
+	newCtx := context.WithValue(ctx, credentials.CtxKey.String(), credentials.NewAdminCredential(user, string(password)))
+	return newCtx, nil
 }

@@ -27,7 +27,7 @@ func NewComponent(ctx context.Context, component string, cfg config.Config) (*Co
 		svc = web.NewService(ctx, &cfg.Admin, &cfg.Web, &cfg.Registry)
 		config = cfg.Web
 	case Worker:
-		svc = worker.NewService(ctx, &cfg.Worker, &cfg.Registry)
+		svc = worker.NewService(ctx, &cfg.Admin, &cfg.Worker, &cfg.Registry)
 		config = cfg.Worker
 	case OpenAPIServer:
 		svc = openapiserver.NewService(ctx, &cfg.OpenAPIServer)

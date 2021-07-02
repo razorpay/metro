@@ -12,6 +12,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
@@ -38,6 +39,7 @@ type Service struct {
 	internalHTTPServer *http.Server
 	health             health.ICore
 	workerConfig       *Config
+	admin              *credentials.Model
 	registryConfig     *registry.Config
 	registry           registry.IRegistry
 	candidate          *leaderelection.Candidate
@@ -63,7 +65,7 @@ type Service struct {
 }
 
 // NewService creates an instance of new worker
-func NewService(ctx context.Context, workerConfig *Config, registryConfig *registry.Config) *Service {
+func NewService(ctx context.Context, admin *credentials.Model, workerConfig *Config, registryConfig *registry.Config) *Service {
 	return &Service{
 		ctx:            ctx,
 		workerConfig:   workerConfig,
@@ -73,6 +75,7 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		},
 		doneCh:           make(chan struct{}),
 		stopCh:           make(chan struct{}),
+		admin:            admin,
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
 		nodebindingCache: []*nodebinding.Model{},
@@ -90,6 +93,9 @@ func (svc *Service) Start() error {
 		err  error
 		gctx context.Context
 	)
+
+	// set admin auth for all worker processes
+	svc.ctx = context.WithValue(svc.ctx, credentials.CtxKey.String(), credentials.NewAdminCredential(svc.admin.Username, svc.admin.Password))
 
 	svc.workgrp, gctx = errgroup.WithContext(svc.ctx)
 

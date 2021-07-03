@@ -64,8 +64,10 @@ func TestValidation_IsAuthorized1(t *testing.T) {
 		os.Setenv("APP_ENV", currEnv)
 	}()
 
-	ctx := context.WithValue(context.Background(), CtxKey.String(), NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
+	creds := NewCredential("project007__c525c7", "l0laNoI360l4uvD96682")
+	ctx := context.WithValue(context.Background(), CtxKey.String(), creds)
 	assert.True(t, IsAuthorized(ctx, "project007")) // matching project
+	assert.False(t, creds.IsAdminType())
 }
 
 func TestValidation_IsAuthorized2(t *testing.T) {
@@ -76,8 +78,10 @@ func TestValidation_IsAuthorized2(t *testing.T) {
 		os.Setenv("APP_ENV", currEnv)
 	}()
 
-	ctx := context.WithValue(context.Background(), CtxKey.String(), NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
+	creds := NewCredential("project007__c525c7", "l0laNoI360l4uvD96682")
+	ctx := context.WithValue(context.Background(), CtxKey.String(), creds)
 	assert.False(t, IsAuthorized(ctx, "project999")) // project mismatch
+	assert.False(t, creds.IsAdminType())
 }
 
 func TestValidation_IsAuthorized3(t *testing.T) {

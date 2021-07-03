@@ -27,7 +27,7 @@ func TestValidation_IsValidUsername4(t *testing.T) {
 	assert.False(t, IsValidUsername("perf10__q1w2"))
 }
 
-func TestValidation_fromProto(t *testing.T) {
+func TestValidation_fromProto_Success(t *testing.T) {
 	proto := &metrov1.ProjectCredentials{
 		ProjectId: "project007",
 	}
@@ -36,6 +36,24 @@ func TestValidation_fromProto(t *testing.T) {
 	assert.Equal(t, "project007", m.GetProjectID())
 	assert.True(t, usernameRegex.MatchString(m.GetUsername()))
 	assert.Equal(t, 20, len(m.GetPassword()))
+}
+
+func TestValidation_fromProto_Failure1(t *testing.T) {
+	proto := &metrov1.ProjectCredentials{
+		ProjectId: "", // empty project
+	}
+	m, err := GetValidatedModelForCreate(context.Background(), proto)
+	assert.Nil(t, m)
+	assert.NotNil(t, err)
+}
+
+func TestValidation_fromProto_Failure2(t *testing.T) {
+	proto := &metrov1.ProjectCredentials{
+		ProjectId: "project_!@!@!@$scsidcmosicm_wrong_name", // invalid project
+	}
+	m, err := GetValidatedModelForCreate(context.Background(), proto)
+	assert.Nil(t, m)
+	assert.NotNil(t, err)
 }
 
 func TestValidation_IsAuthorized1(t *testing.T) {
@@ -60,4 +78,35 @@ func TestValidation_IsAuthorized2(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), CtxKey.String(), NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
 	assert.False(t, IsAuthorized(ctx, "project999")) // project mismatch
+}
+
+func TestValidation_IsAuthorized3(t *testing.T) {
+
+	currEnv := os.Getenv("APP_ENV")
+	os.Setenv("APP_ENV", "non-dev")
+	defer func() {
+		os.Setenv("APP_ENV", currEnv)
+	}()
+
+	adminCreds := NewAdminCredential("admin", "supersecret")
+	assert.True(t, adminCreds.IsAdminType())
+
+	ctx := context.WithValue(context.Background(), CtxKey.String(), adminCreds)
+	assert.True(t, IsAuthorized(ctx, "this-should-not-matter-for-admin"))
+}
+
+func TestValidation_IsAuthorized4(t *testing.T) {
+	currEnv := os.Getenv("APP_ENV")
+	os.Setenv("APP_ENV", "non-dev")
+	defer func() {
+		os.Setenv("APP_ENV", currEnv)
+	}()
+
+	// do not set any creds in ctx
+	assert.False(t, IsAuthorized(context.Background(), "project1"))
+}
+
+func TestValidation_IsAuthorized5(t *testing.T) {
+	// test mode validations should be true
+	assert.True(t, IsAuthorized(context.Background(), "project1"))
 }

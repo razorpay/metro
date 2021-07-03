@@ -257,7 +257,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 	}
 
 	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Inc()
-	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription, req.MessageID).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
@@ -322,7 +322,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		s.removeMessageFromMemory(stats, msgID)
 
 		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Inc()
-		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription, msgID).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 
 		return
 	}
@@ -474,7 +474,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 					subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription, s.subscriberID).Inc()
 					subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
-					subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+					subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription, msg.MessageID).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 				}
 
 				if len(sm) > 0 {

@@ -69,3 +69,6 @@
 [admin]
     username = ""
     password = ""
+
+[encryption]
+    key = "SnYimQdaNkZw73Rk3Ktocnep0hUeTNje"

@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/razorpay/metro/internal/common"
-	"github.com/razorpay/metro/pkg/utils"
+	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/sethvargo/go-password/password"
 )
 
@@ -62,8 +62,8 @@ func (m *Model) Prefix() string {
 func NewCredential(username, password string) ICredentials {
 	m := &Model{}
 	m.Username = username
-	// store Password only after encoding it
-	m.Password = utils.Encode(password)
+	// store Password only after encrypting it
+	m.Password, _ = encryption.EncryptAsHexString([]byte(password))
 	// extract projectID from username
 	m.ProjectID = GetProjectIDFromUsername(username)
 	return m
@@ -74,10 +74,11 @@ func (m *Model) GetUsername() string {
 	return m.Username
 }
 
-// GetPassword returns the credential Password
+// GetPassword returns the decrypted credential Password
 func (m *Model) GetPassword() string {
-	// decode before reading Password
-	return utils.Decode(m.Password)
+	// decrypt before reading Password
+	pwd, _ := encryption.DecryptFromHexString(m.Password)
+	return string(pwd)
 }
 
 // GetProjectID returns the credential projectID
@@ -91,7 +92,8 @@ func newUsername(projectID string) string {
 
 func newPassword() string {
 	pwd, _ := password.Generate(20, 10, 0, false, true)
-	return utils.Encode(pwd)
+	encryptedPwd, _ := encryption.EncryptAsHexString([]byte(pwd))
+	return encryptedPwd
 }
 
 // GetProjectIDFromUsername returns the projectID for a given username

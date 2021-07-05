@@ -120,7 +120,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		}
 
 		startTime := time.Now()
-		pushRequest := newPushEndpointRequest(message, subModel.Key())
+		pushRequest := newPushEndpointRequest(message, subModel.Name)
 		postBody, _ := json.Marshal(pushRequest)
 		postData := bytes.NewBuffer(postBody)
 		req, err := http.NewRequest("POST", subModel.PushEndpoint, postData)

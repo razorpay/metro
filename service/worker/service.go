@@ -62,7 +62,7 @@ type Service struct {
 }
 
 // NewService creates an instance of new worker
-func NewService(workerConfig *Config, registryConfig *registry.Config) *Service {
+func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service, error) {
 	return &Service{
 		workerConfig:   workerConfig,
 		registryConfig: registryConfig,
@@ -76,7 +76,7 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) *Service 
 		nodebindingCache: []*nodebinding.Model{},
 		pushHandlers:     sync.Map{},
 		nbwatch:          make(chan []registry.Pair),
-	}
+	}, nil
 }
 
 // Start implements all the tasks for worker and waits until one of the task fails

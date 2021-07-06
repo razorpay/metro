@@ -13,27 +13,28 @@ import (
 // Component is a holder for a metro's deployable component
 type Component struct {
 	name    string
-	cfg     interface{}
 	service service.IService
 }
 
 // NewComponent returns a new instance of a metro service component
 func NewComponent(component string, cfg config.Config) (*Component, error) {
 	var svc service.IService
-	var config interface{}
+	var err error
 
 	switch component {
 	case Web:
-		svc = web.NewService(&cfg.Admin, &cfg.Web, &cfg.Registry)
-		config = cfg.Web
+		svc, err = web.NewService(&cfg.Admin, &cfg.Web, &cfg.Registry)
 	case Worker:
-		svc = worker.NewService(&cfg.Worker, &cfg.Registry)
-		config = cfg.Worker
+		svc, err = worker.NewService(&cfg.Worker, &cfg.Registry)
 	case OpenAPIServer:
-		svc = openapiserver.NewService(&cfg.OpenAPIServer)
+		svc, err = openapiserver.NewService(&cfg.OpenAPIServer)
 	}
+
+	if err != nil{
+		return nil, err
+	}
+
 	return &Component{
-		cfg:     config,
 		name:    component,
 		service: svc,
 	}, nil

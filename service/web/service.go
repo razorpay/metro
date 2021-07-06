@@ -37,15 +37,15 @@ type Service struct {
 }
 
 // NewService creates an instance of new producer service
-func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config) *Service {
+func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config) (*Service, error) {
 	return &Service{
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
 		admin:          admin,
-	}
+	}, nil
 }
 
-// Run the service
+// Start the service
 func (svc *Service) Start(ctx context.Context) error {
 	// initiates a error group
 	grp, gctx := errgroup.WithContext(ctx)

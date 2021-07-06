@@ -27,7 +27,6 @@ import (
 
 // Service for producer
 type Service struct {
-	ctx                context.Context
 	grpcServer         *grpc.Server
 	httpServer         *http.Server
 	internalHTTPServer *http.Server
@@ -38,19 +37,18 @@ type Service struct {
 }
 
 // NewService creates an instance of new producer service
-func NewService(ctx context.Context, admin *credentials.Model, webConfig *Config, registryConfig *registry.Config) *Service {
+func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config) *Service {
 	return &Service{
-		ctx:            ctx,
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
 		admin:          admin,
 	}
 }
 
-// Start the service
-func (svc *Service) Start() error {
+// Run the service
+func (svc *Service) Start(ctx context.Context) error {
 	// initiates a error group
-	grp, gctx := errgroup.WithContext(svc.ctx)
+	grp, gctx := errgroup.WithContext(ctx)
 
 	// Define server handlers
 	r, err := registry.NewRegistry(svc.registryConfig)
@@ -65,7 +63,7 @@ func (svc *Service) Start() error {
 	if berr != nil {
 		return berr
 	}
-	admin, _ := brokerStore.GetAdmin(svc.ctx, messagebroker.AdminClientOptions{})
+	admin, _ := brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	// init broker health checker
 	brokerHealthChecker := health.NewBrokerHealthChecker(svc.webConfig.Broker.Variant, admin)
 
@@ -85,7 +83,7 @@ func (svc *Service) Start() error {
 
 	publisher := publisher.NewCore(brokerStore)
 
-	streamManager := stream.NewStreamManager(svc.ctx, subscriptionCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
+	streamManager := stream.NewStreamManager(ctx, subscriptionCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
 
 	grpcServer, err := server.StartGRPCServer(
 		grp,
@@ -122,7 +120,7 @@ func (svc *Service) Start() error {
 				return err
 			}
 
-			err = metrov1.RegisterSubscriberHandlerFromEndpoint(svc.ctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
+			err = metrov1.RegisterSubscriberHandlerFromEndpoint(gctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 			if err != nil {
 				return err
 			}
@@ -151,8 +149,8 @@ func (svc *Service) Start() error {
 }
 
 // Stop the service
-func (svc *Service) Stop() error {
-	grp, gctx := errgroup.WithContext(svc.ctx)
+func (svc *Service) Stop(ctx context.Context) {
+	grp, gctx := errgroup.WithContext(ctx)
 
 	grp.Go(func() error {
 		svc.grpcServer.GracefulStop()
@@ -167,7 +165,10 @@ func (svc *Service) Stop() error {
 		return svc.internalHTTPServer.Shutdown(gctx)
 	})
 
-	return grp.Wait()
+	err := grp.Wait()
+	if err != nil{
+		logger.Ctx(ctx).Warnw("failed to stop service", "error", err.Error())
+	}
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {

@@ -65,5 +65,5 @@ type LeaderCallbacks struct {
 	// OnStartedLeading is called when a LeaderElector client starts leading
 	OnStartedLeading func(context.Context) error
 	// OnStoppedLeading is called when a LeaderElector client stops leading
-	OnStoppedLeading func()
+	OnStoppedLeading func(ctx context.Context)
 }

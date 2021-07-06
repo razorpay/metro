@@ -43,8 +43,7 @@ func Init(ctx context.Context, env string, componentName string) {
 	if !ok {
 		log.Fatalf("invalid componentName given as input: [%v]", componentName)
 	}
-
-	log.Printf("starting component: [%v] in env: [%v]", componentName, env)
+	log.Printf("Setting up metro component: [%v] in env: [%v]", componentName, env)
 
 	// read the componentName config for env
 	var appConfig config.Config
@@ -68,7 +67,7 @@ func Init(ctx context.Context, env string, componentName string) {
 	}
 
 	// Init the requested componentName
-	component, err = NewComponent(ctx, componentName, appConfig)
+	component, err = NewComponent(componentName, appConfig)
 	if err != nil {
 		log.Fatalf("error in creating metro component : %v", err)
 	}
@@ -76,6 +75,8 @@ func Init(ctx context.Context, env string, componentName string) {
 
 // Run handles the component execution lifecycle
 func Run(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+
 	// Shutdown monitoring
 	defer func() {
 		err := boot.Close()
@@ -84,30 +85,25 @@ func Run(ctx context.Context) {
 		}
 	}()
 
-	// Handle error from component start
-	errCh := make(chan error)
-
-	// start the component in a go routine, Start should be implemented as a blocking call
-	go func() {
-		errCh <- component.Start()
-	}()
-
 	// Handle SIGINT & SIGTERM - Shutdown gracefully
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 
-	select {
-	// Block until SIGINT/SIGTERM signal is received
-	case sig := <-sigCh:
-		logger.Ctx(ctx).Infow("received a signal, stopping metro", "signal", sig)
-	case err := <-errCh:
-		logger.Ctx(ctx).Fatalw("component exited with error", "msg", err.Error())
-	}
+	// cleanup
+	defer func() {
+		signal.Stop(sigCh)
+		cancel()
+	}()
 
-	// call stop component, it should internally clean up for all running go routines
-	err := component.Stop()
-	if err != nil {
-		logger.Ctx(ctx).Fatalw("error in stopping metro")
+	go func() {
+		sig := <- sigCh
+		logger.Ctx(ctx).Infow("received a signal, stopping metro", "signal", sig)
+		cancel()
+	}()
+
+	err := component.Run(ctx)
+	if err != nil{
+		logger.Ctx(ctx).Fatalw("component exited with error", "msg", err.Error())
 	}
 
 	logger.Ctx(ctx).Infow("stopped metro")

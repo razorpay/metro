@@ -148,9 +148,5 @@ func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (proje
 		return "", "", err
 	}
 
-	if !credentials.IsAuthorized(ctx, projectID) {
-		return "", "", credentials.UnauthenticatedError
-	}
-
 	return projectID, subscriptionName, nil
 }

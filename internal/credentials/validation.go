@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
-	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/project"
-	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -51,21 +48,4 @@ func fromProto(proto *metrov1.ProjectCredentials) *Model {
 // IsValidUsername checks if the username is of the expected format
 func IsValidUsername(username string) bool {
 	return usernameRegex.MatchString(username)
-}
-
-// IsAuthorized checks if the projectID from the auth matches the projectID being accessed
-func IsAuthorized(ctx context.Context, projectID string) bool {
-	if app.IsTestMode() {
-		logger.Ctx(ctx).Debugw("skipping auth", "projectID", projectID)
-		return true
-	}
-
-	authFromCtx := ctx.Value(CtxKey.String())
-	if authFromCtx != nil {
-		authCredentials := authFromCtx.(ICredentials)
-		if authCredentials != nil {
-			return strings.EqualFold(projectID, authCredentials.GetProjectID())
-		}
-	}
-	return false
 }

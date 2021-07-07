@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/http/pprof"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc/metadata"
 
 	"golang.org/x/sync/errgroup"
 
@@ -132,7 +134,25 @@ func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInter
 
 func newHTTPServer(r registerHTTPHandlers) (*http.Server, error) {
 	// MarshalerOption is added so that grpc-gateway does not omit empty values - https://stackoverflow.com/a/50044963
-	mux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{}))
+	marshlerOption := runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{})
+
+	// https://grpc-ecosystem.github.io/grpc-gateway/docs/operations/annotated_context/
+	metadataOption := runtime.WithMetadata(func(ctx context.Context, r *http.Request) metadata.MD {
+		md := make(map[string]string)
+		if method, ok := runtime.RPCMethod(ctx); ok {
+			md["method"] = method
+		}
+		if pattern, ok := runtime.HTTPPathPattern(ctx); ok {
+			md["pattern"] = pattern
+		}
+		if r.RequestURI != "" {
+			md["uri"] = r.RequestURI
+		}
+		return metadata.New(md)
+	})
+
+	options := []runtime.ServeMuxOption{marshlerOption, metadataOption}
+	mux := runtime.NewServeMux(options...)
 	err := r(mux)
 	if err != nil {
 		return nil, err

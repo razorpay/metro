@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/rakyll/statik/fs"
+
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 const metroAPIPrefix = "/v1"
@@ -16,34 +18,36 @@ const metroAPIPrefix = "/v1"
 // Service for openapi-server
 type Service struct {
 	config *Config
-	server http.Server
-	ctx    context.Context
+	server *http.Server
 }
 
 // NewService creates an instance of new producer service
-func NewService(ctx context.Context, config *Config) *Service {
+func NewService(config *Config) (*Service, error) {
 	return &Service{
-		ctx:    ctx,
 		config: config,
+	}, nil
+}
+
+// Start the OpenAPI server, shutdown on ctx.Done()
+func (svc *Service) Start(ctx context.Context) error {
+	return svc.runOpenAPIHandler(ctx)
+}
+
+// Stop the OpenAPI server
+func (svc *Service) Stop(ctx context.Context) {
+	err := svc.server.Shutdown(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Warnw("failed to shutdown the openapi server", "error", err.Error())
 	}
-}
-
-// Start the service
-func (svc *Service) Start() error {
-	err := svc.runOpenAPIHandler()
-
-	return err
-}
-
-// Stop the service
-func (svc *Service) Stop() error {
-	return svc.server.Shutdown(svc.ctx)
 }
 
 // runOpenAPIHandler serves an OpenAPI UI.
 // Adapted from https://github.com/philips/grpc-gateway-example/blob/a269bcb5931ca92be0ceae6130ac27ae89582ecc/cmd/serve.go#L63
-func (svc *Service) runOpenAPIHandler() error {
-	mime.AddExtensionType(".svg", "image/svg+xml")
+func (svc *Service) runOpenAPIHandler(_ context.Context) error {
+	err := mime.AddExtensionType(".svg", "image/svg+xml")
+	if err != nil {
+		return err
+	}
 
 	statikFS, err := fs.New()
 	if err != nil {
@@ -62,10 +66,9 @@ func (svc *Service) runOpenAPIHandler() error {
 	})
 
 	server := http.Server{Addr: svc.config.HTTPServerAddress, Handler: mux}
+	svc.server = &server
+
+	// Run the server
 	err = server.ListenAndServe()
-	if err != nil {
-		return err
-	}
-	svc.server = server
-	return nil
+	return err
 }

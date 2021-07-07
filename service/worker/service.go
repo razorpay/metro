@@ -10,6 +10,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/health"
@@ -26,13 +29,10 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/scheduler"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 )
 
 // Service for worker
 type Service struct {
-	ctx                context.Context
 	grpcServer         *grpc.Server
 	httpServer         *http.Server
 	internalHTTPServer *http.Server
@@ -63,9 +63,8 @@ type Service struct {
 }
 
 // NewService creates an instance of new worker
-func NewService(ctx context.Context, workerConfig *Config, registryConfig *registry.Config) *Service {
+func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service, error) {
 	return &Service{
-		ctx:            ctx,
 		workerConfig:   workerConfig,
 		registryConfig: registryConfig,
 		node: &node.Model{
@@ -78,11 +77,11 @@ func NewService(ctx context.Context, workerConfig *Config, registryConfig *regis
 		nodebindingCache: []*nodebinding.Model{},
 		pushHandlers:     sync.Map{},
 		nbwatch:          make(chan []registry.Pair),
-	}
+	}, nil
 }
 
 // Start implements all the tasks for worker and waits until one of the task fails
-func (svc *Service) Start() error {
+func (svc *Service) Start(ctx context.Context) error {
 	// close the done channel when this function returns
 	defer close(svc.doneCh)
 
@@ -91,7 +90,7 @@ func (svc *Service) Start() error {
 		gctx context.Context
 	)
 
-	svc.workgrp, gctx = errgroup.WithContext(svc.ctx)
+	svc.workgrp, gctx = errgroup.WithContext(ctx)
 
 	// Init the Registry
 	svc.registry, err = registry.NewRegistry(svc.registryConfig)
@@ -111,7 +110,7 @@ func (svc *Service) Start() error {
 	if berr != nil {
 		return berr
 	}
-	admin, _ := brokerStore.GetAdmin(svc.ctx, messagebroker.AdminClientOptions{})
+	admin, _ := brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	// init broker health checker
 	brokerHealthChecker := health.NewBrokerHealthChecker(svc.workerConfig.Broker.Variant, admin)
 
@@ -152,8 +151,8 @@ func (svc *Service) Start() error {
 				OnStartedLeading: func(ctx context.Context) error {
 					return svc.lead(ctx)
 				},
-				OnStoppedLeading: func() {
-					svc.stepDown()
+				OnStoppedLeading: func(ctx context.Context) {
+					svc.stepDown(ctx)
 				},
 			},
 		}, svc.registry)
@@ -278,44 +277,40 @@ func (svc *Service) Start() error {
 }
 
 // Stop the service
-func (svc *Service) Stop() error {
-	logger.Ctx(svc.ctx).Infow("metro stop invoked")
-
+func (svc *Service) Stop(ctx context.Context) {
 	// First we stop the node bindings watch, this will ensure that no new bindings are created
 	// otherwise leaderelction termination will cause node to be removed, and then nodebindings to be deleted
 	if svc.nbwatcher != nil {
-		logger.Ctx(svc.ctx).Infow("stopping the node subscription watch")
+		logger.Ctx(ctx).Infow("stopping the node subscription watch")
 		svc.nbwatcher.StopWatch()
 	}
 
 	// signal to stop all go routines
 	close(svc.stopCh)
 
-	svc.stopPushHandlers()
+	svc.stopPushHandlers(ctx)
 
 	// signal the grpc server go routine
 	svc.grpcServer.GracefulStop()
 
 	// signal http server go routine
-	err := svc.httpServer.Shutdown(svc.ctx)
+	err := svc.httpServer.Shutdown(ctx)
 	if err != nil {
-		return err
+		logger.Ctx(ctx).Warnw("failed to stop worker http server", "error", err.Error())
 	}
 
-	err = svc.internalHTTPServer.Shutdown(svc.ctx)
+	err = svc.internalHTTPServer.Shutdown(ctx)
 	if err != nil {
-		return err
+		logger.Ctx(ctx).Warnw("failed to stop worker internal http server", "error", err.Error())
 	}
 
 	// wait until all goroutines are done
 	<-svc.doneCh
-
-	return nil
 }
 
-func (svc *Service) stopPushHandlers() {
+func (svc *Service) stopPushHandlers(ctx context.Context) {
 	// stop all push stream handlers
-	logger.Ctx(svc.ctx).Infow("metro stop: stopping all push handlers")
+	logger.Ctx(ctx).Infow("metro stop: stopping all push handlers")
 	wg := sync.WaitGroup{}
 	svc.pushHandlers.Range(func(_, handler interface{}) bool {
 		wg.Add(1)
@@ -325,7 +320,7 @@ func (svc *Service) stopPushHandlers() {
 
 			err := ps.Stop()
 			if err != nil {
-				logger.Ctx(svc.ctx).Infow("error stopping stream handler", "error", err)
+				logger.Ctx(ctx).Infow("error stopping stream handler", "error", err)
 			}
 		}(ps, &wg)
 		return true
@@ -403,7 +398,7 @@ func (svc *Service) lead(ctx context.Context) error {
 					return err
 				}
 				// Filter Push Subscriptions
-				newSubs := []*subscription.Model{}
+				var newSubs []*subscription.Model
 				for _, sub := range allSubs {
 					if sub.IsPush() {
 						newSubs = append(newSubs, sub)
@@ -464,8 +459,8 @@ func (svc *Service) lead(ctx context.Context) error {
 	return err
 }
 
-func (svc *Service) stepDown() {
-	logger.Ctx(svc.ctx).Infof("Node %s stepping down from leader", svc.node.ID)
+func (svc *Service) stepDown(ctx context.Context) {
+	logger.Ctx(ctx).Infof("Node %s stepping down from leader", svc.node.ID)
 }
 
 func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPairs []registry.Pair) error {
@@ -540,16 +535,16 @@ func (svc *Service) handleNodeBindingUpdates(ctx context.Context, newBindingPair
 }
 
 func (svc *Service) refreshNodeBindings(ctx context.Context) error {
-	// fetch all current nodebindings across all nodes
+	// fetch all current node bindings across all nodes
 	nodeBindings, err := svc.nodeBindingCore.List(ctx, nodebinding.Prefix)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
 		return err
 	}
 
-	// Delete any binding where subscription is removed, This needs to be handlled before nodes updates
-	// as node update will cause subscsriptions to be rescheduled on other nodes
-	validBindings := []*nodebinding.Model{}
+	// Delete any binding where subscription is removed, This needs to be handled before nodes updates
+	// as node update will cause subscriptions to be rescheduled on other nodes
+	var validBindings []*nodebinding.Model
 
 	// TODO: Optimize O(N*M) to O(N+M)
 	for _, nb := range nodeBindings {
@@ -572,7 +567,7 @@ func (svc *Service) refreshNodeBindings(ctx context.Context) error {
 
 	// Reschedule any binding where node is removed
 	validBindings = []*nodebinding.Model{}
-	invalidBindings := []*nodebinding.Model{}
+	var invalidBindings []*nodebinding.Model
 
 	// TODO: Optimize O(N*M) to O(N+M)
 	for _, nb := range nodeBindings {

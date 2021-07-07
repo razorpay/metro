@@ -175,7 +175,7 @@ func (c *Candidate) release(ctx context.Context) bool {
 
 	if c.IsLeader() {
 		// handle OnStoppedLeading callback
-		c.config.Callbacks.OnStoppedLeading()
+		c.config.Callbacks.OnStoppedLeading(ctx)
 	}
 
 	// reset sessionID as current session is expired

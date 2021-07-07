@@ -31,6 +31,8 @@ func getUserPasswordProjectID(ctx context.Context) (user string, password []byte
 		return
 	}
 
+	// `uri` gets set inside `runtime.WithMetadata()`. check `server.go` for implementation
+	// this is ideally a single-valued slice
 	if val := md.Get("uri"); val != nil && len(val) > 0 {
 		projectID = extractProjectIDFromURI(val[0])
 	}

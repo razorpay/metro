@@ -60,7 +60,7 @@ func IsAuthorized(ctx context.Context, projectID string) bool {
 		return true
 	}
 
-	authFromCtx := ctx.Value(CtxKey)
+	authFromCtx := ctx.Value(CtxKey.String())
 	if authFromCtx != nil {
 		authCredentials := authFromCtx.(ICredentials)
 		if authCredentials != nil {

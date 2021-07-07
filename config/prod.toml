@@ -68,3 +68,6 @@
 [admin]
     username = ""
     password = ""
+
+[encryption]
+    key = ""

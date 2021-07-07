@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/razorpay/metro/pkg/encryption"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,6 +32,7 @@ func TestValidation_fromProto(t *testing.T) {
 	proto := &metrov1.ProjectCredentials{
 		ProjectId: "project007",
 	}
+	encryption.RegisterEncryptionKey("2K9HQKejNV0OkycszeuZ7e6QKwtbwrzO")
 	m, err := GetValidatedModelForCreate(context.Background(), proto)
 	assert.Nil(t, err)
 	assert.Equal(t, "project007", m.GetProjectID())
@@ -46,7 +48,7 @@ func TestValidation_IsAuthorized1(t *testing.T) {
 		os.Setenv("APP_ENV", currEnv)
 	}()
 
-	ctx := context.WithValue(context.Background(), CtxKey, NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
+	ctx := context.WithValue(context.Background(), CtxKey.String(), NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
 	assert.True(t, IsAuthorized(ctx, "project007")) // matching project
 }
 
@@ -58,6 +60,6 @@ func TestValidation_IsAuthorized2(t *testing.T) {
 		os.Setenv("APP_ENV", currEnv)
 	}()
 
-	ctx := context.WithValue(context.Background(), CtxKey, NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
+	ctx := context.WithValue(context.Background(), CtxKey.String(), NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
 	assert.False(t, IsAuthorized(ctx, "project999")) // project mismatch
 }

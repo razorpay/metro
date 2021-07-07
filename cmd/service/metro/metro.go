@@ -10,6 +10,7 @@ import (
 	"github.com/razorpay/metro/internal/boot"
 	"github.com/razorpay/metro/internal/config"
 	configreader "github.com/razorpay/metro/pkg/config"
+	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/razorpay/metro/pkg/logger"
 )
 
@@ -60,6 +61,11 @@ func Init(ctx context.Context, env string, componentName string) {
 	if appConfig.Admin.Username == "" || appConfig.Admin.Password == "" {
 		log.Fatal("admin credentials missing")
 	}
+
+	if appConfig.Encryption.Key == "" {
+		log.Fatal("encryption key missing")
+	}
+	encryption.RegisterEncryptionKey(appConfig.Encryption.Key)
 
 	err = boot.InitMonitoring(env, appConfig.App, appConfig.Sentry, appConfig.Tracing)
 

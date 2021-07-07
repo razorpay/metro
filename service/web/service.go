@@ -5,6 +5,9 @@ import (
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+
 	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
@@ -21,8 +24,6 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/razorpay/metro/service/web/stream"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 )
 
 // Service for producer
@@ -166,7 +167,7 @@ func (svc *Service) Stop(ctx context.Context) {
 	})
 
 	err := grp.Wait()
-	if err != nil{
+	if err != nil {
 		logger.Ctx(ctx).Warnw("failed to stop service", "error", err.Error())
 	}
 }

@@ -37,7 +37,7 @@ func isValidComponent(component string) bool {
 }
 
 // Init initializes all modules (logger, tracing, config, metro component)
-func Init(ctx context.Context, env string, componentName string) {
+func Init(_ context.Context, env string, componentName string) {
 	// componentName validation
 	ok := isValidComponent(componentName)
 	if !ok {
@@ -96,13 +96,13 @@ func Run(ctx context.Context) {
 	}()
 
 	go func() {
-		sig := <- sigCh
+		sig := <-sigCh
 		logger.Ctx(ctx).Infow("received a signal, stopping metro", "signal", sig)
 		cancel()
 	}()
 
 	err := component.Run(ctx)
-	if err != nil{
+	if err != nil {
 		logger.Ctx(ctx).Fatalw("component exited with error", "msg", err.Error())
 	}
 

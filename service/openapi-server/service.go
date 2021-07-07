@@ -34,7 +34,7 @@ func (svc *Service) Start(ctx context.Context) error {
 }
 
 // Stop the OpenAPI server
-func (svc *Service) Stop(ctx context.Context){
+func (svc *Service) Stop(ctx context.Context) {
 	err := svc.server.Shutdown(ctx)
 	if err != nil {
 		logger.Ctx(ctx).Warnw("failed to shutdown the openapi server", "error", err.Error())
@@ -45,7 +45,7 @@ func (svc *Service) Stop(ctx context.Context){
 // Adapted from https://github.com/philips/grpc-gateway-example/blob/a269bcb5931ca92be0ceae6130ac27ae89582ecc/cmd/serve.go#L63
 func (svc *Service) runOpenAPIHandler(_ context.Context) error {
 	err := mime.AddExtensionType(".svg", "image/svg+xml")
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
@@ -66,10 +66,9 @@ func (svc *Service) runOpenAPIHandler(_ context.Context) error {
 	})
 
 	server := http.Server{Addr: svc.config.HTTPServerAddress, Handler: mux}
-	err = server.ListenAndServe()
-	if err != nil {
-		return err
-	}
 	svc.server = &server
-	return nil
+
+	// Run the server
+	err = server.ListenAndServe()
+	return err
 }

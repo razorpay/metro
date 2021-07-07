@@ -2,6 +2,7 @@ package metro
 
 import (
 	"context"
+
 	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/service"
@@ -30,7 +31,7 @@ func NewComponent(component string, cfg config.Config) (*Component, error) {
 		svc, err = openapiserver.NewService(&cfg.OpenAPIServer)
 	}
 
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 

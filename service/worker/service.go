@@ -10,6 +10,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/health"
@@ -26,8 +29,6 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/scheduler"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 )
 
 // Service for worker

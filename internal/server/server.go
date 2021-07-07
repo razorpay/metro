@@ -143,7 +143,7 @@ func newHTTPServer(r registerHTTPHandlers) (*http.Server, error) {
 			md["method"] = method
 		}
 		if pattern, ok := runtime.HTTPPathPattern(ctx); ok {
-			md["pattern"] = pattern
+			md["pattern"] = pattern // this is coming as empty. have filed a bug to confirm.
 		}
 		if r.RequestURI != "" {
 			md["uri"] = r.RequestURI

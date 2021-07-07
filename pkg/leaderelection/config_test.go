@@ -23,7 +23,7 @@ func TestConfig(t *testing.T) {
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
 					},
-					OnStoppedLeading: func() {
+					OnStoppedLeading: func(ctx context.Context) {
 
 					},
 				},
@@ -37,7 +37,7 @@ func TestConfig(t *testing.T) {
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
 					},
-					OnStoppedLeading: func() {
+					OnStoppedLeading: func(ctx context.Context) {
 
 					},
 				},
@@ -71,7 +71,7 @@ func TestConfig(t *testing.T) {
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
 					},
-					OnStoppedLeading: func() {
+					OnStoppedLeading: func(ctx context.Context) {
 
 					},
 				},

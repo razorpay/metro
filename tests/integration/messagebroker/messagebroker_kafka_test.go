@@ -195,7 +195,7 @@ func Test_IsHealthy(t *testing.T) {
 	assert.NotNil(t, admin)
 	assert.Nil(t, err)
 
-	isHealthy , err := admin.IsHealthy(context.Background())
+	isHealthy, err := admin.IsHealthy(context.Background())
 	assert.True(t, isHealthy)
 	assert.Nil(t, err)
 }

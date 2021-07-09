@@ -98,7 +98,7 @@ func Test_AdminAuth_Failure1(t *testing.T) {
 }
 func Test_AdminAuth_Failure2(t *testing.T) {
 
-	ctx := context.Background() // context with the authorization header
+	ctx := context.Background() // context without the authorization header
 	ctx, err := AdminAuth(ctx, &credentials.Model{
 		Username: "admin",
 		Password: "wrong-password",
@@ -151,7 +151,7 @@ func Test_AppAuth_Failure3(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	mockCore := mocks1.NewMockICore(ctrl)
-	mockCore.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("some error"))
+	mockCore.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("some error")) // credential core error
 
 	ctx, err := AppAuth(newCtx, mockCore)
 	assert.NotNil(t, err)
@@ -185,7 +185,7 @@ func Test_AppAuth_Failure5(t *testing.T) {
 	newCtx := metadata.NewIncomingContext(ctx, md)
 
 	username := "dummy12__13a011"
-	password := "password-mismatch" // wrong password being sent in authorizationHeaderKey
+	password := "password-mismatch" // wrong password sent in authorizationHeaderKey
 	project := "dummy12"
 
 	encryption.RegisterEncryptionKey("2K9HQKejNV0OkycszeuZ7e6QKwtbwrzO")

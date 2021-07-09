@@ -18,7 +18,7 @@ func Test_validateKafkaConsumerClientConfig(t *testing.T) {
 
 	ops := []ConsumerClientOptions{
 		{
-			Topics:  nil,
+			Topics:  []string{"t1"},
 			GroupID: "",
 		}, {
 			Topics:  []string{},
@@ -83,5 +83,62 @@ func Test_validateKafkaProducerClientConfig(t *testing.T) {
 
 	for _, op := range ops {
 		assert.NotNil(t, validateKafkaProducerClientConfig(&op))
+	}
+}
+
+func Test_validateKafkaProducerBrokerConfig(t *testing.T) {
+	bc1 := BrokerConfig{
+		Brokers: []string{"kakfa-broker-1:9092"},
+	}
+	assert.Nil(t, validateKafkaProducerBrokerConfig(&bc1))
+
+	bc2 := BrokerConfig{
+		Brokers: nil,
+	}
+	assert.NotNil(t, validateKafkaProducerBrokerConfig(&bc2))
+}
+
+func Test_validateKafkaAdminBrokerConfig(t *testing.T) {
+	bc1 := BrokerConfig{
+		Brokers: []string{"kakfa-broker-1:9092"},
+	}
+	assert.Nil(t, validateKafkaAdminBrokerConfig(&bc1))
+
+	bc2 := BrokerConfig{
+		Brokers: nil,
+	}
+	assert.NotNil(t, validateKafkaAdminBrokerConfig(&bc2))
+}
+func Test_validateKafkaAdminClientConfig(t *testing.T) {
+	assert.Nil(t, validateKafkaAdminClientConfig(&AdminClientOptions{}))
+}
+
+func Test_validatePulsarClientConfigs(t *testing.T) {
+	assert.Nil(t, validatePulsarProducerClientConfig(&ProducerClientOptions{}))
+	assert.Nil(t, validatePulsarConsumerClientConfig(&ConsumerClientOptions{}))
+	assert.Nil(t, validatePulsarAdminClientConfig(&AdminClientOptions{}))
+}
+
+func Test_validatePulsarBrokerConfig(t *testing.T) {
+	bc1 := BrokerConfig{
+		Brokers: []string{"pulsar:8080"},
+	}
+
+	assert.Nil(t, validatePulsarProducerBrokerConfig(&bc1))
+	assert.Nil(t, validatePulsarConsumerBrokerConfig(&bc1))
+	assert.Nil(t, validatePulsarAdminBrokerConfig(&bc1))
+
+	bcs := []BrokerConfig{
+		{
+			Brokers: nil,
+		}, {
+			Brokers: []string{"pulsar-1:8080", "pulsar-2:8080"},
+		},
+	}
+
+	for _, bc := range bcs {
+		assert.NotNil(t, validatePulsarProducerBrokerConfig(&bc))
+		assert.NotNil(t, validatePulsarConsumerBrokerConfig(&bc))
+		assert.NotNil(t, validatePulsarAdminBrokerConfig(&bc))
 	}
 }

@@ -98,9 +98,5 @@ func ExtractTopicMetaAndValidate(ctx context.Context, name string) (projectID st
 		return "", "", err
 	}
 
-	if !credentials.IsAuthorized(ctx, projectID) {
-		return "", "", credentials.UnauthenticatedError
-	}
-
 	return projectID, topicName, nil
 }

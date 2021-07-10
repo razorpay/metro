@@ -4,7 +4,6 @@ package credentials
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/razorpay/metro/pkg/encryption"
@@ -38,28 +37,4 @@ func TestValidation_fromProto(t *testing.T) {
 	assert.Equal(t, "project007", m.GetProjectID())
 	assert.True(t, usernameRegex.MatchString(m.GetUsername()))
 	assert.Equal(t, 20, len(m.GetPassword()))
-}
-
-func TestValidation_IsAuthorized1(t *testing.T) {
-
-	currEnv := os.Getenv("APP_ENV")
-	os.Setenv("APP_ENV", "non-dev")
-	defer func() {
-		os.Setenv("APP_ENV", currEnv)
-	}()
-
-	ctx := context.WithValue(context.Background(), CtxKey.String(), NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
-	assert.True(t, IsAuthorized(ctx, "project007")) // matching project
-}
-
-func TestValidation_IsAuthorized2(t *testing.T) {
-
-	currEnv := os.Getenv("APP_ENV")
-	os.Setenv("APP_ENV", "non-dev")
-	defer func() {
-		os.Setenv("APP_ENV", currEnv)
-	}()
-
-	ctx := context.WithValue(context.Background(), CtxKey.String(), NewCredential("project007__c525c7", "l0laNoI360l4uvD96682"))
-	assert.False(t, IsAuthorized(ctx, "project999")) // project mismatch
 }

@@ -31,8 +31,8 @@ func TestHealth_Healthy(t *testing.T) {
 	registryMock.EXPECT().IsAlive(gomock.Any()).Return(true, nil)
 	brokerMock.EXPECT().IsHealthy(gomock.Any()).Return(true, nil)
 
-	h1 := NewRegistryHealthChecker("consul", registryMock)
-	h2 := NewBrokerHealthChecker("kafka", brokerMock)
+	h1 := NewRegistryHealthChecker(registryMock)
+	h2 := NewBrokerHealthChecker(brokerMock)
 	c, _ := NewCore(h1, h2)
 
 	assert.True(t, c.IsHealthy(ctx))
@@ -44,7 +44,7 @@ func TestHealth_UnHealthy1(t *testing.T) {
 	registryMock := mocks.NewMockIRegistry(ctrl)
 
 	registryMock.EXPECT().IsAlive(gomock.Any()).Return(false, nil)
-	h1 := NewRegistryHealthChecker("consul", registryMock)
+	h1 := NewRegistryHealthChecker(registryMock)
 	c, _ := NewCore(h1)
 
 	assert.False(t, c.IsHealthy(ctx))
@@ -57,7 +57,7 @@ func TestHealth_UnHealthy2(t *testing.T) {
 
 	brokerMock.EXPECT().IsHealthy(gomock.Any()).Return(false, nil)
 
-	h2 := NewBrokerHealthChecker("kafka", brokerMock)
+	h2 := NewBrokerHealthChecker(brokerMock)
 	c, _ := NewCore(h2)
 
 	assert.False(t, c.IsHealthy(ctx))

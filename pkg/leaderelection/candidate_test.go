@@ -5,12 +5,8 @@ package leaderelection
 import (
 	"context"
 	"fmt"
-	"testing"
-	"time"
-
 	"github.com/razorpay/metro/internal/common"
-
-	"github.com/razorpay/metro/internal/node"
+	"testing"
 
 	"github.com/razorpay/metro/pkg/registry"
 
@@ -24,8 +20,7 @@ func TestNewLeaderElection(t *testing.T) {
 	defer ctrl.Finish()
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
-	model := getDummyNodeModel()
-	c1, err := New(model, getConfig(), registryMock)
+	c1, err := New("node01", "id", getConfig(), registryMock)
 	assert.NotNil(t, c1)
 	assert.Nil(t, err)
 }
@@ -35,10 +30,9 @@ func TestNewLeaderElectionFailure(t *testing.T) {
 	defer ctrl.Finish()
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
-	model := getDummyNodeModel()
 	config := getConfig()
 	config.LockPath = ""
-	c1, err := New(model, config, registryMock)
+	c1, err := New("node01", "id", config, registryMock)
 	assert.NotNil(t, err)
 	assert.Nil(t, c1)
 }
@@ -52,12 +46,8 @@ func TestLeaderElectionRun(t *testing.T) {
 
 	ctx := context.Background()
 
-	registryMock.EXPECT().Register(gomock.Any(), "leaderelection-test", 30*time.Second).Return("id", nil).Times(1)
-	registryMock.EXPECT().IsRegistered(gomock.Any(), "id").Return(true).AnyTimes()
-	registryMock.EXPECT().Deregister(gomock.Any(), "id").Return(nil).Times(1)
-	registryMock.EXPECT().Acquire(gomock.Any(), "id", common.GetBasePrefix()+"nodes/node01", gomock.Any()).Return(true, nil).AnyTimes()
 	registryMock.EXPECT().Acquire(gomock.Any(), "id", common.GetBasePrefix()+"leader/election/test", gomock.Any()).Return(true, nil).AnyTimes()
-	registryMock.EXPECT().RenewPeriodic(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	registryMock.EXPECT().Release(gomock.Any(), "id", common.GetBasePrefix()+"leader/election/test", gomock.Any()).Return(true).AnyTimes()
 	registryMock.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(watcherMock, nil).AnyTimes()
 
 	config := getConfig()
@@ -65,15 +55,14 @@ func TestLeaderElectionRun(t *testing.T) {
 	config.Callbacks.OnStartedLeading = func(ctx context.Context) error {
 		return fmt.Errorf("terminate leader election")
 	}
-	model := getDummyNodeModel()
-	c, _ := New(model, config, registryMock)
+	c, _ := New("node01", "id", config, registryMock)
 	assert.NotNil(t, c)
 
 	watcherMock.EXPECT().StartWatch().Do(func() {
 		data := []registry.Pair{
 			{
 				Key:       common.GetBasePrefix() + "leader/election/test",
-				Value:     []byte("aaa"),
+				Value:     []byte("node01"),
 				SessionID: "",
 			},
 		}
@@ -85,8 +74,8 @@ func TestLeaderElectionRun(t *testing.T) {
 	// run leader election, it should call only expected registry calls as defined above
 	c.Run(ctx)
 
-	assert.Equal(t, "", c.sessionID)
-	assert.Equal(t, false, c.IsLeader())
+	assert.Equal(t, "id", c.sessionID)
+	assert.Equal(t, true, c.IsLeader())
 }
 
 func TestDeregisterNodeUnregistered(t *testing.T) {
@@ -96,35 +85,26 @@ func TestDeregisterNodeUnregistered(t *testing.T) {
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	config := getConfig()
 
-	model := getDummyNodeModel()
-	c, _ := New(model, config, registryMock)
+	c, _ := New("node01", "id", config, registryMock)
 	assert.NotNil(t, c)
 
-	// there shoudn't be any call to registry since node was not registered
-	c.release(context.Background())
-	assert.Equal(t, "", c.sessionID)
-	assert.Equal(t, false, c.IsLeader())
+	registryMock.EXPECT().Release(gomock.Any(), "id", common.GetBasePrefix()+"leader/election/test", gomock.Any()).Return(true).AnyTimes()
+	res := c.release(context.Background())
 
+	assert.Equal(t, true, res)
+	assert.Equal(t, "id", c.sessionID)
+	assert.Equal(t, false, c.IsLeader())
 }
 
 func getConfig() Config {
 	return Config{
-		LockPath:      common.GetBasePrefix() + "leader/election/test",
-		LeaseDuration: 30 * time.Second,
-		Name:          "leaderelection-test",
+		LockPath: common.GetBasePrefix() + "leader/election/test",
 		Callbacks: LeaderCallbacks{
 			OnStartedLeading: func(gctx context.Context) error {
 				return nil
 			},
 			OnStoppedLeading: func(ctx context.Context) {
-
 			},
 		},
-	}
-}
-
-func getDummyNodeModel() *node.Model {
-	return &node.Model{
-		ID: "node01",
 	}
 }

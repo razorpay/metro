@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"github.com/razorpay/metro/internal/stream"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
@@ -10,7 +11,7 @@ type Config struct {
 	Interfaces struct {
 		API NetworkInterfaces
 	}
-	HTTPClientConfig HTTPClientConfig
+	HTTPClientConfig stream.HTTPClientConfig
 }
 
 // Broker Config (Kafka/Pulsar)
@@ -24,16 +25,4 @@ type NetworkInterfaces struct {
 	GrpcServerAddress         string
 	HTTPServerAddress         string
 	InternalHTTPServerAddress string
-}
-
-// HTTPClientConfig contains config the init a new http client
-type HTTPClientConfig struct {
-	ConnectTimeoutMS        int
-	ConnKeepAliveMS         int
-	ExpectContinueTimeoutMS int
-	IdleConnTimeoutMS       int
-	MaxAllIdleConns         int
-	MaxHostIdleConns        int
-	ResponseHeaderTimeoutMS int
-	TLSHandshakeTimeoutMS   int
 }

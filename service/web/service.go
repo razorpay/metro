@@ -57,16 +57,17 @@ func (svc *Service) Start(ctx context.Context) error {
 		return err
 	}
 
-	// init registry health checker
-	registryHealthChecker := health.NewRegistryHealthChecker(svc.registryConfig.Driver, r)
-
-	brokerStore, berr := brokerstore.NewBrokerStore(svc.webConfig.Broker.Variant, &svc.webConfig.Broker.BrokerConfig)
-	if berr != nil {
-		return berr
+	brokerStore, err := brokerstore.NewBrokerStore(svc.webConfig.Broker.Variant, &svc.webConfig.Broker.BrokerConfig)
+	if err != nil {
+		return err
 	}
+
+	// init registry health checker
+	registryHealthChecker := health.NewRegistryHealthChecker(r)
+
 	admin, _ := brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	// init broker health checker
-	brokerHealthChecker := health.NewBrokerHealthChecker(svc.webConfig.Broker.Variant, admin)
+	brokerHealthChecker := health.NewBrokerHealthChecker(admin)
 
 	// register broker and registry health checkers on the health server
 	healthCore, err := health.NewCore(registryHealthChecker, brokerHealthChecker)
@@ -82,7 +83,7 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	credentialsCore := credentials.NewCore(credentials.NewRepo(r), projectCore)
 
-	publisher := publisher.NewCore(brokerStore)
+	publisherCore := publisher.NewCore(brokerStore)
 
 	streamManager := stream.NewStreamManager(ctx, subscriptionCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
 
@@ -91,7 +92,7 @@ func (svc *Service) Start(ctx context.Context) error {
 		svc.webConfig.Interfaces.API.GrpcServerAddress,
 		func(server *grpc.Server) error {
 			metrov1.RegisterStatusCheckAPIServer(server, health.NewServer(healthCore))
-			metrov1.RegisterPublisherServer(server, newPublisherServer(projectCore, brokerStore, topicCore, credentialsCore, publisher))
+			metrov1.RegisterPublisherServer(server, newPublisherServer(projectCore, brokerStore, topicCore, credentialsCore, publisherCore))
 			metrov1.RegisterAdminServiceServer(server, newAdminServer(svc.admin, projectCore, subscriptionCore, topicCore, credentialsCore, brokerStore))
 			metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, credentialsCore, streamManager))
 			return nil

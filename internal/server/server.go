@@ -5,18 +5,17 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"golang.org/x/sync/errgroup"
-
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	grpcopentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus"
-	grpcinterceptor "github.com/razorpay/metro/internal/interceptors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+
+	grpcinterceptor "github.com/razorpay/metro/internal/interceptors"
 )
 
 type registerGrpcHandlers func(server *grpc.Server) error

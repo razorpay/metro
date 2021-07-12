@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"encoding/json"
+	"github.com/pkg/errors"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/pkg/logger"
@@ -12,6 +13,7 @@ import (
 // IRepo is an interface over common repo functionality
 type IRepo interface {
 	Save(ctx context.Context, m IModel) error
+	Acquire(ctx context.Context, m IModel, sessionID string) error
 	Exists(ctx context.Context, key string) (bool, error)
 	Delete(ctx context.Context, m IModel) error
 	DeleteTree(ctx context.Context, key string) error
@@ -35,6 +37,28 @@ func (r BaseRepo) Save(ctx context.Context, m IModel) error {
 		return err
 	}
 	return r.Registry.Put(ctx, m.Key(), b)
+}
+
+// Acqurie puts the model in the registry with a attempt to lock using sessionID
+func (r BaseRepo) Acquire(ctx context.Context, m IModel, sessionID string) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.Acquire")
+	defer span.Finish()
+
+	b, err := json.Marshal(m)
+	if err != nil {
+		logger.Ctx(ctx).Error("error in json marshal", "msg", err.Error())
+		return err
+	}
+	acquired, err := r.Registry.Acquire(ctx, sessionID, m.Key(), b)
+	if err != nil {
+		return err
+	}
+
+	if !acquired {
+		return errors.New("failed to acquire node key")
+	}
+
+	return nil
 }
 
 // Exists to check if the key exists in the registry

@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/pkg/errors"
 
 	"github.com/opentracing/opentracing-go"
@@ -39,7 +40,7 @@ func (r BaseRepo) Save(ctx context.Context, m IModel) error {
 	return r.Registry.Put(ctx, m.Key(), b)
 }
 
-// Acqurie puts the model in the registry with a attempt to lock using sessionID
+// Acquire puts the model in the registry with a attempt to lock using sessionID
 func (r BaseRepo) Acquire(ctx context.Context, m IModel, sessionID string) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.Acquire")
 	defer span.Finish()

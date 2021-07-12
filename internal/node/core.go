@@ -49,6 +49,7 @@ func (c *Core) CreateNode(ctx context.Context, m *Model) error {
 	return c.repo.Save(ctx, m)
 }
 
+// AcquireNode to create a node model with acquiring a lock on it
 func (c *Core) AcquireNode(ctx context.Context, m *Model, sessionID string) error {
 	nodeOperationCount.WithLabelValues(env, "AcquireNode").Inc()
 

@@ -2,23 +2,25 @@ package tasks
 
 import (
 	"context"
-	"github.com/razorpay/metro/internal/nodebinding"
-	"github.com/razorpay/metro/internal/project"
-	"github.com/razorpay/metro/internal/subscription"
-	"github.com/razorpay/metro/internal/topic"
-	"github.com/razorpay/metro/pkg/logger"
 	"time"
 
-	"github.com/razorpay/metro/pkg/scheduler"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/node"
+	"github.com/razorpay/metro/internal/nodebinding"
+	"github.com/razorpay/metro/internal/project"
+	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/leaderelection"
+	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
-	"golang.org/x/sync/errgroup"
+	"github.com/razorpay/metro/pkg/scheduler"
 )
 
+// ScheduleManager implements the scheduling of subscriptions over nodes.
+// only leader node elected using the leader election process does scheduling
 type ScheduleManager struct {
 	id               string
 	name             string
@@ -33,6 +35,7 @@ type ScheduleManager struct {
 	subCache         []*subscription.Model
 }
 
+// NewScheduleManager creates ScheduleManager instance
 func NewScheduleManager(id string, registry registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (IManager, error) {
 	options = append(defaultOptions(), options...)
 
@@ -77,6 +80,7 @@ func defaultOptions() []Option {
 	}
 }
 
+// WithTTL defines the TTL for the registry session
 func WithTTL(ttl time.Duration) Option {
 	return func(manager IManager) {
 		scheduleManager := manager.(*ScheduleManager)
@@ -84,6 +88,7 @@ func WithTTL(ttl time.Duration) Option {
 	}
 }
 
+// WithName defines the Name for the registry session creation
 func WithName(name string) Option {
 	return func(manager IManager) {
 		scheduleManager := manager.(*ScheduleManager)
@@ -91,6 +96,7 @@ func WithName(name string) Option {
 	}
 }
 
+// Start the manager
 func (sm *ScheduleManager) Start(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("starting schedule manager")
 
@@ -121,6 +127,7 @@ func (sm *ScheduleManager) Start(ctx context.Context) error {
 	return taskGroup.Wait()
 }
 
+// Stop the manager
 func (sm *ScheduleManager) Stop(ctx context.Context) {
 	logger.Ctx(ctx).Infow("stopping schedule manager")
 }

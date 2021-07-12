@@ -11,4 +11,5 @@ type IManager interface {
 	Stop(ctx context.Context)
 }
 
+// A Option is an option for manager tasks
 type Option func(e IManager)

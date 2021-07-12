@@ -59,7 +59,7 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service
 		workerID,
 		registry,
 		brokerStore,
-		tasks.WithHttpConfig(&workerConfig.HTTPClientConfig))
+		tasks.WithHTTPConfig(&workerConfig.HTTPClientConfig))
 
 	if err != nil {
 		return nil, err

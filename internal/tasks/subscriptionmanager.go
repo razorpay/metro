@@ -20,6 +20,7 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
+// SubscriptionManager runs the assigned subscriptions to the node
 type SubscriptionManager struct {
 	id               string
 	subscriptionCore subscription.ICore
@@ -31,8 +32,10 @@ type SubscriptionManager struct {
 	watchCh          chan []registry.Pair
 	pushHandlers     sync.Map
 	httpConfig       *stream.HTTPClientConfig
+	doneCh           chan struct{}
 }
 
+// NewSubscriptionManager creates SubscriptionManager instance
 func NewSubscriptionManager(id string, registry registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (IManager, error) {
 	projectCore := project.NewCore(project.NewRepo(registry))
 
@@ -53,6 +56,7 @@ func NewSubscriptionManager(id string, registry registry.IRegistry, brokerStore 
 		subscriptionCore: subscriptionCore,
 		nodeBindingCore:  nodeBindingCore,
 		subscriber:       subscriberCore,
+		doneCh:           make(chan struct{}),
 	}
 
 	for _, option := range options {
@@ -62,14 +66,18 @@ func NewSubscriptionManager(id string, registry registry.IRegistry, brokerStore 
 	return subscriptionManager, nil
 }
 
-func WithHttpConfig(config *stream.HTTPClientConfig) Option {
+// WithHTTPConfig defines the httpClient config for wehbooks http client
+func WithHTTPConfig(config *stream.HTTPClientConfig) Option {
 	return func(manager IManager) {
 		subscriptionManager := manager.(*SubscriptionManager)
 		subscriptionManager.httpConfig = config
 	}
 }
 
+// Start the SubscriptionManager process
 func (sm *SubscriptionManager) Start(ctx context.Context) error {
+	defer close(sm.doneCh)
+
 	// Run the tasks
 	taskGroup, gctx := errgroup.WithContext(ctx)
 
@@ -86,6 +94,7 @@ func (sm *SubscriptionManager) Start(ctx context.Context) error {
 	return taskGroup.Wait()
 }
 
+// Stop the SubscriptionManager process
 func (sm *SubscriptionManager) Stop(ctx context.Context) {
 	// First we stop the node bindings watch, this will ensure that no new bindings are created
 	// otherwise leaderelction termination will cause node to be removed, and then nodebindings to be deleted
@@ -93,6 +102,11 @@ func (sm *SubscriptionManager) Stop(ctx context.Context) {
 		logger.Ctx(ctx).Infow("stopping the node subscription watch")
 		sm.watcher.StopWatch()
 	}
+
+	sm.stopPushHandlers(ctx)
+
+	// wait for start to return
+	<-sm.doneCh
 }
 
 func (sm *SubscriptionManager) watchNodeBinding(ctx context.Context) error {

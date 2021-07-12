@@ -5,8 +5,9 @@ package leaderelection
 import (
 	"context"
 	"fmt"
-	"github.com/razorpay/metro/internal/common"
 	"testing"
+
+	"github.com/razorpay/metro/internal/common"
 
 	"github.com/razorpay/metro/pkg/registry"
 

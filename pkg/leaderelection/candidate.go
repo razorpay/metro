@@ -3,6 +3,7 @@ package leaderelection
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
@@ -26,7 +27,7 @@ func New(id string, sessionID string, c Config, registry registry.IRegistry) (*C
 
 	le := Candidate{
 		id:        id,
-		leaderID: "",
+		leaderID:  "",
 		sessionID: sessionID,
 		config:    c,
 		registry:  registry,

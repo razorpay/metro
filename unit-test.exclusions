@@ -2,3 +2,6 @@
 github.com/razorpay/metro/cmd/service
 github.com/razorpay/metro/cmd/service/metro
 github.com/razorpay/metro/rpc/proto/v1
+github.com/razorpay/metro/pkg/tracing
+github.com/razorpay/metro/pkg/monitoring
+github.com/razorpay/metro/internal/hooks

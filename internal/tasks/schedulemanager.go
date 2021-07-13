@@ -96,7 +96,7 @@ func WithName(name string) Option {
 	}
 }
 
-// Start the manager
+// Run the manager
 func (sm *ScheduleManager) Run(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("starting schedule manager")
 

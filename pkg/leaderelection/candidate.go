@@ -2,8 +2,6 @@ package leaderelection
 
 import (
 	"context"
-	"encoding/json"
-
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
@@ -112,13 +110,7 @@ func (c *Candidate) handler(ctx context.Context, result []registry.Pair) {
 	logger.Ctx(ctx).Info("leader election handler called")
 	if len(result) > 0 && result[0].SessionID != "" {
 		logger.Ctx(ctx).Info("leader election key already locked")
-
-		err := json.Unmarshal(result[0].Value, &c.leaderID)
-		if err != nil {
-			logger.Ctx(ctx).Info("failed to deserialize value from leader key")
-			c.errCh <- err
-		}
-
+		c.leaderID = string(result[0].Value)
 		return
 	}
 

@@ -4,11 +4,8 @@ import "context"
 
 // IManager defines worker interface
 type IManager interface {
-	// Start the worker with the given context
-	Start(ctx context.Context) error
-
-	// Stop the worker
-	Stop(ctx context.Context)
+	// Run the worker with the given context
+	Run(ctx context.Context) error
 }
 
 // A Option is an option for manager tasks

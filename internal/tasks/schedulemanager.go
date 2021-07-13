@@ -97,7 +97,7 @@ func WithName(name string) Option {
 }
 
 // Start the manager
-func (sm *ScheduleManager) Start(ctx context.Context) error {
+func (sm *ScheduleManager) Run(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("starting schedule manager")
 
 	// Create a registry session
@@ -125,11 +125,6 @@ func (sm *ScheduleManager) Start(ctx context.Context) error {
 	})
 
 	return taskGroup.Wait()
-}
-
-// Stop the manager
-func (sm *ScheduleManager) Stop(ctx context.Context) {
-	logger.Ctx(ctx).Infow("stopping schedule manager")
 }
 
 func (sm *ScheduleManager) acquireNode(ctx context.Context, sessionID string) error {
@@ -210,12 +205,17 @@ func (sm *ScheduleManager) lead(ctx context.Context) error {
 
 	// watch for nodes addition/deletion, for any changes a rebalance might be required
 	leadgrp.Go(func() error {
-		return nodeWatcher.StartWatch()
+		watchErr := nodeWatcher.StartWatch()
+		close(nodeWatchData)
+
+		return watchErr
 	})
 
 	// watch the Subscriptions path for new subscriptions and rebalance
 	leadgrp.Go(func() error {
-		return subWatcher.StartWatch()
+		watchErr := subWatcher.StartWatch()
+		close(subWatchData)
+		return watchErr
 	})
 
 	// handle node and subscription updates
@@ -277,9 +277,6 @@ func (sm *ScheduleManager) lead(ctx context.Context) error {
 		if subWatcher != nil {
 			subWatcher.StopWatch()
 		}
-
-		close(nodeWatchData)
-		close(subWatchData)
 
 		logger.Ctx(gctx).Info("leader context returned done")
 		return gctx.Err()

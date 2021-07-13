@@ -36,27 +36,28 @@ type SubscriptionManager struct {
 }
 
 // NewSubscriptionManager creates SubscriptionManager instance
-func NewSubscriptionManager(id string, registry registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (IManager, error) {
-	projectCore := project.NewCore(project.NewRepo(registry))
+func NewSubscriptionManager(id string, reg registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (IManager, error) {
+	projectCore := project.NewCore(project.NewRepo(reg))
 
-	topicCore := topic.NewCore(topic.NewRepo(registry), projectCore, brokerStore)
+	topicCore := topic.NewCore(topic.NewRepo(reg), projectCore, brokerStore)
 
 	subscriptionCore := subscription.NewCore(
-		subscription.NewRepo(registry),
+		subscription.NewRepo(reg),
 		projectCore,
 		topicCore)
 
-	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(registry))
+	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(reg))
 
 	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore)
 
 	subscriptionManager := &SubscriptionManager{
 		id:               id,
-		registry:         registry,
+		registry:         reg,
 		subscriptionCore: subscriptionCore,
 		nodeBindingCore:  nodeBindingCore,
 		subscriber:       subscriberCore,
 		doneCh:           make(chan struct{}),
+		watchCh:          make(chan []registry.Pair),
 	}
 
 	for _, option := range options {
@@ -74,16 +75,22 @@ func WithHTTPConfig(config *stream.HTTPClientConfig) Option {
 	}
 }
 
-// Start the SubscriptionManager process
-func (sm *SubscriptionManager) Start(ctx context.Context) error {
+// Run the SubscriptionManager process
+func (sm *SubscriptionManager) Run(ctx context.Context) error {
+	logger.Ctx(ctx).Infow("starting subscription manager")
 	defer close(sm.doneCh)
+
+	err := sm.createNodeBindingWatch(ctx)
+	if err != nil {
+		return err
+	}
 
 	// Run the tasks
 	taskGroup, gctx := errgroup.WithContext(ctx)
 
 	// Watch for the subscription assignment changes
 	taskGroup.Go(func() error {
-		return sm.watchNodeBinding(gctx)
+		return sm.startNodeBindingWatch(gctx)
 	})
 
 	// Watch for the subscription assignment changes
@@ -95,9 +102,9 @@ func (sm *SubscriptionManager) Start(ctx context.Context) error {
 }
 
 // Stop the SubscriptionManager process
-func (sm *SubscriptionManager) Stop(ctx context.Context) {
-	// First we stop the node bindings watch, this will ensure that no new bindings are created
-	// otherwise leaderelction termination will cause node to be removed, and then nodebindings to be deleted
+func (sm *SubscriptionManager) stop(ctx context.Context) {
+	logger.Ctx(ctx).Infow("stopping subscription manager")
+
 	if sm.watcher != nil {
 		logger.Ctx(ctx).Infow("stopping the node subscription watch")
 		sm.watcher.StopWatch()
@@ -109,7 +116,7 @@ func (sm *SubscriptionManager) Stop(ctx context.Context) {
 	<-sm.doneCh
 }
 
-func (sm *SubscriptionManager) watchNodeBinding(ctx context.Context) error {
+func (sm *SubscriptionManager) createNodeBindingWatch(ctx context.Context) error {
 	prefix := fmt.Sprintf(common.GetBasePrefix()+nodebinding.Prefix+"%s/", sm.id)
 	logger.Ctx(ctx).Infow("setting up node subscriptions watch", "prefix", prefix)
 
@@ -124,11 +131,21 @@ func (sm *SubscriptionManager) watchNodeBinding(ctx context.Context) error {
 
 	var err error
 	sm.watcher, err = sm.registry.Watch(ctx, &wh)
-	if err != nil {
-		return err
-	}
+	return err
+}
 
-	err = sm.watcher.StartWatch()
+func (sm *SubscriptionManager) startNodeBindingWatch(ctx context.Context) error {
+	// stop watch when context is Done
+	go func() {
+		<-ctx.Done()
+
+		logger.Ctx(ctx).Infow("stopping node subscriptions watch")
+		sm.watcher.StopWatch()
+	}()
+
+
+	logger.Ctx(ctx).Infow("starting node subscriptions watch")
+	err := sm.watcher.StartWatch()
 
 	// close the node binding data channel on watch terminations
 	logger.Ctx(ctx).Infow("watch terminated, closing the node binding data channel")
@@ -142,6 +159,7 @@ func (sm *SubscriptionManager) handleWatchUpdates(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			logger.Ctx(ctx).Infow("nodebinding handler routine exiting as group context done")
+			sm.stopPushHandlers(ctx)
 			return ctx.Err()
 		case pairs := <-sm.watchCh:
 			logger.Ctx(ctx).Infow("received data from node bindings channel", "pairs", pairs)

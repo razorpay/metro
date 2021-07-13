@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -98,14 +99,18 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	// Run the scheduler manager
 	workgrp.Go(func() error {
-		logger.Ctx(gctx).Infow("starting the metro worker manager")
-		return svc.scheduleManager.Start(gctx)
+		logger.Ctx(gctx).Infow("starting the metro worker schedule manager")
+		err := svc.scheduleManager.Run(gctx)
+		logger.Ctx(gctx).Infow("schedule manager start returned")
+		return err
 	})
 
 	// Run the subscription manager
 	workgrp.Go(func() error {
-		logger.Ctx(gctx).Infow("starting the metro worker manager")
-		return svc.subscriptionManager.Start(gctx)
+		logger.Ctx(gctx).Infow("starting the metro worker subscription manager")
+		err := svc.subscriptionManager.Run(gctx)
+		logger.Ctx(gctx).Infow("subscription manager start returned")
+		return err
 	})
 
 	grpcServer, err := server.StartGRPCServer(
@@ -146,6 +151,32 @@ func (svc *Service) Start(ctx context.Context) error {
 	svc.httpServer = httpServer
 	svc.internalHTTPServer = internalHTTPServer
 
+	workgrp.Go(func() error {
+		<-gctx.Done()
+
+		// signal the grpc server go routine
+		svc.grpcServer.GracefulStop()
+
+		httpServerCtx, httpCancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer httpCancel()
+
+		// signal http server go routine
+		err := svc.httpServer.Shutdown(httpServerCtx)
+		if err != nil {
+			logger.Ctx(ctx).Warnw("failed to stop worker http server", "error", err.Error())
+		}
+
+		internalServerCtx, internalServerCancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer internalServerCancel()
+
+		err = svc.internalHTTPServer.Shutdown(internalServerCtx)
+		if err != nil {
+			logger.Ctx(ctx).Warnw("failed to stop worker internal http server", "error", err.Error())
+		}
+
+		return nil
+	})
+
 	err = workgrp.Wait()
 	if err != nil {
 		logger.Ctx(gctx).Infof("worker service error: %s", err.Error())
@@ -155,28 +186,7 @@ func (svc *Service) Start(ctx context.Context) error {
 
 // Stop the service
 func (svc *Service) Stop(ctx context.Context) {
-	// Stop the subscription Manager
-	svc.subscriptionManager.Stop(ctx)
 
-	// Stop the Schedule Manager
-	svc.scheduleManager.Stop(ctx)
-
-	// signal the grpc server go routine
-	svc.grpcServer.GracefulStop()
-
-	// signal http server go routine
-	err := svc.httpServer.Shutdown(ctx)
-	if err != nil {
-		logger.Ctx(ctx).Warnw("failed to stop worker http server", "error", err.Error())
-	}
-
-	err = svc.internalHTTPServer.Shutdown(ctx)
-	if err != nil {
-		logger.Ctx(ctx).Warnw("failed to stop worker internal http server", "error", err.Error())
-	}
-
-	// wait until all goroutines are done
-	<-svc.doneCh
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {

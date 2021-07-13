@@ -42,7 +42,7 @@ func TestScheduleManager_Start(t *testing.T) {
 	}).Return(nil)
 	watcherMock.EXPECT().StopWatch().Return()
 
-	err = manager.Start(ctx)
+	err = manager.Run(ctx)
 	assert.NotNil(t, err)
 }
 

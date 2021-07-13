@@ -44,3 +44,23 @@ func TestLoadConfig(t *testing.T) {
 	// Asserts that environment variable was honored.
 	assert.Equal(t, "envpass", c.Db.Password)
 }
+
+func Test_NewDefaultConfig(t *testing.T) {
+
+	workDir := os.Getenv(WorkDirEnv)
+	copy := workDir
+	defer func() {
+		os.Setenv(WorkDirEnv, copy)
+	}()
+
+	confirDir := "configdir"
+	os.Setenv(WorkDirEnv, confirDir)
+
+	configPath := confirDir + "/config"
+	options := NewDefaultConfig()
+	assert.NotNil(t, options)
+	assert.Equal(t, options.opts.configPath, configPath)
+	assert.Equal(t, options.opts.configType, "toml")
+	assert.Equal(t, options.opts.defaultConfigFileName, "default")
+
+}

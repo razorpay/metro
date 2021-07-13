@@ -190,6 +190,16 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.Equal(t, len(resp3.PartitionOffsetWithMessages), 0)
 	assert.Nil(t, rerr)
 }
+func Test_IsHealthy(t *testing.T) {
+	t.SkipNow() // TODO: check timeout
+	admin, err := messagebroker.NewAdminClient(context.Background(), "kafka", getKafkaBrokerConfig(), getAdminClientConfig())
+	assert.NotNil(t, admin)
+	assert.Nil(t, err)
+
+	isHealthy, err := admin.IsHealthy(context.Background())
+	assert.True(t, isHealthy)
+	assert.Nil(t, err)
+}
 
 func getAdminClientConfig() *messagebroker.AdminClientOptions {
 	return &messagebroker.AdminClientOptions{}

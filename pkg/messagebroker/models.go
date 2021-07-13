@@ -111,8 +111,8 @@ type ReceivedMessage struct {
 }
 
 func (rm ReceivedMessage) String() string {
-	return fmt.Sprintf("data=[%v], msgId=[%v], partition=[%v], offset=[%v], publishTime=[%v]",
-		string(rm.Data), rm.MessageID, rm.Partition, rm.Offset, rm.PublishTime.Unix())
+	return fmt.Sprintf("data=[%v], msgId=[%v], topic=[%v], partition=[%v], offset=[%v], publishTime=[%v]",
+		string(rm.Data), rm.MessageID, rm.Topic, rm.Partition, rm.Offset, rm.PublishTime.Unix())
 }
 
 // CommitOnTopicResponse ...

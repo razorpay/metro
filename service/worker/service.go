@@ -19,6 +19,7 @@ import (
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/project"
+	"github.com/razorpay/metro/internal/scheduler"
 	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
@@ -27,7 +28,6 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
-	"github.com/razorpay/metro/pkg/scheduler"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 

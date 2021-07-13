@@ -58,13 +58,6 @@ func (c *Core) AcquireNode(ctx context.Context, m *Model, sessionID string) erro
 		nodeOperationTimeTaken.WithLabelValues(env, "AcquireNode").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	ok, err := c.Exists(ctx, m.Key())
-	if err != nil {
-		return err
-	}
-	if ok {
-		return merror.Newf(merror.AlreadyExists, "node with id %s already exists", m.ID)
-	}
 	return c.repo.Acquire(ctx, m, sessionID)
 }
 

@@ -14,7 +14,7 @@ import (
 	"github.com/razorpay/metro/pkg/registry/mocks"
 )
 
-func TestNewScheduleManager(t *testing.T) {
+func TestScheduleManager_Start(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -30,6 +30,7 @@ func TestNewScheduleManager(t *testing.T) {
 
 	// Mock responses to registry
 	registryMock.EXPECT().Register(gomock.Any(), "metro/metro-worker", 30*time.Second).Return("id", nil).AnyTimes()
+	registryMock.EXPECT().Acquire(gomock.Any(), "id", common.GetBasePrefix()+"nodes/"+workerID, gomock.Any()).Return(true, nil).AnyTimes()
 	registryMock.EXPECT().RenewPeriodic(gomock.Any(), "id", 30*time.Second, gomock.Any()).Return(nil).AnyTimes()
 	registryMock.EXPECT().Release(gomock.Any(), "id", common.GetBasePrefix()+"leader/election", workerID).Return(true).AnyTimes()
 	registryMock.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(watcherMock, nil).AnyTimes()

@@ -30,6 +30,17 @@ func TestCore_CreateNode(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCore_AcquireNode(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo)
+	node := getDummyNodeModel()
+	ctx := context.Background()
+	mockRepo.EXPECT().Acquire(ctx, node, "id").Return(nil)
+	err := core.AcquireNode(ctx, node, "id")
+	assert.NoError(t, err)
+}
+
 func TestCore_Exists(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)

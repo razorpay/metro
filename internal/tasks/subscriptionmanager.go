@@ -143,7 +143,6 @@ func (sm *SubscriptionManager) startNodeBindingWatch(ctx context.Context) error 
 		sm.watcher.StopWatch()
 	}()
 
-
 	logger.Ctx(ctx).Infow("starting node subscriptions watch")
 	err := sm.watcher.StartWatch()
 

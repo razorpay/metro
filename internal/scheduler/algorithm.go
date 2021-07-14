@@ -18,10 +18,9 @@ const (
 	LoadBalance Algorithm = "LoadBalance"
 )
 
-// Errors raised by package
 var (
 	// ErrInvalidAlgorithm error for invalid algorithm input
-	ErrInvalidAlgorithm = fmt.Errorf("Invalid Algorithm")
+	ErrInvalidAlgorithm = fmt.Errorf("invalid Algorithm")
 )
 
 var algorithmMap = map[Algorithm]IAlgoImpl{

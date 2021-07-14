@@ -14,8 +14,13 @@ type MError struct {
 }
 
 // Error returns the error message
-func (e MError) Error() string {
+func (e *MError) Error() string {
 	return e.message
+}
+
+// ToGRPCError returns the grpc error
+func (e *MError) ToGRPCError() error {
+	return ToGRPCError(e)
 }
 
 // ToGRPCError converts merror to grpc status error

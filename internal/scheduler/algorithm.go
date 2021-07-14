@@ -1,7 +1,8 @@
 package scheduler
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
 )
@@ -15,6 +16,11 @@ const (
 
 	// LoadBalance algo type
 	LoadBalance Algorithm = "LoadBalance"
+)
+
+var (
+	// ErrInvalidAlgorithm error for invalid algorithm input
+	ErrInvalidAlgorithm = fmt.Errorf("invalid Algorithm")
 )
 
 var algorithmMap = map[Algorithm]IAlgoImpl{
@@ -32,7 +38,7 @@ type IAlgoImpl interface {
 func GetAlgorithmImpl(algorithm Algorithm) (IAlgoImpl, error) {
 	ai := algorithmMap[algorithm]
 	if ai == nil {
-		return nil, errors.Errorf("the algorithm '%s' is invalid\n", algorithm)
+		return nil, ErrInvalidAlgorithm
 	}
 	return ai, nil
 }

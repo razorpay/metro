@@ -44,14 +44,5 @@ func NewComponent(component string, cfg config.Config) (*Component, error) {
 // Run a metro component
 func (c *Component) Run(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("starting metro component", "name", c.name)
-
-	go func() {
-		<-ctx.Done()
-		logger.Ctx(ctx).Infow("Stopping metro component", "name", c.name, "error", ctx.Err())
-
-		// ensures that all the go routines in start are terminated gracefully
-		c.service.Stop(ctx)
-	}()
-
 	return c.service.Start(ctx)
 }

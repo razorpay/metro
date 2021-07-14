@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -58,7 +57,7 @@ func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.Acknowle
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	if parseErr != nil {
 		logger.Ctx(ctx).Errorw("subscriberserver: error is parsing ack request", "request", req, "error", parseErr.Error())
-		return nil, parseErr
+		return nil, merror.ToGRPCError(parseErr)
 	}
 
 	err := s.psm.Acknowledge(ctx, parsedReq)
@@ -112,7 +111,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 			return merror.ToGRPCError(err)
 		}
 	} else {
-		return merror.ToGRPCError(fmt.Errorf("subscription name empty"))
+		return merror.New(merror.InvalidArgument, "subscription name empty").ToGRPCError()
 	}
 
 	// ack and modack here for the first time
@@ -168,7 +167,7 @@ func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.Mo
 	parsedReq, parseErr := stream.NewParsedModifyAckDeadlineRequest(req)
 	if parseErr != nil {
 		logger.Ctx(ctx).Errorw("subscriberserver: error is parsing modack request", "request", req, "error", parseErr.Error())
-		return nil, parseErr
+		return nil, merror.ToGRPCError(parseErr)
 	}
 	err := s.psm.ModifyAcknowledgement(ctx, parsedReq)
 	if err != nil {

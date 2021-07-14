@@ -98,7 +98,7 @@ func WithName(name string) Option {
 
 // Run the manager
 func (sm *ScheduleManager) Run(ctx context.Context) error {
-	logger.Ctx(ctx).Infow("starting schedule manager")
+	logger.Ctx(ctx).Infow("starting worker schedule manager")
 
 	// Create a registry session
 	sessionID, err := sm.registry.Register(ctx, sm.name, sm.ttl)
@@ -124,7 +124,9 @@ func (sm *ScheduleManager) Run(ctx context.Context) error {
 		return sm.runLeaderElection(gctx, sessionID)
 	})
 
-	return taskGroup.Wait()
+	err = taskGroup.Wait()
+	logger.Ctx(ctx).Infow("exiting from worker schedule manager", "error", err)
+	return err
 }
 
 func (sm *ScheduleManager) acquireNode(ctx context.Context, sessionID string) error {
@@ -285,7 +287,7 @@ func (sm *ScheduleManager) lead(ctx context.Context) error {
 	// wait for leader go routines to terminate
 	err = leadgrp.Wait()
 
-	if err != nil {
+	if err != nil && err != context.Canceled {
 		logger.Ctx(gctx).Errorf("Error in leader group go routines : %s", err.Error())
 	}
 

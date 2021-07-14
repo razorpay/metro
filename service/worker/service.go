@@ -73,6 +73,8 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service
 
 // Start implements all the tasks for worker and waits until one of the task fails
 func (svc *Service) Start(ctx context.Context) error {
+	logger.Ctx(ctx).Infow("starting metro worker")
+
 	// close the done channel when this function returns
 	defer close(svc.doneCh)
 

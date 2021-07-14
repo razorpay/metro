@@ -77,7 +77,7 @@ func WithHTTPConfig(config *stream.HTTPClientConfig) Option {
 
 // Run the SubscriptionManager process
 func (sm *SubscriptionManager) Run(ctx context.Context) error {
-	logger.Ctx(ctx).Infow("starting subscription manager")
+	logger.Ctx(ctx).Infow("starting worker subscription manager")
 	defer close(sm.doneCh)
 
 	err := sm.createNodeBindingWatch(ctx)
@@ -98,22 +98,9 @@ func (sm *SubscriptionManager) Run(ctx context.Context) error {
 		return sm.handleWatchUpdates(gctx)
 	})
 
-	return taskGroup.Wait()
-}
-
-// Stop the SubscriptionManager process
-func (sm *SubscriptionManager) stop(ctx context.Context) {
-	logger.Ctx(ctx).Infow("stopping subscription manager")
-
-	if sm.watcher != nil {
-		logger.Ctx(ctx).Infow("stopping the node subscription watch")
-		sm.watcher.StopWatch()
-	}
-
-	sm.stopPushHandlers(ctx)
-
-	// wait for start to return
-	<-sm.doneCh
+	err = taskGroup.Wait()
+	logger.Ctx(ctx).Infow("exiting from worker subscription manager", "error", err)
+	return err
 }
 
 func (sm *SubscriptionManager) createNodeBindingWatch(ctx context.Context) error {
@@ -146,7 +133,8 @@ func (sm *SubscriptionManager) startNodeBindingWatch(ctx context.Context) error 
 	logger.Ctx(ctx).Infow("starting node subscriptions watch")
 	err := sm.watcher.StartWatch()
 
-	// close the node binding data channel on watch terminations
+	// close the node binding data channel on watch terminationation, this will ensure that no further watch
+	// handler call will be triggered and its safe to close the channel
 	logger.Ctx(ctx).Infow("watch terminated, closing the node binding data channel")
 	close(sm.watchCh)
 
@@ -261,7 +249,9 @@ func (sm *SubscriptionManager) stopPushHandlers(ctx context.Context) {
 			err := ps.Stop()
 			if err != nil {
 				logger.Ctx(ctx).Infow("error stopping stream handler", "error", err)
+				return
 			}
+			logger.Ctx(ctx).Infow("successfully stopped stream handler")
 		}(ps, &wg)
 		return true
 	})

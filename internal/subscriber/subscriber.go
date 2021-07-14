@@ -420,9 +420,17 @@ func (s *Subscriber) Run(ctx context.Context) {
 					}
 				}
 
+				sm := make([]*metrov1.ReceivedMessage, 0)
 				resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInMs})
 				if err != nil {
 					logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID, "msg", err.Error())
+
+					// Write empty data on the response channel in case of error, this is needed because sender blocks
+					// on the response channel in a goroutine after sending request, error channel is not read until
+					// response channel blocking call returns
+					s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+
+					// send error details via error channel
 					s.errChan <- err
 					return
 				}
@@ -431,7 +439,6 @@ func (s *Subscriber) Run(ctx context.Context) {
 					logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID, "message_count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages)
 				}
 
-				sm := make([]*metrov1.ReceivedMessage, 0)
 				for _, msg := range resp.PartitionOffsetWithMessages {
 					protoMsg := &metrov1.PubsubMessage{}
 					err = proto.Unmarshal(msg.Data, protoMsg)

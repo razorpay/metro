@@ -11,12 +11,12 @@ import (
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/project"
+	"github.com/razorpay/metro/internal/scheduler"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/leaderelection"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
-	"github.com/razorpay/metro/pkg/scheduler"
 )
 
 // ScheduleManager implements the scheduling of subscriptions over nodes.

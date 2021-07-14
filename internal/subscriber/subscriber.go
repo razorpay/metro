@@ -439,7 +439,6 @@ func (s *Subscriber) Run(ctx context.Context) {
 					logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "topic", s.topic, "subscription", s.subscription, "subscriberId", s.subscriberID, "message_count", len(resp.PartitionOffsetWithMessages), "messages", resp.PartitionOffsetWithMessages)
 				}
 
-
 				for _, msg := range resp.PartitionOffsetWithMessages {
 					protoMsg := &metrov1.PubsubMessage{}
 					err = proto.Unmarshal(msg.Data, protoMsg)

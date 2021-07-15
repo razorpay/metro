@@ -56,7 +56,8 @@ func TestLeaderElectionRun(t *testing.T) {
 	config.Callbacks.OnStartedLeading = func(ctx context.Context) error {
 		return fmt.Errorf("terminate leader election")
 	}
-	c, _ := New("node01", "id", config, registryMock)
+	c, err := New("node01", "id", config, registryMock)
+	assert.Nil(t, err)
 	assert.NotNil(t, c)
 
 	watcherMock.EXPECT().StartWatch().Do(func() {
@@ -86,10 +87,11 @@ func TestDeregisterNodeUnregistered(t *testing.T) {
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	config := getConfig()
 
-	c, _ := New("node01", "id", config, registryMock)
+	c, err := New("node01", "id", config, registryMock)
+	assert.Nil(t, err)
 	assert.NotNil(t, c)
 
-	registryMock.EXPECT().Release(gomock.Any(), "id", common.GetBasePrefix()+"leader/election/test", gomock.Any()).Return(true).AnyTimes()
+	registryMock.EXPECT().Release(gomock.Any(), "id", common.GetBasePrefix()+"leader/election/test", gomock.Any()).Return(true)
 	res := c.release(context.Background())
 
 	assert.Equal(t, true, res)

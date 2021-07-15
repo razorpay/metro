@@ -17,11 +17,11 @@ func New(id string, sessionID string, c Config, registry registry.IRegistry) (*C
 	}
 
 	if id == "" {
-		return nil, errors.New("candidate id is nil")
+		return nil, errors.New("candidate id is empty")
 	}
 
 	if sessionID == "" {
-		return nil, errors.New("sessionID is nil")
+		return nil, errors.New("sessionID is empty")
 	}
 
 	le := Candidate{

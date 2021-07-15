@@ -136,7 +136,7 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	err = grp.Wait()
 	if err != nil {
-		logger.Ctx(gctx).Info("web service error: %s", err.Error())
+		logger.Ctx(gctx).Errorf("web service error: %s", err.Error())
 	}
 	return err
 }

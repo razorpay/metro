@@ -169,7 +169,7 @@ func (c *ConsulClient) Release(ctx context.Context, sessionID string, key string
 	}, nil)
 
 	if err != nil {
-		logger.Ctx(ctx).Errorw("error in consul realease", "ID", sessionID, "key", key, "error", err.Error())
+		logger.Ctx(ctx).Errorw("error in consul release", "ID", sessionID, "key", key, "error", err.Error())
 		return false
 	}
 

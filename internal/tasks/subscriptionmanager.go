@@ -248,7 +248,7 @@ func (sm *SubscriptionManager) stopPushHandlers(ctx context.Context) {
 
 			err := ps.Stop()
 			if err != nil {
-				logger.Ctx(ctx).Infow("error stopping stream handler", "error", err)
+				logger.Ctx(ctx).Errorw("error stopping stream handler", "error", err)
 				return
 			}
 			logger.Ctx(ctx).Infow("successfully stopped stream handler")

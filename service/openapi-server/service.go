@@ -80,7 +80,7 @@ func (svc *Service) runOpenAPIHandler(ctx context.Context) error {
 	err = server.ListenAndServe()
 
 	if err != nil {
-		logger.Ctx(ctx).Infow("openapi-server returned with error", "error", err.Error())
+		logger.Ctx(ctx).Errorw("openapi-server returned with error", "error", err.Error())
 	}
 
 	return err

@@ -19,9 +19,9 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
-// ScheduleManager implements the scheduling of subscriptions over nodes.
+// SchedulerTask implements the scheduling of subscriptions over nodes.
 // only leader node elected using the leader election process does scheduling
-type ScheduleManager struct {
+type SchedulerTask struct {
 	id               string
 	name             string
 	ttl              time.Duration
@@ -35,8 +35,8 @@ type ScheduleManager struct {
 	subCache         []*subscription.Model
 }
 
-// NewScheduleManager creates ScheduleManager instance
-func NewScheduleManager(id string, registry registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (IManager, error) {
+// NewSchedulerTask creates SchedulerTask instance
+func NewSchedulerTask(id string, registry registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (ITask, error) {
 	options = append(defaultOptions(), options...)
 
 	nodeCore := node.NewCore(node.NewRepo(registry))
@@ -54,7 +54,7 @@ func NewScheduleManager(id string, registry registry.IRegistry, brokerStore brok
 		return nil, err
 	}
 
-	scheduleManager := &ScheduleManager{
+	schedulerTask := &SchedulerTask{
 		id:               id,
 		registry:         registry,
 		nodeCore:         nodeCore,
@@ -67,10 +67,10 @@ func NewScheduleManager(id string, registry registry.IRegistry, brokerStore brok
 	}
 
 	for _, option := range options {
-		option(scheduleManager)
+		option(schedulerTask)
 	}
 
-	return scheduleManager, nil
+	return schedulerTask, nil
 }
 
 func defaultOptions() []Option {
@@ -82,23 +82,23 @@ func defaultOptions() []Option {
 
 // WithTTL defines the TTL for the registry session
 func WithTTL(ttl time.Duration) Option {
-	return func(manager IManager) {
-		scheduleManager := manager.(*ScheduleManager)
+	return func(task ITask) {
+		scheduleManager := task.(*SchedulerTask)
 		scheduleManager.ttl = ttl
 	}
 }
 
 // WithName defines the Name for the registry session creation
 func WithName(name string) Option {
-	return func(manager IManager) {
-		scheduleManager := manager.(*ScheduleManager)
+	return func(task ITask) {
+		scheduleManager := task.(*SchedulerTask)
 		scheduleManager.name = name
 	}
 }
 
-// Run the manager
-func (sm *ScheduleManager) Run(ctx context.Context) error {
-	logger.Ctx(ctx).Infow("starting worker schedule manager")
+// Run the task
+func (sm *SchedulerTask) Run(ctx context.Context) error {
+	logger.Ctx(ctx).Infow("starting worker schedule task")
 
 	// Create a registry session
 	sessionID, err := sm.registry.Register(ctx, sm.name, sm.ttl)
@@ -125,11 +125,11 @@ func (sm *ScheduleManager) Run(ctx context.Context) error {
 	})
 
 	err = taskGroup.Wait()
-	logger.Ctx(ctx).Infow("exiting from worker schedule manager", "error", err)
+	logger.Ctx(ctx).Infow("exiting from worker schedule task", "error", err)
 	return err
 }
 
-func (sm *ScheduleManager) acquireNode(ctx context.Context, sessionID string) error {
+func (sm *SchedulerTask) acquireNode(ctx context.Context, sessionID string) error {
 	err := sm.nodeCore.AcquireNode(ctx, &node.Model{
 		ID: sm.id,
 	}, sessionID)
@@ -137,7 +137,7 @@ func (sm *ScheduleManager) acquireNode(ctx context.Context, sessionID string) er
 	return err
 }
 
-func (sm *ScheduleManager) runLeaderElection(ctx context.Context, sessionID string) error {
+func (sm *SchedulerTask) runLeaderElection(ctx context.Context, sessionID string) error {
 	// Init Leader Election
 	candidate, err := leaderelection.New(
 		sm.id,
@@ -162,7 +162,7 @@ func (sm *ScheduleManager) runLeaderElection(ctx context.Context, sessionID stri
 	return candidate.Run(ctx)
 }
 
-func (sm *ScheduleManager) lead(ctx context.Context) error {
+func (sm *SchedulerTask) lead(ctx context.Context) error {
 	logger.Ctx(ctx).Infof("Node %s elected as new leader", sm.id)
 
 	var (
@@ -294,11 +294,11 @@ func (sm *ScheduleManager) lead(ctx context.Context) error {
 	return err
 }
 
-func (sm *ScheduleManager) stepDown(ctx context.Context) {
+func (sm *SchedulerTask) stepDown(ctx context.Context) {
 	logger.Ctx(ctx).Infof("Node %s stepping down from leader", sm.id)
 }
 
-func (sm *ScheduleManager) refreshNodeBindings(ctx context.Context) error {
+func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	// fetch all current node bindings across all nodes
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
 	if err != nil {
@@ -398,7 +398,7 @@ func (sm *ScheduleManager) refreshNodeBindings(ctx context.Context) error {
 	return nil
 }
 
-func (sm *ScheduleManager) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model) error {
+func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model) error {
 	nb, serr := sm.scheduler.Schedule(sub, *nodeBindings, sm.nodeCache)
 	if serr != nil {
 		return serr

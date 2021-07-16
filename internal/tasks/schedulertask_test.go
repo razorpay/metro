@@ -23,7 +23,7 @@ func TestScheduleManager_Start(t *testing.T) {
 	watcherMock := mocks.NewMockIWatcher(ctrl)
 
 	workerID := uuid.New().String()
-	manager, err := NewScheduleManager(workerID, registryMock, brokerstoreMock)
+	task, err := NewSchedulerTask(workerID, registryMock, brokerstoreMock)
 	assert.Nil(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -42,7 +42,7 @@ func TestScheduleManager_Start(t *testing.T) {
 	}).Return(nil)
 	watcherMock.EXPECT().StopWatch().Return()
 
-	err = manager.Run(ctx)
+	err = task.Run(ctx)
 	assert.NotNil(t, err)
 }
 
@@ -55,7 +55,7 @@ func TestScheduleManager_lead(t *testing.T) {
 	watcherMock := mocks.NewMockIWatcher(ctrl)
 
 	workerID := uuid.New().String()
-	manager, err := NewScheduleManager(workerID, registryMock, brokerstoreMock)
+	task, err := NewSchedulerTask(workerID, registryMock, brokerstoreMock)
 	assert.Nil(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -71,7 +71,7 @@ func TestScheduleManager_lead(t *testing.T) {
 	go func() {
 		defer close(doneCh)
 
-		err = manager.(*ScheduleManager).lead(ctx)
+		err = task.(*SchedulerTask).lead(ctx)
 		assert.Equal(t, err, context.Canceled)
 	}()
 

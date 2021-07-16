@@ -21,8 +21,8 @@ import (
 type Service struct {
 	id                  string
 	workerConfig        *Config
-	scheduleManager     tasks.IManager
-	subscriptionManager tasks.IManager
+	scheduleManager     tasks.ITask
+	subscriptionManager tasks.ITask
 	doneCh              chan struct{}
 	registry            registry.IRegistry
 	brokerStore         brokerstore.IBrokerStore
@@ -45,12 +45,12 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service
 	}
 
 	// Init schedule manager
-	scheduleManager, err := tasks.NewScheduleManager(workerID, reg, brokerStore)
+	scheduleManager, err := tasks.NewSchedulerTask(workerID, reg, brokerStore)
 	if err != nil {
 		return nil, err
 	}
 
-	subscriptionManager, err := tasks.NewSubscriptionManager(
+	subscriptionManager, err := tasks.NewSubscriptionTask(
 		workerID,
 		reg,
 		brokerStore,

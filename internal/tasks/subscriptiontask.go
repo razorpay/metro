@@ -20,8 +20,8 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
-// SubscriptionManager runs the assigned subscriptions to the node
-type SubscriptionManager struct {
+// SubscriptionTask runs the assigned subscriptions to the node
+type SubscriptionTask struct {
 	id               string
 	subscriptionCore subscription.ICore
 	nodeBindingCore  nodebinding.ICore
@@ -35,8 +35,8 @@ type SubscriptionManager struct {
 	doneCh           chan struct{}
 }
 
-// NewSubscriptionManager creates SubscriptionManager instance
-func NewSubscriptionManager(id string, reg registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (IManager, error) {
+// NewSubscriptionTask creates SubscriptionTask instance
+func NewSubscriptionTask(id string, reg registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (ITask, error) {
 	projectCore := project.NewCore(project.NewRepo(reg))
 
 	topicCore := topic.NewCore(topic.NewRepo(reg), projectCore, brokerStore)
@@ -50,7 +50,7 @@ func NewSubscriptionManager(id string, reg registry.IRegistry, brokerStore broke
 
 	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore)
 
-	subscriptionManager := &SubscriptionManager{
+	subscriptionTask := &SubscriptionTask{
 		id:               id,
 		registry:         reg,
 		subscriptionCore: subscriptionCore,
@@ -61,23 +61,23 @@ func NewSubscriptionManager(id string, reg registry.IRegistry, brokerStore broke
 	}
 
 	for _, option := range options {
-		option(subscriptionManager)
+		option(subscriptionTask)
 	}
 
-	return subscriptionManager, nil
+	return subscriptionTask, nil
 }
 
 // WithHTTPConfig defines the httpClient config for wehbooks http client
 func WithHTTPConfig(config *stream.HTTPClientConfig) Option {
-	return func(manager IManager) {
-		subscriptionManager := manager.(*SubscriptionManager)
-		subscriptionManager.httpConfig = config
+	return func(task ITask) {
+		subscriptionTask := task.(*SubscriptionTask)
+		subscriptionTask.httpConfig = config
 	}
 }
 
-// Run the SubscriptionManager process
-func (sm *SubscriptionManager) Run(ctx context.Context) error {
-	logger.Ctx(ctx).Infow("starting worker subscription manager")
+// Run the SubscriptionTask process
+func (sm *SubscriptionTask) Run(ctx context.Context) error {
+	logger.Ctx(ctx).Infow("starting worker subscription task")
 	defer close(sm.doneCh)
 
 	err := sm.createNodeBindingWatch(ctx)
@@ -99,11 +99,11 @@ func (sm *SubscriptionManager) Run(ctx context.Context) error {
 	})
 
 	err = taskGroup.Wait()
-	logger.Ctx(ctx).Infow("exiting from worker subscription manager", "error", err)
+	logger.Ctx(ctx).Infow("exiting from worker subscription task", "error", err)
 	return err
 }
 
-func (sm *SubscriptionManager) createNodeBindingWatch(ctx context.Context) error {
+func (sm *SubscriptionTask) createNodeBindingWatch(ctx context.Context) error {
 	prefix := fmt.Sprintf(common.GetBasePrefix()+nodebinding.Prefix+"%s/", sm.id)
 	logger.Ctx(ctx).Infow("setting up node subscriptions watch", "prefix", prefix)
 
@@ -121,7 +121,7 @@ func (sm *SubscriptionManager) createNodeBindingWatch(ctx context.Context) error
 	return err
 }
 
-func (sm *SubscriptionManager) startNodeBindingWatch(ctx context.Context) error {
+func (sm *SubscriptionTask) startNodeBindingWatch(ctx context.Context) error {
 	// stop watch when context is Done
 	go func() {
 		<-ctx.Done()
@@ -141,7 +141,7 @@ func (sm *SubscriptionManager) startNodeBindingWatch(ctx context.Context) error 
 	return err
 }
 
-func (sm *SubscriptionManager) handleWatchUpdates(ctx context.Context) error {
+func (sm *SubscriptionTask) handleWatchUpdates(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -165,7 +165,7 @@ func (sm *SubscriptionManager) handleWatchUpdates(ctx context.Context) error {
 	}
 }
 
-func (sm *SubscriptionManager) handleNodeBindingUpdates(ctx context.Context, newBindingPairs []registry.Pair) error {
+func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBindingPairs []registry.Pair) error {
 	oldBindings := sm.nodebindingCache
 	var newBindings []*nodebinding.Model
 
@@ -236,7 +236,7 @@ func (sm *SubscriptionManager) handleNodeBindingUpdates(ctx context.Context, new
 	return nil
 }
 
-func (sm *SubscriptionManager) stopPushHandlers(ctx context.Context) {
+func (sm *SubscriptionTask) stopPushHandlers(ctx context.Context) {
 	// stop all push stream handlers
 	logger.Ctx(ctx).Infow("metro stop: stopping all push handlers")
 	wg := sync.WaitGroup{}

@@ -379,6 +379,11 @@ func (s *Subscriber) Run(ctx context.Context) {
 	for {
 		select {
 		case req := <-s.requestChan:
+			// on channel closure, we can get nil data
+			if req == nil {
+				continue
+			}
+
 			// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
 			func() {
 				caseStartTime := time.Now()

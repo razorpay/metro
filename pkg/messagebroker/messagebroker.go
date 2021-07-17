@@ -11,48 +11,49 @@ type Broker interface {
 
 // Admin for admin operations on topics, partitions, updating schema registry etc
 type Admin interface {
-	// creates a new topic if not available
+	// CreateTopic creates a new topic if not available
 	CreateTopic(context.Context, CreateTopicRequest) (CreateTopicResponse, error)
 
-	// deletes an existing topic
+	// DeleteTopic deletes an existing topic
 	DeleteTopic(context.Context, DeleteTopicRequest) (DeleteTopicResponse, error)
 
-	// adds partitions to an existing topic
+	// AddTopicPartitions adds partitions to an existing topic
 	AddTopicPartitions(context.Context, AddTopicPartitionRequest) (*AddTopicPartitionResponse, error)
 
-	// checks health of underlying broker
+	// IsHealthy checks health of underlying broker
 	IsHealthy(context.Context) (bool, error)
 }
 
 // Producer for produce operations
 type Producer interface {
-	// sends a message on the topic
+	// SendMessage sends a message on the topic
 	SendMessage(context.Context, SendMessageToTopicRequest) (*SendMessageToTopicResponse, error)
 }
 
 // Consumer interface for consuming messages
 type Consumer interface {
-	//GetMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
-	//from the previous committed offset. If the available messages in the queue are less, returns
+	// ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
+	// from the previous committed offset. If the available messages in the queue are less, returns
 	// how many ever messages are available
 	ReceiveMessages(context.Context, GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error)
 
-	//Commits messages if any
-	//This func will commit the message consumed
-	//by all the previous calls to GetMessages
+	// CommitByPartitionAndOffset Commits messages if any
+	// This func will commit the message consumed
+	// by all the previous calls to GetMessages
 	CommitByPartitionAndOffset(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
 
-	// Commits a message by ID
+	// CommitByMsgID Commits a message by ID
 	CommitByMsgID(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
 
+	// GetTopicMetadata gets the topic metadata
 	GetTopicMetadata(context.Context, GetTopicMetadataRequest) (GetTopicMetadataResponse, error)
 
-	// pause the consumer
+	// Pause pause the consumer
 	Pause(context.Context, PauseOnTopicRequest) error
 
-	// resume the consumer
+	// Resume resume the consumer
 	Resume(context.Context, ResumeOnTopicRequest) error
 
-	// closes the consumer
+	// Close closes the consumer
 	Close(context.Context) error
 }

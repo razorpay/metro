@@ -17,13 +17,13 @@ type ICore interface {
 		requestCh chan *PullRequest, ackCh chan *AckMessage, modAckCh chan *ModAckMessage) (ISubscriber, error)
 }
 
-// Core implements ISubscriber
+// Core implements ICore
 type Core struct {
 	bs               brokerstore.IBrokerStore
 	subscriptionCore subscription.ICore
 }
 
-// NewCore returns a new core
+// NewCore returns a new subscriber core
 func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) ICore {
 	return &Core{bs: bs, subscriptionCore: subscriptionCore}
 }

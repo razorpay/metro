@@ -16,11 +16,13 @@ import (
 	"github.com/razorpay/metro/internal/nodebinding"
 	mocks5 "github.com/razorpay/metro/internal/nodebinding/mocks/core"
 	"github.com/razorpay/metro/internal/stream"
+	"github.com/razorpay/metro/internal/subscriber"
 	mocks6 "github.com/razorpay/metro/internal/subscriber/mocks"
 	"github.com/razorpay/metro/internal/subscription"
 	mocks4 "github.com/razorpay/metro/internal/subscription/mocks/core"
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/registry/mocks"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 func TestSubscriptionTask_Run(t *testing.T) {
@@ -186,9 +188,30 @@ func TestSubscriptionTask_handleNodeBindingUpdates(t *testing.T) {
 		gomock.Any()).Return(subscriberMock, nil)
 
 	// mock subscriber
-	subscriberMock.EXPECT().Run(gomock.Any()).Return(nil)
+	reqCh := make(chan *subscriber.PullRequest)
+	resCh := make(chan *metrov1.PullResponse)
+	subscriberMock.EXPECT().GetErrorChannel().AnyTimes()
+	subscriberMock.EXPECT().GetID().AnyTimes()
+	subscriberMock.EXPECT().GetRequestChannel().Return(reqCh).AnyTimes()
+	subscriberMock.EXPECT().GetResponseChannel().Return(resCh).AnyTimes()
+	subscriberMock.EXPECT().Stop().Do(func() {
+		close(resCh)
+	})
 
 	doneCh := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-doneCh:
+				close(resCh)
+			default:
+				<-reqCh
+				resCh <- nil
+			}
+		}
+	}()
+
 	go func() {
 		err := task.(*SubscriptionTask).handleWatchUpdates(ctx)
 		assert.Equal(t, err, context.Canceled)

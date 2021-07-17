@@ -148,7 +148,7 @@ func (sm *SubscriptionTask) handleWatchUpdates(ctx context.Context) error {
 
 			// pairs can be be nil if it returns because of closing of channel
 			if pairs == nil {
-				return nil
+				continue
 			}
 
 			err := sm.handleNodeBindingUpdates(ctx, pairs)

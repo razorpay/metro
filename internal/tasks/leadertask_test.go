@@ -1,3 +1,5 @@
+// +build unit
+
 package tasks
 
 import (
@@ -101,7 +103,7 @@ func TestLeaderTask_lead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// mock task runs
+	// tests
 	tests := []struct {
 		err error
 	}{
@@ -114,6 +116,9 @@ func TestLeaderTask_lead(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		// mock task runs
+		taskMock.EXPECT().Run(gomock.AssignableToTypeOf(ctx)).Return(test.err)
+
 		err = task.(*LeaderTask).lead(ctx)
 		assert.Equal(t, err, test.err)
 	}

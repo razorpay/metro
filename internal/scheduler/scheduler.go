@@ -7,6 +7,12 @@ import (
 	"github.com/razorpay/metro/internal/subscription"
 )
 
+// IScheduler is the interface implemented by Schedulers
+type IScheduler interface {
+	// Schedule implemented by Scheduler based on current subscription and current load on nodes
+	Schedule(*subscription.Model, []*nodebinding.Model, []*node.Model) (*nodebinding.Model, error)
+}
+
 // Scheduler struct for subsciption scheduling on worker nodes
 type Scheduler struct {
 	algoImpl  IAlgoImpl
@@ -14,7 +20,7 @@ type Scheduler struct {
 }
 
 // New returns a new instance of scheduler
-func New(algo Algorithm) (*Scheduler, error) {
+func New(algo Algorithm) (IScheduler, error) {
 	ai, err := GetAlgorithmImpl(algo)
 	if err != nil {
 		return nil, err

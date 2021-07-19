@@ -7,13 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/razorpay/metro/internal/common"
-
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/razorpay/metro/internal/common"
 	mocks3 "github.com/razorpay/metro/internal/node/mocks/core"
 	mocks2 "github.com/razorpay/metro/internal/tasks/mocks"
 	"github.com/razorpay/metro/pkg/registry/mocks"
@@ -38,7 +37,7 @@ func TestLeaderTask_Run(t *testing.T) {
 	// Mock responses to registry
 	registryMock.EXPECT().Register(gomock.Any(), "metro/metro-worker", 30*time.Second).Return("id", nil).AnyTimes()
 	registryMock.EXPECT().RenewPeriodic(gomock.Any(), "id", 30*time.Second, gomock.Any()).Return(nil).AnyTimes()
-	registryMock.EXPECT().Release(gomock.Any(), "id", common.GetBasePrefix()+"leader/election", workerID).Return(true)
+	registryMock.EXPECT().Release(gomock.Any(), "id", getLeaderElectionKey(), workerID).Return(true)
 	registryMock.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(watcherMock, nil).AnyTimes()
 
 	// mock watcher
@@ -73,7 +72,7 @@ func TestLeaderTask_Run2(t *testing.T) {
 	// Mock responses to registry
 	registryMock.EXPECT().Register(gomock.Any(), "metro/metro-worker", 30*time.Second).Return("id", nil).AnyTimes()
 	registryMock.EXPECT().RenewPeriodic(gomock.Any(), "id", 30*time.Second, gomock.Any()).Return(nil).AnyTimes()
-	registryMock.EXPECT().Release(gomock.Any(), "id", common.GetBasePrefix()+"leader/election", workerID).Return(true)
+	registryMock.EXPECT().Release(gomock.Any(), "id", getLeaderElectionKey(), workerID).Return(true)
 	registryMock.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(watcherMock, nil).AnyTimes()
 
 	// mock watcher
@@ -122,4 +121,9 @@ func TestLeaderTask_lead(t *testing.T) {
 		err = task.(*LeaderTask).lead(ctx)
 		assert.Equal(t, err, test.err)
 	}
+}
+
+func TestLeaderTask_getLeaderElectionKey(t *testing.T) {
+	key := getLeaderElectionKey()
+	assert.Equal(t, key, common.GetBasePrefix()+LeaderKey)
 }

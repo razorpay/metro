@@ -13,6 +13,9 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
+// LeaderKey is the path for which nodes contest for lock
+const LeaderKey = "leader/election"
+
 // LeaderTask runs the leader election process and runs the task associated
 type LeaderTask struct {
 	id       string
@@ -117,7 +120,7 @@ func (sm *LeaderTask) runLeaderElection(ctx context.Context, sessionID string) e
 		sm.id,
 		sessionID,
 		leaderelection.Config{
-			LockPath: common.GetBasePrefix() + "leader/election",
+			LockPath: getLeaderElectionKey(),
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) error {
 					return sm.lead(ctx)
@@ -143,4 +146,8 @@ func (sm *LeaderTask) lead(ctx context.Context) error {
 
 func (sm *LeaderTask) stepDown(ctx context.Context) {
 	logger.Ctx(ctx).Infof("Node %s stepping down from leader", sm.id)
+}
+
+func getLeaderElectionKey() string {
+	return common.GetBasePrefix() + LeaderKey
 }

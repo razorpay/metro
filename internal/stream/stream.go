@@ -157,7 +157,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		_, err = io.Copy(ioutil.Discard, resp.Body)
 		err = resp.Body.Close()
 		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, logFields)
+			logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, logFields, "error", err.Error())
 		}
 	}
 }

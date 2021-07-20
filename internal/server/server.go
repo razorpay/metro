@@ -5,11 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc/metadata"
-
-	"golang.org/x/sync/errgroup"
+	"time"
 
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -17,85 +13,111 @@ import (
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/prometheus/client_golang/prometheus"
-	grpcinterceptor "github.com/razorpay/metro/internal/interceptors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+
+	grpcinterceptor "github.com/razorpay/metro/internal/interceptors"
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 type registerGrpcHandlers func(server *grpc.Server) error
 type registerHTTPHandlers func(mux *runtime.ServeMux) error
 
-// StartGRPCServer with handlers and interceptors
-func StartGRPCServer(
-	grp *errgroup.Group,
+// RunGRPCServer with handlers and interceptors
+func RunGRPCServer(
+	ctx context.Context,
 	address string,
 	registerGrpcHandlers registerGrpcHandlers,
-	interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
-
+	interceptors ...grpc.UnaryServerInterceptor) error {
 	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return nil, err
+		return err
 	}
+
+	// wait for ctx.Done() in a goroutine and stop the server gracefully
+	go func() {
+		<-ctx.Done()
+		grpcServer.GracefulStop()
+	}()
 
 	// Start gRPC server
-	grp.Go(func() error {
-		return grpcServer.Serve(listener)
-	})
-
-	return grpcServer, nil
+	return grpcServer.Serve(listener)
 }
 
-// StartHTTPServer with handlers
-func StartHTTPServer(grp *errgroup.Group, address string, registerHTTPHandlers registerHTTPHandlers) (*http.Server, error) {
+// RunHTTPServer with handlers
+func RunHTTPServer(ctx context.Context, address string, registerHTTPHandlers registerHTTPHandlers) error {
 	httpServer, err := newHTTPServer(registerHTTPHandlers)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return nil, err
+		return err
 	}
+
+	// Stop the server when context is Done
+	go func() {
+		<-ctx.Done()
+
+		// create a new ctx for server shutdown with timeout
+		// we are not using a cancelled context here as that returns immediately
+		newServerCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		err := httpServer.Shutdown(newServerCtx)
+		if err != nil {
+			logger.Ctx(ctx).Infow("http server shutdown failed with err", "error", err.Error())
+		}
+	}()
 
 	// Start HTTP server for gRPC gateway
-	grp.Go(func() error {
-		err := httpServer.Serve(listener)
-		if err != nil && err != http.ErrServerClosed {
-			return err
-		}
-		return nil
-	})
-
-	return httpServer, nil
+	err = httpServer.Serve(listener)
+	if err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
 }
 
-// StartInternalHTTPServer with handlers
-func StartInternalHTTPServer(grp *errgroup.Group, address string) (*http.Server, error) {
-
+// RunInternalHTTPServer with handlers
+func RunInternalHTTPServer(ctx context.Context, address string) error {
 	internalHTTPServer, err := newInternalServer()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// Start Internal HTTP server for metrics
-	grp.Go(func() error {
-		err := internalHTTPServer.Serve(listener)
-		if err != nil && err != http.ErrServerClosed {
-			return err
-		}
-		return nil
-	})
+	// Stop the server when context is Done
+	go func() {
+		<-ctx.Done()
 
-	return internalHTTPServer, err
+		// create a new ctx for server shutdown with timeout
+		// we are not using a cancelled context here as that returns immediately
+		newServerCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		err := internalHTTPServer.Shutdown(newServerCtx)
+		if err != nil {
+			logger.Ctx(ctx).Infow("http server shutdown failed with err", "error", err.Error())
+		}
+	}()
+
+	// Start Internal HTTP server for metrics
+	err = internalHTTPServer.Serve(listener)
+	if err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
 }
 
 func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {

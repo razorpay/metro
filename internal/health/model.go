@@ -10,7 +10,6 @@ import (
 )
 
 type registryHealthChecker struct {
-	service  string
 	registry registry.IRegistry
 }
 
@@ -19,17 +18,16 @@ func (r *registryHealthChecker) checkHealth(ctx context.Context) (bool, error) {
 }
 
 func (r *registryHealthChecker) name() string {
-	return fmt.Sprintf("registry:%v", r.service)
+	return fmt.Sprintf("registry:%T", r)
 }
 
 // NewRegistryHealthChecker returns a registry health checker
-func NewRegistryHealthChecker(service string, registry registry.IRegistry) Checker {
-	return &registryHealthChecker{service, registry}
+func NewRegistryHealthChecker(registry registry.IRegistry) Checker {
+	return &registryHealthChecker{registry}
 }
 
 type brokerHealthChecker struct {
-	service string
-	admin   messagebroker.Admin
+	admin messagebroker.Admin
 }
 
 func (b *brokerHealthChecker) checkHealth(ctx context.Context) (bool, error) {
@@ -39,10 +37,10 @@ func (b *brokerHealthChecker) checkHealth(ctx context.Context) (bool, error) {
 }
 
 func (b *brokerHealthChecker) name() string {
-	return fmt.Sprintf("broker:%v", b.service)
+	return fmt.Sprintf("broker:%T", b)
 }
 
 // NewBrokerHealthChecker returns a broker health checker
-func NewBrokerHealthChecker(service string, admin messagebroker.Admin) Checker {
-	return &brokerHealthChecker{service, admin}
+func NewBrokerHealthChecker(admin messagebroker.Admin) Checker {
+	return &brokerHealthChecker{admin}
 }

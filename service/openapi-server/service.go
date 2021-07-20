@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/rakyll/statik/fs"
 
@@ -18,7 +19,6 @@ const metroAPIPrefix = "/v1"
 // Service for openapi-server
 type Service struct {
 	config *Config
-	server *http.Server
 }
 
 // NewService creates an instance of new producer service
@@ -33,17 +33,9 @@ func (svc *Service) Start(ctx context.Context) error {
 	return svc.runOpenAPIHandler(ctx)
 }
 
-// Stop the OpenAPI server
-func (svc *Service) Stop(ctx context.Context) {
-	err := svc.server.Shutdown(ctx)
-	if err != nil {
-		logger.Ctx(ctx).Warnw("failed to shutdown the openapi server", "error", err.Error())
-	}
-}
-
 // runOpenAPIHandler serves an OpenAPI UI.
 // Adapted from https://github.com/philips/grpc-gateway-example/blob/a269bcb5931ca92be0ceae6130ac27ae89582ecc/cmd/serve.go#L63
-func (svc *Service) runOpenAPIHandler(_ context.Context) error {
+func (svc *Service) runOpenAPIHandler(ctx context.Context) error {
 	err := mime.AddExtensionType(".svg", "image/svg+xml")
 	if err != nil {
 		return err
@@ -53,6 +45,7 @@ func (svc *Service) runOpenAPIHandler(_ context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.RequestURI, metroAPIPrefix) {
@@ -66,9 +59,29 @@ func (svc *Service) runOpenAPIHandler(_ context.Context) error {
 	})
 
 	server := http.Server{Addr: svc.config.HTTPServerAddress, Handler: mux}
-	svc.server = &server
+
+	// Stop the server when context is Done
+	go func() {
+		<-ctx.Done()
+
+		// create a new ctx for server shutdown with timeout
+		// we are not using a cancelled context here as that returns immediately
+		newServerCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		err := server.Shutdown(newServerCtx)
+		if err != nil {
+			logger.Ctx(ctx).Infow("http server shutdown failed with err", "error", err.Error())
+		}
+
+	}()
 
 	// Run the server
 	err = server.ListenAndServe()
+
+	if err != nil {
+		logger.Ctx(ctx).Errorw("openapi-server returned with error", "error", err.Error())
+	}
+
 	return err
 }

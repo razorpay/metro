@@ -13,6 +13,7 @@ import (
 type ICore interface {
 	CreateNode(ctx context.Context, m *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
+	AcquireNode(ctx context.Context, m *Model, sessionID string) error
 	ExistsWithID(ctx context.Context, id string) (bool, error)
 	DeleteNode(ctx context.Context, m *Model) error
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
@@ -46,6 +47,18 @@ func (c *Core) CreateNode(ctx context.Context, m *Model) error {
 		return merror.Newf(merror.AlreadyExists, "node with id %s already exists", m.ID)
 	}
 	return c.repo.Save(ctx, m)
+}
+
+// AcquireNode to create a node model with acquiring a lock on it
+func (c *Core) AcquireNode(ctx context.Context, m *Model, sessionID string) error {
+	nodeOperationCount.WithLabelValues(env, "AcquireNode").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		nodeOperationTimeTaken.WithLabelValues(env, "AcquireNode").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	return c.repo.Acquire(ctx, m, sessionID)
 }
 
 // Exists to check if the node exists with fully qualified consul key

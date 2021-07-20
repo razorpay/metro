@@ -5,7 +5,6 @@ package leaderelection
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/magiconair/properties/assert"
 )
@@ -17,22 +16,6 @@ func TestConfig(t *testing.T) {
 	}{
 		{
 			config: Config{
-				LeaseDuration: 0 * time.Second,
-				LockPath:      "test",
-				Callbacks: LeaderCallbacks{
-					OnStartedLeading: func(ctx context.Context) error {
-						return nil
-					},
-					OnStoppedLeading: func(ctx context.Context) {
-
-					},
-				},
-			},
-			err: ErrInvalidLeaseDuration,
-		},
-		{
-			config: Config{
-				LeaseDuration: 10 * time.Second,
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -46,15 +29,13 @@ func TestConfig(t *testing.T) {
 		},
 		{
 			config: Config{
-				LeaseDuration: 10 * time.Second,
-				LockPath:      "test",
+				LockPath: "test",
 			},
 			err: ErrInvalidOnStartedLeadingCallback,
 		},
 		{
 			config: Config{
-				LeaseDuration: 10 * time.Second,
-				LockPath:      "test",
+				LockPath: "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil
@@ -65,8 +46,7 @@ func TestConfig(t *testing.T) {
 		},
 		{
 			config: Config{
-				LeaseDuration: 10 * time.Second,
-				LockPath:      "test",
+				LockPath: "test",
 				Callbacks: LeaderCallbacks{
 					OnStartedLeading: func(ctx context.Context) error {
 						return nil

@@ -59,7 +59,7 @@ func (m *Model) Prefix() string {
 }
 
 // NewCredential returns a new credential model
-func NewCredential(username, password string) ICredentials {
+func NewCredential(username, password string) *Model {
 	m := &Model{}
 	m.Username = username
 	// store Password only after encrypting it

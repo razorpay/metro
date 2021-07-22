@@ -70,7 +70,7 @@ func (ps *PushStream) Start() error {
 			case err = <-ps.subs.GetErrorChannel():
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
-					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "logFields", ps.getLogFields(), "err", err.Error())
+					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "logFields", ps.getLogFields(), "error", err.Error())
 					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
@@ -111,7 +111,7 @@ func (ps *PushStream) stopSubscriber() {
 }
 
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
-	logger.Ctx(ctx).Infow("worker: response", "data", data, "logFields", ps.getLogFields())
+	logger.Ctx(ctx).Infow("worker: response", "len(data)", len(data.ReceivedMessages), "logFields", ps.getLogFields())
 
 	for _, message := range data.ReceivedMessages {
 		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint", "logFields", ps.getLogFields())
@@ -127,11 +127,13 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		pushRequest := newPushEndpointRequest(message, subModel.Name)
 		postBody, _ := json.Marshal(pushRequest)
 		postData := bytes.NewBuffer(postBody)
-		req, err := http.NewRequest("POST", subModel.PushEndpoint, postData)
+		req, err := http.NewRequest(http.MethodPost, subModel.PushEndpoint, postData)
 		if subModel.HasCredentials() {
 			req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
 		}
-		logger.Ctx(ps.ctx).Infow("worker: posting messages to subscription url", "logFields", logFields, "endpoint", subModel.PushEndpoint)
+
+		logFields["endpoint"] = subModel.PushEndpoint
+		logger.Ctx(ps.ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
 		resp, err := ps.httpClient.Do(req)
 		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
@@ -167,7 +169,7 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 	logFields["messageId"] = message.Message.MessageId
 	logFields["ackId"] = message.AckId
 
-	logger.Ctx(ps.ctx).Infow("worker: sending nack request to subscriber", "logFields", logFields)
+	logger.Ctx(ctx).Infow("worker: sending nack request to subscriber", "logFields", logFields)
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// deadline is set to 0 for nack
 	modackReq := subscriber.NewModAckMessage(ackReq, 0)
@@ -182,7 +184,7 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 	logFields["messageId"] = message.Message.MessageId
 	logFields["ackId"] = message.AckId
 
-	logger.Ctx(ps.ctx).Infow("worker: sending ack request to subscriber", "logFields", logFields)
+	logger.Ctx(ctx).Infow("worker: sending ack request to subscriber", "logFields", logFields)
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// check for closed channel before sending request
 	if ps.subs.GetAckChannel() != nil {
@@ -205,7 +207,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	// get subscription Model details
 	subModel, err := subscriptionCore.Get(pushCtx, subName)
 	if err != nil {
-		logger.Ctx(pushCtx).Errorf("error fetching subscription: %s", err.Error())
+		logger.Ctx(pushCtx).Errorw("error fetching subscription", "error", err.Error())
 		return nil
 	}
 

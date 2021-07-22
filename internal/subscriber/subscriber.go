@@ -201,7 +201,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		// push to retry queue
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
-		s.removeMessageFromMemory(stats, req.MessageID)
+		s.removeMessageFromMemory(ctx, stats, req.MessageID)
 
 		return
 	}
@@ -255,7 +255,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "logFields", logFields, "offsetToCommit", offsetToCommit, "topic-partition", tp)
 	}
 
-	s.removeMessageFromMemory(stats, req.MessageID)
+	s.removeMessageFromMemory(ctx, stats, req.MessageID)
 
 	// add to eviction map only in case of any out of order eviction
 	if offsetToCommit > stats.maxCommittedOffset {
@@ -267,7 +267,7 @@ func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
-func (s *Subscriber) removeMessageFromMemory(stats *ConsumptionMetadata, msgID string) {
+func (s *Subscriber) removeMessageFromMemory(ctx context.Context, stats *ConsumptionMetadata, msgID string) {
 	if stats == nil || msgID == "" {
 		return
 	}
@@ -286,7 +286,7 @@ func (s *Subscriber) removeMessageFromMemory(stats *ConsumptionMetadata, msgID s
 	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
 	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
 
-	s.logInMemoryStats()
+	s.logInMemoryStats(ctx)
 
 	subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Dec()
 	subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
@@ -328,7 +328,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
 		// cleanup message from memory
-		s.removeMessageFromMemory(stats, msgID)
+		s.removeMessageFromMemory(ctx, stats, msgID)
 
 		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Inc()
 		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(msg.PublishTime).Seconds())
@@ -376,7 +376,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 			s.retry(ctx, NewRetryMessage(msg.Topic, msg.Partition, msg.Offset, msg.Data, msgID, msg.RetryCount))
 
 			// cleanup message from memory only after a successful push to retry topic
-			s.removeMessageFromMemory(metadata, peek.MsgID)
+			s.removeMessageFromMemory(ctx, metadata, peek.MsgID)
 
 			logFields["messageId"] = peek.MsgID
 			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "logFields", logFields)
@@ -498,7 +498,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 				}
 
 				if len(sm) > 0 {
-					s.logInMemoryStats()
+					s.logInMemoryStats(ctx)
 				}
 				s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 			}()
@@ -516,7 +516,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-ctx.Done():
-			logger.Ctx(s.ctx).Infow("subscriber: <-ctx.Done() called", "logFields", s.getLogFields())
+			logger.Ctx(ctx).Infow("subscriber: <-ctx.Done() called", "logFields", s.getLogFields())
 
 			s.deadlineTicker.Stop()
 
@@ -527,12 +527,12 @@ func (s *Subscriber) Run(ctx context.Context) {
 			close(s.responseChan)
 			close(s.errChan)
 
-			wasConsumerFound := s.bs.RemoveConsumer(s.ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
+			wasConsumerFound := s.bs.RemoveConsumer(ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			if wasConsumerFound {
 				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.
 				// if the entry is already deleted from brokerStore, that means some other goroutine has already closed the consumer.
 				// in such cases do not attempt to close the consumer again else it will panic
-				s.consumer.Close(s.ctx)
+				s.consumer.Close(ctx)
 			}
 
 			close(s.closeChan)
@@ -541,7 +541,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 	}
 }
 
-func (s *Subscriber) logInMemoryStats() {
+func (s *Subscriber) logInMemoryStats(ctx context.Context) {
 	st := make(map[string]interface{})
 
 	for tp, stats := range s.consumedMessageStats {
@@ -554,7 +554,7 @@ func (s *Subscriber) logInMemoryStats() {
 		}
 		st[tp.String()] = total
 	}
-	logger.Ctx(s.ctx).Infow("subscriber: in-memory stats", "logFields", s.getLogFields(), "stats", st)
+	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", s.getLogFields(), "stats", st)
 }
 
 // returns a map of common fields to be logged

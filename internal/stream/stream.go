@@ -44,7 +44,7 @@ func (ps *PushStream) Start() error {
 		subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
 	)
 
-	// we pass a new context to subscriber because if the subscriber gets a child context of the steam context. there
+	// we pass a new context to subscriber because if the subscriber gets a child context of the stream context. there
 	// is a race condition that subscriber exits before the stream is stopped. this causes issues as there are no
 	// subscribers listening to the requests send by stream
 	subscriberCtx := context.Background()

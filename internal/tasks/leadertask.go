@@ -13,8 +13,16 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
-// LeaderKey is the path for which nodes contest for lock
-const LeaderKey = "leader/election"
+const (
+	// LeaderKey is the path for which nodes contest for lock
+	LeaderKey = "leader/election"
+
+	// defaultName leader election ttl
+	defaultTTL = 30 * time.Second
+
+	// defaultName used for leader election node name
+	defaultName = "metro/metro-worker"
+)
 
 // LeaderTask runs the leader election process and runs the task associated
 type LeaderTask struct {
@@ -52,8 +60,8 @@ func NewLeaderTask(
 
 func defaultOptions() []Option {
 	return []Option{
-		WithTTL(30 * time.Second),
-		WithName("metro/metro-worker"),
+		WithTTL(defaultTTL),
+		WithName(defaultName),
 	}
 }
 

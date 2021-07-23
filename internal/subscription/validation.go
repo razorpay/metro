@@ -2,7 +2,6 @@ package subscription
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -20,6 +19,12 @@ const (
 	// used as keys in the subscription push config attributes
 	attributeUsername = "username"
 	attributePassword = "password"
+)
+
+const (
+	// List of patchable attributes
+	PushConfigPath     = "push_config"
+	AckDeadlineSecPath = "ack_deadline_seconds"
 )
 
 func init() {
@@ -97,12 +102,23 @@ func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) 
 	return getValidatedModel(ctx, req)
 }
 
+//GetValidatedModelAndPathsForPatch validates the incoming patch proto request and returns the model and the paths to update
+func GetValidatedModelAndPathsForUpdate(ctx context.Context, req *metrov1.UpdateSubscriptionRequest) (*Model, []string, error) {
+	model, err := GetValidatedModelForCreate(ctx, req.GetSubscription())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	paths := req.UpdateMask.GetPaths()
+	err = validateUpdatePaths(ctx, paths)
+
+	return model, paths, err
+}
+
 func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
 	// validate and extract the subscription fields from the name
 	p, s, err := extractSubscriptionMetaAndValidate(ctx, req.GetName())
-	if errors.Is(err, credentials.UnauthenticatedError) {
-		return nil, err
-	} else if err != nil {
+	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] name: (name=%s)", req.Name)
 	}
 
@@ -159,4 +175,18 @@ func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (proje
 	}
 
 	return projectID, subscriptionName, nil
+}
+
+func validateUpdatePaths(ctx context.Context, paths []string) error {
+	if len(paths) == 0 {
+		err := merror.New(merror.InvalidArgument, "The update_mask must be set, and must contain a non-empty paths list.")
+		return err
+	}
+	for _, path := range paths {
+		if path != PushConfigPath && path != AckDeadlineSecPath {
+			err := merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)
+			return err
+		}
+	}
+	return nil
 }

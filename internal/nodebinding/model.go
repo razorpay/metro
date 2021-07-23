@@ -14,9 +14,10 @@ const (
 // Model for a node
 type Model struct {
 	common.BaseModel
-	ID             string `json:"id"`
-	NodeID         string `json:"node_id"`
-	SubscriptionID string `json:"subscription_id"`
+	ID                    string `json:"id"`
+	NodeID                string `json:"node_id"`
+	SubscriptionID        string `json:"subscription_id"`
+	SubscriptionVersionID string `json:"subscription_version_id"`
 }
 
 // Key returns the key for storing in the registry

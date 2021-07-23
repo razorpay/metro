@@ -10,11 +10,12 @@ import (
 type Pair struct {
 	Key       string
 	Value     []byte
+	VersionID string
 	SessionID string
 }
 
 func (pair *Pair) String() string {
-	return fmt.Sprintf("key: %s, value: %s, sessionID: %s", pair.Key, string(pair.Value), pair.SessionID)
+	return fmt.Sprintf("key: %s, value: %s, sessionID: %s, versionID:%s", pair.Key, string(pair.Value), pair.SessionID, pair.VersionID)
 }
 
 // IRegistry implements a generic interface for service discovery
@@ -46,10 +47,10 @@ type IRegistry interface {
 	Watch(ctx context.Context, wh *WatchConfig) (IWatcher, error)
 
 	// Put a key value pair
-	Put(ctx context.Context, key string, value []byte) error
+	Put(ctx context.Context, key string, value []byte) (string, error)
 
 	// Get returns a value for a key
-	Get(ctx context.Context, key string) ([]byte, error)
+	Get(ctx context.Context, key string) (Pair, error)
 
 	// List returns a keys with matching key prefix
 	ListKeys(ctx context.Context, prefix string) ([]string, error)

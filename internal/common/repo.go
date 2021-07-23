@@ -37,7 +37,13 @@ func (r BaseRepo) Save(ctx context.Context, m IModel) error {
 		logger.Ctx(ctx).Error("error in json marshal", "msg", err.Error())
 		return err
 	}
-	return r.Registry.Put(ctx, m.Key(), b)
+
+	vid, err := r.Registry.Put(ctx, m.Key(), b)
+	if err == nil {
+		m.SetVersionID(vid)
+	}
+
+	return err
 }
 
 // Acquire puts the model in the registry with a attempt to lock using sessionID
@@ -91,14 +97,15 @@ func (r BaseRepo) Get(ctx context.Context, key string, m IModel) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.Get")
 	defer span.Finish()
 
-	b, err := r.Registry.Get(ctx, key)
+	p, err := r.Registry.Get(ctx, key)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(b, m)
+	err = json.Unmarshal(p.Value, m)
 	if err != nil {
 		return err
 	}
+	m.SetVersionID(p.VersionID)
 	return nil
 }
 

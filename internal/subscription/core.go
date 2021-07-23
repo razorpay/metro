@@ -9,6 +9,7 @@ import (
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/patch"
 )
 
 // ICore is an interface over subscription core
@@ -141,9 +142,9 @@ func (c *Core) UpdateSubscription(ctx context.Context, uModel *Model, paths []st
 		return nil, err
 	}
 
-	for _, path := range paths {
-		logger.Ctx(ctx).Infow("Updating subscription", "update_mask", path)
-		m.Patch(uModel, path)
+	err = patch.PatchStruct(ctx, uModel, m, paths)
+	if err != nil {
+		return nil, err
 	}
 
 	return m, c.repo.Save(ctx, m)

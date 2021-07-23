@@ -31,6 +31,7 @@ require (
 	github.com/kris-nova/lolgopher v0.0.0-20210112022122-73f0047e8b65 // indirect
 	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-runewidth v0.0.10 // indirect
+	github.com/oleiade/reflections v1.0.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1

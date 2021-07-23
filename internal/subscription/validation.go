@@ -27,6 +27,12 @@ const (
 	AckDeadlineSecPath = "ack_deadline_seconds"
 )
 
+const (
+	SubscriptionFieldPushEndpoint   = "PushEndpoint"
+	SubscriptionFieldCredentials    = "Credentials"
+	SubscriptionFieldAckDeadlineSec = "AckDeadlineSec"
+)
+
 func init() {
 	var err error
 	// https://github.com/googleapis/googleapis/blob/69697504d9eba1d064820c3085b4750767be6d08/google/pubsub/v1/pubsub.proto#L636
@@ -110,7 +116,7 @@ func GetValidatedModelAndPathsForUpdate(ctx context.Context, req *metrov1.Update
 	}
 
 	paths := req.UpdateMask.GetPaths()
-	err = validateUpdatePaths(ctx, paths)
+	paths, err = getValidatedUpdatePaths(ctx, paths)
 
 	return model, paths, err
 }
@@ -177,16 +183,24 @@ func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (proje
 	return projectID, subscriptionName, nil
 }
 
-func validateUpdatePaths(ctx context.Context, paths []string) error {
+// Checks if updates are allowed for fields
+// Also translates proto fields to domain model fields
+func getValidatedUpdatePaths(ctx context.Context, paths []string) ([]string, error) {
 	if len(paths) == 0 {
 		err := merror.New(merror.InvalidArgument, "The update_mask must be set, and must contain a non-empty paths list.")
-		return err
+		return nil, err
 	}
+	translatedPaths := make([]string, 0)
 	for _, path := range paths {
 		if path != PushConfigPath && path != AckDeadlineSecPath {
 			err := merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)
-			return err
+			return nil, err
+		}
+		if path == PushConfigPath {
+			translatedPaths = append(translatedPaths, SubscriptionFieldPushEndpoint, SubscriptionFieldCredentials)
+		} else if path == AckDeadlineSecPath {
+			translatedPaths = append(translatedPaths, SubscriptionFieldAckDeadlineSec)
 		}
 	}
-	return nil
+	return translatedPaths, nil
 }

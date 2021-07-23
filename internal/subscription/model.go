@@ -102,13 +102,3 @@ func (m *Model) GetCredentials() *credentials.Model {
 func (m *Model) HasCredentials() bool {
 	return m.PushConfig.Credentials != nil
 }
-
-func (m *Model) Patch(pModel *Model, path string) {
-	switch path {
-	case PushConfigPath:
-		m.Credentials = pModel.Credentials
-		m.PushEndpoint = pModel.PushEndpoint
-	case AckDeadlineSecPath:
-		m.AckDeadlineSec = pModel.AckDeadlineSec
-	}
-}

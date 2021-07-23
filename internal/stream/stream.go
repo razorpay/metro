@@ -57,7 +57,7 @@ func (ps *PushStream) Start() error {
 		for {
 			select {
 			case <-gctx.Done():
-				logger.Ctx(ps.ctx).Infow("worker: subscriber request and response stopped", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+				logger.Ctx(ps.ctx).Infow("worker: subscriber request and response stopped", "logFields", ps.getLogFields())
 				// close all subscriber channels
 				close(subscriberRequestCh)
 				close(subscriberAckCh)
@@ -70,16 +70,16 @@ func (ps *PushStream) Start() error {
 			case err = <-ps.subs.GetErrorChannel():
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
-					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID(), "err", err.Error())
+					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "logFields", ps.getLogFields(), "error", err.Error())
 					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
-				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
-				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
 				data := <-ps.subs.GetResponseChannel()
 				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())
 					ps.processPushStreamResponse(ps.ctx, ps.subscription, data)
 				}
 			}
@@ -105,39 +105,45 @@ func (ps *PushStream) Stop() error {
 func (ps *PushStream) stopSubscriber() {
 	// stop the subscriber
 	if ps.subs != nil {
-		logger.Ctx(ps.ctx).Infow("worker: stopping subscriber", "subscription", ps.subscription.Name, "subcriber_id", ps.subs.GetID())
+		logger.Ctx(ps.ctx).Infow("worker: stopping subscriber", "logFields", ps.getLogFields())
 		ps.subs.Stop()
 	}
 }
 
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
-	logger.Ctx(ctx).Infow("worker: response", "data", data, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+	logger.Ctx(ctx).Infow("worker: response", "len(data)", len(data.ReceivedMessages), "logFields", ps.getLogFields())
 
 	for _, message := range data.ReceivedMessages {
-		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint", "logFields", ps.getLogFields())
 		if message.AckId == "" {
 			continue
 		}
+
+		logFields := ps.getLogFields()
+		logFields["messageId"] = message.Message.MessageId
+		logFields["ackId"] = message.AckId
 
 		startTime := time.Now()
 		pushRequest := newPushEndpointRequest(message, subModel.Name)
 		postBody, _ := json.Marshal(pushRequest)
 		postData := bytes.NewBuffer(postBody)
-		req, err := http.NewRequest("POST", subModel.PushEndpoint, postData)
+		req, err := http.NewRequest(http.MethodPost, subModel.PushEndpoint, postData)
 		if subModel.HasCredentials() {
 			req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
 		}
-		logger.Ctx(ps.ctx).Infow("worker: posting messages to subscription url", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID(), "endpoint", subModel.PushEndpoint)
+
+		logFields["endpoint"] = subModel.PushEndpoint
+		logger.Ctx(ps.ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
 		resp, err := ps.httpClient.Do(req)
 		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
 		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
 		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID(), "error", err.Error())
+			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "logFields", logFields, "error", err.Error())
 			ps.nack(ctx, message)
 			return
 		}
 
-		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
 		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Ack
@@ -153,15 +159,17 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		_, err = io.Copy(ioutil.Discard, resp.Body)
 		err = resp.Body.Close()
 		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID(), "error", err.Error())
+			logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
 		}
-
-		// TODO: read response body if required by publisher later
 	}
 }
 
 func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage) {
-	logger.Ctx(ps.ctx).Infow("worker: sending nack request to subscriber", "ackId", message.AckId, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+	logFields := ps.getLogFields()
+	logFields["messageId"] = message.Message.MessageId
+	logFields["ackId"] = message.AckId
+
+	logger.Ctx(ctx).Infow("worker: sending nack request to subscriber", "logFields", logFields)
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// deadline is set to 0 for nack
 	modackReq := subscriber.NewModAckMessage(ackReq, 0)
@@ -172,11 +180,23 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 }
 
 func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage) {
-	logger.Ctx(ps.ctx).Infow("worker: sending ack request to subscriber", "ackId", message.AckId, "subscription", ps.subscription.Name, "subscriberId", ps.subs.GetID())
+	logFields := ps.getLogFields()
+	logFields["messageId"] = message.Message.MessageId
+	logFields["ackId"] = message.AckId
+
+	logger.Ctx(ctx).Infow("worker: sending ack request to subscriber", "logFields", logFields)
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// check for closed channel before sending request
 	if ps.subs.GetAckChannel() != nil {
 		ps.subs.GetAckChannel() <- ackReq
+	}
+}
+
+// returns a map of common fields to be logged
+func (ps *PushStream) getLogFields() map[string]interface{} {
+	return map[string]interface{}{
+		"subscriberId": ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
 	}
 }
 
@@ -187,7 +207,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	// get subscription Model details
 	subModel, err := subscriptionCore.Get(pushCtx, subName)
 	if err != nil {
-		logger.Ctx(pushCtx).Errorf("error fetching subscription: %s", err.Error())
+		logger.Ctx(pushCtx).Errorw("error fetching subscription", "error", err.Error())
 		return nil
 	}
 

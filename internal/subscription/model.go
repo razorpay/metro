@@ -23,7 +23,7 @@ type Model struct {
 	ExtractedSubscriptionProjectID string
 	ExtractedTopicName             string
 	ExtractedSubscriptionName      string
-	Credentials                    credentials.ICredentials
+	Credentials                    *credentials.Model
 
 	// DeadLetterTopic keeps the topic name used for dead lettering, this will be created with subscription and
 	// will be visible to subscriber, subscriber can create subscription over this topic to read messages from this
@@ -67,7 +67,7 @@ func (m *Model) GetDeadLetterTopic() string {
 }
 
 // GetCredentials returns the credentials for the push endpoint
-func (m *Model) GetCredentials() credentials.ICredentials {
+func (m *Model) GetCredentials() *credentials.Model {
 	return m.Credentials
 }
 

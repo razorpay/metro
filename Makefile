@@ -122,31 +122,31 @@ clean: mock-gen-clean proto-clean
 	##- todo: use go clean here
 	@rm -rf $(METRO_OUT) $(TMP_DIR)/* $(DOCS_DIR)/$(UML_OUT_FILE)
 
-.PHONY: dev-docker-up ## Bring up docker-compose for local dev-setup
+.PHONY: dev-docker-up ## Bring up docker compose for local dev-setup
 dev-docker-up:
-	docker-compose -f deployment/dev/monitoring/docker-compose.yml up -d
-	docker-compose -f deployment/dev/docker-compose.yml up -d --build
+	docker compose -f deployment/dev/monitoring/docker-compose.yml up -d
+	docker compose -f deployment/dev/docker-compose.yml up -d --build
 
 .PHONY: dev-docker-datastores-up ## Bring up datastore containers
 dev-docker-datastores-up:
-	docker-compose -f deployment/dev/docker-compose-datastores.yml up -d
+	docker compose -f deployment/dev/docker-compose-datastores.yml up -d
 
 .PHONY: dev-docker-datastores-down ## Shut down datastore containers
 dev-docker-datastores-down:
-	docker-compose -f deployment/dev/docker-compose-datastores.yml down
+	docker compose -f deployment/dev/docker-compose-datastores.yml down
 
 .PHONY: dev-docker-down ## Shutdown docker-compose for local dev-setup
 dev-docker-down:
-	@docker-compose -f deployment/dev/docker-compose.yml down
-	@docker-compose -f deployment/dev/monitoring/docker-compose.yml down
+	@docker compose -f deployment/dev/docker-compose.yml down
+	@docker compose -f deployment/dev/monitoring/docker-compose.yml down
 
 .PHONY: dev-docker-emulator-up ## Bring up google pub/sub emulator
 dev-docker-emulator-up:
-	docker-compose -f deployment/dev/docker-compose-emulator.yml up -d
+	docker compose -f deployment/dev/docker-compose-emulator.yml up -d
 
 .PHONY: dev-docker-emulator-down ## Bring down google pub/sub emulator
 dev-docker-emulator-down:
-	docker-compose -f deployment/dev/docker-compose-emulator.yml down
+	docker compose -f deployment/dev/docker-compose-emulator.yml down
 
 .PHONY: docker-build-metro
 docker-build-metro:

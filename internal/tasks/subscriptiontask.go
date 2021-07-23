@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -209,6 +210,9 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 
 		if !found {
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
+			if !newBinding.ScheduledAt.IsZero() {
+				scheduledTaskLatency.WithLabelValues(env).Observe(time.Now().Sub(newBinding.ScheduledAt).Seconds())
+			}
 			handler := stream.NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, sm.subscriptionCore, sm.subscriber, sm.httpConfig)
 
 			// run the stream in a separate go routine, this go routine is not part of the worker error group

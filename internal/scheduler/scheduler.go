@@ -1,6 +1,8 @@
 package scheduler
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
@@ -44,6 +46,7 @@ func (s *Scheduler) Schedule(subscription *subscription.Model, nbs []*nodebindin
 		ID:             uuid.New().String(),
 		NodeID:         node.ID,
 		SubscriptionID: subscription.Name,
+		ScheduledAt:    time.Now(),
 	}
 
 	return &nb, nil

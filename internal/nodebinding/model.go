@@ -2,6 +2,7 @@ package nodebinding
 
 import (
 	"strings"
+	"time"
 
 	"github.com/razorpay/metro/internal/common"
 )
@@ -17,6 +18,7 @@ type Model struct {
 	ID             string
 	NodeID         string
 	SubscriptionID string
+	ScheduledAt    time.Time
 }
 
 // Key returns the key for storing in the registry

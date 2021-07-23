@@ -158,10 +158,14 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=internal/brokerstore/mocks/mock_brokerstore.go -package=mocks github.com/razorpay/metro/internal/brokerstore IBrokerStore
 	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_broker.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Broker
 	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_admin.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Admin
+	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_consumer.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Consumer
+	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_producer.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Producer
 	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/topic ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/topic IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/subscription/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscription ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/subscription/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/subscription IRepo
+	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/mocks/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscriber ICore
+	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/mocks/mock_subscriber.go -package=mocks github.com/razorpay/metro/internal/subscriber ISubscriber
 	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/project ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/project IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/node ICore
@@ -176,6 +180,8 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_registry.go -package=mocks github.com/razorpay/metro/pkg/registry IRegistry
 	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_watcher.go -package=mocks github.com/razorpay/metro/pkg/registry IWatcher
 	@mockgen --build_flags='--tags=musl' -destination=service/web/stream/mocks/manager/mock_manager.go -package=mocks github.com/razorpay/metro/service/web/stream IManager
+	@mockgen --build_flags='--tags=musl' -destination=internal/scheduler/mocks/mock_scheduler.go -package=mocks github.com/razorpay/metro/internal/scheduler IScheduler
+	@mockgen --build_flags='--tags=musl' -destination=internal/tasks/mocks/mock_task.go -package=mocks github.com/razorpay/metro/internal/tasks ITask
 
 .PHONY: mock-gen-clean ## Clean up all mockgen generated mocks directories
 mock-gen-clean:

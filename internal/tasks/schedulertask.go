@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"context"
-	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -10,11 +9,9 @@ import (
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
-	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/scheduler"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
-	"github.com/razorpay/metro/pkg/leaderelection"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
 )
@@ -23,9 +20,8 @@ import (
 // only leader node elected using the leader election process does scheduling
 type SchedulerTask struct {
 	id               string
-	name             string
-	ttl              time.Duration
 	registry         registry.IRegistry
+	brokerstore      brokerstore.IBrokerStore
 	nodeCore         node.ICore
 	scheduler        scheduler.IScheduler
 	topicCore        topic.ICore
@@ -33,30 +29,26 @@ type SchedulerTask struct {
 	subscriptionCore subscription.ICore
 	nodeCache        []*node.Model
 	subCache         []*subscription.Model
+	nodeWatchData    chan *struct{}
+	subWatchData     chan *struct{}
 }
 
 // NewSchedulerTask creates SchedulerTask instance
-func NewSchedulerTask(id string, registry registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (ITask, error) {
-	options = append(defaultOptions(), options...)
-
-	nodeCore := node.NewCore(node.NewRepo(registry))
-	projectCore := project.NewCore(project.NewRepo(registry))
-	topicCore := topic.NewCore(topic.NewRepo(registry), projectCore, brokerStore)
-	subscriptionCore := subscription.NewCore(
-		subscription.NewRepo(registry),
-		projectCore,
-		topicCore)
-
-	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(registry))
-
-	scheduler, err := scheduler.New(scheduler.LoadBalance)
-	if err != nil {
-		return nil, err
-	}
-
+func NewSchedulerTask(
+	id string,
+	registry registry.IRegistry,
+	brokerStore brokerstore.IBrokerStore,
+	nodeCore node.ICore,
+	topicCore topic.ICore,
+	nodeBindingCore nodebinding.ICore,
+	subscriptionCore subscription.ICore,
+	scheduler scheduler.IScheduler,
+	options ...Option,
+) (ITask, error) {
 	schedulerTask := &SchedulerTask{
 		id:               id,
 		registry:         registry,
+		brokerstore:      brokerStore,
 		nodeCore:         nodeCore,
 		scheduler:        scheduler,
 		topicCore:        topicCore,
@@ -64,6 +56,8 @@ func NewSchedulerTask(id string, registry registry.IRegistry, brokerStore broker
 		subscriptionCore: subscriptionCore,
 		nodeCache:        []*node.Model{},
 		subCache:         []*subscription.Model{},
+		nodeWatchData:    make(chan *struct{}),
+		subWatchData:     make(chan *struct{}),
 	}
 
 	for _, option := range options {
@@ -73,119 +67,25 @@ func NewSchedulerTask(id string, registry registry.IRegistry, brokerStore broker
 	return schedulerTask, nil
 }
 
-func defaultOptions() []Option {
-	return []Option{
-		WithTTL(30 * time.Second),
-		WithName("metro/metro-worker"),
-	}
-}
-
-// WithTTL defines the TTL for the registry session
-func WithTTL(ttl time.Duration) Option {
-	return func(task ITask) {
-		scheduleManager := task.(*SchedulerTask)
-		scheduleManager.ttl = ttl
-	}
-}
-
-// WithName defines the Name for the registry session creation
-func WithName(name string) Option {
-	return func(task ITask) {
-		scheduleManager := task.(*SchedulerTask)
-		scheduleManager.name = name
-	}
-}
-
 // Run the task
 func (sm *SchedulerTask) Run(ctx context.Context) error {
-	logger.Ctx(ctx).Infow("starting worker schedule task")
+	logger.Ctx(ctx).Infow("running worker scheduler task", "workerID", sm.id)
 
-	// Create a registry session
-	sessionID, err := sm.registry.Register(ctx, sm.name, sm.ttl)
-	if err != nil {
-		return err
-	}
-
-	// Run the tasks
-	taskGroup, gctx := errgroup.WithContext(ctx)
-
-	// Renew session periodically
-	taskGroup.Go(func() error {
-		return sm.registry.RenewPeriodic(gctx, sessionID, sm.ttl, gctx.Done())
-	})
-
-	// Acquire the node path using sessionID
-	taskGroup.Go(func() error {
-		return sm.acquireNode(gctx, sessionID)
-	})
-
-	// Run LeaderElection using sessionID
-	taskGroup.Go(func() error {
-		return sm.runLeaderElection(gctx, sessionID)
-	})
-
-	err = taskGroup.Wait()
-	logger.Ctx(ctx).Infow("exiting from worker schedule task", "error", err)
-	return err
-}
-
-func (sm *SchedulerTask) acquireNode(ctx context.Context, sessionID string) error {
-	err := sm.nodeCore.AcquireNode(ctx, &node.Model{
-		ID: sm.id,
-	}, sessionID)
-
-	return err
-}
-
-func (sm *SchedulerTask) runLeaderElection(ctx context.Context, sessionID string) error {
-	// Init Leader Election
-	candidate, err := leaderelection.New(
-		sm.id,
-		sessionID,
-		leaderelection.Config{
-			LockPath: common.GetBasePrefix() + "leader/election",
-			Callbacks: leaderelection.LeaderCallbacks{
-				OnStartedLeading: func(ctx context.Context) error {
-					return sm.lead(ctx)
-				},
-				OnStoppedLeading: func(ctx context.Context) {
-					sm.stepDown(ctx)
-				},
-			},
-		}, sm.registry)
-
-	if err != nil {
-		return err
-	}
-
-	// Run Leader Election
-	return candidate.Run(ctx)
-}
-
-func (sm *SchedulerTask) lead(ctx context.Context) error {
-	logger.Ctx(ctx).Infof("Node %s elected as new leader", sm.id)
-
-	var (
-		nodeWatcher, subWatcher registry.IWatcher
-		err                     error
-	)
-
-	nodeWatchData := make(chan *struct{})
-	subWatchData := make(chan *struct{})
-
-	leadgrp, gctx := errgroup.WithContext(ctx)
+	var err error
+	var nodeWatcher registry.IWatcher
+	var subWatcher registry.IWatcher
 
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
 		WatchPath: common.GetBasePrefix() + node.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("nodes watch handler data", "pairs", pairs)
-			nodeWatchData <- &struct{}{}
+			sm.nodeWatchData <- &struct{}{}
 		},
 	}
 
 	logger.Ctx(ctx).Infof("setting watch on nodes")
-	nodeWatcher, err = sm.registry.Watch(gctx, &nwh)
+	nodeWatcher, err = sm.registry.Watch(ctx, &nwh)
 	if err != nil {
 		return err
 	}
@@ -195,28 +95,29 @@ func (sm *SchedulerTask) lead(ctx context.Context) error {
 		WatchPath: common.GetBasePrefix() + subscription.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
 			logger.Ctx(ctx).Infow("subscriptions watch handler data", "pairs", pairs)
-			subWatchData <- &struct{}{}
+			sm.subWatchData <- &struct{}{}
 		},
 	}
 
 	logger.Ctx(ctx).Infof("setting watch on subscriptions")
-	subWatcher, err = sm.registry.Watch(gctx, &swh)
+	subWatcher, err = sm.registry.Watch(ctx, &swh)
 	if err != nil {
 		return err
 	}
 
+	leadgrp, gctx := errgroup.WithContext(ctx)
+
 	// watch for nodes addition/deletion, for any changes a rebalance might be required
 	leadgrp.Go(func() error {
 		watchErr := nodeWatcher.StartWatch()
-		close(nodeWatchData)
-
+		close(sm.nodeWatchData)
 		return watchErr
 	})
 
 	// watch the Subscriptions path for new subscriptions and rebalance
 	leadgrp.Go(func() error {
 		watchErr := subWatcher.StartWatch()
-		close(subWatchData)
+		close(sm.subWatchData)
 		return watchErr
 	})
 
@@ -226,9 +127,9 @@ func (sm *SchedulerTask) lead(ctx context.Context) error {
 			select {
 			case <-gctx.Done():
 				return gctx.Err()
-			case val := <-subWatchData:
+			case val := <-sm.subWatchData:
 				if val == nil {
-					return nil
+					continue
 				}
 				allSubs, serr := sm.subscriptionCore.List(gctx, subscription.Prefix)
 				if serr != nil {
@@ -249,9 +150,9 @@ func (sm *SchedulerTask) lead(ctx context.Context) error {
 					// just log the error, we want to retry the sub update failures
 					logger.Ctx(gctx).Infow("error processing subscription updates", "error", serr)
 				}
-			case val := <-nodeWatchData:
+			case val := <-sm.nodeWatchData:
 				if val == nil {
-					return nil
+					continue
 				}
 				nodes, nerr := sm.nodeCore.List(gctx, node.Prefix)
 				if nerr != nil {
@@ -280,7 +181,7 @@ func (sm *SchedulerTask) lead(ctx context.Context) error {
 			subWatcher.StopWatch()
 		}
 
-		logger.Ctx(gctx).Info("leader context returned done")
+		logger.Ctx(gctx).Info("scheduler group context done")
 		return gctx.Err()
 	})
 
@@ -292,10 +193,6 @@ func (sm *SchedulerTask) lead(ctx context.Context) error {
 	}
 
 	return err
-}
-
-func (sm *SchedulerTask) stepDown(ctx context.Context) {
-	logger.Ctx(ctx).Infof("Node %s stepping down from leader", sm.id)
 }
 
 func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {

@@ -27,8 +27,8 @@ type ISubscriber interface {
 	GetSubscription() string
 	// not exporting acknowledge() and  modifyAckDeadline() intentionally so that
 	// all operations happen over the channel
-	acknowledge(ctx context.Context, req *AckMessage)
-	modifyAckDeadline(ctx context.Context, req *ModAckMessage)
+	//acknowledge(ctx context.Context, req *AckMessage)
+	//modifyAckDeadline(ctx context.Context, req *ModAckMessage)
 	// the grpc proto is used here as well, to optimise for serialization
 	// and deserialisation, a little unclean but optimal
 	// TODO: figure a better way out
@@ -390,6 +390,11 @@ func (s *Subscriber) Run(ctx context.Context) {
 	for {
 		select {
 		case req := <-s.requestChan:
+			// on channel closure, we can get nil data
+			if req == nil {
+				continue
+			}
+
 			// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
 			func() {
 				caseStartTime := time.Now()

@@ -11,11 +11,9 @@ import (
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/nodebinding"
-	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/stream"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
-	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
 )
@@ -23,10 +21,11 @@ import (
 // SubscriptionTask runs the assigned subscriptions to the node
 type SubscriptionTask struct {
 	id               string
+	registry         registry.IRegistry
+	brokerStore      brokerstore.IBrokerStore
 	subscriptionCore subscription.ICore
 	nodeBindingCore  nodebinding.ICore
 	subscriber       subscriber.ICore
-	registry         registry.IRegistry
 	watcher          registry.IWatcher
 	nodebindingCache []*nodebinding.Model
 	watchCh          chan []registry.Pair
@@ -36,25 +35,21 @@ type SubscriptionTask struct {
 }
 
 // NewSubscriptionTask creates SubscriptionTask instance
-func NewSubscriptionTask(id string, reg registry.IRegistry, brokerStore brokerstore.IBrokerStore, options ...Option) (ITask, error) {
-	projectCore := project.NewCore(project.NewRepo(reg))
-
-	topicCore := topic.NewCore(topic.NewRepo(reg), projectCore, brokerStore)
-
-	subscriptionCore := subscription.NewCore(
-		subscription.NewRepo(reg),
-		projectCore,
-		topicCore)
-
-	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(reg))
-
-	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore)
-
+func NewSubscriptionTask(
+	id string,
+	reg registry.IRegistry,
+	brokerStore brokerstore.IBrokerStore,
+	subscriptionCore subscription.ICore,
+	nodebindingCore nodebinding.ICore,
+	subscriberCore subscriber.ICore,
+	options ...Option,
+) (ITask, error) {
 	subscriptionTask := &SubscriptionTask{
 		id:               id,
 		registry:         reg,
+		brokerStore:      brokerStore,
 		subscriptionCore: subscriptionCore,
-		nodeBindingCore:  nodeBindingCore,
+		nodeBindingCore:  nodebindingCore,
 		subscriber:       subscriberCore,
 		doneCh:           make(chan struct{}),
 		watchCh:          make(chan []registry.Pair),
@@ -153,7 +148,7 @@ func (sm *SubscriptionTask) handleWatchUpdates(ctx context.Context) error {
 
 			// pairs can be be nil if it returns because of closing of channel
 			if pairs == nil {
-				return nil
+				continue
 			}
 
 			err := sm.handleNodeBindingUpdates(ctx, pairs)

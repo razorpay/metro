@@ -47,6 +47,24 @@ func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.S
 	return req, nil
 }
 
+// UpdateSubscription updates a given subscription
+func (s subscriberserver) UpdateSubscription(ctx context.Context, req *metrov1.UpdateSubscriptionRequest) (*metrov1.Subscription, error) {
+	logger.Ctx(ctx).Infow("subscriberserver: received request to update subscription", "name", req.Subscription.Name, "topic", req.Subscription.Topic)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.UpdateSubscription")
+	defer span.Finish()
+
+	m, paths, err := subscription.GetValidatedModelAndPathsForUpdate(ctx, req)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	m, err = s.subscriptionCore.UpdateSubscription(ctx, m, paths)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+	return subscription.ModelToSubscriptionProtoV1(m), nil
+}
+
 // Acknowledge a message
 func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to ack messages", "ack_req", req.String())

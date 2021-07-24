@@ -84,7 +84,6 @@ deps: buf-deps
 	@go install golang.org/x/lint/golint@latest
 	@go install github.com/bykof/go-plantuml@v1.0.0
 	@go install github.com/golang/mock/mockgen@v1.6.0
-	@go install github.com/oleiade/reflections@1.0.1
 
 buf-deps:
 	curl -sSL \

@@ -22,15 +22,16 @@ const (
 )
 
 const (
-	// List of patchable attributes
-	PushConfigPath     = "push_config"
-	AckDeadlineSecPath = "ack_deadline_seconds"
+	// List of patchable attributes(proto)
+	pushConfigPath     = "push_config"
+	ackDeadlineSecPath = "ack_deadline_seconds"
 )
 
 const (
-	SubscriptionFieldPushEndpoint   = "PushEndpoint"
-	SubscriptionFieldCredentials    = "Credentials"
-	SubscriptionFieldAckDeadlineSec = "AckDeadlineSec"
+	// Fields of internal models
+	subscriptionFieldPushEndpoint   = "PushEndpoint"
+	subscriptionFieldCredentials    = "Credentials"
+	subscriptionFieldAckDeadlineSec = "AckDeadlineSec"
 )
 
 func init() {
@@ -108,7 +109,7 @@ func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) 
 	return getValidatedModel(ctx, req)
 }
 
-//GetValidatedModelAndPathsForPatch validates the incoming patch proto request and returns the model and the paths to update
+//GetValidatedModelAndPathsForUpdate validates the incoming patch proto request and returns the model and the internal model paths to update
 func GetValidatedModelAndPathsForUpdate(ctx context.Context, req *metrov1.UpdateSubscriptionRequest) (*Model, []string, error) {
 	model, err := GetValidatedModelForCreate(ctx, req.GetSubscription())
 	if err != nil {
@@ -192,14 +193,14 @@ func getValidatedUpdatePaths(ctx context.Context, paths []string) ([]string, err
 	}
 	translatedPaths := make([]string, 0)
 	for _, path := range paths {
-		if path != PushConfigPath && path != AckDeadlineSecPath {
+		if path != pushConfigPath && path != ackDeadlineSecPath {
 			err := merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)
 			return nil, err
 		}
-		if path == PushConfigPath {
-			translatedPaths = append(translatedPaths, SubscriptionFieldPushEndpoint, SubscriptionFieldCredentials)
-		} else if path == AckDeadlineSecPath {
-			translatedPaths = append(translatedPaths, SubscriptionFieldAckDeadlineSec)
+		if path == pushConfigPath {
+			translatedPaths = append(translatedPaths, subscriptionFieldPushEndpoint, subscriptionFieldCredentials)
+		} else if path == ackDeadlineSecPath {
+			translatedPaths = append(translatedPaths, subscriptionFieldAckDeadlineSec)
 		}
 	}
 	return translatedPaths, nil

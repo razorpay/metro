@@ -9,19 +9,17 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
-//PatchStruct - Patches the attributes of struct `fromObj` into struct `toObj`
+//StructPatch - Patches the attributes of struct `fromObj` into struct `toObj`
 //The underlying types of both these objects must be the same
 //fields define the fields that are to be copied
-func PatchStruct(ctx context.Context, fromObj, toObj interface{}, fields []string) error {
+func StructPatch(ctx context.Context, fromObj, toObj interface{}, fields []string) error {
 	typeA := reflect.TypeOf(fromObj)
 	typeB := reflect.TypeOf(toObj)
 
-	if typeA.Kind() != reflect.Struct {
-		if typeA.Kind() != reflect.Ptr || typeA.Elem().Kind() != reflect.Struct {
-			logger.Ctx(ctx).Errorw("patching allowed only for structs or pointer to structs", "type", typeA)
-			err := fmt.Errorf("invalid patching")
-			return err
-		}
+	if typeA.Kind() != reflect.Ptr || typeA.Elem().Kind() != reflect.Struct {
+		logger.Ctx(ctx).Errorw("patching allowed only for pointer to structs", "type", typeA)
+		err := fmt.Errorf("invalid patching")
+		return err
 	}
 
 	if typeA != typeB {

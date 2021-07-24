@@ -142,7 +142,7 @@ func (c *Core) UpdateSubscription(ctx context.Context, uModel *Model, paths []st
 		return nil, err
 	}
 
-	err = patch.PatchStruct(ctx, uModel, m, paths)
+	err = patch.StructPatch(ctx, uModel, m, paths)
 	if err != nil {
 		return nil, err
 	}

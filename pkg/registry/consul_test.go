@@ -358,8 +358,9 @@ func TestReleaseSuccess(t *testing.T) {
 
 func TestPutSuccess(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/kv/k1", func(res http.ResponseWriter, req *http.Request) {
-		fmt.Fprint(res, "true")
+	mux.HandleFunc("/v1/txn", func(res http.ResponseWriter, req *http.Request) {
+		resBody := `{"Results":[{"KV":{"LockIndex":0,"Key":"k1","Flags":0,"Value":"","CreateIndex":1,"ModifyIndex":1}}],"Errors":[]}`
+		fmt.Fprint(res, resBody)
 	})
 
 	ts := httptest.NewServer(mux)
@@ -375,8 +376,9 @@ func TestPutSuccess(t *testing.T) {
 	assert.Nil(t, err)
 
 	ctx := context.Background()
-	err = c.Put(ctx, "k1", []byte("v1"))
+	vid, err := c.Put(ctx, "k1", []byte(""))
 	assert.Nil(t, err)
+	assert.Equal(t, "1", vid, "modify index not set")
 }
 
 func TestGetSuccess(t *testing.T) {
@@ -409,7 +411,7 @@ func TestGetSuccess(t *testing.T) {
 	ctx := context.Background()
 	val, err := c.Get(ctx, "k1")
 	t.Log(val)
-	assert.Equal(t, []byte("v1"), val)
+	assert.Equal(t, Pair{Key: "k1", Value: []byte("v1"), VersionID: "0", SessionID: ""}, val)
 	assert.Nil(t, err)
 }
 

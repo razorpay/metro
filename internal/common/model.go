@@ -6,9 +6,6 @@ import (
 	"github.com/razorpay/metro/internal/app"
 )
 
-// Version of key value pair provided by the registry. Version changes on every update
-type VersionID string
-
 // IModel interface which all models should implement
 type IModel interface {
 	// Key returns the key to store the model against
@@ -27,13 +24,13 @@ type BaseModel struct {
 	isVersionSet bool
 }
 
-//Base implementation of set version id
+//SetVersionID Base implementation of set version id
 func (b *BaseModel) SetVersionID(vid string) {
 	b.isVersionSet = true
 	b.versionID = vid
 }
 
-//Base implementation of get version id. errors out if called without setting the version id.
+//GetVersionID Base implementation of get version id. errors out if called without setting the version id.
 func (b *BaseModel) GetVersionID() (string, error) {
 	if !b.isVersionSet {
 		err := fmt.Errorf("calling getVersionID without setting it")

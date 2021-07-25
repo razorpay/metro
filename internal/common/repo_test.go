@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/registry/mocks"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,6 +17,10 @@ type sampleModel struct{}
 func (s *sampleModel) Key() string { return "sample-key" }
 
 func (s *sampleModel) Prefix() string { return "sample-prefix" }
+
+func (s *sampleModel) SetVersionID(vid string) {}
+
+func (s *sampleModel) GetVersionID() (string, error) { return "", nil }
 
 func TestBaseRepo_Save(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -53,7 +58,7 @@ func TestBaseRepo_Get(t *testing.T) {
 	mockRegistry := mocks.NewMockIRegistry(ctrl)
 	repo := &BaseRepo{mockRegistry}
 	ctx := context.Background()
-	mockRegistry.EXPECT().Get(gomock.Any(), "sample-key").Return([]byte("{}"), nil)
+	mockRegistry.EXPECT().Get(gomock.Any(), "sample-key").Return(registry.Pair{Key: "sample-key", Value: []byte("{}")}, nil)
 
 	var model sampleModel
 	err := repo.Get(ctx, "sample-key", &model)

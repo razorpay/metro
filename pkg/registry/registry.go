@@ -15,7 +15,7 @@ type Pair struct {
 }
 
 func (pair *Pair) String() string {
-	return fmt.Sprintf("key: %s, value: %s, sessionID: %s, versionID:%s", pair.Key, string(pair.Value), pair.SessionID, pair.VersionID)
+	return fmt.Sprintf("key: %s, value: %s, sessionID: %s, versionID: %s", pair.Key, string(pair.Value), pair.SessionID, pair.VersionID)
 }
 
 // IRegistry implements a generic interface for service discovery

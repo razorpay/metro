@@ -78,6 +78,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 
 	// for subscription over deadletter topics, skip the retry and deadletter topic creation
 	if topicModel.IsDeadLetterTopic() == false {
+
 		// create retry topic for subscription
 		// TODO: update based on retry policy
 		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
@@ -104,6 +105,25 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		if err != nil {
 			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic(), "error", err.Error())
 			return err
+		}
+
+		m.DelayConfig, err = NewDelayConfig(m)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to init delay config", "error", err.Error())
+			return err
+		}
+
+		// create all the needed delay topics
+		for _, delayTopic := range m.DelayConfig.delayTopics {
+			// TODO : parallelize via goroutines? discuss
+			err = c.topicCore.CreateTopic(ctx, &topic.Model{
+				Name:          delayTopic,
+				NumPartitions: topicModel.NumPartitions,
+			})
+			if err != nil {
+				logger.Ctx(ctx).Errorw("failed to create delay topic for subscription", "name", delayTopic, "error", err.Error())
+				return err
+			}
 		}
 	}
 

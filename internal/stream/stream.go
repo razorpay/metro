@@ -131,16 +131,16 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		pushRequest := newPushEndpointRequest(message, subModel.Name)
 		postBody, _ := json.Marshal(pushRequest)
 		postData := bytes.NewBuffer(postBody)
-		req, err := http.NewRequest(http.MethodPost, subModel.PushEndpoint, postData)
+		req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
 		if subModel.HasCredentials() {
 			req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
 		}
 
-		logFields["endpoint"] = subModel.PushEndpoint
+		logFields["endpoint"] = subModel.PushConfig.PushEndpoint
 		logger.Ctx(ps.ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
 		resp, err := ps.httpClient.Do(req)
-		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
-		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
+		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, ps.subs.GetID()).Inc()
+		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
 		if err != nil {
 			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "logFields", logFields, "error", err.Error())
 			ps.nack(ctx, message)
@@ -148,15 +148,15 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		}
 
 		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
-		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
+		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Ack
 			ps.ack(ctx, message)
-			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
+			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, ps.subs.GetID()).Inc()
 		} else {
 			// Nack
 			ps.nack(ctx, message)
-			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushEndpoint, ps.subs.GetID()).Inc()
+			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, ps.subs.GetID()).Inc()
 		}
 
 		// discard response.Body after usage and ignore errors
@@ -216,9 +216,9 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	}
 
 	// set http connection timeout from the subscription
-	if subModel.AckDeadlineSec != 0 {
+	if subModel.AckDeadlineSeconds != 0 {
 		// make sure to convert sec to milli-sec
-		config.ConnectTimeoutMS = int(subModel.AckDeadlineSec) * 1e3
+		config.ConnectTimeoutMS = int(subModel.AckDeadlineSeconds) * 1e3
 	}
 	httpclient := NewHTTPClientWithConfig(config)
 

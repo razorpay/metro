@@ -51,6 +51,9 @@ func (c *Core) NewSubscriber(ctx context.Context,
 		return nil, err
 	}
 
+	dc := subscription.DelayConfig
+	dc.GetDelayTopics()
+
 	retryProducer, err := c.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: retryTopic, TimeoutMs: 500})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: failed to create retry producer", "error", err.Error())

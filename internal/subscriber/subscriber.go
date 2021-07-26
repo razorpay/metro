@@ -5,6 +5,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/razorpay/metro/internal/retrier"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscriber/customheap"
@@ -67,6 +69,7 @@ type Subscriber struct {
 	isPaused               bool
 	ctx                    context.Context
 	bs                     brokerstore.IBrokerStore
+	retrier                retrier.Handler
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold

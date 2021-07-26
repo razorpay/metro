@@ -63,3 +63,28 @@ func Test_validatePushConfig(t *testing.T) {
 	url, err = validatePushConfig(ctx, &metrov1.PushConfig{PushEndpoint: "invalid url"})
 	assert.NotNil(t, err)
 }
+
+func Test_getValidatedUpdatePaths(t *testing.T) {
+	ctx := context.Background()
+	paths := []string{pushConfigPath, ackDeadlineSecPath}
+
+	tPaths, err := getValidatedUpdatePaths(ctx, paths)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{subscriptionFieldPushEndpoint, subscriptionFieldCredentials, subscriptionFieldAckDeadlineSec}, tPaths, "wrong translation of subscription paths")
+}
+
+func Test_getValidatedUpdatePathsError(t *testing.T) {
+	ctx := context.Background()
+	paths := []string{pushConfigPath, "wrongpath"}
+
+	_, err := getValidatedUpdatePaths(ctx, paths)
+	assert.NotNil(t, err)
+}
+
+func Test_getValidatedUpdatePathsEmpty(t *testing.T) {
+	ctx := context.Background()
+	paths := []string{}
+
+	_, err := getValidatedUpdatePaths(ctx, paths)
+	assert.NotNil(t, err)
+}

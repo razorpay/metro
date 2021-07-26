@@ -1,6 +1,8 @@
 package subscription
 
-import metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+import (
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+)
 
 //ModelToSubscriptionProtoV1 - Convert internal model into protov1 model
 func ModelToSubscriptionProtoV1(m *Model) *metrov1.Subscription {

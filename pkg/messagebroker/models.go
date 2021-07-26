@@ -30,7 +30,6 @@ type SendMessageToTopicRequest struct {
 	Topic       string
 	Message     []byte
 	OrderingKey string
-	Attributes  []map[string][]byte
 	TimeoutMs   int
 	MessageID   string
 	RetryCount  int32
@@ -101,18 +100,23 @@ type GetMessagesFromTopicResponse struct {
 
 // ReceivedMessage ...
 type ReceivedMessage struct {
-	Data        []byte
-	MessageID   string
-	Topic       string
-	Partition   int32
-	Offset      int32
-	RetryCount  int32
-	PublishTime time.Time
+	Data             []byte
+	MessageID        string // extracted from header
+	Topic            string
+	Partition        int32
+	Offset           int32
+	RetryCount       int32     // extracted from header
+	PublishTime      time.Time // extracted from header
+	NextDeliveryTime time.Time // extracted from header
 }
 
 func (rm ReceivedMessage) String() string {
 	return fmt.Sprintf("data=[%v], msgId=[%v], topic=[%v], partition=[%v], offset=[%v], publishTime=[%v]",
 		string(rm.Data), rm.MessageID, rm.Topic, rm.Partition, rm.Offset, rm.PublishTime.Unix())
+}
+
+func (rm ReceivedMessage) HasReachedRetryThreshold() bool {
+	return false
 }
 
 // CommitOnTopicResponse ...

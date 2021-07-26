@@ -69,7 +69,6 @@ func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*
 
 // Delete a topic
 func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTopicRequest) (*emptypb.Empty, error) {
-	req.GetTopic()
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.DeleteTopic")
 	defer span.Finish()
 

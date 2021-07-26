@@ -296,28 +296,39 @@ func NewModAckMessage(ackMessage *AckMessage, ackDeadline int32) *ModAckMessage 
 
 // RetryMessage ...
 type RetryMessage struct {
-	Data       []byte
-	Topic      string
-	Partition  int32
-	Offset     int32
-	MessageID  string
-	RetryCount int32
+	Data              []byte
+	MessageID         string
+	PublishTime       int64
+	NextDeliveryTime  int32
+	PrimaryTopic      string // topic from where the first message originated from, before retry
+	Subscription      string
+	CurrentRetryCount int32
+	MaxRetryCount     int32
+	SourceTopic       string // message was read from this topic
+	NextTopic         string // message was read from this topic
+	Partition         int32
+	Offset            int32
 }
 
 // increments the retry attempt
-func (rm *RetryMessage) incrementAndGetRetryCount() int32 {
-	rm.RetryCount++
-	return rm.RetryCount
-}
+//func (rm *RetryMessage) incrementAndGetRetryCount() int32 {
+//	rm.RetryCount++
+//	return rm.RetryCount
+//}
 
 // NewRetryMessage ...
-func NewRetryMessage(topic string, partition, offset int32, data []byte, messageID string, retryCount int32) *RetryMessage {
+func NewRetryMessage(msg messagebroker.ReceivedMessage, subscription string) *RetryMessage {
 	return &RetryMessage{
-		Data:       data,
-		Topic:      topic,
-		Partition:  partition,
-		Offset:     offset,
-		MessageID:  messageID,
-		RetryCount: retryCount,
+		Data:              msg.Data,
+		MessageID:         msg.MessageID,
+		PublishTime:       msg.PublishTime.Unix(),
+		CurrentRetryCount: msg.RetryCount,
+		PrimaryTopic:      "",
+		NextDeliveryTime:  0,  // will set be set by the retrier
+		NextTopic:         "", // will set be set by the retrier
+		Subscription:      subscription,
+		SourceTopic:       msg.Topic,
+		Partition:         msg.Partition,
+		Offset:            msg.Offset,
 	}
 }

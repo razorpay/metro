@@ -18,7 +18,101 @@ import (
 	mocks3 "github.com/razorpay/metro/service/web/stream/mocks/manager"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
+
+func TestSubscriberServer_UpdateSubscription(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:  "projects/project123/subscriptions/testsub",
+			Topic: "projects/project123/topics/test-topic",
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"push_config"},
+		},
+	}
+
+	resp := &subscription.Model{
+		Name:         req.Subscription.Name,
+		Topic:        req.Subscription.Topic,
+		PushEndpoint: "",
+		Credentials:  nil,
+	}
+
+	m, paths, err := subscription.GetValidatedModelAndPathsForUpdate(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, paths, []string{"PushEndpoint", "Credentials"}, "update paths are not matching")
+
+	subscriptionCore.EXPECT().UpdateSubscription(gomock.Any(), m, paths).Times(1).Return(resp, nil)
+	updated, err := server.UpdateSubscription(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, updated, req.Subscription, "Update is not correct")
+}
+
+func TestSubscriberServer_UpdateSubscriptionError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:  "projects/project123/subscriptions/testsub",
+			Topic: "projects/project123/topics/test-topic",
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"push_config"},
+		},
+	}
+
+	m, paths, err := subscription.GetValidatedModelAndPathsForUpdate(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, paths, []string{"PushEndpoint", "Credentials"}, "update paths are not matching")
+
+	subscriptionCore.EXPECT().UpdateSubscription(gomock.Any(), m, paths).Times(1).Return(nil, fmt.Errorf("error"))
+	_, err = server.UpdateSubscription(ctx, req)
+	assert.NotNil(t, err)
+}
+
+func TestSubscriberServer_UpdateSubscriptionValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:  "projects/project123/subscriptions/testsub",
+			Topic: "projects/project123/topics/test-topic",
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"push_caaanfig"},
+		},
+	}
+
+	_, _, err := subscription.GetValidatedModelAndPathsForUpdate(ctx, req)
+	assert.NotNil(t, err)
+
+	_, err = server.UpdateSubscription(ctx, req)
+	assert.NotNil(t, err)
+}
 
 func TestSubscriberServer_CreateSubscription(t *testing.T) {
 	ctrl := gomock.NewController(t)

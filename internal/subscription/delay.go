@@ -1,0 +1,165 @@
+package subscription
+
+import (
+	"fmt"
+
+	"github.com/pkg/errors"
+)
+
+// subs-delay-30-seconds, subs-delay-60-seconds ... subs-delay-600-seconds
+const delayTopicNameFormat = "%v-delay-%v-seconds"
+
+const (
+	defaultMinimumBackoffInSeconds    uint = 10
+	lowerBoundMinimumBackoffInSeconds uint = 0
+	upperBoundMinimumBackoffInSeconds uint = 600
+
+	defaultMaximumBackoffInSeconds    uint = 600
+	lowerBoundMaximumBackoffInSeconds uint = 0
+	upperBoundMaximumBackoffInSeconds uint = 600
+
+	defaultMaxDeliveryAttempts    int32 = 5
+	lowerBoundMaxDeliveryAttempts int32 = 5
+	upperBoundMaxDeliveryAttempts int32 = 100
+)
+
+var (
+	// ErrInvalidMinBackoff ...
+	ErrInvalidMinBackoff = errors.New("min backoff should be between 0 and 600 seconds")
+	// ErrInvalidMaxBackoff ...
+	ErrInvalidMaxBackoff = errors.New("max backoff should be between 0 and 600 seconds")
+	// ErrInvalidMaxDeliveryAttempt ...
+	ErrInvalidMaxDeliveryAttempt = errors.New("max delivery attempt should be between 5 and 100")
+)
+
+// Interval is internal delay type per allowed interval
+type Interval uint
+
+var (
+	// Delay5sec ...
+	Delay5sec Interval = 5
+	// Delay10sec ...
+	Delay10sec Interval = 10
+	// Delay30sec ...
+	Delay30sec Interval = 30
+	// Delay60sec ...
+	Delay60sec Interval = 60
+	// Delay120sec ...
+	Delay120sec Interval = 120
+	// Delay150sec ...
+	Delay150sec Interval = 150
+	// Delay300sec ...
+	Delay300sec Interval = 300
+	// Delay450sec ...
+	Delay450sec Interval = 450
+	// Delay600sec ...
+	Delay600sec Interval = 600
+	// Delay750sec ...
+	Delay750sec Interval = 750
+	// Delay900sec ...
+	Delay900sec Interval = 900
+)
+
+// Intervals during subscription creation, query from the allowed intervals list, and create all the needed topics for retry.
+var Intervals = []Interval{Delay5sec, Delay10sec, Delay30sec, Delay60sec, Delay120sec, Delay150sec, Delay300sec, Delay450sec, Delay600sec, Delay750sec, Delay900sec}
+
+// DelayConfig ...
+type DelayConfig struct {
+	minimumBackoffInSeconds uint
+	maximumBackoffInSeconds uint
+	maxDeliveryAttempts     int32
+	subscription            string
+	deadLetterTopic         string
+	delayTopics             []string
+	// maintains a mapping for all the delay intervals to its delay topic name. This will be used to lookup the next topic name.
+	delayIntervalToTopicNameMap map[Interval]string
+}
+
+// NewDelayConfig validates a subscription model and initializes the needed config values to be used for delay consumers
+func NewDelayConfig(model *Model) (*DelayConfig, error) {
+
+	minB := defaultMinimumBackoffInSeconds
+	maxB := defaultMaximumBackoffInSeconds
+	maxAtt := defaultMaxDeliveryAttempts
+
+	if model.RetryPolicy != nil {
+		minB = model.RetryPolicy.MinimumBackoff
+		if minB < lowerBoundMinimumBackoffInSeconds || minB > upperBoundMinimumBackoffInSeconds {
+			return nil, ErrInvalidMinBackoff
+		}
+	}
+
+	if model.RetryPolicy != nil {
+		maxB = model.RetryPolicy.MaximumBackoff
+		if maxB < lowerBoundMaximumBackoffInSeconds || maxB > upperBoundMaximumBackoffInSeconds {
+			return nil, ErrInvalidMaxBackoff
+		}
+	}
+
+	if model.DeadLetterPolicy != nil {
+		maxAtt = model.DeadLetterPolicy.MaxDeliveryAttempts
+		if maxAtt < lowerBoundMaxDeliveryAttempts || maxAtt > upperBoundMaxDeliveryAttempts {
+			return nil, ErrInvalidMaxDeliveryAttempt
+		}
+	}
+
+	delayTopics := make([]string, len(Intervals))
+	delayIntervalToTopicNameMap := make(map[Interval]string, len(Intervals))
+	for _, interval := range Intervals {
+		delayTopic := fmt.Sprintf(delayTopicNameFormat, model.ExtractedSubscriptionName, interval)
+		delayTopics = append(delayTopics, delayTopic)
+		delayIntervalToTopicNameMap[interval] = delayTopic
+	}
+
+	config := &DelayConfig{
+		minimumBackoffInSeconds:     minB,
+		maximumBackoffInSeconds:     maxB,
+		maxDeliveryAttempts:         maxAtt,
+		subscription:                model.ExtractedSubscriptionName,
+		deadLetterTopic:             model.GetDeadLetterTopic(),
+		delayTopics:                 delayTopics,
+		delayIntervalToTopicNameMap: delayIntervalToTopicNameMap,
+	}
+
+	return config, nil
+}
+
+// GetMinimumBackoffInSeconds...
+func (rc *DelayConfig) GetMinimumBackoffInSeconds() uint {
+	return rc.minimumBackoffInSeconds
+}
+
+// GetMaximumBackoffInSeconds...
+func (rc *DelayConfig) GetMaximumBackoffInSeconds() uint {
+	return rc.maximumBackoffInSeconds
+}
+
+// GetMaxDeliveryAttempts...
+func (rc *DelayConfig) GetMaxDeliveryAttempts() int32 {
+	return rc.maxDeliveryAttempts
+}
+
+// GetSubscription...
+func (rc *DelayConfig) GetSubscription() string {
+	return rc.subscription
+}
+
+// GetDeadLetterTopic...
+func (rc *DelayConfig) GetDeadLetterTopic() string {
+	return rc.deadLetterTopic
+}
+
+// GetDelayTopics...
+func (rc *DelayConfig) GetDelayTopics() []string {
+	return rc.delayTopics
+}
+
+// GetDelayTopicsMap...
+func (rc *DelayConfig) GetDelayTopicsMap() map[Interval]string {
+	return rc.delayIntervalToTopicNameMap
+}
+
+// GetDelayTopicForInterval...
+func (rc *DelayConfig) GetDelayTopicForInterval(interval Interval) string {
+	return rc.delayIntervalToTopicNameMap[interval]
+}

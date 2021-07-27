@@ -225,8 +225,18 @@ func (c *ConsulClient) Put(ctx context.Context, key string, value []byte) (strin
 		if err != nil {
 			return "", err
 		}
-		// There must be exactly 1 error
-		err = fmt.Errorf(resp.Errors[0].What)
+		if len(resp.Errors) == 0 {
+			// scenario not possible
+			err = fmt.Errorf("could not execute put")
+		} else {
+			err = fmt.Errorf(resp.Errors[0].What)
+		}
+		return "", err
+	}
+
+	if len(resp.Results) == 0 || resp.Results[0].KV == nil {
+		// scenario not possible
+		err = fmt.Errorf("error in consul transaction: received empty result list")
 		return "", err
 	}
 
@@ -234,7 +244,7 @@ func (c *ConsulClient) Put(ctx context.Context, key string, value []byte) (strin
 }
 
 // Get returns a value for a key
-func (c *ConsulClient) Get(ctx context.Context, key string) (Pair, error) {
+func (c *ConsulClient) Get(ctx context.Context, key string) (*Pair, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.Get")
 	defer span.Finish()
 
@@ -247,12 +257,12 @@ func (c *ConsulClient) Get(ctx context.Context, key string) (Pair, error) {
 
 	kv, _, err := c.client.KV().Get(key, nil)
 	if err != nil {
-		return Pair{}, err
+		return nil, err
 	}
 	if kv == nil {
-		return Pair{}, errors.New("key not found")
+		return nil, errors.New("key not found")
 	}
-	return Pair{Key: key, Value: kv.Value, VersionID: strconv.FormatUint(kv.ModifyIndex, 10)}, nil
+	return &Pair{Key: key, Value: kv.Value, VersionID: strconv.FormatUint(kv.ModifyIndex, 10)}, nil
 }
 
 // List returns a slice of pairs for a key prefix

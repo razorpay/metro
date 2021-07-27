@@ -58,7 +58,7 @@ func TestBaseRepo_Get(t *testing.T) {
 	mockRegistry := mocks.NewMockIRegistry(ctrl)
 	repo := &BaseRepo{mockRegistry}
 	ctx := context.Background()
-	mockRegistry.EXPECT().Get(gomock.Any(), "sample-key").Return(registry.Pair{Key: "sample-key", Value: []byte("{}")}, nil)
+	mockRegistry.EXPECT().Get(gomock.Any(), "sample-key").Return(&registry.Pair{Key: "sample-key", Value: []byte("{}")}, nil)
 
 	var model sampleModel
 	err := repo.Get(ctx, "sample-key", &model)

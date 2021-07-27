@@ -8,8 +8,10 @@ import (
 
 // Pair is the registry struct returned to watch handler
 type Pair struct {
-	Key       string
-	Value     []byte
+	Key   string
+	Value []byte
+	// VersionID - The version of the stored key-value pair
+	// Set by the registry, ModifyIndex in case of consul
 	VersionID string
 	SessionID string
 }
@@ -50,7 +52,7 @@ type IRegistry interface {
 	Put(ctx context.Context, key string, value []byte) (string, error)
 
 	// Get returns a value for a key
-	Get(ctx context.Context, key string) (Pair, error)
+	Get(ctx context.Context, key string) (*Pair, error)
 
 	// List returns a keys with matching key prefix
 	ListKeys(ctx context.Context, prefix string) ([]string, error)

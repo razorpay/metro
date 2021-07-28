@@ -14,20 +14,20 @@ const (
 // Model for a subscription
 type Model struct {
 	common.BaseModel
-	Name                           string
-	Topic                          string
-	Labels                         map[string]string
-	PushEndpoint                   string
-	AckDeadlineSec                 int32
-	ExtractedTopicProjectID        string
-	ExtractedSubscriptionProjectID string
-	ExtractedTopicName             string
-	ExtractedSubscriptionName      string
-	Credentials                    *credentials.Model
+	Name                           string             `json:"name"`
+	Topic                          string             `json:"topic"`
+	Labels                         map[string]string  `json:"labels"`
+	PushEndpoint                   string             `json:"push_endpoint"`
+	AckDeadlineSec                 int32              `json:"ack_deadline_sec"`
+	ExtractedTopicProjectID        string             `json:"extracted_topic_project_id"`
+	ExtractedSubscriptionProjectID string             `json:"extracted_subscription_project_id"`
+	ExtractedTopicName             string             `json:"extracted_topic_name"`
+	ExtractedSubscriptionName      string             `json:"extracted_subscription_name"`
+	Credentials                    *credentials.Model `json:"credentials"`
 
 	// DeadLetterTopic keeps the topic name used for dead lettering, this will be created with subscription and
 	// will be visible to subscriber, subscriber can create subscription over this topic to read messages from this
-	DeadLetterTopic string
+	DeadLetterTopic string `json:"dead_letter_topic"`
 
 	// TODO: add remaining fields from spec.proto
 }

@@ -17,12 +17,13 @@ const (
 	currentRetryCountHeader = "currentRetryCount"
 	maxRetryCountHeader     = "maxRetryCount"
 	nextTopicHeader         = "nextTopic"
+	deadLetterTopicHeader   = "deadLetterTopic"
 	nextDeliveryTimeHeader  = "nextDeliveryTime"
 )
 
 // extracts the message headers from a given SendMessageToTopicRequest and converts to the equivalent broker headers
 func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.Header {
-	var kHeaders []kafkapkg.Header
+	kHeaders := make([]kafkapkg.Header, 0)
 	// extract default attributes
 	if request.Attributes != nil {
 		for _, attribute := range request.Attributes {
@@ -72,6 +73,11 @@ func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.
 		Key:   nextTopicHeader,
 		Value: []byte(request.NextTopic),
 	})
+	// extract deadLetterTopic
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   deadLetterTopicHeader,
+		Value: []byte(request.DeadLetterTopic),
+	})
 	// extract nextDeliveryTime if sent
 	if !request.PublishTime.IsZero() {
 		ndt, _ := json.Marshal(request.NextDeliveryTime.Unix())
@@ -95,6 +101,7 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 		currentRetryCount int32
 		maxRetryCount     int32
 		nextTopic         string
+		deadLetterTopic   string
 		nextDeliveryTime  time.Time
 	)
 	for _, v := range headers {
@@ -113,6 +120,8 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			json.Unmarshal(v.Value, &maxRetryCount)
 		case nextTopicHeader:
 			nextTopic = string(v.Value)
+		case deadLetterTopicHeader:
+			deadLetterTopic = string(v.Value)
 		case nextDeliveryTimeHeader:
 			json.Unmarshal(v.Value, &nextDeliveryTime)
 		}
@@ -127,6 +136,7 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			CurrentRetryCount: currentRetryCount,
 			MaxRetryCount:     maxRetryCount,
 			NextTopic:         nextTopic,
+			DeadLetterTopic:   deadLetterTopic,
 			NextDeliveryTime:  nextDeliveryTime,
 		},
 	}

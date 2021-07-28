@@ -33,7 +33,7 @@ func NewPushToPrimaryTopicHandler(bs brokerstore.IBrokerStore) Handler {
 
 func (s *PushToPrimaryTopic) Do(ctx context.Context, message messagebroker.ReceivedMessage) error {
 	producer, err := s.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
-		//Topic:     message.PrimaryTopic,
+		Topic:     message.SourceTopic,
 		TimeoutMs: defaultBrokerOperationsTimeoutMs,
 	})
 	if err != nil {
@@ -41,11 +41,12 @@ func (s *PushToPrimaryTopic) Do(ctx context.Context, message messagebroker.Recei
 	}
 
 	_, err = producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-		//Topic:       message.PrimaryTopic,
+		Topic:     message.SourceTopic,
 		Message:   message.Data,
 		TimeoutMs: int(defaultBrokerOperationsTimeoutMs),
-		MessageID: message.MessageID,
-		//RetryCount:  message.CurrentRetryCount,
+		MessageHeader: messagebroker.MessageHeader{
+			MessageID: message.MessageID,
+		},
 	})
 
 	if err != nil {

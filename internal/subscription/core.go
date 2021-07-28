@@ -117,12 +117,16 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		for _, delayTopic := range m.DelayConfig.DelayTopics {
 			// TODO : parallelize via goroutines? discuss
 			err = c.topicCore.CreateTopic(ctx, &topic.Model{
-				Name:               topic.GetTopicName(m.ExtractedSubscriptionProjectID, delayTopic),
+				Name:               delayTopic,
 				ExtractedProjectID: m.ExtractedSubscriptionProjectID,
 				ExtractedTopicName: delayTopic,
 				NumPartitions:      topicModel.NumPartitions,
 			})
-			if err != nil {
+			if val, ok := err.(*merror.MError); ok {
+				if val.Code() == merror.AlreadyExists {
+					continue
+				}
+			} else if err != nil {
 				logger.Ctx(ctx).Errorw("failed to create delay topic for subscription", "name", delayTopic, "error", err.Error())
 				return err
 			}

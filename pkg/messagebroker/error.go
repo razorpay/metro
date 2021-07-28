@@ -1,4 +1,4 @@
-package stream
+package messagebroker
 
 import kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 
@@ -13,7 +13,7 @@ func init() {
 	}
 }
 
-func isErrorRecoverable(err error) bool {
+func IsErrorRecoverable(err error) bool {
 
 	if err == nil {
 		return true

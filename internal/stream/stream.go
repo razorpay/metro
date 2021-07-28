@@ -78,12 +78,12 @@ func (ps *PushStream) Start() error {
 					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
-				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
+				//logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
 				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
-				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
+				//logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
 				data := <-ps.subs.GetResponseChannel()
 				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())
+					//logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())
 					ps.processPushStreamResponse(ps.ctx, ps.subscription, data)
 				}
 			}

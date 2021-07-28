@@ -47,6 +47,7 @@ type MessageHeader struct {
 	MaxRetryCount     int32
 	// destination topic
 	NextTopic        string
+	DeadLetterTopic  string
 	NextDeliveryTime time.Time
 }
 
@@ -123,8 +124,7 @@ type ReceivedMessage struct {
 }
 
 func (rm ReceivedMessage) String() string {
-	return fmt.Sprintf("data=[%v], msgId=[%v], topic=[%v], partition=[%v], offset=[%v], publishTime=[%v]",
-		string(rm.Data), rm.MessageID, rm.Topic, rm.Partition, rm.Offset, rm.PublishTime.Unix())
+	return fmt.Sprintf("%+v", rm)
 }
 
 func (rm ReceivedMessage) HasReachedRetryThreshold() bool {

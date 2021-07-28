@@ -18,6 +18,11 @@ func (e *MError) Error() string {
 	return e.message
 }
 
+// Error returns the error code
+func (e *MError) Code() Code {
+	return e.code
+}
+
 // ToGRPCError returns the grpc error
 func (e *MError) ToGRPCError() error {
 	return ToGRPCError(e)

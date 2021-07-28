@@ -24,7 +24,9 @@ type DelayConsumer struct {
 func NewDelayConsumer(ctx context.Context, topic string, bs brokerstore.IBrokerStore, handler Handler) (*DelayConsumer, error) {
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
 	id := uuid.New().String()
-	consumer, err := bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{topic}, GroupID: id, GroupInstanceID: id})
+
+	topicN := messagebroker.NormalizeTopicName(topic)
+	consumer, err := bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{topicN}, GroupID: id, GroupInstanceID: id})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("delay-consumer: failed to create consumer", "error", err.Error())
 		return nil, err
@@ -48,10 +50,12 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 		default:
 			// read one message off the assigned delay topic
 			resp, err := dc.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
-			if err != nil {
-				logger.Ctx(ctx).Errorw("delay-consumer: error in receiving messages", "topic", dc.topic, "error", err.Error())
-				// log and continue?
+			if messagebroker.IsErrorRecoverable(err) {
+				logger.Ctx(ctx).Errorw("delay-consumer: got recoverable error in receiving messages, continuing", "topic", dc.topic, "error", err.Error())
 				continue
+			} else if err != nil {
+				logger.Ctx(ctx).Errorw("delay-consumer: error in receiving messages", "topic", dc.topic, "error", err.Error())
+				return
 			}
 
 			// no messages were found on the topic
@@ -72,11 +76,12 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 					if msg.HasReachedRetryThreshold() {
 						// push to dead-letter topic directly in such cases
 						_, err := dc.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
-							Topic:     msg.Topic,
+							Topic:     msg.DeadLetterTopic,
 							TimeoutMs: defaultBrokerOperationsTimeoutMs,
 						})
 						if err != nil {
-							logger.Ctx(ctx).Errorw("delay-consumer: failed to push to dead-letter topic", "topic", dc.topic, "error", err.Error())
+							logger.Ctx(ctx).Errorw("delay-consumer: failed to push to dead-letter topic", "topic", msg.DeadLetterTopic, "error", err.Error())
+							// do not commit and continue
 							continue
 						}
 					} else {
@@ -84,6 +89,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 						err := dc.handler.Do(ctx, msg)
 						if err != nil {
 							logger.Ctx(ctx).Errorw("delay-consumer: error in msg handler", "topic", dc.topic, "error", err.Error())
+							// do not commit and continue
 							continue
 						}
 					}

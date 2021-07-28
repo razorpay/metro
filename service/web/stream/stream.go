@@ -6,6 +6,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/razorpay/metro/pkg/messagebroker"
+
 	"github.com/google/uuid"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
@@ -68,7 +70,7 @@ func (s *pullStream) run() error {
 			return nil
 		case err := <-s.subscriptionSubscriber.GetErrorChannel():
 			streamManagerSubscriberErrors.WithLabelValues(env, s.subscriberID, s.subscriptionSubscriber.GetSubscription(), err.Error()).Inc()
-			if isErrorRecoverable(err) {
+			if messagebroker.IsErrorRecoverable(err) {
 				// no need to stop the subscriber in such cases. just log and return
 				logger.Ctx(s.ctx).Errorw("subscriber: got recoverable error", err.Error())
 				return nil

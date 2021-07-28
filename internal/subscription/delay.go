@@ -3,6 +3,8 @@ package subscription
 import (
 	"fmt"
 
+	"github.com/razorpay/metro/internal/topic"
+
 	"github.com/pkg/errors"
 )
 
@@ -111,7 +113,7 @@ func NewDelayConfig(model *Model) (*DelayConfig, error) {
 	delayTopics := make([]string, 0)
 	delayIntervalToTopicNameMap := make(map[Interval]string)
 	for _, interval := range Intervals {
-		delayTopic := fmt.Sprintf(delayTopicNameFormat, model.ExtractedSubscriptionName, interval)
+		delayTopic := topic.GetTopicName(model.ExtractedSubscriptionProjectID, fmt.Sprintf(delayTopicNameFormat, model.ExtractedSubscriptionName, interval))
 		delayTopics = append(delayTopics, delayTopic)
 		delayIntervalToTopicNameMap[interval] = delayTopic
 	}

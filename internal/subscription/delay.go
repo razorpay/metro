@@ -65,14 +65,14 @@ var Intervals = []Interval{Delay5sec, Delay10sec, Delay30sec, Delay60sec, Delay1
 
 // DelayConfig ...
 type DelayConfig struct {
-	minimumBackoffInSeconds uint
-	maximumBackoffInSeconds uint
-	maxDeliveryAttempts     int32
-	subscription            string
-	deadLetterTopic         string
-	delayTopics             []string
+	MinimumBackoffInSeconds uint     `json:"minimum_backoff_in_seconds"`
+	MaximumBackoffInSeconds uint     `json:"maximum_backoff_in_seconds"`
+	MaxDeliveryAttempts     int32    `json:"max_delivery_attempts"`
+	Subscription            string   `json:"subscription"`
+	DeadLetterTopic         string   `json:"dead_letter_topic"`
+	DelayTopics             []string `json:"delay_topics"`
 	// maintains a mapping for all the delay intervals to its delay topic name. This will be used to lookup the next topic name.
-	delayIntervalToTopicNameMap map[Interval]string
+	DelayIntervalToTopicMap map[Interval]string `json:"delay_interval_to_topic_map"`
 }
 
 // NewDelayConfig validates a subscription model and initializes the needed config values to be used for delay consumers
@@ -96,15 +96,20 @@ func NewDelayConfig(model *Model) (*DelayConfig, error) {
 		}
 	}
 
+	// currently dl-topics are auto-created for subscriptions, refer GetValidatedModelForCreate()
 	if model.DeadLetterPolicy != nil {
 		maxAtt = model.DeadLetterPolicy.MaxDeliveryAttempts
-		if maxAtt < lowerBoundMaxDeliveryAttempts || maxAtt > upperBoundMaxDeliveryAttempts {
+		if maxAtt == 0 {
+			// since dl-topics are auto-created, a user may never provide a dead-letter policy during subscription creation.
+			// in such cases we set MaxDeliveryAttempts to a default value
+			maxAtt = defaultMaxDeliveryAttempts
+		} else if maxAtt < lowerBoundMaxDeliveryAttempts || maxAtt > upperBoundMaxDeliveryAttempts {
 			return nil, ErrInvalidMaxDeliveryAttempt
 		}
 	}
 
-	delayTopics := make([]string, len(Intervals))
-	delayIntervalToTopicNameMap := make(map[Interval]string, len(Intervals))
+	delayTopics := make([]string, 0)
+	delayIntervalToTopicNameMap := make(map[Interval]string)
 	for _, interval := range Intervals {
 		delayTopic := fmt.Sprintf(delayTopicNameFormat, model.ExtractedSubscriptionName, interval)
 		delayTopics = append(delayTopics, delayTopic)
@@ -112,13 +117,13 @@ func NewDelayConfig(model *Model) (*DelayConfig, error) {
 	}
 
 	config := &DelayConfig{
-		minimumBackoffInSeconds:     minB,
-		maximumBackoffInSeconds:     maxB,
-		maxDeliveryAttempts:         maxAtt,
-		subscription:                model.ExtractedSubscriptionName,
-		deadLetterTopic:             model.GetDeadLetterTopic(),
-		delayTopics:                 delayTopics,
-		delayIntervalToTopicNameMap: delayIntervalToTopicNameMap,
+		MinimumBackoffInSeconds: minB,
+		MaximumBackoffInSeconds: maxB,
+		MaxDeliveryAttempts:     maxAtt,
+		Subscription:            model.ExtractedSubscriptionName,
+		DeadLetterTopic:         model.GetDeadLetterTopic(),
+		DelayTopics:             delayTopics,
+		DelayIntervalToTopicMap: delayIntervalToTopicNameMap,
 	}
 
 	return config, nil
@@ -126,40 +131,40 @@ func NewDelayConfig(model *Model) (*DelayConfig, error) {
 
 // GetMinimumBackoffInSeconds...
 func (rc *DelayConfig) GetMinimumBackoffInSeconds() uint {
-	return rc.minimumBackoffInSeconds
+	return rc.MinimumBackoffInSeconds
 }
 
 // GetMaximumBackoffInSeconds...
 func (rc *DelayConfig) GetMaximumBackoffInSeconds() uint {
-	return rc.maximumBackoffInSeconds
+	return rc.MaximumBackoffInSeconds
 }
 
 // GetMaxDeliveryAttempts...
 func (rc *DelayConfig) GetMaxDeliveryAttempts() int32 {
-	return rc.maxDeliveryAttempts
+	return rc.MaxDeliveryAttempts
 }
 
 // GetSubscription...
 func (rc *DelayConfig) GetSubscription() string {
-	return rc.subscription
+	return rc.Subscription
 }
 
 // GetDeadLetterTopic...
 func (rc *DelayConfig) GetDeadLetterTopic() string {
-	return rc.deadLetterTopic
+	return rc.DeadLetterTopic
 }
 
 // GetDelayTopics...
 func (rc *DelayConfig) GetDelayTopics() []string {
-	return rc.delayTopics
+	return rc.DelayTopics
 }
 
 // GetDelayTopicsMap...
 func (rc *DelayConfig) GetDelayTopicsMap() map[Interval]string {
-	return rc.delayIntervalToTopicNameMap
+	return rc.DelayIntervalToTopicMap
 }
 
 // GetDelayTopicForInterval...
 func (rc *DelayConfig) GetDelayTopicForInterval(interval Interval) string {
-	return rc.delayIntervalToTopicNameMap[interval]
+	return rc.DelayIntervalToTopicMap[interval]
 }

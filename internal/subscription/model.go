@@ -14,25 +14,25 @@ const (
 // Model for a subscription
 type Model struct {
 	common.BaseModel
-	Name                           string            `json:"name,omitempty"`
-	Topic                          string            `json:"topic,omitempty"`
-	PushConfig                     *PushConfig       `json:"push_config,omitempty"`
-	AckDeadlineSeconds             int32             `json:"ack_deadline_seconds,omitempty"`
-	RetainAckedMessages            bool              `json:"retain_acked_messages,omitempty"`
-	MessageRetentionDuration       uint              `json:"message_retention_duration,omitempty"`
-	Labels                         map[string]string `json:"labels,omitempty"`
-	EnableMessageOrdering          bool              `json:"enable_message_ordering,omitempty"`
-	ExpirationPolicy               *ExpirationPolicy `json:"expiration_policy,omitempty"`
-	Filter                         string            `json:"filter,omitempty"`
-	RetryPolicy                    *RetryPolicy      `json:"retry_policy,omitempty"`
-	DeadLetterPolicy               *DeadLetterPolicy `json:"dead_letter_policy,omitempty"`
-	Detached                       bool              `json:"detached,omitempty"`
-	ExtractedTopicProjectID        string            `json:"-"`
-	ExtractedSubscriptionProjectID string            `json:"-"`
-	ExtractedTopicName             string            `json:"-"`
-	ExtractedSubscriptionName      string            `json:"-"`
-	Credentials                    *credentials.Model
-	DelayConfig                    *DelayConfig `json:"delay_config"`
+	Name                           string             `json:"name,omitempty"`
+	Topic                          string             `json:"topic,omitempty"`
+	PushConfig                     *PushConfig        `json:"push_config,omitempty"`
+	AckDeadlineSeconds             int32              `json:"ack_deadline_seconds,omitempty"`
+	RetainAckedMessages            bool               `json:"retain_acked_messages,omitempty"`
+	MessageRetentionDuration       uint               `json:"message_retention_duration,omitempty"`
+	Labels                         map[string]string  `json:"labels,omitempty"`
+	EnableMessageOrdering          bool               `json:"enable_message_ordering,omitempty"`
+	ExpirationPolicy               *ExpirationPolicy  `json:"expiration_policy,omitempty"`
+	Filter                         string             `json:"filter,omitempty"`
+	RetryPolicy                    *RetryPolicy       `json:"retry_policy,omitempty"`
+	DeadLetterPolicy               *DeadLetterPolicy  `json:"dead_letter_policy,omitempty"`
+	Detached                       bool               `json:"detached,omitempty"`
+	ExtractedTopicProjectID        string             `json:"-"`
+	ExtractedSubscriptionProjectID string             `json:"-"`
+	ExtractedTopicName             string             `json:"-"`
+	ExtractedSubscriptionName      string             `json:"-"`
+	Credentials                    *credentials.Model `json:"credentials"`
+	DelayConfig                    *DelayConfig       `json:"delay_config"`
 }
 
 // PushConfig defines the push endpoint

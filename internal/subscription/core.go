@@ -80,18 +80,18 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	if topicModel.IsDeadLetterTopic() == false {
 
 		// create retry topic for subscription
-		// TODO: update based on retry policy
-		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
-			Name:               m.GetRetryTopic(),
-			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
-			ExtractedProjectID: m.ExtractedTopicProjectID,
-			NumPartitions:      topicModel.NumPartitions,
-		})
-
-		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic(), "error", err.Error())
-			return err
-		}
+		//// TODO: update based on retry policy
+		//err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
+		//	Name:               m.GetRetryTopic(),
+		//	ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
+		//	ExtractedProjectID: m.ExtractedTopicProjectID,
+		//	NumPartitions:      topicModel.NumPartitions,
+		//})
+		//
+		//if err != nil {
+		//	logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic(), "error", err.Error())
+		//	return err
+		//}
 
 		// create deadletter topic for subscription
 		// TODO: read the deadletter policy and update accordingly
@@ -114,11 +114,13 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		}
 
 		// create all the needed delay topics
-		for _, delayTopic := range m.DelayConfig.delayTopics {
+		for _, delayTopic := range m.DelayConfig.DelayTopics {
 			// TODO : parallelize via goroutines? discuss
 			err = c.topicCore.CreateTopic(ctx, &topic.Model{
-				Name:          delayTopic,
-				NumPartitions: topicModel.NumPartitions,
+				Name:               topic.GetTopicName(m.ExtractedSubscriptionProjectID, delayTopic),
+				ExtractedProjectID: m.ExtractedSubscriptionProjectID,
+				ExtractedTopicName: delayTopic,
+				NumPartitions:      topicModel.NumPartitions,
 			})
 			if err != nil {
 				logger.Ctx(ctx).Errorw("failed to create delay topic for subscription", "name", delayTopic, "error", err.Error())

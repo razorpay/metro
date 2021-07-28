@@ -33,6 +33,7 @@ type SendMessageToTopicRequest struct {
 	TimeoutMs   int
 	MessageID   string
 	RetryCount  int32
+	Attributes  []map[string][]byte
 }
 
 // GetMessagesFromTopicRequest ...

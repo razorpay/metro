@@ -21,6 +21,18 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
+// Map containing the gRPC methods that should not be traced
+// Keys are the gRPC method fullnames
+// If method is present in map, tracing will be disabled
+var tracingExcludedMethods map[string]bool
+
+func init() {
+	tracingExcludedMethods = map[string]bool{
+		"/google.pubsub.v1.StatusCheckAPI/LivenessCheck":  true,
+		"/google.pubsub.v1.StatusCheckAPI/ReadinessCheck": true,
+	}
+}
+
 type registerGrpcHandlers func(server *grpc.Server) error
 type registerHTTPHandlers func(mux *runtime.ServeMux) error
 
@@ -134,7 +146,7 @@ func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInter
 		// Add tags to logger context.
 		grpcinterceptor.UnaryServerLoggerInterceptor(),
 		// Todo: Confirm tracing is working as expected. Jaegar integration?
-		grpcopentracing.UnaryServerInterceptor(grpcopentracing.WithFilterFunc(traceMethod)),
+		grpcopentracing.UnaryServerInterceptor(grpcopentracing.WithFilterFunc(shouldEnableTrace)),
 		// Instrument prometheus metrics for all methods. This will have a counter & histogram of latency.
 		grpcprometheus.UnaryServerInterceptor,
 	}
@@ -197,18 +209,8 @@ func newInternalServer() (*http.Server, error) {
 	return &server, nil
 }
 
-// traceMethod - determines if opentracing should be enabled for the grpc method
-func traceMethod(ctx context.Context, fullMethodName string) bool {
-	donotTraceMethods := []string{ // Should be a very small list
-		"/google.pubsub.v1.StatusCheckAPI/LivenessCheck",
-		"/google.pubsub.v1.StatusCheckAPI/ReadinessCheck",
-	}
-
-	for _, method := range donotTraceMethods {
-		if method == fullMethodName {
-			return false
-		}
-	}
-
-	return true
+// shouldEnableTrace - determines if opentracing should be enabled for the grpc method
+func shouldEnableTrace(ctx context.Context, fullMethodName string) bool {
+	_, ok := tracingExcludedMethods[fullMethodName]
+	return !ok
 }

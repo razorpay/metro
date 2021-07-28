@@ -9,8 +9,8 @@ import (
 
 func Test_TraceMethod(t *testing.T) {
 	ctx := context.Background()
-	trace := traceMethod(ctx, "/google.pubsub.v1.StatusCheckAPI/LivenessCheck")
+	trace := shouldEnableTrace(ctx, "/google.pubsub.v1.StatusCheckAPI/LivenessCheck")
 	assert.False(t, trace)
-	trace = traceMethod(ctx, "/google.pubsub.v1.StatusCheckAPI/ReadinessCheck")
+	trace = shouldEnableTrace(ctx, "/google.pubsub.v1.StatusCheckAPI/ReadinessCheck")
 	assert.False(t, trace)
 }

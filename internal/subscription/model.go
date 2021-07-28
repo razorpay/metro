@@ -31,8 +31,8 @@ type Model struct {
 	ExtractedSubscriptionProjectID string             `json:"-"`
 	ExtractedTopicName             string             `json:"-"`
 	ExtractedSubscriptionName      string             `json:"-"`
-	Credentials                    *credentials.Model `json:"credentials"`
-	DelayConfig                    *DelayConfig       `json:"delay_config"`
+	Credentials                    *credentials.Model `json:"credentials,omitempty"`
+	DelayConfig                    *DelayConfig       `json:"delay_config,omitempty"`
 }
 
 // PushConfig defines the push endpoint

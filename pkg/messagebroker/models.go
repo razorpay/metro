@@ -31,9 +31,23 @@ type SendMessageToTopicRequest struct {
 	Message     []byte
 	OrderingKey string
 	TimeoutMs   int
-	MessageID   string
-	RetryCount  int32
 	Attributes  []map[string][]byte
+	MessageHeader
+}
+
+// MessageHeader contains the fields passed around in the message headers
+type MessageHeader struct {
+	MessageID   string
+	PublishTime time.Time
+	// message was read from this topic
+	SourceTopic string
+	// topic from where the first message originated from, before any retry
+	Subscription      string
+	CurrentRetryCount int32
+	MaxRetryCount     int32
+	// destination topic
+	NextTopic        string
+	NextDeliveryTime time.Time
 }
 
 // GetMessagesFromTopicRequest ...
@@ -101,14 +115,11 @@ type GetMessagesFromTopicResponse struct {
 
 // ReceivedMessage ...
 type ReceivedMessage struct {
-	Data             []byte
-	MessageID        string // extracted from header
-	Topic            string
-	Partition        int32
-	Offset           int32
-	RetryCount       int32     // extracted from header
-	PublishTime      time.Time // extracted from header
-	NextDeliveryTime time.Time // extracted from header
+	Data      []byte
+	Topic     string
+	Partition int32
+	Offset    int32
+	MessageHeader
 }
 
 func (rm ReceivedMessage) String() string {

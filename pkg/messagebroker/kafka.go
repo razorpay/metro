@@ -2,7 +2,6 @@ package messagebroker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,15 +10,8 @@ import (
 	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
-	"github.com/rs/xid"
 
 	"github.com/razorpay/metro/pkg/logger"
-)
-
-const (
-	messageID      = "messageID"
-	retryCount     = "retryCount"
-	msgProduceTime = "msgProduceTime"
 )
 
 // KafkaBroker for kafka
@@ -326,41 +318,10 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "SendMessage").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	var kHeaders []kafkapkg.Header
-	if request.Attributes != nil {
-		for _, attribute := range request.Attributes {
-			for k, v := range attribute {
-				kHeaders = append(kHeaders, kafkapkg.Header{
-					Key:   k,
-					Value: v,
-				})
-			}
-		}
-	}
-
-	msgID := request.MessageID
-	if msgID == "" {
-		// generate a message id and attach only if not sent by the caller
-		// in case of retry push to topic, the same messageID is to be re-used
-		msgID = xid.New().String()
-	}
-
-	kHeaders = append(kHeaders, kafkapkg.Header{
-		Key:   messageID,
-		Value: []byte(msgID),
-	})
-
-	rc, _ := json.Marshal(request.RetryCount)
-	kHeaders = append(kHeaders, kafkapkg.Header{
-		Key:   retryCount,
-		Value: rc,
-	})
-
-	mpt, _ := json.Marshal(time.Now().Unix())
-	kHeaders = append(kHeaders, kafkapkg.Header{
-		Key:   msgProduceTime,
-		Value: mpt,
-	})
+	// populate the request with the proper messageID
+	request.MessageID = getMessageId(request.MessageID)
+	// generate the needed headers to be sent on the broker
+	kHeaders := convertRequestToKafkaHeaders(request)
 
 	deliveryChan := make(chan kafkapkg.Event, 1000)
 	defer close(deliveryChan)
@@ -398,7 +359,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		return nil, m.TopicPartition.Error
 	}
 
-	return &SendMessageToTopicResponse{MessageID: msgID}, nil
+	return &SendMessageToTopicResponse{MessageID: request.MessageID}, nil
 }
 
 //ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
@@ -415,38 +376,20 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "ReceiveMessages").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	var (
-		msgID              string
-		retryCounter       int32
-		msgProduceTimeSecs int64
-	)
-
 	msgs := make(map[string]ReceivedMessage, 0)
 	for {
 		msg, err := k.Consumer.ReadMessage(time.Duration(request.TimeoutMs) * time.Millisecond)
 		if err == nil {
-			for _, v := range msg.Headers {
-
-				switch v.Key {
-				case messageID:
-					msgID = string(v.Value)
-				case retryCount:
-					json.Unmarshal(v.Value, &retryCounter)
-				case msgProduceTime:
-					json.Unmarshal(v.Value, &msgProduceTimeSecs)
-				}
-			}
-
+			// extract the message headers and set in the response struct
+			receivedMessage := convertKafkaHeadersToResponse(msg.Headers)
 			offset, _ := strconv.ParseInt(fmt.Sprintf("%v", int32(msg.TopicPartition.Offset)), 10, 0)
 			po := NewPartitionOffset(msg.TopicPartition.Partition, int32(offset))
-			msgs[po.String()] = ReceivedMessage{
-				Data: msg.Value, MessageID: msgID,
-				Topic:       *msg.TopicPartition.Topic,
-				Partition:   msg.TopicPartition.Partition,
-				Offset:      int32(msg.TopicPartition.Offset),
-				RetryCount:  retryCounter,
-				PublishTime: time.Unix(msgProduceTimeSecs, 0),
-			}
+
+			receivedMessage.Data = msg.Value
+			receivedMessage.Topic = *msg.TopicPartition.Topic
+			receivedMessage.Partition = msg.TopicPartition.Partition
+			receivedMessage.Offset = int32(msg.TopicPartition.Offset)
+			msgs[po.String()] = receivedMessage
 
 			if int32(len(msgs)) == request.NumOfMessages {
 				return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil

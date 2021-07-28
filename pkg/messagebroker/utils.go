@@ -1,6 +1,8 @@
 package messagebroker
 
-import "strings"
+import (
+	"strings"
+)
 
 // NormalizeTopicName returns the actual topic name used in message broker
 func NormalizeTopicName(name string) string {

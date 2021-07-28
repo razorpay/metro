@@ -78,16 +78,26 @@ func (s *Subscriber) GetSubscription() string {
 	return s.subscription.Name
 }
 
-// commits existing message on primary topic and pushes message to the pre-defined retry topic
+// pushes message to retrier and commit existing message on primary topic
 func (s *Subscriber) retry(ctx context.Context, msg messagebroker.ReceivedMessage) {
 
-	retryMsg := NewRetryMessage(msg, s.subscription.Name)
-	retryMsg.MaxRetryCount = s.subscription.DelayConfig.GetMaxDeliveryAttempts()
-	retryMsg.PrimaryTopic = s.topic
-
-	err := s.retrier.Handle(ctx, retryMsg)
+	err := s.retrier.Handle(ctx, msg)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: push to retrier failed", "logFields", s.getLogFields(), "error", err.Error())
+		s.errChan <- err
+		return
+	}
+
+	// commit on the primary topic after message has been submitted for retry
+	_, err = s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
+		Topic:     msg.Topic,
+		Partition: msg.Partition,
+		// add 1 to current offset
+		// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
+		Offset: msg.Offset + 1,
+	})
+	if err != nil {
+		logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "logFields", s.getLogFields(), "error", err.Error())
 		s.errChan <- err
 		return
 	}

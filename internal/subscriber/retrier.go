@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"time"
 
 	"github.com/razorpay/metro/pkg/messagebroker"
 
@@ -14,7 +15,7 @@ const (
 )
 
 type IRetrier interface {
-	Handle(ctx context.Context, msg *RetryMessage) error
+	Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error
 }
 
 type Retrier struct {
@@ -43,15 +44,15 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 	return r, nil
 }
 
-func (r *Retrier) findClosestDelayConsumer(msg *RetryMessage) *DelayConsumer {
+func (r *Retrier) findClosestDelayConsumer(msg messagebroker.ReceivedMessage) *DelayConsumer {
 	// logic to leverage the delay config and current delay to find the next delay topic
 	return &DelayConsumer{}
 }
 
-func (r *Retrier) Handle(ctx context.Context, msg *RetryMessage) error {
+func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 
 	dc := r.findClosestDelayConsumer(msg)
-	msg.NextDeliveryTime = int32(msg.PublishTime) + int32(dc.interval)
+	msg.NextDeliveryTime = time.Now() // int32(msg.PublishTime) + int32(dc.interval)
 	msg.NextTopic = dc.topic
 
 	// given a message, produce to the correct topic
@@ -66,10 +67,17 @@ func (r *Retrier) Handle(ctx context.Context, msg *RetryMessage) error {
 	newMsg := prepareNextMessage(r.dc, msg)
 
 	_, err = producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-		Topic:      newMsg.NextTopic,
-		Message:    newMsg.Data,
-		MessageID:  newMsg.MessageID,
-		RetryCount: newMsg.CurrentRetryCount,
+		Topic:   newMsg.NextTopic,
+		Message: newMsg.Data,
+		MessageHeader: messagebroker.MessageHeader{
+			MessageID:         msg.MessageID,
+			SourceTopic:       msg.SourceTopic,
+			Subscription:      msg.Subscription,
+			CurrentRetryCount: msg.CurrentRetryCount + 1,
+			MaxRetryCount:     msg.MaxRetryCount,
+			NextTopic:         "",
+			NextDeliveryTime:  time.Time{},
+		},
 	})
 	if err != nil {
 		return err
@@ -78,7 +86,7 @@ func (r *Retrier) Handle(ctx context.Context, msg *RetryMessage) error {
 	return nil
 }
 
-func prepareNextMessage(dc *subscription.DelayConfig, msg *RetryMessage) *RetryMessage {
+func prepareNextMessage(dc *subscription.DelayConfig, msg messagebroker.ReceivedMessage) messagebroker.ReceivedMessage {
 	// do all the needed calculations here
-	return &RetryMessage{}
+	return messagebroker.ReceivedMessage{}
 }

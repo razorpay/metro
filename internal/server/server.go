@@ -134,13 +134,7 @@ func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInter
 		// Add tags to logger context.
 		grpcinterceptor.UnaryServerLoggerInterceptor(),
 		// Todo: Confirm tracing is working as expected. Jaegar integration?
-		grpcopentracing.UnaryServerInterceptor(grpcopentracing.WithFilterFunc(func(ctx context.Context, fullMethodName string) bool {
-			if fullMethodName == "/google.pubsub.v1.StatusCheckAPI/LivenessCheck" ||
-				fullMethodName == "/google.pubsub.v1.StatusCheckAPI/ReadinessCheck" {
-				return false
-			}
-			return true
-		})),
+		grpcopentracing.UnaryServerInterceptor(grpcopentracing.WithFilterFunc(traceMethod)),
 		// Instrument prometheus metrics for all methods. This will have a counter & histogram of latency.
 		grpcprometheus.UnaryServerInterceptor,
 	}
@@ -201,4 +195,20 @@ func newInternalServer() (*http.Server, error) {
 	server := http.Server{Handler: mux}
 
 	return &server, nil
+}
+
+// traceMethod - determines if opentracing should be enabled for the grpc method
+func traceMethod(ctx context.Context, fullMethodName string) bool {
+	donotTraceMethods := []string{ // Should be a very small list
+		"/google.pubsub.v1.StatusCheckAPI/LivenessCheck",
+		"/google.pubsub.v1.StatusCheckAPI/ReadinessCheck",
+	}
+
+	for _, method := range donotTraceMethods {
+		if method == fullMethodName {
+			return false
+		}
+	}
+
+	return true
 }

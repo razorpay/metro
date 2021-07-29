@@ -79,22 +79,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	// for subscription over deadletter topics, skip the retry and deadletter topic creation
 	if topicModel.IsDeadLetterTopic() == false {
 
-		// create retry topic for subscription
-		//// TODO: update based on retry policy
-		//err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
-		//	Name:               m.GetRetryTopic(),
-		//	ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
-		//	ExtractedProjectID: m.ExtractedTopicProjectID,
-		//	NumPartitions:      topicModel.NumPartitions,
-		//})
-		//
-		//if err != nil {
-		//	logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic(), "error", err.Error())
-		//	return err
-		//}
-
-		// create deadletter topic for subscription
-		// TODO: read the deadletter policy and update accordingly
+		// create dead-letter topic for subscription
 		err = c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
 			Name:               m.GetDeadLetterTopic(),
 			ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
@@ -103,10 +88,11 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		})
 
 		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic(), "error", err.Error())
+			logger.Ctx(ctx).Errorw("failed to create dead letter topic for subscription", "name", m.GetDeadLetterTopic(), "error", err.Error())
 			return err
 		}
 
+		// this creates the needed retry/delay topic configs
 		m.DelayConfig, err = NewDelayConfig(m)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("failed to init delay config", "error", err.Error())
@@ -115,7 +101,6 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 
 		// create all the needed delay topics
 		for _, delayTopic := range m.DelayConfig.DelayTopics {
-			// TODO : parallelize via goroutines? discuss
 			err = c.topicCore.CreateTopic(ctx, &topic.Model{
 				Name:               delayTopic,
 				ExtractedProjectID: m.ExtractedSubscriptionProjectID,
@@ -123,6 +108,8 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 				NumPartitions:      topicModel.NumPartitions,
 			})
 			if val, ok := err.(*merror.MError); ok {
+				// in-case users delete and re-create a subscription
+				// we should ideally be deleting all associated topics
 				if val.Code() == merror.AlreadyExists {
 					continue
 				}

@@ -13,7 +13,7 @@ const (
 type Model struct {
 	common.BaseModel
 	Name      string            `json:"name"`
-	ProjectID string            `json:"projectId"`
+	ProjectID string            `json:"project_id"`
 	Labels    map[string]string `json:"labels"`
 }
 

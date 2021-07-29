@@ -9,13 +9,12 @@ import (
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
-	"github.com/razorpay/metro/pkg/patch"
 )
 
 // ICore is an interface over subscription core
 type ICore interface {
 	CreateSubscription(ctx context.Context, subscription *Model) error
-	UpdateSubscription(ctx context.Context, uModel *Model, paths []string) (*Model, error)
+	UpdateSubscription(ctx context.Context, uModel *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteSubscription(ctx context.Context, m *Model) error
 	DeleteProjectSubscriptions(ctx context.Context, projectID string) error
@@ -112,8 +111,8 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	return c.repo.Save(ctx, m)
 }
 
-//UpdateSubscription Updates an exisiting subscription at the provided update path
-func (c *Core) UpdateSubscription(ctx context.Context, uModel *Model, paths []string) (*Model, error) {
+// UpdateSubscription - Updates a given subscription
+func (c *Core) UpdateSubscription(ctx context.Context, uModel *Model) error {
 	subscriptionOperationCount.WithLabelValues(env, "UpdateSubscription").Inc()
 
 	startTime := time.Now()
@@ -123,31 +122,21 @@ func (c *Core) UpdateSubscription(ctx context.Context, uModel *Model, paths []st
 
 	if ok, err := c.projectCore.ExistsWithID(ctx, uModel.ExtractedSubscriptionProjectID); !ok {
 		if err != nil {
-			return nil, err
+			return err
 		}
 		logger.Ctx(ctx).Errorw("subscription project not found", "name", uModel.ExtractedSubscriptionProjectID)
-		return nil, merror.New(merror.NotFound, "project not found")
+		return merror.New(merror.NotFound, "project not found")
 	}
 
 	if ok, err := c.Exists(ctx, uModel.Key()); !ok {
 		if err != nil {
-			return nil, err
+			return err
 		}
 		logger.Ctx(ctx).Errorw("subscription not found", "name", uModel.Name)
-		return nil, merror.New(merror.NotFound, "subscription not found")
+		return merror.New(merror.NotFound, "subscription not found")
 	}
 
-	m, err := c.Get(ctx, uModel.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	err = patch.StructPatch(ctx, uModel, m, paths)
-	if err != nil {
-		return nil, err
-	}
-
-	return m, c.repo.Save(ctx, m)
+	return c.repo.Save(ctx, uModel)
 }
 
 // Exists checks if subscription exists for a given key

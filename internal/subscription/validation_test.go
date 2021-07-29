@@ -8,6 +8,7 @@ import (
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 func Test_extractSubscriptionMetaAndValidate(t *testing.T) {
@@ -64,27 +65,38 @@ func Test_validatePushConfig(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func Test_getValidatedUpdatePaths(t *testing.T) {
+func Test_validateSubscriptionRequestInvalidPath(t *testing.T) {
 	ctx := context.Background()
-	paths := []string{pushConfigPath, ackDeadlineSecPath}
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"abcd"},
+		},
+	}
+	err := ValidateUpdateSubscriptionRequest(ctx, req)
+	assert.NotNil(t, err)
+}
 
-	tPaths, err := getValidatedUpdatePaths(ctx, paths)
+func Test_validateSubscriptionRequestUneditablePath(t *testing.T) {
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"topic"},
+		},
+	}
+	err := ValidateUpdateSubscriptionRequest(ctx, req)
+	assert.NotNil(t, err)
+}
+
+func Test_validateSubscriptionRequest(t *testing.T) {
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"push_config"},
+		},
+	}
+	err := ValidateUpdateSubscriptionRequest(ctx, req)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{subscriptionFieldPushEndpoint, subscriptionFieldCredentials, subscriptionFieldAckDeadlineSec}, tPaths, "wrong translation of subscription paths")
-}
-
-func Test_getValidatedUpdatePathsError(t *testing.T) {
-	ctx := context.Background()
-	paths := []string{pushConfigPath, "wrongpath"}
-
-	_, err := getValidatedUpdatePaths(ctx, paths)
-	assert.NotNil(t, err)
-}
-
-func Test_getValidatedUpdatePathsEmpty(t *testing.T) {
-	ctx := context.Background()
-	paths := []string{}
-
-	_, err := getValidatedUpdatePaths(ctx, paths)
-	assert.NotNil(t, err)
 }

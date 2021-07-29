@@ -168,8 +168,13 @@ func TestSubscriptionTask_handleNodeBindingUpdates(t *testing.T) {
 		ExtractedSubscriptionName:      "test",
 		ExtractedSubscriptionProjectID: "test-project",
 		ExtractedTopicName:             "test",
-		DeadLetterTopic:                "projects/test-project/topics/test-dlq",
-		PushEndpoint:                   "http://test.test",
+		DeadLetterPolicy: &subscription.DeadLetterPolicy{
+			DeadLetterTopic:     "projects/test-project/topics/test-dlq",
+			MaxDeliveryAttempts: 5,
+		},
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "http://test.test",
+		},
 	}
 
 	// Mock subscriptionCore

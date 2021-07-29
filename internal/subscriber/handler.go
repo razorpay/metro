@@ -8,29 +8,36 @@ import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
+// Handler ...
 type Handler interface {
 	Do(ctx context.Context, msg messagebroker.ReceivedMessage) error
 }
 
+// PushToEndpoint ...
 type PushToEndpoint struct {
 }
 
+// NewPushToEndpointHandler ...
 func NewPushToEndpointHandler(model *subscription.Model) Handler {
 	return &PushToEndpoint{}
 }
 
+// Do ...
 func (s *PushToEndpoint) Do(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 	panic("implement me")
 }
 
+// PushToPrimaryTopic ...
 type PushToPrimaryTopic struct {
 	bs brokerstore.IBrokerStore
 }
 
+// NewPushToPrimaryTopicHandler ...
 func NewPushToPrimaryTopicHandler(bs brokerstore.IBrokerStore) Handler {
 	return &PushToPrimaryTopic{bs: bs}
 }
 
+// Do ...
 func (s *PushToPrimaryTopic) Do(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 	producer, err := s.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
 		Topic:     msg.SourceTopic,

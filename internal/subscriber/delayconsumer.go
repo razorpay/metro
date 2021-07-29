@@ -12,6 +12,7 @@ import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
+// DelayConsumer ...
 type DelayConsumer struct {
 	interval subscription.Interval
 	topic    string
@@ -21,6 +22,7 @@ type DelayConsumer struct {
 	handler  Handler
 }
 
+// NewDelayConsumer ...
 func NewDelayConsumer(ctx context.Context, topic string, bs brokerstore.IBrokerStore, handler Handler) (*DelayConsumer, error) {
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
 	id := uuid.New().String()
@@ -40,6 +42,7 @@ func NewDelayConsumer(ctx context.Context, topic string, bs brokerstore.IBrokerS
 	}, nil
 }
 
+// Run ...
 func (dc *DelayConsumer) Run(ctx context.Context) {
 	logger.Ctx(ctx).Infow("delay-consumer: running", "topic", dc.topic)
 	for {

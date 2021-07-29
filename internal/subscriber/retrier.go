@@ -15,16 +15,19 @@ const (
 	defaultBrokerOperationsTimeoutMs int64 = 1000
 )
 
+// IRetrier ...
 type IRetrier interface {
 	Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error
 }
 
+// Retrier ...
 type Retrier struct {
 	dc             *subscription.DelayConfig
 	bs             brokerstore.IBrokerStore
 	delayConsumers map[subscription.Interval]*DelayConsumer // TODO: use sync map here?
 }
 
+// NewRetrier ...
 func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstore.IBrokerStore, handler Handler) (IRetrier, error) {
 	delayConsumers := make(map[subscription.Interval]*DelayConsumer, len(dc.GetDelayTopics()))
 	for interval, topic := range dc.GetDelayTopicsMap() {
@@ -45,6 +48,7 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 	return r, nil
 }
 
+// Handle ...
 func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 
 	availableDelayIntervals := subscription.Intervals // 5,10,15

@@ -319,7 +319,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}()
 
 	// populate the request with the proper messageID
-	request.MessageID = getMessageId(request.MessageID)
+	request.MessageID = getMessageID(request.MessageID)
 	// generate the needed headers to be sent on the broker
 	kHeaders := convertRequestToKafkaHeaders(request)
 

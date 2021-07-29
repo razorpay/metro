@@ -13,6 +13,7 @@ func init() {
 	}
 }
 
+// IsErrorRecoverable ...
 func IsErrorRecoverable(err error) bool {
 
 	if err == nil {

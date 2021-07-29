@@ -141,7 +141,8 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 		},
 	}
 }
-func getMessageId(messageID string) string {
+
+func getMessageID(messageID string) string {
 	if messageID == "" {
 		// generate a message id and attach only if not sent by the caller
 		// in case of retry push to topic, the same messageID is to be re-used

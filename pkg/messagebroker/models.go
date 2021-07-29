@@ -131,8 +131,9 @@ type ReceivedMessage struct {
 	MessageHeader
 }
 
+// HasReachedRetryThreshold ...
 func (rm ReceivedMessage) HasReachedRetryThreshold() bool {
-	return false
+	return rm.CurrentRetryCount >= rm.MaxRetryCount
 }
 
 // CommitOnTopicResponse ...

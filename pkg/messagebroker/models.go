@@ -46,9 +46,10 @@ type MessageHeader struct {
 	CurrentRetryCount int32
 	MaxRetryCount     int32
 	// destination topic
-	NextTopic        string
-	DeadLetterTopic  string
-	NextDeliveryTime time.Time
+	CurrentTopic         string
+	InitialDelayInterval uint
+	DeadLetterTopic      string
+	NextDeliveryTime     time.Time
 }
 
 // GetMessagesFromTopicRequest ...

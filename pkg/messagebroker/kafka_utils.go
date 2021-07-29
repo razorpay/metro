@@ -71,7 +71,7 @@ func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.
 	// extract nextTopic
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   nextTopicHeader,
-		Value: []byte(request.NextTopic),
+		Value: []byte(request.CurrentTopic),
 	})
 	// extract deadLetterTopic
 	kHeaders = append(kHeaders, kafkapkg.Header{
@@ -95,14 +95,14 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 
 	var (
 		messageID         string
-		publishTime       time.Time
+		publishTime       int64 // unix timestamp
 		sourceTopic       string
 		subscription      string
 		currentRetryCount int32
 		maxRetryCount     int32
 		nextTopic         string
 		deadLetterTopic   string
-		nextDeliveryTime  time.Time
+		nextDeliveryTime  int64 // unix timestamp
 	)
 	for _, v := range headers {
 		switch v.Key {
@@ -130,14 +130,14 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 	return ReceivedMessage{
 		MessageHeader: MessageHeader{
 			MessageID:         messageID,
-			PublishTime:       publishTime,
+			PublishTime:       time.Unix(publishTime, 0),
 			SourceTopic:       sourceTopic,
 			Subscription:      subscription,
 			CurrentRetryCount: currentRetryCount,
 			MaxRetryCount:     maxRetryCount,
-			NextTopic:         nextTopic,
+			CurrentTopic:      nextTopic,
 			DeadLetterTopic:   deadLetterTopic,
-			NextDeliveryTime:  nextDeliveryTime,
+			NextDeliveryTime:  time.Unix(nextDeliveryTime, 0),
 		},
 	}
 }

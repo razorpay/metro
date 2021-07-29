@@ -51,7 +51,6 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			// read one message off the assigned delay topic
 			resp, err := dc.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
 			if messagebroker.IsErrorRecoverable(err) {
-				logger.Ctx(ctx).Errorw("delay-consumer: got recoverable error in receiving messages, continuing", "topic", dc.topic, "error", err.Error())
 				continue
 			} else if err != nil {
 				logger.Ctx(ctx).Errorw("delay-consumer: error in receiving messages", "topic", dc.topic, "error", err.Error())

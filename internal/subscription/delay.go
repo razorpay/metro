@@ -56,14 +56,10 @@ var (
 	Delay450sec Interval = 450
 	// Delay600sec ...
 	Delay600sec Interval = 600
-	// Delay750sec ...
-	Delay750sec Interval = 750
-	// Delay900sec ...
-	Delay900sec Interval = 900
 )
 
 // Intervals during subscription creation, query from the allowed intervals list, and create all the needed topics for retry.
-var Intervals = []Interval{Delay5sec, Delay10sec, Delay30sec, Delay60sec, Delay120sec, Delay150sec, Delay300sec, Delay450sec, Delay600sec, Delay750sec, Delay900sec}
+var Intervals = []Interval{Delay5sec, Delay10sec, Delay30sec, Delay60sec, Delay120sec, Delay150sec, Delay300sec, Delay450sec, Delay600sec}
 
 // DelayConfig ...
 type DelayConfig struct {

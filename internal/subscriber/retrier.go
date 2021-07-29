@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -44,16 +45,17 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 	return r, nil
 }
 
-func (r *Retrier) findClosestDelayConsumer(msg messagebroker.ReceivedMessage) *DelayConsumer {
-	// logic to leverage the delay config and current delay to find the next delay topic
-	return &DelayConsumer{}
-}
-
 func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 
-	dc := r.findClosestDelayConsumer(msg)
-	msg.NextDeliveryTime = time.Now() // int32(msg.PublishTime) + int32(dc.interval)
-	msg.NextTopic = dc.topic
+	availableDelayIntervals := subscription.Intervals // 5,10,15
+	// EXPONENTIAL: nextDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
+	nextDelayInterval := float64(msg.InitialDelayInterval) + math.Pow(2, float64(msg.CurrentRetryCount-1))
+
+	// next allowed delay interval from the list of pre-defined intervals
+	dInterval := findCloseDelayInterval(r.dc.MinimumBackoffInSeconds, r.dc.MaximumBackoffInSeconds, availableDelayIntervals, nextDelayInterval)
+	dc := r.delayConsumers[dInterval]
+
+	nextDeliveryTime := time.Now().Add(time.Duration(dInterval) * time.Second)
 
 	// given a message, produce to the correct topic
 	producer, err := r.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
@@ -64,19 +66,19 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		return err
 	}
 
-	newMsg := prepareNextMessage(r.dc, msg)
-
 	_, err = producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-		Topic:   newMsg.NextTopic,
-		Message: newMsg.Data,
+		Topic:   dc.topic,
+		Message: msg.Data,
 		MessageHeader: messagebroker.MessageHeader{
-			MessageID:         msg.MessageID,
-			SourceTopic:       msg.SourceTopic,
-			Subscription:      msg.Subscription,
-			CurrentRetryCount: msg.CurrentRetryCount + 1,
-			MaxRetryCount:     msg.MaxRetryCount,
-			NextTopic:         "",
-			NextDeliveryTime:  time.Time{},
+			MessageID:            msg.MessageID,
+			SourceTopic:          msg.SourceTopic,
+			Subscription:         msg.Subscription,
+			CurrentRetryCount:    msg.CurrentRetryCount,
+			MaxRetryCount:        msg.MaxRetryCount,
+			CurrentTopic:         dc.topic,
+			NextDeliveryTime:     nextDeliveryTime,
+			DeadLetterTopic:      msg.DeadLetterTopic,
+			InitialDelayInterval: msg.InitialDelayInterval,
 		},
 	})
 	if err != nil {
@@ -86,7 +88,21 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 	return nil
 }
 
-func prepareNextMessage(dc *subscription.DelayConfig, msg messagebroker.ReceivedMessage) messagebroker.ReceivedMessage {
-	// do all the needed calculations here
-	return messagebroker.ReceivedMessage{}
+func findCloseDelayInterval(min uint, max uint, intervals []subscription.Interval, nextDelayInterval float64) subscription.Interval {
+	newDelay := nextDelayInterval
+	if newDelay < float64(min) {
+		newDelay = float64(min)
+	} else if newDelay > float64(max) {
+		return subscription.Delay600sec
+	}
+
+	// find the closest interval greater than newDelay
+	for _, interval := range intervals {
+		if float64(interval) > newDelay {
+			return interval
+		}
+	}
+
+	// by default use the max available delay
+	return subscription.Delay600sec
 }

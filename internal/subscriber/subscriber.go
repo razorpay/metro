@@ -81,6 +81,15 @@ func (s *Subscriber) GetSubscription() string {
 // pushes message to retrier and commit existing message on primary topic
 func (s *Subscriber) retry(ctx context.Context, msg messagebroker.ReceivedMessage) {
 
+	// prepare message headers to be used by retrier
+	msg.SourceTopic = s.subscription.Topic
+	msg.CurrentTopic = s.subscription.Topic // initially these will be same
+	msg.Subscription = s.subscription.DelayConfig.Subscription
+	msg.CurrentRetryCount = msg.CurrentRetryCount + 1 // should be zero to begin with
+	msg.MaxRetryCount = s.subscription.DelayConfig.MaxDeliveryAttempts
+	msg.DeadLetterTopic = s.subscription.DelayConfig.DeadLetterTopic
+	msg.InitialDelayInterval = s.subscription.DelayConfig.MinimumBackoffInSeconds
+
 	err := s.retrier.Handle(ctx, msg)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: push to retrier failed", "logFields", s.getLogFields(), "error", err.Error())

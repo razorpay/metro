@@ -229,7 +229,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 
 	for _, tp := range topicsResp {
 		if tp.Error.Code() != kafkapkg.ErrNoError && tp.Error.Code() != kafkapkg.ErrTopicAlreadyExists {
-			messageBrokerOperationError.WithLabelValues(env, Kafka, "CreateTopic", err.Error()).Inc()
+			messageBrokerOperationError.WithLabelValues(env, Kafka, "CreateTopic", tp.Error.Error()).Inc()
 			return CreateTopicResponse{
 				Response: topicsResp,
 			}, fmt.Errorf("kafka: %v", tp.Error.String())

@@ -12,7 +12,7 @@ const (
 // Model for a node
 type Model struct {
 	common.BaseModel
-	ID string
+	ID string `json:"id"`
 }
 
 // Key returns the key for storing in the registry

@@ -23,11 +23,11 @@ const (
 // Model for a topic
 type Model struct {
 	common.BaseModel
-	Name               string
-	Labels             map[string]string
-	ExtractedProjectID string
-	ExtractedTopicName string
-	NumPartitions      int
+	Name               string            `json:"name"`
+	Labels             map[string]string `json:"labels"`
+	ExtractedProjectID string            `json:"extracted_project_id"`
+	ExtractedTopicName string            `json:"extracted_topic_name"`
+	NumPartitions      int               `json:"num_partitions"`
 }
 
 // Key returns the key for storing in the registry

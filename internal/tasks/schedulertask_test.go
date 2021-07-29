@@ -68,8 +68,13 @@ func TestSchedulerTask_Run(t *testing.T) {
 		ExtractedSubscriptionName:      "test",
 		ExtractedSubscriptionProjectID: "test-project",
 		ExtractedTopicName:             "test",
-		DeadLetterTopic:                "projects/test-project/topics/test-dlq",
-		PushEndpoint:                   "http://test.test",
+		DeadLetterPolicy: &subscription.DeadLetterPolicy{
+			DeadLetterTopic:     "projects/test-project/topics/test-dlq",
+			MaxDeliveryAttempts: 5,
+		},
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "http://test.test",
+		},
 	}
 	subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(
 		[]*subscription.Model{&sub}, nil)

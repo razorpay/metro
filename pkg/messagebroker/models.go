@@ -52,6 +52,13 @@ type MessageHeader struct {
 	NextDeliveryTime     time.Time
 }
 
+func (mh MessageHeader) String() string {
+	return fmt.Sprintf("message_id=[%v],publish_time=[%v],source_topic=[%v],subscription=[%v],current_retry_count=[%v],"+
+		"max_retry_count=[%v],current_topic=[%v],initial_delay_interval=[%v],dead_letter_topic=[%v],next_delivery_time=[%v]",
+		mh.MessageID, mh.PublishTime.Unix(), mh.SourceTopic, mh.Subscription, mh.CurrentRetryCount, mh.MaxRetryCount, mh.CurrentTopic,
+		mh.InitialDelayInterval, mh.DeadLetterTopic, mh.NextDeliveryTime.Unix())
+}
+
 // GetMessagesFromTopicRequest ...
 type GetMessagesFromTopicRequest struct {
 	NumOfMessages int32
@@ -122,10 +129,6 @@ type ReceivedMessage struct {
 	Partition int32
 	Offset    int32
 	MessageHeader
-}
-
-func (rm ReceivedMessage) String() string {
-	return fmt.Sprintf("%+v", rm)
 }
 
 func (rm ReceivedMessage) HasReachedRetryThreshold() bool {

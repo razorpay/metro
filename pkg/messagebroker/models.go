@@ -122,6 +122,11 @@ type GetMessagesFromTopicResponse struct {
 	PartitionOffsetWithMessages map[string]ReceivedMessage
 }
 
+// HasNonZeroMessages ...
+func (g *GetMessagesFromTopicResponse) HasNonZeroMessages() bool {
+	return len(g.PartitionOffsetWithMessages) > 0
+}
+
 // ReceivedMessage ...
 type ReceivedMessage struct {
 	Data      []byte
@@ -134,6 +139,11 @@ type ReceivedMessage struct {
 // HasReachedRetryThreshold ...
 func (rm ReceivedMessage) HasReachedRetryThreshold() bool {
 	return rm.CurrentRetryCount >= rm.MaxRetryCount
+}
+
+// CanProcessMessage ...
+func (rm ReceivedMessage) CanProcessMessage() bool {
+	return time.Now().Unix() >= rm.NextDeliveryTime.Unix()
 }
 
 // CommitOnTopicResponse ...

@@ -2,6 +2,7 @@ package messagebroker
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
@@ -79,13 +80,11 @@ func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.
 		Value: []byte(request.DeadLetterTopic),
 	})
 	// extract nextDeliveryTime if sent
-	if !request.PublishTime.IsZero() {
-		ndt, _ := json.Marshal(request.NextDeliveryTime.Unix())
-		kHeaders = append(kHeaders, kafkapkg.Header{
-			Key:   nextDeliveryTimeHeader,
-			Value: ndt,
-		})
-	}
+	ndt, _ := json.Marshal(request.NextDeliveryTime.Unix())
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   nextDeliveryTimeHeader,
+		Value: ndt,
+	})
 
 	return kHeaders
 }
@@ -149,4 +148,9 @@ func getMessageID(messageID string) string {
 		messageID = xid.New().String()
 	}
 	return messageID
+}
+
+// normalizeTopicName returns the actual topic name used in message broker
+func normalizeTopicName(name string) string {
+	return strings.ReplaceAll(name, "/", "_")
 }

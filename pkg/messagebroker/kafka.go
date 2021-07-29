@@ -31,6 +31,12 @@ type KafkaBroker struct {
 
 // newKafkaConsumerClient returns a kafka consumer
 func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
+
+	normalizedTopics := make([]string, 0)
+	for _, topic := range options.Topics {
+		normalizedTopics = append(normalizedTopics, normalizeTopicName(topic))
+	}
+
 	err := validateKafkaConsumerBrokerConfig(bConfig)
 	if err != nil {
 		return nil, err
@@ -69,7 +75,7 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
-	c.SubscribeTopics(options.Topics, nil)
+	c.SubscribeTopics(normalizedTopics, nil)
 
 	logger.Ctx(ctx).Infow("kafka consumer: initialized")
 
@@ -208,7 +214,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "CreateTopic").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	tp := NormalizeTopicName(request.Name)
+	tp := normalizeTopicName(request.Name)
 	logger.Ctx(ctx).Infow("received request to create kafka topic", "request", request, "normalizedTopicName", tp)
 
 	topics := make([]kafkapkg.TopicSpecification, 0)
@@ -256,7 +262,8 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 	}()
 
 	topics := make([]string, 0)
-	topics = append(topics, request.Name)
+	topicN := normalizeTopicName(request.Name)
+	topics = append(topics, topicN)
 	resp, err := k.Admin.DeleteTopics(ctx, topics)
 	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "DeleteTopic", err.Error()).Inc()
@@ -282,8 +289,9 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "GetTopicMetadata").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
+	topicN := normalizeTopicName(request.Topic)
 	tp := kafkapkg.TopicPartition{
-		Topic:     &request.Topic,
+		Topic:     &topicN,
 		Partition: request.Partition,
 	}
 
@@ -326,10 +334,10 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	deliveryChan := make(chan kafkapkg.Event, 1000)
 	defer close(deliveryChan)
 
-	tp := NormalizeTopicName(request.Topic)
-	logger.Ctx(ctx).Debugw("normalized topic name", "topic", tp)
+	topicN := normalizeTopicName(request.Topic)
+	logger.Ctx(ctx).Debugw("normalized topic name", "topic", topicN)
 	err := k.Producer.Produce(&kafkapkg.Message{
-		TopicPartition: kafkapkg.TopicPartition{Topic: &tp, Partition: kafkapkg.PartitionAny},
+		TopicPartition: kafkapkg.TopicPartition{Topic: &topicN, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
 		Key:            []byte(request.OrderingKey),
 		Headers:        kHeaders,
@@ -424,8 +432,9 @@ func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request Co
 
 	logger.Ctx(ctx).Infow("kafka: commit request received", "request", request)
 
+	topicN := normalizeTopicName(request.Topic)
 	tp := kafkapkg.TopicPartition{
-		Topic:     &request.Topic,
+		Topic:     &topicN,
 		Partition: request.Partition,
 		Offset:    kafkapkg.Offset(request.Offset),
 	}
@@ -480,8 +489,9 @@ func (k *KafkaBroker) Pause(ctx context.Context, request PauseOnTopicRequest) er
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Pause").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
+	topicN := normalizeTopicName(request.Topic)
 	tp := kafkapkg.TopicPartition{
-		Topic:     &request.Topic,
+		Topic:     &topicN,
 		Partition: request.Partition,
 	}
 
@@ -500,8 +510,9 @@ func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) er
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Resume").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
+	topicN := normalizeTopicName(request.Topic)
 	tp := kafkapkg.TopicPartition{
-		Topic:     &request.Topic,
+		Topic:     &topicN,
 		Partition: request.Partition,
 	}
 
@@ -550,7 +561,7 @@ func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPa
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "AddTopicPartitions").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	tp := NormalizeTopicName(request.Name)
+	tp := normalizeTopicName(request.Name)
 	metadata, merr := k.Admin.GetMetadata(&tp, false, 1000)
 	if merr != nil {
 		logger.Ctx(ctx).Errorw("kafka: admin getMetadata() failed", "topic", request.NumPartitions, "error", merr.Error())

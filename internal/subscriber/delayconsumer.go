@@ -2,9 +2,7 @@ package subscriber
 
 import (
 	"context"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
 
@@ -14,111 +12,136 @@ import (
 
 // DelayConsumer ...
 type DelayConsumer struct {
-	interval subscription.Interval
-	topic    string
-	isPaused bool
-	consumer messagebroker.Consumer
-	bs       brokerstore.IBrokerStore
-	handler  Handler
+	ctx        context.Context
+	cancelFunc func()
+	interval   subscription.Interval
+	config     subscription.DelayConsumerConfig
+	isPaused   bool
+	consumer   messagebroker.Consumer
+	bs         brokerstore.IBrokerStore
+	handler    Handler
+	// a paused consumer will not return new messages, so this cachedMsg will be used for lookups
+	// till the needed time elapses
+	cachedMsg *messagebroker.ReceivedMessage
+	doneCh    chan struct{}
 }
 
 // NewDelayConsumer ...
-func NewDelayConsumer(ctx context.Context, topic string, bs brokerstore.IBrokerStore, handler Handler) (*DelayConsumer, error) {
-	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
-	id := uuid.New().String()
+func NewDelayConsumer(ctx context.Context, config subscription.DelayConsumerConfig, bs brokerstore.IBrokerStore, handler Handler) (*DelayConsumer, error) {
 
-	topicN := messagebroker.NormalizeTopicName(topic)
-	consumer, err := bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{topicN}, GroupID: id, GroupInstanceID: id})
+	delayCtx, cancel := context.WithCancel(ctx)
+	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
+	consumerOps := messagebroker.ConsumerClientOptions{Topics: []string{config.Topic}, GroupID: config.GroupID, GroupInstanceID: config.GroupInstanceID}
+	consumer, err := bs.GetConsumer(ctx, consumerOps)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("delay-consumer: failed to create consumer", "error", err.Error())
 		return nil, err
 	}
 
+	// on init, make sure to call resume. This is done just to ensure any previously paused consumers get resumed on boot up.
+	consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: config.Topic})
+
 	return &DelayConsumer{
-		topic:    topic,
-		consumer: consumer,
-		bs:       bs,
-		handler:  handler,
+		ctx:        delayCtx,
+		cancelFunc: cancel,
+		config:     config,
+		consumer:   consumer,
+		bs:         bs,
+		handler:    handler,
+		doneCh:     make(chan struct{}),
 	}, nil
 }
 
 // Run ...
 func (dc *DelayConsumer) Run(ctx context.Context) {
-	logger.Ctx(ctx).Infow("delay-consumer: running", "topic", dc.topic)
+	defer close(dc.doneCh)
+
+	logger.Ctx(ctx).Infow("delay-consumer: running", "config", dc.config)
 	for {
 		select {
-		case <-ctx.Done():
-			logger.Ctx(ctx).Infow("delay-consumer: stopping <-ctx.Done() called", "topic", dc.topic)
+		case <-dc.ctx.Done():
+			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", "config", dc.config)
+			dc.bs.RemoveConsumer(ctx, dc.config.GroupInstanceID, messagebroker.ConsumerClientOptions{GroupID: dc.config.GroupID})
+			dc.consumer.Close(dc.ctx)
 			return
 		default:
-			// read one message off the assigned delay topic
-			resp, err := dc.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
-			if messagebroker.IsErrorRecoverable(err) {
-				continue
-			} else if err != nil {
-				logger.Ctx(ctx).Errorw("delay-consumer: error in receiving messages", "topic", dc.topic, "error", err.Error())
-				return
+			if dc.cachedMsg != nil && dc.cachedMsg.CanProcessMessage() {
+				dc.resume()
 			}
 
-			// no messages were found on the topic
-			if len(resp.PartitionOffsetWithMessages) == 0 {
-				continue
-			}
-
-			// ideally this should be only one message, that is the peek message off the topic
-			for _, msg := range resp.PartitionOffsetWithMessages {
-				// check if message can be processed
-				if time.Now().Unix() > msg.NextDeliveryTime.Unix() {
-					if dc.isPaused {
-						logger.Ctx(ctx).Infow("delay-consumer: resuming", "topic", dc.topic)
-						dc.consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: dc.topic})
-						dc.isPaused = false
-					}
-
-					if msg.HasReachedRetryThreshold() {
-						// push to dead-letter topic directly in such cases
-						_, err := dc.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
-							Topic:     msg.DeadLetterTopic,
-							TimeoutMs: defaultBrokerOperationsTimeoutMs,
-						})
-						if err != nil {
-							logger.Ctx(ctx).Errorw("delay-consumer: failed to push to dead-letter topic", "topic", msg.DeadLetterTopic, "error", err.Error())
-							// do not commit and continue
-							continue
-						}
-					} else {
-						// else submit to handler for further processing
-						err := dc.handler.Do(ctx, msg)
-						if err != nil {
-							logger.Ctx(ctx).Errorw("delay-consumer: error in msg handler", "topic", dc.topic, "error", err.Error())
-							// do not commit and continue
-							continue
-						}
-					}
-
-					// commit the message
-					_, err = dc.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
-						Topic:     msg.Topic,
-						Partition: msg.Partition,
-						Offset:    msg.Offset + 1,
-					})
-
-					if err != nil {
-						logger.Ctx(ctx).Errorw("delay-consumer: error on commit", "topic", dc.topic, "error", err.Error())
-						continue
-					}
-
-				} else {
-					// pause the consumer, if not already paused
-					if !dc.isPaused {
-						logger.Ctx(ctx).Infow("delay-consumer: pausing", "topic", dc.topic)
-						dc.consumer.Pause(ctx, messagebroker.PauseOnTopicRequest{Topic: dc.topic})
-						dc.isPaused = true
-					}
-					// we can exit the loop if any one message is not in the allowed consumption time
-					break
+			resp, err := dc.consumer.ReceiveMessages(dc.ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
+			if err != nil {
+				if !messagebroker.IsErrorRecoverable(err) {
+					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in receiving messages", "config", dc.config, "error", err.Error())
+					return
 				}
 			}
+
+			for _, msg := range resp.PartitionOffsetWithMessages {
+				dc.processMsg(msg)
+			}
+		}
+	}
+}
+
+func (dc *DelayConsumer) resume() {
+	logger.Ctx(dc.ctx).Infow("delay-consumer: resuming", "config", dc.config)
+	dc.consumer.Resume(dc.ctx, messagebroker.ResumeOnTopicRequest{Topic: dc.config.Topic})
+	dc.isPaused = false
+
+	// process the cached message as well
+	dc.processMsg(*dc.cachedMsg)
+	dc.cachedMsg = nil
+}
+
+func (dc *DelayConsumer) pause(msg *messagebroker.ReceivedMessage) {
+	logger.Ctx(dc.ctx).Infow("delay-consumer: pausing", "config", dc.config)
+	dc.consumer.Pause(dc.ctx, messagebroker.PauseOnTopicRequest{Topic: dc.config.Topic})
+	dc.isPaused = true
+	dc.cachedMsg = msg
+}
+
+func (dc *DelayConsumer) processMsg(msg messagebroker.ReceivedMessage) {
+	if msg.CanProcessMessage() {
+		if dc.isPaused {
+			dc.resume()
+		}
+
+		if msg.HasReachedRetryThreshold() {
+			// push to dead-letter topic directly in such cases
+			_, err := dc.bs.GetProducer(dc.ctx, messagebroker.ProducerClientOptions{
+				Topic:     msg.DeadLetterTopic,
+				TimeoutMs: defaultBrokerOperationsTimeoutMs,
+			})
+			if err != nil {
+				logger.Ctx(dc.ctx).Errorw("delay-consumer: failed to push to dead-letter topic", "topic", msg.DeadLetterTopic, "error", err.Error())
+				return
+			}
+		} else {
+			// submit to handler
+			err := dc.handler.Do(dc.ctx, msg)
+			if err != nil {
+				logger.Ctx(dc.ctx).Errorw("delay-consumer: error in msg handler", "config", dc.config, "error", err.Error())
+				return
+			}
+		}
+
+		// commit the message
+		_, err := dc.consumer.CommitByPartitionAndOffset(dc.ctx, messagebroker.CommitOnTopicRequest{
+			Topic:     msg.Topic,
+			Partition: msg.Partition,
+			Offset:    msg.Offset + 1,
+		})
+
+		if err != nil {
+			logger.Ctx(dc.ctx).Errorw("delay-consumer: error on commit", "config", dc.config, "error", err.Error())
+			return
+		}
+
+	} else {
+		// pause the consumer, if not already paused
+		if !dc.isPaused {
+			dc.pause(&msg)
 		}
 	}
 }

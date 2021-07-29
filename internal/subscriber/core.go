@@ -39,10 +39,9 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	ackCh chan *AckMessage,
 	modAckCh chan *ModAckMessage) (ISubscriber, error) {
 
-	topic := messagebroker.NormalizeTopicName(subscription.Topic)
 	groupID := subscription.Name
 
-	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{topic}, GroupID: groupID, GroupInstanceID: subscriberID})
+	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{subscription.Topic}, GroupID: groupID, GroupInstanceID: subscriberID})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: failed to create consumer", "error", err.Error())
 		return nil, err
@@ -58,7 +57,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 
 	s := &Subscriber{
 		subscription:           subscription,
-		topic:                  topic,
+		topic:                  subscription.Topic,
 		subscriberID:           subscriberID,
 		subscriptionCore:       c.subscriptionCore,
 		requestChan:            requestCh,

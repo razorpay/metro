@@ -3,6 +3,8 @@ package subscription
 import (
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"github.com/razorpay/metro/internal/topic"
 
 	"github.com/pkg/errors"
@@ -61,6 +63,13 @@ var (
 // Intervals during subscription creation, query from the allowed intervals list, and create all the needed topics for retry.
 var Intervals = []Interval{Delay5sec, Delay10sec, Delay30sec, Delay60sec, Delay120sec, Delay150sec, Delay300sec, Delay450sec, Delay600sec}
 
+// DelayConsumerConfig ...
+type DelayConsumerConfig struct {
+	Topic           string `json:"topic"`
+	GroupID         string `json:"group_id"`
+	GroupInstanceID string `json:"group_instance_id"`
+}
+
 // DelayConfig ...
 type DelayConfig struct {
 	MinimumBackoffInSeconds uint     `json:"minimum_backoff_in_seconds"`
@@ -70,7 +79,7 @@ type DelayConfig struct {
 	DeadLetterTopic         string   `json:"dead_letter_topic"`
 	DelayTopics             []string `json:"delay_topics"`
 	// maintains a mapping for all the delay intervals to its delay topic name. This will be used to lookup the next topic name.
-	DelayIntervalToTopicMap map[Interval]string `json:"delay_interval_to_topic_map"`
+	DelayIntervalToTopicMap map[Interval]DelayConsumerConfig `json:"delay_interval_to_topic_map"`
 }
 
 // NewDelayConfig validates a subscription model and initializes the needed config values to be used for delay consumers
@@ -107,11 +116,15 @@ func NewDelayConfig(model *Model) (*DelayConfig, error) {
 	}
 
 	delayTopics := make([]string, 0)
-	delayIntervalToTopicNameMap := make(map[Interval]string)
+	delayIntervalToTopicNameMap := make(map[Interval]DelayConsumerConfig)
 	for _, interval := range Intervals {
 		delayTopic := topic.GetTopicName(model.ExtractedSubscriptionProjectID, fmt.Sprintf(delayTopicNameFormat, model.ExtractedSubscriptionName, interval))
 		delayTopics = append(delayTopics, delayTopic)
-		delayIntervalToTopicNameMap[interval] = delayTopic
+		delayIntervalToTopicNameMap[interval] = DelayConsumerConfig{
+			Topic:           delayTopic,
+			GroupID:         uuid.New().String(),
+			GroupInstanceID: uuid.New().String(),
+		}
 	}
 
 	config := &DelayConfig{
@@ -158,11 +171,11 @@ func (rc *DelayConfig) GetDelayTopics() []string {
 }
 
 // GetDelayTopicsMap ...
-func (rc *DelayConfig) GetDelayTopicsMap() map[Interval]string {
+func (rc *DelayConfig) GetDelayTopicsMap() map[Interval]DelayConsumerConfig {
 	return rc.DelayIntervalToTopicMap
 }
 
 // GetDelayTopicForInterval ...
 func (rc *DelayConfig) GetDelayTopicForInterval(interval Interval) string {
-	return rc.DelayIntervalToTopicMap[interval]
+	return rc.DelayIntervalToTopicMap[interval].Topic
 }

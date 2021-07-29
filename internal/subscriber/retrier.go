@@ -3,7 +3,10 @@ package subscriber
 import (
 	"context"
 	"math"
+	"sync"
 	"time"
+
+	"github.com/razorpay/metro/pkg/logger"
 
 	"github.com/razorpay/metro/pkg/messagebroker"
 
@@ -12,12 +15,13 @@ import (
 )
 
 const (
-	defaultBrokerOperationsTimeoutMs int64 = 1000
+	defaultBrokerOperationsTimeoutMs int64 = 100
 )
 
 // IRetrier ...
 type IRetrier interface {
 	Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error
+	Stop()
 }
 
 // Retrier ...
@@ -30,8 +34,9 @@ type Retrier struct {
 // NewRetrier ...
 func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstore.IBrokerStore, handler Handler) (IRetrier, error) {
 	delayConsumers := make(map[subscription.Interval]*DelayConsumer, len(dc.GetDelayTopics()))
-	for interval, topic := range dc.GetDelayTopicsMap() {
-		dc, err := NewDelayConsumer(ctx, topic, bs, handler)
+
+	for interval, config := range dc.GetDelayTopicsMap() {
+		dc, err := NewDelayConsumer(ctx, config, bs, handler)
 		if err != nil {
 			return nil, err
 		}
@@ -48,51 +53,75 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 	return r, nil
 }
 
+// Stop ...
+func (r *Retrier) Stop() {
+	wg := sync.WaitGroup{}
+	for _, dc := range r.delayConsumers {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
+			dc.cancelFunc()
+			// wait for delay-consumer shutdown to complete
+			<-dc.doneCh
+		}(&wg)
+	}
+	wg.Wait()
+}
+
 // Handle ...
 func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error {
+
+	logger.Ctx(ctx).Infow("retrier: received msg for retry", "msg", msg.String())
 
 	availableDelayIntervals := subscription.Intervals // 5,10,15
 	// EXPONENTIAL: nextDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
 	nextDelayInterval := float64(msg.InitialDelayInterval) + math.Pow(2, float64(msg.CurrentRetryCount-1))
 
 	// next allowed delay interval from the list of pre-defined intervals
-	dInterval := findCloseDelayInterval(r.dc.MinimumBackoffInSeconds, r.dc.MaximumBackoffInSeconds, availableDelayIntervals, nextDelayInterval)
+	dInterval := findClosestDelayInterval(r.dc.MinimumBackoffInSeconds, r.dc.MaximumBackoffInSeconds, availableDelayIntervals, nextDelayInterval)
 	dc := r.delayConsumers[dInterval]
 
 	nextDeliveryTime := time.Now().Add(time.Duration(dInterval) * time.Second)
 
 	// given a message, produce to the correct topic
 	producer, err := r.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
-		Topic:     dc.topic,
+		Topic:     dc.config.Topic,
 		TimeoutMs: defaultBrokerOperationsTimeoutMs,
 	})
 	if err != nil {
 		return err
 	}
 
+	// update message headers with new values
+	newMessageHeaders := messagebroker.MessageHeader{
+		MessageID:            msg.MessageID,
+		SourceTopic:          msg.SourceTopic,
+		Subscription:         msg.Subscription,
+		CurrentRetryCount:    msg.CurrentRetryCount,
+		MaxRetryCount:        msg.MaxRetryCount,
+		CurrentTopic:         dc.config.Topic,
+		NextDeliveryTime:     nextDeliveryTime,
+		DeadLetterTopic:      msg.DeadLetterTopic,
+		InitialDelayInterval: msg.InitialDelayInterval,
+	}
+
 	_, err = producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-		Topic:   dc.topic,
-		Message: msg.Data,
-		MessageHeader: messagebroker.MessageHeader{
-			MessageID:            msg.MessageID,
-			SourceTopic:          msg.SourceTopic,
-			Subscription:         msg.Subscription,
-			CurrentRetryCount:    msg.CurrentRetryCount,
-			MaxRetryCount:        msg.MaxRetryCount,
-			CurrentTopic:         dc.topic,
-			NextDeliveryTime:     nextDeliveryTime,
-			DeadLetterTopic:      msg.DeadLetterTopic,
-			InitialDelayInterval: msg.InitialDelayInterval,
-		},
+		Topic:         dc.config.Topic,
+		Message:       msg.Data,
+		MessageHeader: newMessageHeaders,
 	})
 	if err != nil {
 		return err
 	}
 
+	// update message headers for logging
+	msg.MessageHeader = newMessageHeaders
+	logger.Ctx(ctx).Infow("retrier: pushed msg from retry to handler", "msg", msg.String())
+
 	return nil
 }
 
-func findCloseDelayInterval(min uint, max uint, intervals []subscription.Interval, nextDelayInterval float64) subscription.Interval {
+func findClosestDelayInterval(min uint, max uint, intervals []subscription.Interval, nextDelayInterval float64) subscription.Interval {
 	newDelay := nextDelayInterval
 	if newDelay < float64(min) {
 		newDelay = float64(min)

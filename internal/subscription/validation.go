@@ -27,13 +27,6 @@ const (
 	ackDeadlineSecPath = "ack_deadline_seconds"
 )
 
-const (
-	// Fields of internal models
-	subscriptionFieldPushEndpoint   = "PushEndpoint"
-	subscriptionFieldCredentials    = "Credentials"
-	subscriptionFieldAckDeadlineSec = "AckDeadlineSec"
-)
-
 func init() {
 	var err error
 	// https://github.com/googleapis/googleapis/blob/69697504d9eba1d064820c3085b4750767be6d08/google/pubsub/v1/pubsub.proto#L636
@@ -109,17 +102,25 @@ func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) 
 	return getValidatedModel(ctx, req)
 }
 
-//GetValidatedModelAndPathsForUpdate validates the incoming patch proto request and returns the model and the internal model paths to update
-func GetValidatedModelAndPathsForUpdate(ctx context.Context, req *metrov1.UpdateSubscriptionRequest) (*Model, []string, error) {
-	model, err := GetValidatedModelForCreate(ctx, req.GetSubscription())
-	if err != nil {
-		return nil, nil, err
+// GetValidatedModelForUpdate - validates the subscription model for update operation and returns the parsed model
+func GetValidatedModelForUpdate(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
+	return GetValidatedModelForCreate(ctx, req)
+}
+
+// ValidateUpdateSubscriptionRequest - Validates the update subscription request
+func ValidateUpdateSubscriptionRequest(ctx context.Context, req *metrov1.UpdateSubscriptionRequest) error {
+	req.UpdateMask.Normalize()
+	if !req.UpdateMask.IsValid(req.Subscription) {
+		err := merror.Newf(merror.InvalidArgument, "invalid update mask provided. Valid values are: %s, %s", pushConfigPath, ackDeadlineSecPath)
+		return err
 	}
-
-	paths := req.UpdateMask.GetPaths()
-	paths, err = getValidatedUpdatePaths(ctx, paths)
-
-	return model, paths, err
+	for _, path := range req.UpdateMask.Paths {
+		if path != pushConfigPath && path != ackDeadlineSecPath {
+			err := merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)
+			return err
+		}
+	}
+	return nil
 }
 
 func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
@@ -182,26 +183,4 @@ func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (proje
 	}
 
 	return projectID, subscriptionName, nil
-}
-
-// Checks if updates are allowed for fields
-// Also translates proto fields to domain model fields
-func getValidatedUpdatePaths(ctx context.Context, paths []string) ([]string, error) {
-	if len(paths) == 0 {
-		err := merror.New(merror.InvalidArgument, "The update_mask must be set, and must contain a non-empty paths list.")
-		return nil, err
-	}
-	translatedPaths := make([]string, 0)
-	for _, path := range paths {
-		if path != pushConfigPath && path != ackDeadlineSecPath {
-			err := merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)
-			return nil, err
-		}
-		if path == pushConfigPath {
-			translatedPaths = append(translatedPaths, subscriptionFieldPushEndpoint, subscriptionFieldCredentials)
-		} else if path == ackDeadlineSecPath {
-			translatedPaths = append(translatedPaths, subscriptionFieldAckDeadlineSec)
-		}
-	}
-	return translatedPaths, nil
 }

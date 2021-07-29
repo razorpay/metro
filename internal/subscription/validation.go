@@ -45,7 +45,25 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 
 	m.ExtractedTopicName = t
 	m.ExtractedTopicProjectID = p
-	m.AckDeadlineSec = req.GetAckDeadlineSeconds()
+	m.AckDeadlineSeconds = req.GetAckDeadlineSeconds()
+
+	m.AckDeadlineSeconds = req.AckDeadlineSeconds
+
+	// get validated pushconfig details
+	urlEndpoint, err := validatePushConfig(ctx, req.GetPushConfig())
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] push config: (url=%s)", urlEndpoint)
+	}
+
+	m.PushConfig = &PushConfig{
+		PushEndpoint: urlEndpoint,
+		Attributes:   req.PushConfig.GetAttributes(),
+	}
+
+	m.DeadLetterPolicy = &DeadLetterPolicy{
+		DeadLetterTopic:     topic.GetTopicName(p, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix),
+		MaxDeliveryAttempts: req.DeadLetterPolicy.GetMaxDeliveryAttempts(),
+	}
 
 	// set push auth
 	if req.GetPushConfig() != nil && req.GetPushConfig().GetAttributes() != nil {
@@ -68,7 +86,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 
 		// set credentials only if both needed values were sent
 		if username != "" && password != "" {
-			m.Credentials = credentials.NewCredential(username, password)
+			m.PushConfig.Credentials = credentials.NewCredential(username, password)
 		}
 	}
 	return m, nil
@@ -94,20 +112,12 @@ func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, 
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] topic: (topic=%s)", req.GetTopic())
 	}
 
-	// get validated pushconfig details
-	urlEndpoint, err := validatePushConfig(ctx, req.GetPushConfig())
-	if err != nil {
-		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] push config: (url=%s)", urlEndpoint)
-	}
-
 	m := &Model{
 		Name:                           req.GetName(),
 		Topic:                          topicName,
 		Labels:                         req.GetLabels(),
 		ExtractedSubscriptionName:      s,
 		ExtractedSubscriptionProjectID: p,
-		PushEndpoint:                   urlEndpoint,
-		DeadLetterTopic:                topic.GetTopicName(p, s+topic.DeadLetterTopicSuffix),
 	}
 
 	return m, nil

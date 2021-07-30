@@ -44,10 +44,12 @@ func TestSubscriberServer_UpdateSubscription(t *testing.T) {
 	}
 
 	current := &subscription.Model{
-		Name:           req.Subscription.Name,
-		Topic:          req.Subscription.Topic,
-		PushEndpoint:   "https://www.razorpay.com/api",
-		AckDeadlineSec: 0,
+		Name:  req.Subscription.Name,
+		Topic: req.Subscription.Topic,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 0,
 	}
 
 	expected := &metrov1.Subscription{
@@ -91,10 +93,12 @@ func TestSubscriberServer_UpdateSubscriptionTestEmptyInRequest(t *testing.T) {
 	}
 
 	current := &subscription.Model{
-		Name:           req.Subscription.Name,
-		Topic:          req.Subscription.Topic,
-		PushEndpoint:   "https://www.razorpay.com/api",
-		AckDeadlineSec: 30,
+		Name:  req.Subscription.Name,
+		Topic: req.Subscription.Topic,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 30,
 	}
 
 	expected := &metrov1.Subscription{
@@ -138,10 +142,12 @@ func TestSubscriberServer_UpdateSubscriptionTestEmptyInCurrent(t *testing.T) {
 	}
 
 	current := &subscription.Model{
-		Name:           req.Subscription.Name,
-		Topic:          req.Subscription.Topic,
-		PushEndpoint:   "https://www.razorpay.com/api",
-		AckDeadlineSec: 0,
+		Name:  req.Subscription.Name,
+		Topic: req.Subscription.Topic,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 0,
 	}
 
 	expected := &metrov1.Subscription{

@@ -14,12 +14,14 @@ import (
 func Test_ModelToSubscriptionProtoV1(t *testing.T) {
 	pwd, _ := encryption.EncryptAsHexString([]byte("password"))
 	subscription := &Model{
-		Name:         "projects/project123/subscriptions/subscription123",
-		Topic:        "projects/project123/topics/topic123",
-		PushEndpoint: "https://www.razorpay.com/api",
-		Credentials: &credentials.Model{
-			Username: "user",
-			Password: pwd,
+		Name:  "projects/project123/subscriptions/subscription123",
+		Topic: "projects/project123/topics/topic123",
+		PushConfig: &PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+			Credentials: &credentials.Model{
+				Username: "user",
+				Password: pwd,
+			},
 		},
 	}
 	expected := &metrov1.Subscription{

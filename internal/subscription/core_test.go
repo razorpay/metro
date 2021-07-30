@@ -25,8 +25,10 @@ func TestSubscriptionCore_UpdateSubscription(t *testing.T) {
 		Name:                           "projects/project123/subscriptions/subscription123",
 		Topic:                          "projects/project123/subscriptions/subscription123",
 		ExtractedSubscriptionProjectID: "project123",
-		PushEndpoint:                   "https://www.razorpay.com/api/v1",
-		AckDeadlineSec:                 20,
+		PushConfig: &PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api/v1",
+		},
+		AckDeadlineSeconds: 20,
 	}
 
 	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(true, nil)
@@ -48,8 +50,10 @@ func TestSubscriptionCore_UpdateSubscriptionNotExists(t *testing.T) {
 		Name:                           "projects/project123/subscriptions/subscription123",
 		Topic:                          "projects/project123/subscriptions/subscription123",
 		ExtractedSubscriptionProjectID: "project123",
-		PushEndpoint:                   "https://www.razorpay.com/api/v1",
-		AckDeadlineSec:                 20,
+		PushConfig: &PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api/v1",
+		},
+		AckDeadlineSeconds: 20,
 	}
 
 	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(true, nil)
@@ -71,8 +75,10 @@ func TestSubscriptionCore_UpdateSubscriptionProjectNotExists(t *testing.T) {
 		Name:                           "projects/project123/subscriptions/subscription123",
 		Topic:                          "projects/project123/subscriptions/subscription123",
 		ExtractedSubscriptionProjectID: "project123",
-		PushEndpoint:                   "https://www.razorpay.com/api/v1",
-		AckDeadlineSec:                 20,
+		PushConfig: &PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api/v1",
+		},
+		AckDeadlineSeconds: 20,
 	}
 
 	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(false, nil)

@@ -10,17 +10,17 @@ func ModelToSubscriptionProtoV1(m *Model) *metrov1.Subscription {
 		Name:               m.Name,
 		Topic:              m.Topic,
 		Labels:             m.Labels,
-		AckDeadlineSeconds: m.AckDeadlineSec,
+		AckDeadlineSeconds: m.AckDeadlineSeconds,
 	}
 
 	if m.IsPush() {
 		proto.PushConfig = &metrov1.PushConfig{
-			PushEndpoint: m.PushEndpoint,
+			PushEndpoint: m.PushConfig.PushEndpoint,
 		}
-		if m.Credentials != nil {
+		if m.PushConfig.Credentials != nil {
 			proto.PushConfig.Attributes = map[string]string{}
-			proto.PushConfig.Attributes[attributeUsername] = m.Credentials.GetUsername()
-			proto.PushConfig.Attributes[attributePassword] = m.Credentials.GetPassword()
+			proto.PushConfig.Attributes[attributeUsername] = m.PushConfig.Credentials.GetUsername()
+			proto.PushConfig.Attributes[attributePassword] = m.PushConfig.Credentials.GetPassword()
 		}
 	}
 	return proto

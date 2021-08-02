@@ -55,7 +55,7 @@ type MessageHeader struct {
 // LogFields ...
 func (mh MessageHeader) LogFields() []interface{} {
 	return []interface{}{
-		"msg", map[string]interface{}{
+		"messageHeader", map[string]interface{}{
 			"messageID":            mh.MessageID,
 			"publishTime":          mh.PublishTime.Unix(),
 			"sourceTopic":          mh.SourceTopic,

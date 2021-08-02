@@ -71,7 +71,7 @@ func (r *Retrier) Stop() {
 // Handle ...
 func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 
-	logger.Ctx(ctx).Infow("retrier: received msg for retry", "msg", msg.String())
+	logger.Ctx(ctx).Infow("retrier: received msg for retry", msg.LogFields()...)
 
 	availableDelayIntervals := subscription.Intervals
 	// EXPONENTIAL: nextDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
@@ -109,7 +109,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		TimeoutMs: defaultBrokerOperationsTimeoutMs,
 	})
 	if err != nil {
-		logger.Ctx(ctx).Infow("retrier: failed to produce to delay topic", "topic", dc.config.Topic)
+		logger.Ctx(ctx).Errorw("retrier: failed to produce to delay topic", "topic", dc.config.Topic)
 		return err
 	}
 
@@ -119,8 +119,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 	}
 
 	// update message headers for logging
-	msg.MessageHeader = newMessageHeaders
-	logger.Ctx(ctx).Infow("retrier: pushed msg from retry to handler", "msg", msg.String())
+	logger.Ctx(ctx).Infow("retrier: pushed msg from retry to handler", newMessage.LogFields()...)
 
 	return nil
 }

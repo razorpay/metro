@@ -56,11 +56,11 @@ func NewDelayConsumer(ctx context.Context, config subscription.DelayConsumerConf
 func (dc *DelayConsumer) Run(ctx context.Context) {
 	defer close(dc.doneCh)
 
-	logger.Ctx(ctx).Infow("delay-consumer: running", "config", dc.config)
+	logger.Ctx(ctx).Infow("delay-consumer: running", dc.config.LogFields()...)
 	for {
 		select {
 		case <-dc.ctx.Done():
-			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", "config", dc.config)
+			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.config.LogFields()...)
 			dc.bs.RemoveConsumer(ctx, dc.config.GroupInstanceID, messagebroker.ConsumerClientOptions{GroupID: dc.config.GroupID})
 			dc.consumer.Close(dc.ctx)
 			return
@@ -72,7 +72,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			resp, err := dc.consumer.ReceiveMessages(dc.ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
 			if err != nil {
 				if !messagebroker.IsErrorRecoverable(err) {
-					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in receiving messages", "config", dc.config, "error", err.Error())
+					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in receiving messages", dc.config.LogFields("error", err.Error())...)
 					return
 				}
 			}
@@ -85,7 +85,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 }
 
 func (dc *DelayConsumer) resume() {
-	logger.Ctx(dc.ctx).Infow("delay-consumer: resuming", "config", dc.config)
+	logger.Ctx(dc.ctx).Infow("delay-consumer: resuming", dc.config.LogFields("error", nil)...)
 	dc.consumer.Resume(dc.ctx, messagebroker.ResumeOnTopicRequest{Topic: dc.config.Topic})
 	dc.isPaused = false
 
@@ -95,7 +95,7 @@ func (dc *DelayConsumer) resume() {
 }
 
 func (dc *DelayConsumer) pause(msg *messagebroker.ReceivedMessage) {
-	logger.Ctx(dc.ctx).Infow("delay-consumer: pausing", "config", dc.config)
+	logger.Ctx(dc.ctx).Infow("delay-consumer: pausing", dc.config.LogFields()...)
 	dc.consumer.Pause(dc.ctx, messagebroker.PauseOnTopicRequest{Topic: dc.config.Topic})
 	dc.isPaused = true
 	dc.cachedMsg = msg
@@ -121,7 +121,7 @@ func (dc *DelayConsumer) processMsg(msg messagebroker.ReceivedMessage) {
 			// submit to handler
 			err := dc.handler.Do(dc.ctx, msg)
 			if err != nil {
-				logger.Ctx(dc.ctx).Errorw("delay-consumer: error in msg handler", "config", dc.config, "error", err.Error())
+				logger.Ctx(dc.ctx).Errorw("delay-consumer: error in msg handler", dc.config.LogFields("error", err.Error())...)
 				return
 			}
 		}
@@ -134,7 +134,7 @@ func (dc *DelayConsumer) processMsg(msg messagebroker.ReceivedMessage) {
 		})
 
 		if err != nil {
-			logger.Ctx(dc.ctx).Errorw("delay-consumer: error on commit", "config", dc.config, "error", err.Error())
+			logger.Ctx(dc.ctx).Errorw("delay-consumer: error on commit", dc.config.LogFields("error", err.Error())...)
 			return
 		}
 

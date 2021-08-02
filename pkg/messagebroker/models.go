@@ -52,11 +52,22 @@ type MessageHeader struct {
 	NextDeliveryTime     time.Time
 }
 
-func (mh MessageHeader) String() string {
-	return fmt.Sprintf("message_id=[%v],publish_time=[%v],source_topic=[%v],subscription=[%v],current_retry_count=[%v],"+
-		"max_retry_count=[%v],current_topic=[%v],initial_delay_interval=[%v],dead_letter_topic=[%v],next_delivery_time=[%v]",
-		mh.MessageID, mh.PublishTime.Unix(), mh.SourceTopic, mh.Subscription, mh.CurrentRetryCount, mh.MaxRetryCount, mh.CurrentTopic,
-		mh.InitialDelayInterval, mh.DeadLetterTopic, mh.NextDeliveryTime.Unix())
+// LogFields ...
+func (mh MessageHeader) LogFields() []interface{} {
+	return []interface{}{
+		"msg", map[string]interface{}{
+			"messageID":            mh.MessageID,
+			"publishTime":          mh.PublishTime.Unix(),
+			"sourceTopic":          mh.SourceTopic,
+			"subscription":         mh.Subscription,
+			"currentRetryCount":    mh.CurrentRetryCount,
+			"maxRetryCount":        mh.MaxRetryCount,
+			"currentTopic":         mh.CurrentTopic,
+			"initialDelayInterval": mh.InitialDelayInterval,
+			"deadLetterTopic":      mh.DeadLetterTopic,
+			"nextDeliveryTime":     mh.NextDeliveryTime.Unix(),
+		},
+	}
 }
 
 // GetMessagesFromTopicRequest ...

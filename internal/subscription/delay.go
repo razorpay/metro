@@ -70,6 +70,20 @@ type DelayConsumerConfig struct {
 	GroupInstanceID string `json:"group_instance_id"`
 }
 
+// LogFields ...
+func (dc DelayConsumerConfig) LogFields(kv ...interface{}) []interface{} {
+	fields := []interface{}{
+		"delayConsumerConfig", map[string]interface{}{
+			"topic":           dc.Topic,
+			"groupID":         dc.GroupID,
+			"groupInstanceID": dc.GroupInstanceID,
+		},
+	}
+
+	fields = append(fields, kv...)
+	return fields
+}
+
 // DelayConfig ...
 type DelayConfig struct {
 	MinimumBackoffInSeconds uint     `json:"minimum_backoff_in_seconds"`
@@ -117,12 +131,13 @@ func NewDelayConfig(model *Model) (*DelayConfig, error) {
 
 	delayTopics := make([]string, 0)
 	delayIntervalToTopicNameMap := make(map[Interval]DelayConsumerConfig)
+	groupID := uuid.New().String()
 	for _, interval := range Intervals {
 		delayTopic := topic.GetTopicName(model.ExtractedSubscriptionProjectID, fmt.Sprintf(delayTopicNameFormat, model.ExtractedSubscriptionName, interval))
 		delayTopics = append(delayTopics, delayTopic)
 		delayIntervalToTopicNameMap[interval] = DelayConsumerConfig{
 			Topic:           delayTopic,
-			GroupID:         model.ExtractedSubscriptionName,
+			GroupID:         groupID,
 			GroupInstanceID: uuid.New().String(),
 		}
 	}

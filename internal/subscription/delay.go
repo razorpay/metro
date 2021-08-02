@@ -122,7 +122,7 @@ func NewDelayConfig(model *Model) (*DelayConfig, error) {
 		delayTopics = append(delayTopics, delayTopic)
 		delayIntervalToTopicNameMap[interval] = DelayConsumerConfig{
 			Topic:           delayTopic,
-			GroupID:         uuid.New().String(),
+			GroupID:         model.ExtractedSubscriptionName,
 			GroupInstanceID: uuid.New().String(),
 		}
 	}

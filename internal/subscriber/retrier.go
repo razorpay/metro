@@ -73,24 +73,15 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 
 	logger.Ctx(ctx).Infow("retrier: received msg for retry", "msg", msg.String())
 
-	availableDelayIntervals := subscription.Intervals // 5,10,15
+	availableDelayIntervals := subscription.Intervals
 	// EXPONENTIAL: nextDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
-	nextDelayInterval := float64(msg.InitialDelayInterval) + math.Pow(2, float64(msg.CurrentRetryCount-1))
+	nextDelayInterval := float64(msg.InitialDelayInterval) * math.Pow(2, float64(msg.CurrentRetryCount-1))
 
 	// next allowed delay interval from the list of pre-defined intervals
 	dInterval := findClosestDelayInterval(r.dc.MinimumBackoffInSeconds, r.dc.MaximumBackoffInSeconds, availableDelayIntervals, nextDelayInterval)
 	dc := r.delayConsumers[dInterval]
 
 	nextDeliveryTime := time.Now().Add(time.Duration(dInterval) * time.Second)
-
-	// given a message, produce to the correct topic
-	producer, err := r.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
-		Topic:     dc.config.Topic,
-		TimeoutMs: defaultBrokerOperationsTimeoutMs,
-	})
-	if err != nil {
-		return err
-	}
 
 	// update message headers with new values
 	newMessageHeaders := messagebroker.MessageHeader{
@@ -105,11 +96,24 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		InitialDelayInterval: msg.InitialDelayInterval,
 	}
 
-	_, err = producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
+	// new broker message
+	newMessage := messagebroker.SendMessageToTopicRequest{
 		Topic:         dc.config.Topic,
 		Message:       msg.Data,
 		MessageHeader: newMessageHeaders,
+	}
+
+	// given a message, produce to the correct topic
+	producer, err := r.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
+		Topic:     dc.config.Topic,
+		TimeoutMs: defaultBrokerOperationsTimeoutMs,
 	})
+	if err != nil {
+		logger.Ctx(ctx).Infow("retrier: failed to produce to delay topic", "topic", dc.config.Topic)
+		return err
+	}
+
+	_, err = producer.SendMessage(ctx, newMessage)
 	if err != nil {
 		return err
 	}

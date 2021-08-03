@@ -165,8 +165,8 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.Nil(t, err)
 
 	fmt.Printf("\n\nmsg received from topic : %v", topic)
-	for offset, msg := range resp.PartitionOffsetWithMessages {
-		fmt.Printf("\noffset [%v], message [%v]", offset, msg.String())
+	for _, msg := range resp.PartitionOffsetWithMessages {
+		fmt.Printf("%v", msg.LogFields())
 	}
 
 	// message produced count should be zero as auto.offset.reset is set to latest

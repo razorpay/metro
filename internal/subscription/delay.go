@@ -4,10 +4,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-
-	"github.com/razorpay/metro/internal/topic"
-
 	"github.com/pkg/errors"
+	"github.com/razorpay/metro/internal/topic"
 )
 
 // subs-delay-30-seconds, subs-delay-60-seconds ... subs-delay-600-seconds

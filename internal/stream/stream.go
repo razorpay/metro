@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/razorpay/metro/internal/httpclient"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
@@ -205,7 +206,7 @@ func (ps *PushStream) getLogFields() map[string]interface{} {
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
 
 	// get subscription Model details
@@ -235,7 +236,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 }
 
 // NewHTTPClientWithConfig return a http client
-func NewHTTPClientWithConfig(config *HTTPClientConfig) *http.Client {
+func NewHTTPClientWithConfig(config *httpclient.Config) *http.Client {
 	tr := &http.Transport{
 		ResponseHeaderTimeout: time.Duration(config.ResponseHeaderTimeoutMS) * time.Millisecond,
 		DialContext: (&net.Dialer{

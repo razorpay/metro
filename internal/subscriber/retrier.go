@@ -18,21 +18,21 @@ const (
 	defaultBrokerOperationsTimeoutMs int64 = 100
 )
 
-// IRetrier ...
+// IRetrier interface over retrier core functionalities.
 type IRetrier interface {
 	Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error
 	Stop()
 }
 
-// Retrier ...
+// Retrier implements all business logic for IRetrier
 type Retrier struct {
 	dc             *subscription.DelayConfig
 	bs             brokerstore.IBrokerStore
 	delayConsumers map[subscription.Interval]*DelayConsumer // TODO: use sync map here?
 }
 
-// NewRetrier ...
-func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstore.IBrokerStore, handler Handler) (IRetrier, error) {
+// NewRetrier inits a new retrier which internally takes care of spawning the needed delay-consumers.
+func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstore.IBrokerStore, handler RetryMessageHandler) (IRetrier, error) {
 	delayConsumers := make(map[subscription.Interval]*DelayConsumer, len(dc.GetDelayTopics()))
 
 	for interval, config := range dc.GetDelayTopicsMap() {
@@ -53,7 +53,7 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 	return r, nil
 }
 
-// Stop ...
+// Stop gracefully stop call the spawned delay-consumers for retry
 func (r *Retrier) Stop() {
 	wg := sync.WaitGroup{}
 	for _, dc := range r.delayConsumers {
@@ -68,7 +68,7 @@ func (r *Retrier) Stop() {
 	wg.Wait()
 }
 
-// Handle ...
+// Handle takes care of processing a given retry message.
 func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 
 	logger.Ctx(ctx).Infow("retrier: received msg for retry", msg.LogFields()...)
@@ -113,6 +113,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		return err
 	}
 
+	// push message onto the identified delay-topic
 	_, err = producer.SendMessage(ctx, newMessage)
 	if err != nil {
 		return err
@@ -124,6 +125,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 	return nil
 }
 
+// given a slice of pre-defined delay intervals, min and max backoff, the function returns the next closest interval
 func findClosestDelayInterval(min uint, max uint, intervals []subscription.Interval, nextDelayInterval float64) subscription.Interval {
 	newDelay := nextDelayInterval
 	if newDelay < float64(min) {

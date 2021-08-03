@@ -4,40 +4,25 @@ import (
 	"context"
 
 	"github.com/razorpay/metro/internal/brokerstore"
-	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
-// Handler ...
-type Handler interface {
+// RetryMessageHandler defines the contract to process a retry-able broker message
+type RetryMessageHandler interface {
 	Do(ctx context.Context, msg messagebroker.ReceivedMessage) error
 }
 
-// PushToEndpoint ...
-type PushToEndpoint struct {
-}
-
-// NewPushToEndpointHandler ...
-func NewPushToEndpointHandler(model *subscription.Model) Handler {
-	return &PushToEndpoint{}
-}
-
-// Do ...
-func (s *PushToEndpoint) Do(ctx context.Context, msg messagebroker.ReceivedMessage) error {
-	panic("implement me")
-}
-
-// PushToPrimaryTopic ...
+// PushToPrimaryTopic holds the needed instances to handle retry
 type PushToPrimaryTopic struct {
 	bs brokerstore.IBrokerStore
 }
 
-// NewPushToPrimaryTopicHandler ...
-func NewPushToPrimaryTopicHandler(bs brokerstore.IBrokerStore) Handler {
+// NewPushToPrimaryTopicHandler inits a new retry handler
+func NewPushToPrimaryTopicHandler(bs brokerstore.IBrokerStore) RetryMessageHandler {
 	return &PushToPrimaryTopic{bs: bs}
 }
 
-// Do ...
+// Do defines the retry action. In this case it will push the message back on to the primart topic for re-processing by subscriber
 func (s *PushToPrimaryTopic) Do(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 	producer, err := s.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
 		Topic:     msg.SourceTopic,

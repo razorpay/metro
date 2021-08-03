@@ -14,20 +14,20 @@ import (
 type DelayConsumer struct {
 	ctx        context.Context
 	cancelFunc func()
+	doneCh     chan struct{}
 	interval   subscription.Interval
 	config     subscription.DelayConsumerConfig
 	isPaused   bool
 	consumer   messagebroker.Consumer
 	bs         brokerstore.IBrokerStore
-	handler    Handler
+	handler    RetryMessageHandler
 	// a paused consumer will not return new messages, so this cachedMsg will be used for lookups
 	// till the needed time elapses
 	cachedMsg *messagebroker.ReceivedMessage
-	doneCh    chan struct{}
 }
 
-// NewDelayConsumer ...
-func NewDelayConsumer(ctx context.Context, config subscription.DelayConsumerConfig, bs brokerstore.IBrokerStore, handler Handler) (*DelayConsumer, error) {
+// NewDelayConsumer inits a new delay-consumer with the pre-defined message handler
+func NewDelayConsumer(ctx context.Context, config subscription.DelayConsumerConfig, bs brokerstore.IBrokerStore, handler RetryMessageHandler) (*DelayConsumer, error) {
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
@@ -52,7 +52,7 @@ func NewDelayConsumer(ctx context.Context, config subscription.DelayConsumerConf
 	}, nil
 }
 
-// Run ...
+// Run spawns the delay-consumer
 func (dc *DelayConsumer) Run(ctx context.Context) {
 	defer close(dc.doneCh)
 
@@ -84,6 +84,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 	}
 }
 
+// resumes a paused delay-consumer. Additionally process any previously cached messages in buffer.
 func (dc *DelayConsumer) resume() {
 	logger.Ctx(dc.ctx).Infow("delay-consumer: resuming", dc.config.LogFields("error", nil)...)
 	dc.consumer.Resume(dc.ctx, messagebroker.ResumeOnTopicRequest{Topic: dc.config.Topic})
@@ -94,6 +95,7 @@ func (dc *DelayConsumer) resume() {
 	dc.cachedMsg = nil
 }
 
+// paused an active delay-consumer. Additionally caches the last seen message locally.
 func (dc *DelayConsumer) pause(msg *messagebroker.ReceivedMessage) {
 	logger.Ctx(dc.ctx).Infow("delay-consumer: pausing", dc.config.LogFields()...)
 	dc.consumer.Pause(dc.ctx, messagebroker.PauseOnTopicRequest{Topic: dc.config.Topic})
@@ -101,6 +103,8 @@ func (dc *DelayConsumer) pause(msg *messagebroker.ReceivedMessage) {
 	dc.cachedMsg = msg
 }
 
+// processes a given message of the delay-topic. takes care of orchestrating the checks to determine pause,resume of the consumer,
+// push to dead-letter topic in case the number of retries breaches allowed threshold.
 func (dc *DelayConsumer) processMsg(msg messagebroker.ReceivedMessage) {
 	if msg.CanProcessMessage() {
 		if dc.isPaused {

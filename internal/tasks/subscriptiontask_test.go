@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/razorpay/metro/internal/httpclient"
+
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -15,7 +17,6 @@ import (
 	mocks2 "github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/nodebinding"
 	mocks5 "github.com/razorpay/metro/internal/nodebinding/mocks/core"
-	"github.com/razorpay/metro/internal/stream"
 	"github.com/razorpay/metro/internal/subscriber"
 	mocks6 "github.com/razorpay/metro/internal/subscriber/mocks"
 	"github.com/razorpay/metro/internal/subscription"
@@ -37,7 +38,7 @@ func TestSubscriptionTask_Run(t *testing.T) {
 	subscriberCoreMock := mocks6.NewMockICore(ctrl)
 
 	workerID := uuid.New().String()
-	httpConfig := &stream.HTTPClientConfig{}
+	httpConfig := &httpclient.Config{}
 	task, err := NewSubscriptionTask(
 		workerID,
 		registryMock,
@@ -76,7 +77,7 @@ func TestSubscriptionTask_createNodeBindingWatch(t *testing.T) {
 	subscriberCoreMock := mocks6.NewMockICore(ctrl)
 
 	workerID := uuid.New().String()
-	httpConfig := &stream.HTTPClientConfig{}
+	httpConfig := &httpclient.Config{}
 	task, err := NewSubscriptionTask(
 		workerID,
 		registryMock,
@@ -111,7 +112,7 @@ func TestSubscriptionTask_startNodeBindingWatch(t *testing.T) {
 	subscriberCoreMock := mocks6.NewMockICore(ctrl)
 
 	workerID := uuid.New().String()
-	httpConfig := &stream.HTTPClientConfig{}
+	httpConfig := &httpclient.Config{}
 	task, err := NewSubscriptionTask(
 		workerID,
 		registryMock,
@@ -147,7 +148,7 @@ func TestSubscriptionTask_handleNodeBindingUpdates(t *testing.T) {
 	subscriberMock := mocks6.NewMockISubscriber(ctrl)
 
 	workerID := uuid.New().String()
-	httpConfig := &stream.HTTPClientConfig{}
+	httpConfig := &httpclient.Config{}
 	task, err := NewSubscriptionTask(
 		workerID,
 		registryMock,

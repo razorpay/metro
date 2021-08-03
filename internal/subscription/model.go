@@ -71,7 +71,7 @@ func (m *Model) Prefix() string {
 
 // IsPush returns true if a subscription is a push subscription
 func (m *Model) IsPush() bool {
-	return m.PushConfig.PushEndpoint != ""
+	return m.PushConfig != nil && m.PushConfig.PushEndpoint != ""
 }
 
 // GetTopic returns the primary subscription topic

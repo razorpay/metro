@@ -11,16 +11,17 @@ import (
 
 const (
 	// below are the kafka header keys
-	messageIDHeader         = "messageID"
-	publishTimeHeader       = "publishTime"
-	sourceTopicHeader       = "sourceTopic"
-	retryTopicHeader        = "retryTopic"
-	subscriptionHeader      = "subscription"
-	currentRetryCountHeader = "currentRetryCount"
-	maxRetryCountHeader     = "maxRetryCount"
-	nextTopicHeader         = "nextTopic"
-	deadLetterTopicHeader   = "deadLetterTopic"
-	nextDeliveryTimeHeader  = "nextDeliveryTime"
+	messageIDHeader            = "messageID"
+	publishTimeHeader          = "publishTime"
+	sourceTopicHeader          = "sourceTopic"
+	retryTopicHeader           = "retryTopic"
+	currentTopicHeader         = "currentTopic"
+	subscriptionHeader         = "subscription"
+	currentRetryCountHeader    = "currentRetryCount"
+	maxRetryCountHeader        = "maxRetryCount"
+	initialDelayIntervalHeader = "initialDelayInterval"
+	deadLetterTopicHeader      = "deadLetterTopic"
+	nextDeliveryTimeHeader     = "nextDeliveryTime"
 )
 
 // extracts the message headers from a given SendMessageToTopicRequest and converts to the equivalent broker headers
@@ -70,15 +71,21 @@ func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.
 		Key:   retryTopicHeader,
 		Value: []byte(request.RetryTopic),
 	})
+	// extract currentTopic
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   currentTopicHeader,
+		Value: []byte(request.CurrentTopic),
+	})
 	// extract subscription
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   subscriptionHeader,
 		Value: []byte(request.Subscription),
 	})
-	// extract nextTopic
+	// extract initialDelayInterval
+	idi, _ := json.Marshal(request.InitialDelayInterval)
 	kHeaders = append(kHeaders, kafkapkg.Header{
-		Key:   nextTopicHeader,
-		Value: []byte(request.CurrentTopic),
+		Key:   initialDelayIntervalHeader,
+		Value: idi,
 	})
 	// extract deadLetterTopic
 	kHeaders = append(kHeaders, kafkapkg.Header{
@@ -99,16 +106,18 @@ func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.
 func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 
 	var (
-		messageID         string
-		publishTime       int64 // unix timestamp
-		sourceTopic       string
-		retryTopic        string
-		subscription      string
-		currentRetryCount int32
-		maxRetryCount     int32
-		nextTopic         string
-		deadLetterTopic   string
-		nextDeliveryTime  int64 // unix timestamp
+		messageID            string
+		publishTime          int64 // unix timestamp
+		sourceTopic          string
+		retryTopic           string
+		currentTopic         string
+		subscription         string
+		currentRetryCount    int32
+		maxRetryCount        int32
+		initialDelayInterval uint
+		deadLetterTopic      string
+		nextDeliveryTime     int64 // unix timestamp
+		otherAttributes      []map[string][]byte
 	)
 	for _, v := range headers {
 		switch v.Key {
@@ -126,27 +135,35 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			json.Unmarshal(v.Value, &currentRetryCount)
 		case maxRetryCountHeader:
 			json.Unmarshal(v.Value, &maxRetryCount)
-		case nextTopicHeader:
-			nextTopic = string(v.Value)
+		case currentTopicHeader:
+			currentTopic = string(v.Value)
+		case initialDelayIntervalHeader:
+			json.Unmarshal(v.Value, &initialDelayInterval)
 		case deadLetterTopicHeader:
 			deadLetterTopic = string(v.Value)
 		case nextDeliveryTimeHeader:
 			json.Unmarshal(v.Value, &nextDeliveryTime)
+		default:
+			otherAttributes = append(otherAttributes, map[string][]byte{
+				v.Key: v.Value,
+			})
 		}
 	}
 
 	return ReceivedMessage{
+		Attributes: otherAttributes,
 		MessageHeader: MessageHeader{
-			MessageID:         messageID,
-			PublishTime:       time.Unix(publishTime, 0),
-			SourceTopic:       sourceTopic,
-			RetryTopic:        retryTopic,
-			Subscription:      subscription,
-			CurrentRetryCount: currentRetryCount,
-			MaxRetryCount:     maxRetryCount,
-			CurrentTopic:      nextTopic,
-			DeadLetterTopic:   deadLetterTopic,
-			NextDeliveryTime:  time.Unix(nextDeliveryTime, 0),
+			MessageID:            messageID,
+			PublishTime:          time.Unix(publishTime, 0),
+			SourceTopic:          sourceTopic,
+			RetryTopic:           retryTopic,
+			CurrentTopic:         currentTopic,
+			Subscription:         subscription,
+			CurrentRetryCount:    currentRetryCount,
+			InitialDelayInterval: initialDelayInterval,
+			MaxRetryCount:        maxRetryCount,
+			DeadLetterTopic:      deadLetterTopic,
+			NextDeliveryTime:     time.Unix(nextDeliveryTime, 0),
 		},
 	}
 }

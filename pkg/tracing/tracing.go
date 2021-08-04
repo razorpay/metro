@@ -31,11 +31,11 @@ type Config struct {
 
 // Init initialises opentracing tracer. Returns tracer for tracing spans &
 // closer for flushing in-memory spans before app shutdown.
-func Init(cnf Config, zlog *zap.Logger) error {
+func Init(env string, cnf Config, zlog *zap.Logger) error {
 	hostPortPath := fmt.Sprintf("%s:%s", cnf.Host, cnf.Port)
 
 	config := &jaegerconfig.Configuration{
-		ServiceName: cnf.ServiceName,
+		ServiceName: fmt.Sprintf("%s-%s", cnf.ServiceName, env),
 		Sampler: &jaegerconfig.SamplerConfig{
 			Type:  jaeger.SamplerTypeConst,
 			Param: 1,

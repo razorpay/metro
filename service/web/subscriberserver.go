@@ -3,6 +3,8 @@ package web
 import (
 	"context"
 
+	"github.com/imdario/mergo"
+	"github.com/mennanov/fmutils"
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
@@ -45,6 +47,40 @@ func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.S
 		return nil, merror.ToGRPCError(err)
 	}
 	return req, nil
+}
+
+// UpdateSubscription updates a given subscription
+func (s subscriberserver) UpdateSubscription(ctx context.Context, req *metrov1.UpdateSubscriptionRequest) (*metrov1.Subscription, error) {
+	logger.Ctx(ctx).Infow("subscriberserver: received request to update subscription", "name", req.Subscription.Name, "topic", req.Subscription.Topic)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.UpdateSubscription")
+	defer span.Finish()
+
+	if err := subscription.ValidateUpdateSubscriptionRequest(ctx, req); err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	sub, err := s.subscriptionCore.Get(ctx, req.Subscription.Name)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	existingSubscription := subscription.ModelToSubscriptionProtoV1(sub)
+	fmutils.Prune(existingSubscription, req.UpdateMask.Paths)
+	fmutils.Filter(req.Subscription, req.UpdateMask.Paths)
+
+	if err = mergo.Merge(existingSubscription, req.Subscription); err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	patchedModel, err := subscription.GetValidatedModelForUpdate(ctx, existingSubscription)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	if err = s.subscriptionCore.UpdateSubscription(ctx, patchedModel); err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+	return existingSubscription, nil
 }
 
 // Acknowledge a message

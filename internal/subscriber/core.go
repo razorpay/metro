@@ -41,7 +41,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 
 	groupID := subscription.Name
 
-	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{subscription.Topic}, GroupID: groupID, GroupInstanceID: subscriberID})
+	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{subscription.Topic, subscription.GetRetryTopic()}, GroupID: groupID, GroupInstanceID: subscriberID})
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: failed to create consumer", "error", err.Error())
 		return nil, err
@@ -50,9 +50,12 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	// using the subscriber ctx for retrier as well. This way when the ctx() for subscribers is done,
 	// all the delay-consumers spawned within retrier would also get marked as done.
-	retrier, err := NewRetrier(subsCtx, subscription.DelayConfig, c.bs, NewPushToPrimaryTopicHandler(c.bs))
-	if err != nil {
-		return nil, err
+	var retrier IRetrier
+	if subscription.DelayConfig != nil {
+		retrier, err = NewRetrier(subsCtx, subscription.DelayConfig, c.bs, NewPushToPrimaryRetryTopicHandler(c.bs))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	s := &Subscriber{

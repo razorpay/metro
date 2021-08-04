@@ -14,6 +14,7 @@ const (
 	messageIDHeader         = "messageID"
 	publishTimeHeader       = "publishTime"
 	sourceTopicHeader       = "sourceTopic"
+	retryTopicHeader        = "retryTopic"
 	subscriptionHeader      = "subscription"
 	currentRetryCountHeader = "currentRetryCount"
 	maxRetryCountHeader     = "maxRetryCount"
@@ -64,6 +65,11 @@ func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.
 		Key:   sourceTopicHeader,
 		Value: []byte(request.SourceTopic),
 	})
+	// extract retryTopic
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   retryTopicHeader,
+		Value: []byte(request.RetryTopic),
+	})
 	// extract subscription
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   subscriptionHeader,
@@ -96,6 +102,7 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 		messageID         string
 		publishTime       int64 // unix timestamp
 		sourceTopic       string
+		retryTopic        string
 		subscription      string
 		currentRetryCount int32
 		maxRetryCount     int32
@@ -111,6 +118,8 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			json.Unmarshal(v.Value, &publishTime)
 		case sourceTopicHeader:
 			sourceTopic = string(v.Value)
+		case retryTopicHeader:
+			retryTopic = string(v.Value)
 		case subscriptionHeader:
 			subscription = string(v.Value)
 		case currentRetryCountHeader:
@@ -131,6 +140,7 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			MessageID:         messageID,
 			PublishTime:       time.Unix(publishTime, 0),
 			SourceTopic:       sourceTopic,
+			RetryTopic:        retryTopic,
 			Subscription:      subscription,
 			CurrentRetryCount: currentRetryCount,
 			MaxRetryCount:     maxRetryCount,

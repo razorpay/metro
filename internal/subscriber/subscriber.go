@@ -81,9 +81,16 @@ func (s *Subscriber) GetSubscription() string {
 // pushes message to retrier and commit existing message on primary topic
 func (s *Subscriber) retry(ctx context.Context, msg messagebroker.ReceivedMessage) {
 
+	// for older subscriptions, delayConfig will not get auto-created
+	if s.retrier == nil {
+		logger.Ctx(ctx).Infow("subscriber: skipping retry as retrier not configured", "logFields", s.getLogFields())
+		return
+	}
+
 	// prepare message headers to be used by retrier
 	msg.SourceTopic = s.subscription.Topic
-	msg.CurrentTopic = s.subscription.Topic // initially these will be same
+	msg.RetryTopic = s.subscription.GetRetryTopic() // push retried messages to primary retry topic
+	msg.CurrentTopic = s.subscription.Topic         // initially these will be same
 	msg.Subscription = s.subscription.DelayConfig.Subscription
 	msg.CurrentRetryCount = msg.CurrentRetryCount + 1 // should be zero to begin with
 	msg.MaxRetryCount = s.subscription.DelayConfig.MaxDeliveryAttempts

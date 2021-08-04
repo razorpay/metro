@@ -12,20 +12,20 @@ type RetryMessageHandler interface {
 	Do(ctx context.Context, msg messagebroker.ReceivedMessage) error
 }
 
-// PushToPrimaryTopic holds the needed instances to handle retry
-type PushToPrimaryTopic struct {
+// PushToPrimaryRetryTopic holds the needed instances to handle retry
+type PushToPrimaryRetryTopic struct {
 	bs brokerstore.IBrokerStore
 }
 
-// NewPushToPrimaryTopicHandler inits a new retry handler
-func NewPushToPrimaryTopicHandler(bs brokerstore.IBrokerStore) RetryMessageHandler {
-	return &PushToPrimaryTopic{bs: bs}
+// NewPushToPrimaryRetryTopicHandler inits a new retry handler
+func NewPushToPrimaryRetryTopicHandler(bs brokerstore.IBrokerStore) RetryMessageHandler {
+	return &PushToPrimaryRetryTopic{bs: bs}
 }
 
-// Do defines the retry action. In this case it will push the message back on to the primart topic for re-processing by subscriber
-func (s *PushToPrimaryTopic) Do(ctx context.Context, msg messagebroker.ReceivedMessage) error {
+// Do defines the retry action. In this case it will push the message back on to the primary retry topic for re-processing by subscriber
+func (s *PushToPrimaryRetryTopic) Do(ctx context.Context, msg messagebroker.ReceivedMessage) error {
 	producer, err := s.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
-		Topic:     msg.SourceTopic,
+		Topic:     msg.RetryTopic,
 		TimeoutMs: defaultBrokerOperationsTimeoutMs,
 	})
 	if err != nil {
@@ -33,18 +33,10 @@ func (s *PushToPrimaryTopic) Do(ctx context.Context, msg messagebroker.ReceivedM
 	}
 
 	_, err = producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
-		Topic:     msg.SourceTopic,
-		Message:   msg.Data,
-		TimeoutMs: int(defaultBrokerOperationsTimeoutMs),
-		MessageHeader: messagebroker.MessageHeader{
-			MessageID:         msg.MessageID,
-			SourceTopic:       msg.SourceTopic,
-			Subscription:      msg.Subscription,
-			CurrentRetryCount: msg.CurrentRetryCount,
-			MaxRetryCount:     msg.MaxRetryCount,
-			CurrentTopic:      msg.CurrentTopic,
-			NextDeliveryTime:  msg.NextDeliveryTime,
-		},
+		Topic:         msg.RetryTopic,
+		Message:       msg.Data,
+		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
+		MessageHeader: msg.MessageHeader,
 	})
 
 	if err != nil {

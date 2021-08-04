@@ -41,6 +41,8 @@ type MessageHeader struct {
 	PublishTime time.Time
 	// message was read from this topic
 	SourceTopic string
+	// primary retry topic
+	RetryTopic string
 	// topic from where the first message originated from, before any retry
 	Subscription      string
 	CurrentRetryCount int32
@@ -59,6 +61,7 @@ func (mh MessageHeader) LogFields() []interface{} {
 			"messageID":            mh.MessageID,
 			"publishTime":          mh.PublishTime.Unix(),
 			"sourceTopic":          mh.SourceTopic,
+			"retryTopic":           mh.RetryTopic,
 			"subscription":         mh.Subscription,
 			"currentRetryCount":    mh.CurrentRetryCount,
 			"maxRetryCount":        mh.MaxRetryCount,

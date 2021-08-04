@@ -79,6 +79,18 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	// for subscription over deadletter topics, skip the retry and deadletter topic creation
 	if topicModel.IsDeadLetterTopic() == false {
 
+		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
+			Name:               m.GetRetryTopic(),
+			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
+			ExtractedProjectID: m.ExtractedTopicProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		})
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic(), "error", err.Error())
+			return err
+		}
+
 		// create dead-letter topic for subscription
 		err = c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
 			Name:               m.GetDeadLetterTopic(),

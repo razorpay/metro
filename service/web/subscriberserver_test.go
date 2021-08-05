@@ -18,7 +18,181 @@ import (
 	mocks3 "github.com/razorpay/metro/service/web/stream/mocks/manager"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
+
+func TestSubscriberServer_UpdateSubscription(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:               "projects/project123/subscriptions/testsub",
+			Topic:              "projects/project123/topics/test-topic",
+			AckDeadlineSeconds: 30,
+			Filter:             "abcd",
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"push_config"},
+		},
+	}
+
+	current := &subscription.Model{
+		Name:  req.Subscription.Name,
+		Topic: req.Subscription.Topic,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 0,
+	}
+
+	expected := &metrov1.Subscription{
+		Name:               "projects/project123/subscriptions/testsub",
+		Topic:              "projects/project123/topics/test-topic",
+		AckDeadlineSeconds: 0,
+	}
+
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
+	subscriptionCore.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
+	updated, err := server.UpdateSubscription(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, expected.Name, updated.Name)
+	assert.Equal(t, expected.Topic, updated.Topic)
+	assert.Equal(t, expected.PushConfig, updated.PushConfig)
+	assert.Equal(t, expected.AckDeadlineSeconds, updated.AckDeadlineSeconds)
+	assert.Equal(t, expected.Filter, updated.Filter)
+}
+
+func TestSubscriberServer_UpdateSubscriptionTestEmptyInRequest(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:               "projects/project123/subscriptions/testsub",
+			Topic:              "projects/project123/topics/test-topic",
+			AckDeadlineSeconds: 0,
+			Filter:             "abcd",
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"push_config", "ack_deadline_seconds"},
+		},
+	}
+
+	current := &subscription.Model{
+		Name:  req.Subscription.Name,
+		Topic: req.Subscription.Topic,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 30,
+	}
+
+	expected := &metrov1.Subscription{
+		Name:               "projects/project123/subscriptions/testsub",
+		Topic:              "projects/project123/topics/test-topic",
+		AckDeadlineSeconds: 0,
+	}
+
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
+	subscriptionCore.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
+	updated, err := server.UpdateSubscription(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, expected.Name, updated.Name)
+	assert.Equal(t, expected.Topic, updated.Topic)
+	assert.Equal(t, expected.PushConfig, updated.PushConfig)
+	assert.Equal(t, expected.AckDeadlineSeconds, updated.AckDeadlineSeconds)
+	assert.Equal(t, expected.Filter, updated.Filter)
+}
+
+func TestSubscriberServer_UpdateSubscriptionTestEmptyInCurrent(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:               "projects/project123/subscriptions/testsub",
+			Topic:              "projects/project123/topics/test-topic",
+			AckDeadlineSeconds: 30,
+			Filter:             "abcd",
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"push_config", "ack_deadline_seconds"},
+		},
+	}
+
+	current := &subscription.Model{
+		Name:  req.Subscription.Name,
+		Topic: req.Subscription.Topic,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 0,
+	}
+
+	expected := &metrov1.Subscription{
+		Name:               "projects/project123/subscriptions/testsub",
+		Topic:              "projects/project123/topics/test-topic",
+		AckDeadlineSeconds: 30,
+	}
+
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
+	subscriptionCore.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
+	updated, err := server.UpdateSubscription(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, expected.Name, updated.Name)
+	assert.Equal(t, expected.Topic, updated.Topic)
+	assert.Equal(t, expected.PushConfig, updated.PushConfig)
+	assert.Equal(t, expected.AckDeadlineSeconds, updated.AckDeadlineSeconds)
+	assert.Equal(t, expected.Filter, updated.Filter)
+}
+
+func TestSubscriberServer_UpdateSubscriptionTestValidationFailure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:               "projects/project123/subscriptions/testsub",
+			Topic:              "projects/project123/topics/test-topic",
+			AckDeadlineSeconds: 30,
+			Filter:             "abcd",
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"push_configa", "ack_deadline_seconds"},
+		},
+	}
+
+	_, err := server.UpdateSubscription(ctx, req)
+	assert.NotNil(t, err)
+}
 
 func TestSubscriberServer_CreateSubscription(t *testing.T) {
 	ctrl := gomock.NewController(t)

@@ -2,7 +2,6 @@ package subscription
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -20,6 +19,12 @@ const (
 	// used as keys in the subscription push config attributes
 	attributeUsername = "username"
 	attributePassword = "password"
+)
+
+const (
+	// List of patchable attributes(proto)
+	pushConfigPath     = "push_config"
+	ackDeadlineSecPath = "ack_deadline_seconds"
 )
 
 func init() {
@@ -96,12 +101,31 @@ func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) 
 	return getValidatedModel(ctx, req)
 }
 
+// GetValidatedModelForUpdate - validates the subscription model for update operation and returns the parsed model
+func GetValidatedModelForUpdate(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
+	return GetValidatedModelForCreate(ctx, req)
+}
+
+// ValidateUpdateSubscriptionRequest - Validates the update subscription request
+func ValidateUpdateSubscriptionRequest(ctx context.Context, req *metrov1.UpdateSubscriptionRequest) error {
+	req.UpdateMask.Normalize()
+	if !req.UpdateMask.IsValid(req.Subscription) {
+		err := merror.Newf(merror.InvalidArgument, "invalid update mask provided. Valid values are: %s, %s", pushConfigPath, ackDeadlineSecPath)
+		return err
+	}
+	for _, path := range req.UpdateMask.Paths {
+		if path != pushConfigPath && path != ackDeadlineSecPath {
+			err := merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)
+			return err
+		}
+	}
+	return nil
+}
+
 func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
 	// validate and extract the subscription fields from the name
 	p, s, err := extractSubscriptionMetaAndValidate(ctx, req.GetName())
-	if errors.Is(err, credentials.UnauthenticatedError) {
-		return nil, err
-	} else if err != nil {
+	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] name: (name=%s)", req.Name)
 	}
 

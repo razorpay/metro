@@ -14,6 +14,7 @@ import (
 // ICore is an interface over subscription core
 type ICore interface {
 	CreateSubscription(ctx context.Context, subscription *Model) error
+	UpdateSubscription(ctx context.Context, uModel *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	DeleteSubscription(ctx context.Context, m *Model) error
 	DeleteProjectSubscriptions(ctx context.Context, projectID string) error
@@ -133,6 +134,34 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	}
 
 	return c.repo.Save(ctx, m)
+}
+
+// UpdateSubscription - Updates a given subscription
+func (c *Core) UpdateSubscription(ctx context.Context, uModel *Model) error {
+	subscriptionOperationCount.WithLabelValues(env, "UpdateSubscription").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		subscriptionOperationTimeTaken.WithLabelValues(env, "UpdateSubscription").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	if ok, err := c.projectCore.ExistsWithID(ctx, uModel.ExtractedSubscriptionProjectID); !ok {
+		if err != nil {
+			return err
+		}
+		logger.Ctx(ctx).Errorw("subscription project not found", "name", uModel.ExtractedSubscriptionProjectID)
+		return merror.New(merror.NotFound, "project not found")
+	}
+
+	if ok, err := c.Exists(ctx, uModel.Key()); !ok {
+		if err != nil {
+			return err
+		}
+		logger.Ctx(ctx).Errorw("subscription not found", "name", uModel.Name)
+		return merror.New(merror.NotFound, "subscription not found")
+	}
+
+	return c.repo.Save(ctx, uModel)
 }
 
 // Exists checks if subscription exists for a given key

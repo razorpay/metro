@@ -31,7 +31,9 @@ func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrok
 // Produce messages to a topic
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
 	logger.Ctx(ctx).Infow("produce request received", "req", req.Topic)
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.Publish")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.Publish", opentracing.Tags{
+		"topic" : req.Topic,
+	})
 	defer span.Finish()
 
 	if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
@@ -50,7 +52,9 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 
 // CreateTopic creates a new topic
 func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*metrov1.Topic, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.CreateTopic")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.CreateTopic", opentracing.Tags{
+		"topic" : req.Name,
+	})
 	defer span.Finish()
 
 	logger.Ctx(ctx).Infow("received request to create topic", "name", req.Name)
@@ -69,10 +73,13 @@ func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*
 
 // Delete a topic
 func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTopicRequest) (*emptypb.Empty, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.DeleteTopic")
+	logger.Ctx(ctx).Infow("received request to delete topic", "name", req.Topic)
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.DeleteTopic", opentracing.Tags{
+		"topic" : req.Topic,
+	})
 	defer span.Finish()
 
-	logger.Ctx(ctx).Infow("received request to delete topic", "name", req.Topic)
 	// Delete topic but not the subscriptions for it
 	// the subscriptions would get tagged to _deleted_topic_
 	m, err := topic.GetValidatedModel(ctx, &metrov1.Topic{Name: req.Topic})

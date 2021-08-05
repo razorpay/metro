@@ -91,7 +91,11 @@ func (ps *PushStream) Start() error {
 
 func (ps *PushStream) processMessages() {
 	ctx := context.Background()
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream:ProcessMessages")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessMessages", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+	})
 	defer span.Finish()
 
 	// Send message pull request to subsriber request channel
@@ -131,7 +135,11 @@ func (ps *PushStream) stopSubscriber() {
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
 	logger.Ctx(ctx).Infow("worker: response", "len(data)", len(data.ReceivedMessages), "logFields", ps.getLogFields())
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream:ProcessWebhooks")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessWebhooks", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+	})
 	defer span.Finish()
 
 	for _, message := range data.ReceivedMessages {
@@ -150,7 +158,12 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 
 func (ps *PushStream) pushMessage(ctx context.Context, subModel *subscription.Model, message *metrov1.ReceivedMessage) bool {
 	logger.Ctx(ctx).Infow("worker: publishing response data to subscription endpoint", "logFields", ps.getLogFields())
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream:PushMessage")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.PushMessage", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+		"message_id":   message.Message.MessageId,
+	})
 	defer span.Finish()
 
 	logFields := ps.getLogFields()
@@ -199,7 +212,12 @@ func (ps *PushStream) pushMessage(ctx context.Context, subModel *subscription.Mo
 }
 
 func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream:Nack")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.Nack", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+		"message_id":   message.Message.MessageId,
+	})
 	defer span.Finish()
 
 	workerMessagesNAckd.WithLabelValues(
@@ -225,7 +243,12 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 }
 
 func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream:Ack")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.Ack", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+		"message_id":   message.Message.MessageId,
+	})
 	defer span.Finish()
 
 	workerMessagesAckd.WithLabelValues(

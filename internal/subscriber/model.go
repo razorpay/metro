@@ -277,7 +277,7 @@ func (tp TopicPartition) String() string {
 // ModAckMessage ...
 type ModAckMessage struct {
 	ctx         context.Context
-	ackMessage  *AckMessage
+	AckMessage  *AckMessage
 	ackDeadline int32
 }
 
@@ -289,13 +289,13 @@ func (a *ModAckMessage) WithContext(ctx context.Context) *ModAckMessage {
 
 // String ...
 func (a *ModAckMessage) String() string {
-	return fmt.Sprintf("ackMessage:[%v], ackDeadline:[%v]", a.ackMessage, a.ackDeadline)
+	return fmt.Sprintf("ackMessage:[%v], ackDeadline:[%v]", a.AckMessage, a.ackDeadline)
 }
 
 // NewModAckMessage ...
 func NewModAckMessage(ackMessage *AckMessage, ackDeadline int32) *ModAckMessage {
 	return &ModAckMessage{
-		ackMessage:  ackMessage,
+		AckMessage:  ackMessage,
 		ackDeadline: ackDeadline,
 	}
 }

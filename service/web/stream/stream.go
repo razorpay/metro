@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"io"
 	"time"
 
@@ -26,6 +27,7 @@ type IStream interface {
 type pullStream struct {
 	clientID               string
 	subscriberID           string
+	subscription           *subscription.Model
 	subscriberCore         subscriber.ICore
 	subscriptionSubscriber subscriber.ISubscriber
 
@@ -117,7 +119,12 @@ func (s *pullStream) run() error {
 }
 
 func (s *pullStream) pull() {
-	ctx := context.Background()
+	span, ctx := opentracing.StartSpanFromContext(context.Background(), "PullStream.ProcessMessages", opentracing.Tags{
+		"subscriber":   s.subscriberID,
+		"subscription": s.subscription.Name,
+		"topic":        s.subscription.Topic,
+	})
+	defer span.Finish()
 	req := &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
 	s.subscriptionSubscriber.GetRequestChannel() <- req.WithContext(ctx)
 	logger.Ctx(ctx).Debugw("stream: sending default pull request over stream", "req", req)
@@ -151,10 +158,24 @@ func (s *pullStream) receive() {
 }
 
 func (s *pullStream) acknowledge(ctx context.Context, req *subscriber.AckMessage) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PullStream.Acknowledge", opentracing.Tags{
+		"subscriber": req.SubscriberID,
+		"topic":      req.Topic,
+		"message_id": req.MessageID,
+	})
+	defer span.Finish()
+
 	s.subscriptionSubscriber.GetAckChannel() <- req.WithContext(ctx)
 }
 
 func (s *pullStream) modifyAckDeadline(ctx context.Context, req *subscriber.ModAckMessage) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PullStream.Acknowledge", opentracing.Tags{
+		"subscriber": req.AckMessage.SubscriberID,
+		"topic":      req.AckMessage.Topic,
+		"message_id": req.AckMessage.MessageID,
+	})
+	defer span.Finish()
+
 	s.subscriptionSubscriber.GetModAckChannel() <- req.WithContext(ctx)
 }
 
@@ -203,6 +224,7 @@ func newPullStream(
 		ctx:                    server.Context(),
 		server:                 server,
 		clientID:               clientID,
+		subscription:           subscription,
 		subscriberCore:         subscriberCore,
 		subscriptionSubscriber: subs,
 		responseChan:           make(chan metrov1.PullResponse),

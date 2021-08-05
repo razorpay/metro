@@ -163,7 +163,13 @@ func (s *Subscriber) retry(ctx context.Context, retryMsg *RetryMessage) {
 
 // acknowledge messages
 func (s *Subscriber) acknowledge(req *AckMessage) {
-	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Ack")
+	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Ack", opentracing.Tags{
+		"subscriber":   req.SubscriberID,
+		"topic":        req.Topic,
+		"subscription": s.subscription,
+		"message_id":   req.MessageID,
+		"partition":    req.Partition,
+	})
 	defer span.Finish()
 
 	if req == nil {
@@ -298,7 +304,13 @@ func (s *Subscriber) removeMessageFromMemory(ctx context.Context, stats *Consump
 
 // modifyAckDeadline for messages
 func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
-	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:ModifyAck")
+	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:ModifyAck", opentracing.Tags{
+		"subscriber":   req.AckMessage.SubscriberID,
+		"topic":        req.AckMessage.Topic,
+		"subscription": s.subscription,
+		"message_id":   req.AckMessage.MessageID,
+		"partition":    req.AckMessage.Partition,
+	})
 	defer span.Finish()
 
 	if req == nil {
@@ -306,11 +318,11 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 	}
 
 	logFields := s.getLogFields()
-	logFields["messageId"] = req.ackMessage.MessageID
+	logFields["messageId"] = req.AckMessage.MessageID
 
 	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "logFields", logFields)
 
-	tp := req.ackMessage.ToTopicPartition()
+	tp := req.AckMessage.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
 
 	deadlineBasedHeap := stats.deadlineBasedMinHeap
@@ -318,7 +330,7 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 		return
 	}
 
-	msgID := req.ackMessage.MessageID
+	msgID := req.AckMessage.MessageID
 	// check if message is present in-memory or not
 	if _, ok := stats.consumedMessages[msgID]; !ok {
 		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "logFields", logFields)
@@ -344,7 +356,7 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 	}
 
 	// NOTE: currently we are not supporting non-zero mod ack. below code implementation is to handle that in future
-	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.ackMessage.MessageID]
+	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.AckMessage.MessageID]
 
 	// update the deadline of the identified message
 	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
@@ -447,7 +459,10 @@ func (s *Subscriber) Run(ctx context.Context) {
 }
 
 func (s *Subscriber) pull(req *PullRequest) {
-	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Pull")
+	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Pull", opentracing.Tags{
+		"subscriber": s.subscriberID,
+		"subscription": s.subscription,
+	})
 	defer span.Finish()
 
 	if s.consumer == nil {

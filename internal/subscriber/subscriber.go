@@ -559,7 +559,7 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 func (s *Subscriber) Stop() {
 
 	// gracefully shutdown the retrier delay consumers
-	s.retrier.Stop()
+	s.retrier.Stop(s.ctx)
 
 	s.cancelFunc()
 

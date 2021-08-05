@@ -44,6 +44,8 @@ func Test_convertRequestToKafkaHeaders(t *testing.T) {
 			MaxRetryCount:        5,
 			CurrentTopic:         "ct1",
 			InitialDelayInterval: 10,
+			CurrentDelayInterval: 50,
+			ClosestDelayInterval: 120,
 			DeadLetterTopic:      "dlt",
 			NextDeliveryTime:     tNow,
 		},
@@ -62,6 +64,8 @@ func Test_convertRequestToKafkaHeaders(t *testing.T) {
 	assert.Equal(t, request.MessageHeader.MaxRetryCount, convertedRequest.MessageHeader.MaxRetryCount)
 	assert.Equal(t, request.MessageHeader.CurrentTopic, convertedRequest.MessageHeader.CurrentTopic)
 	assert.Equal(t, request.MessageHeader.InitialDelayInterval, convertedRequest.MessageHeader.InitialDelayInterval)
+	assert.Equal(t, request.MessageHeader.CurrentDelayInterval, convertedRequest.MessageHeader.CurrentDelayInterval)
+	assert.Equal(t, request.MessageHeader.ClosestDelayInterval, convertedRequest.MessageHeader.ClosestDelayInterval)
 	assert.Equal(t, request.MessageHeader.DeadLetterTopic, convertedRequest.MessageHeader.DeadLetterTopic)
 	assert.Equal(t, request.MessageHeader.NextDeliveryTime.Unix(), convertedRequest.MessageHeader.NextDeliveryTime.Unix())
 }

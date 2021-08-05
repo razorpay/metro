@@ -20,28 +20,28 @@ const (
 
 // IRetrier interface over retrier core functionalities.
 type IRetrier interface {
-	Handle(ctx context.Context, msg messagebroker.ReceivedMessage) error
-	Stop()
+	Handle(context.Context, messagebroker.ReceivedMessage) error
+	Stop(context.Context)
 }
 
 // Retrier implements all business logic for IRetrier
 type Retrier struct {
 	dc             *subscription.DelayConfig
 	bs             brokerstore.IBrokerStore
-	delayConsumers map[subscription.Interval]*DelayConsumer // TODO: use sync map here?
+	delayConsumers sync.Map
 }
 
 // NewRetrier inits a new retrier which internally takes care of spawning the needed delay-consumers.
 func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstore.IBrokerStore, handler RetryMessageHandler) (IRetrier, error) {
-	delayConsumers := make(map[subscription.Interval]*DelayConsumer, len(dc.GetDelayTopics()))
+	delayConsumers := sync.Map{}
 
 	for interval, config := range dc.GetDelayTopicsMap() {
 		dc, err := NewDelayConsumer(ctx, config, bs, handler)
 		if err != nil {
 			return nil, err
 		}
-		go dc.Run(ctx)                // run the delay consumer
-		delayConsumers[interval] = dc // store the delay consumer for lookup
+		go dc.Run(ctx)                     // run the delay consumer
+		delayConsumers.Store(interval, dc) // store the delay consumer for lookup
 	}
 
 	r := &Retrier{
@@ -54,17 +54,20 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 }
 
 // Stop gracefully stop call the spawned delay-consumers for retry
-func (r *Retrier) Stop() {
+func (r *Retrier) Stop(ctx context.Context) {
+	logger.Ctx(ctx).Infow("retrier: stopping all delay consumers for topics", "delay_topics", r.dc.GetDelayTopics())
 	wg := sync.WaitGroup{}
-	for _, dc := range r.delayConsumers {
+	r.delayConsumers.Range(func(_, delayConsumer interface{}) bool {
 		wg.Add(1)
+		dc := delayConsumer.(*DelayConsumer)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
 			dc.cancelFunc()
 			// wait for delay-consumer shutdown to complete
 			<-dc.doneCh
 		}(&wg)
-	}
+		return true
+	})
 	wg.Wait()
 }
 
@@ -74,12 +77,13 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 	logger.Ctx(ctx).Infow("retrier: received msg for retry", msg.LogFields()...)
 
 	availableDelayIntervals := subscription.Intervals
-	// EXPONENTIAL: nextDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
-	nextDelayInterval := float64(msg.InitialDelayInterval) * math.Pow(2, float64(msg.CurrentRetryCount-1))
+
+	nextDelayInterval := calculateNextUsingExponentialBackoff(float64(msg.InitialDelayInterval), float64(msg.CurrentDelayInterval), float64(msg.CurrentRetryCount))
 
 	// next allowed delay interval from the list of pre-defined intervals
 	dInterval := findClosestDelayInterval(r.dc.MinimumBackoffInSeconds, r.dc.MaximumBackoffInSeconds, availableDelayIntervals, nextDelayInterval)
-	dc := r.delayConsumers[dInterval]
+	dcFromMap, _ := r.delayConsumers.Load(dInterval)
+	dc := dcFromMap.(*DelayConsumer)
 
 	nextDeliveryTime := time.Now().Add(time.Duration(dInterval) * time.Second)
 
@@ -89,11 +93,14 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		SourceTopic:          msg.SourceTopic,
 		Subscription:         msg.Subscription,
 		CurrentRetryCount:    msg.CurrentRetryCount,
+		RetryTopic:           msg.RetryTopic,
 		MaxRetryCount:        msg.MaxRetryCount,
 		CurrentTopic:         dc.config.Topic,
 		NextDeliveryTime:     nextDeliveryTime,
 		DeadLetterTopic:      msg.DeadLetterTopic,
 		InitialDelayInterval: msg.InitialDelayInterval,
+		CurrentDelayInterval: uint(nextDelayInterval),
+		ClosestDelayInterval: uint(dInterval),
 	}
 
 	// new broker message
@@ -109,18 +116,18 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		TimeoutMs: defaultBrokerOperationsTimeoutMs,
 	})
 	if err != nil {
-		logger.Ctx(ctx).Errorw("retrier: failed to produce to delay topic", "topic", dc.config.Topic)
+		logger.Ctx(ctx).Errorw("retrier: failed to init producer for delay topic", "topic", dc.config.Topic, "error", err.Error())
 		return err
 	}
 
 	// push message onto the identified delay-topic
 	_, err = producer.SendMessage(ctx, newMessage)
 	if err != nil {
+		logger.Ctx(ctx).Errorw("retrier: failed to produce to delay topic", "topic", dc.config.Topic, "error", err.Error())
 		return err
 	}
 
-	// update message headers for logging
-	logger.Ctx(ctx).Infow("retrier: pushed msg from retry to handler", newMessage.LogFields()...)
+	logger.Ctx(ctx).Infow("retrier: pushed msg to delay topic", newMessage.LogFields()...)
 
 	return nil
 }
@@ -131,16 +138,23 @@ func findClosestDelayInterval(min uint, max uint, intervals []subscription.Inter
 	if newDelay < float64(min) {
 		newDelay = float64(min)
 	} else if newDelay > float64(max) {
-		return subscription.Delay600sec
+		return subscription.MaxDelay
 	}
 
-	// find the closest interval greater than newDelay
+	// find the closest interval greater-equal to newDelay
 	for _, interval := range intervals {
-		if float64(interval) > newDelay {
+		if float64(interval) >= newDelay {
 			return interval
 		}
 	}
 
 	// by default use the max available delay
-	return subscription.Delay600sec
+	return subscription.MaxDelay
+}
+
+// Using below formula
+// EXPONENTIAL: nextDelayInterval = currentDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
+//Refer http://exponentialbackoffcalculator.com/
+func calculateNextUsingExponentialBackoff(initialInterval, currentInterval, currentRetryCount float64) float64 {
+	return currentInterval + initialInterval*math.Pow(2, currentRetryCount-1)
 }

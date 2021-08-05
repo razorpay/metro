@@ -58,6 +58,13 @@ var (
 	Delay600sec Interval = 600
 )
 
+var (
+	// MinDelay ...
+	MinDelay = Delay5sec
+	// MaxDelay ...
+	MaxDelay = Delay600sec
+)
+
 // Intervals during subscription creation, query from the allowed intervals list, and create all the needed topics for retry.
 var Intervals = []Interval{Delay5sec, Delay10sec, Delay30sec, Delay60sec, Delay120sec, Delay150sec, Delay300sec, Delay450sec, Delay600sec}
 

@@ -20,6 +20,8 @@ const (
 	currentRetryCountHeader    = "currentRetryCount"
 	maxRetryCountHeader        = "maxRetryCount"
 	initialDelayIntervalHeader = "initialDelayInterval"
+	currentDelayIntervalHeader = "currentDelayInterval"
+	closestDelayIntervalHeader = "closestDelayInterval"
 	deadLetterTopicHeader      = "deadLetterTopic"
 	nextDeliveryTimeHeader     = "nextDeliveryTime"
 )
@@ -87,6 +89,18 @@ func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.
 		Key:   initialDelayIntervalHeader,
 		Value: idi,
 	})
+	// extract currentDelayInterval
+	cdi, _ := json.Marshal(request.CurrentDelayInterval)
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   currentDelayIntervalHeader,
+		Value: cdi,
+	})
+	// extract closestDelayInterval
+	cldi, _ := json.Marshal(request.ClosestDelayInterval)
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   closestDelayIntervalHeader,
+		Value: cldi,
+	})
 	// extract deadLetterTopic
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   deadLetterTopicHeader,
@@ -115,6 +129,8 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 		currentRetryCount    int32
 		maxRetryCount        int32
 		initialDelayInterval uint
+		currentDelayInterval uint
+		closestDelayInterval uint
 		deadLetterTopic      string
 		nextDeliveryTime     int64 // unix timestamp
 		otherAttributes      []map[string][]byte
@@ -139,6 +155,10 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			currentTopic = string(v.Value)
 		case initialDelayIntervalHeader:
 			json.Unmarshal(v.Value, &initialDelayInterval)
+		case currentDelayIntervalHeader:
+			json.Unmarshal(v.Value, &currentDelayInterval)
+		case closestDelayIntervalHeader:
+			json.Unmarshal(v.Value, &closestDelayInterval)
 		case deadLetterTopicHeader:
 			deadLetterTopic = string(v.Value)
 		case nextDeliveryTimeHeader:
@@ -161,6 +181,8 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			Subscription:         subscription,
 			CurrentRetryCount:    currentRetryCount,
 			InitialDelayInterval: initialDelayInterval,
+			CurrentDelayInterval: currentDelayInterval,
+			ClosestDelayInterval: closestDelayInterval,
 			MaxRetryCount:        maxRetryCount,
 			DeadLetterTopic:      deadLetterTopic,
 			NextDeliveryTime:     time.Unix(nextDeliveryTime, 0),

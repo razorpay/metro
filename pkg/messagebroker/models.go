@@ -48,8 +48,12 @@ type MessageHeader struct {
 	CurrentRetryCount int32
 	MaxRetryCount     int32
 	// destination topic
-	CurrentTopic         string
+	CurrentTopic string
+	// the delay with which retry began
 	InitialDelayInterval uint
+	// the current delay being after applying backoff
+	CurrentDelayInterval uint
+	ClosestDelayInterval uint
 	DeadLetterTopic      string
 	NextDeliveryTime     time.Time
 }
@@ -67,6 +71,8 @@ func (mh MessageHeader) LogFields() []interface{} {
 			"maxRetryCount":        mh.MaxRetryCount,
 			"currentTopic":         mh.CurrentTopic,
 			"initialDelayInterval": mh.InitialDelayInterval,
+			"currentDelayInterval": mh.CurrentDelayInterval,
+			"closestDelayInterval": mh.ClosestDelayInterval,
 			"deadLetterTopic":      mh.DeadLetterTopic,
 			"nextDeliveryTime":     mh.NextDeliveryTime.Unix(),
 		},

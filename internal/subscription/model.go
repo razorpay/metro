@@ -27,10 +27,10 @@ type Model struct {
 	RetryPolicy                    *RetryPolicy      `json:"retry_policy,omitempty"`
 	DeadLetterPolicy               *DeadLetterPolicy `json:"dead_letter_policy,omitempty"`
 	Detached                       bool              `json:"detached,omitempty"`
-	ExtractedTopicProjectID        string            `json:"-"`
-	ExtractedSubscriptionProjectID string            `json:"-"`
-	ExtractedTopicName             string            `json:"-"`
-	ExtractedSubscriptionName      string            `json:"-"`
+	ExtractedTopicProjectID        string            `json:"extracted_topic_project_id"`
+	ExtractedSubscriptionProjectID string            `json:"extracted_subscription_project_id"`
+	ExtractedTopicName             string            `json:"extracted_topic_name"`
+	ExtractedSubscriptionName      string            `json:"extracted_subscription_name"`
 	DelayConfig                    *DelayConfig      `json:"delay_config,omitempty"`
 }
 

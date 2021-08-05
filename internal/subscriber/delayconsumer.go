@@ -15,7 +15,6 @@ type DelayConsumer struct {
 	ctx        context.Context
 	cancelFunc func()
 	doneCh     chan struct{}
-	interval   subscription.Interval
 	config     subscription.DelayConsumerConfig
 	isPaused   bool
 	consumer   messagebroker.Consumer

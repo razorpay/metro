@@ -123,6 +123,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 			if val, ok := err.(*merror.MError); ok {
 				// in-case users delete and re-create a subscription
 				// we should ideally be deleting all associated topics
+				// temp check, remove once delete subscription feature is live
 				if val.Code() == merror.AlreadyExists {
 					continue
 				}

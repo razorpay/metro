@@ -460,7 +460,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 
 func (s *Subscriber) pull(req *PullRequest) {
 	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Pull", opentracing.Tags{
-		"subscriber": s.subscriberID,
+		"subscriber":   s.subscriberID,
 		"subscription": s.subscription,
 	})
 	defer span.Finish()

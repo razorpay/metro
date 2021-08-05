@@ -32,7 +32,7 @@ func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrok
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
 	logger.Ctx(ctx).Infow("produce request received", "req", req.Topic)
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.Publish", opentracing.Tags{
-		"topic" : req.Topic,
+		"topic": req.Topic,
 	})
 	defer span.Finish()
 
@@ -53,7 +53,7 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 // CreateTopic creates a new topic
 func (s publisherServer) CreateTopic(ctx context.Context, req *metrov1.Topic) (*metrov1.Topic, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.CreateTopic", opentracing.Tags{
-		"topic" : req.Name,
+		"topic": req.Name,
 	})
 	defer span.Finish()
 
@@ -76,7 +76,7 @@ func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTop
 	logger.Ctx(ctx).Infow("received request to delete topic", "name", req.Topic)
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.DeleteTopic", opentracing.Tags{
-		"topic" : req.Topic,
+		"topic": req.Topic,
 	})
 	defer span.Finish()
 

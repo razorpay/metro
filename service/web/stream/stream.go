@@ -3,16 +3,17 @@ package stream
 import (
 	"context"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 	"io"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"golang.org/x/sync/errgroup"
 )
 
 // IStream ...

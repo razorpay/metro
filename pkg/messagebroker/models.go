@@ -162,9 +162,11 @@ func (rm ReceivedMessage) HasReachedRetryThreshold() bool {
 	return rm.CurrentRetryCount >= rm.MaxRetryCount
 }
 
-// CanProcessMessage ...
+// CanProcessMessage a message can be processed only:
+// if current current time is greater than the next delivery time OR
+// the number of allowed retries have been exhausted
 func (rm ReceivedMessage) CanProcessMessage() bool {
-	return time.Now().Unix() >= rm.NextDeliveryTime.Unix()
+	return time.Now().Unix() >= rm.NextDeliveryTime.Unix() || rm.HasReachedRetryThreshold()
 }
 
 // CommitOnTopicResponse ...

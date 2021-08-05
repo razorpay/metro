@@ -102,6 +102,29 @@ func (dc *DelayConsumer) pause(msg *messagebroker.ReceivedMessage) {
 	dc.cachedMsg = msg
 }
 
+// push a message onto the configured dead letter topic
+func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) error {
+	dlProducer, err := dc.bs.GetProducer(dc.ctx, messagebroker.ProducerClientOptions{
+		Topic:     msg.DeadLetterTopic,
+		TimeoutMs: defaultBrokerOperationsTimeoutMs,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = dlProducer.SendMessage(dc.ctx, messagebroker.SendMessageToTopicRequest{
+		Topic:         msg.DeadLetterTopic,
+		Message:       msg.Data,
+		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
+		MessageHeader: msg.MessageHeader,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // processes a given message of the delay-topic. takes care of orchestrating the checks to determine pause,resume of the consumer,
 // push to dead-letter topic in case the number of retries breaches allowed threshold.
 func (dc *DelayConsumer) processMsg(msg messagebroker.ReceivedMessage) {
@@ -112,10 +135,7 @@ func (dc *DelayConsumer) processMsg(msg messagebroker.ReceivedMessage) {
 
 		if msg.HasReachedRetryThreshold() {
 			// push to dead-letter topic directly in such cases
-			_, err := dc.bs.GetProducer(dc.ctx, messagebroker.ProducerClientOptions{
-				Topic:     msg.DeadLetterTopic,
-				TimeoutMs: defaultBrokerOperationsTimeoutMs,
-			})
+			err := dc.pushToDeadLetter(&msg)
 			if err != nil {
 				logger.Ctx(dc.ctx).Errorw("delay-consumer: failed to push to dead-letter topic", "topic", msg.DeadLetterTopic, "error", err.Error())
 				return

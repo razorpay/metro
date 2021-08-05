@@ -328,13 +328,23 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 
 // SendMessage sends a message on the topic
 func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
-
 	logger.Ctx(ctx).Infow("kafka: send message to topic request received", "request", request.Topic)
 	defer func() {
 		logger.Ctx(ctx).Infow("kafka: send message to topic request completed", "request", request.Topic)
 	}()
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.SendMessage")
+	// Set message id
+	msgID := request.MessageID
+	if msgID == "" {
+		// generate a message id and attach only if not sent by the caller
+		// in case of retry push to topic, the same messageID is to be re-used
+		msgID = xid.New().String()
+	}
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.SendMessage", opentracing.Tags{
+		"topic":      request.Topic,
+		"message_id": msgID,
+	})
 	defer span.Finish()
 
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "SendMessage").Inc()
@@ -354,13 +364,6 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 				})
 			}
 		}
-	}
-
-	msgID := request.MessageID
-	if msgID == "" {
-		// generate a message id and attach only if not sent by the caller
-		// in case of retry push to topic, the same messageID is to be re-used
-		msgID = xid.New().String()
 	}
 
 	kHeaders = append(kHeaders, kafkapkg.Header{
@@ -469,8 +472,17 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				logger.Ctx(ctx).Infow("failed to get span context from message", "error", extractErr.Error())
 			}
 
-			messageSpan, _ := opentracing.StartSpanFromContext(ctx, "Kafka:MessageReceived", opentracing.FollowsFrom(spanContext))
-			defer messageSpan.Finish()
+			messageSpan, _ := opentracing.StartSpanFromContext(
+				ctx,
+				"Kafka:MessageReceived",
+				opentracing.FollowsFrom(spanContext),
+				opentracing.Tags{
+					"message_id": msgID,
+					"topic":      msg.TopicPartition.Topic,
+					"partition":  msg.TopicPartition.Partition,
+					"offset":     msg.TopicPartition.Offset,
+				})
+			messageSpan.Finish()
 
 			offset, _ := strconv.ParseInt(fmt.Sprintf("%v", int32(msg.TopicPartition.Offset)), 10, 0)
 			po := NewPartitionOffset(msg.TopicPartition.Partition, int32(offset))

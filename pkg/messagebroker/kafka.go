@@ -380,16 +380,24 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		Value: mpt,
 	})
 
+	// Adds the span context in the headers of message
+	// This header data will be used by consumer to resume the current context
+	carrier := kafkaHeadersCarrier(kHeaders)
+	injectErr := opentracing.GlobalTracer().Inject(span.Context(), opentracing.TextMap, &carrier)
+	if injectErr != nil {
+		logger.Ctx(ctx).Warnw("error injecting span context in message headers", "error", injectErr.Error())
+	}
+
 	deliveryChan := make(chan kafkapkg.Event, 1000)
 	defer close(deliveryChan)
 
 	tp := NormalizeTopicName(request.Topic)
-	logger.Ctx(ctx).Debugw("normalized topic name", "topic", tp)
+	logger.Ctx(ctx).Debugw("normalized topic name", "topic", tp, "headers", carrier)
 	err := k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &tp, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
 		Key:            []byte(request.OrderingKey),
-		Headers:        kHeaders,
+		Headers:        carrier,
 	}, deliveryChan)
 	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
@@ -454,10 +462,22 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				}
 			}
 
+			// Get span context from headers
+			carrier := kafkaHeadersCarrier(msg.Headers)
+			spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
+			if extractErr != nil {
+				logger.Ctx(ctx).Infow("failed to get span context from message", "error", extractErr.Error())
+			}
+
+			messageSpan, _ := opentracing.StartSpanFromContext(ctx, "Kafka:MessageReceived", opentracing.FollowsFrom(spanContext))
+			defer messageSpan.Finish()
+
 			offset, _ := strconv.ParseInt(fmt.Sprintf("%v", int32(msg.TopicPartition.Offset)), 10, 0)
 			po := NewPartitionOffset(msg.TopicPartition.Partition, int32(offset))
+
 			msgs[po.String()] = ReceivedMessage{
-				Data: msg.Value, MessageID: msgID,
+				Data:        msg.Value,
+				MessageID:   msgID,
 				Topic:       *msg.TopicPartition.Topic,
 				Partition:   msg.TopicPartition.Partition,
 				Offset:      int32(msg.TopicPartition.Offset),

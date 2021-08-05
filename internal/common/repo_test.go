@@ -18,9 +18,9 @@ func (s *sampleModel) Key() string { return "sample-key" }
 
 func (s *sampleModel) Prefix() string { return "sample-prefix" }
 
-func (s *sampleModel) SetVersionID(vid string) {}
+func (s *sampleModel) SetVersion(version string) {}
 
-func (s *sampleModel) GetVersionID() (string, error) { return "", nil }
+func (s *sampleModel) GetVersion() string { return "0" }
 
 func TestBaseRepo_Save(t *testing.T) {
 	ctrl := gomock.NewController(t)

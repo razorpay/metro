@@ -40,7 +40,7 @@ func TestScheduler_Schedule(t *testing.T) {
 		sub := &subscription.Model{
 			Name: "sub2",
 		}
-		sub.SetVersionID("1")
+		sub.SetVersion("1")
 
 		nbs := []*nodebinding.Model{
 			{

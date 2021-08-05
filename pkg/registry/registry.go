@@ -10,14 +10,14 @@ import (
 type Pair struct {
 	Key   string
 	Value []byte
-	// VersionID - The version of the stored key-value pair
+	// Version - The version of the stored key-value pair
 	// Set by the registry, ModifyIndex in case of consul
-	VersionID string
+	Version   string
 	SessionID string
 }
 
 func (pair *Pair) String() string {
-	return fmt.Sprintf("key: %s, value: %s, sessionID: %s, versionID: %s", pair.Key, string(pair.Value), pair.SessionID, pair.VersionID)
+	return fmt.Sprintf("key: %s, value: %s, sessionID: %s, version: %s", pair.Key, string(pair.Value), pair.SessionID, pair.Version)
 }
 
 // IRegistry implements a generic interface for service discovery

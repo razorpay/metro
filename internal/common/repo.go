@@ -38,9 +38,9 @@ func (r BaseRepo) Save(ctx context.Context, m IModel) error {
 		return err
 	}
 
-	vid, err := r.Registry.Put(ctx, m.Key(), b)
+	version, err := r.Registry.Put(ctx, m.Key(), b)
 	if err == nil {
-		m.SetVersionID(vid)
+		m.SetVersion(version)
 	}
 
 	return err
@@ -105,7 +105,7 @@ func (r BaseRepo) Get(ctx context.Context, key string, m IModel) error {
 	if err != nil {
 		return err
 	}
-	m.SetVersionID(p.VersionID)
+	m.SetVersion(p.Version)
 	return nil
 }
 

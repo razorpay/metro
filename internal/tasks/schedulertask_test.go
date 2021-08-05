@@ -76,7 +76,7 @@ func TestSchedulerTask_Run(t *testing.T) {
 			PushEndpoint: "http://test.test",
 		},
 	}
-	sub.SetVersionID("1")
+	sub.SetVersion("1")
 	subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(
 		[]*subscription.Model{&sub}, nil)
 
@@ -90,10 +90,10 @@ func TestSchedulerTask_Run(t *testing.T) {
 
 	// mock nodebindings core
 	nb := &nodebinding.Model{
-		ID:                    uuid.New().String(),
-		NodeID:                workerID,
-		SubscriptionID:        "projects/test-project/subscriptions/test",
-		SubscriptionVersionID: "1",
+		ID:                  uuid.New().String(),
+		NodeID:              workerID,
+		SubscriptionID:      "projects/test-project/subscriptions/test",
+		SubscriptionVersion: "1",
 	}
 
 	nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(

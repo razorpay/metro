@@ -1,9 +1,11 @@
 package common
 
 import (
-	"fmt"
-
 	"github.com/razorpay/metro/internal/app"
+)
+
+const (
+	defaultVersion string = "0"
 )
 
 // IModel interface which all models should implement
@@ -13,30 +15,27 @@ type IModel interface {
 	// Prefix returns the key prefix used by the module
 	Prefix() string
 	// Returns the version of the saved model in the registry. Version changes for every update.
-	GetVersionID() (string, error)
+	GetVersion() string
 	//Sets the version of the saved model from the registry. Never to be used by business logic.
-	SetVersionID(vid string)
+	SetVersion(version string)
 }
 
 // BaseModel implements basic model functionality
 type BaseModel struct {
-	versionID    string
-	isVersionSet bool
+	version *string
 }
 
-//SetVersionID Base implementation of set version id
-func (b *BaseModel) SetVersionID(vid string) {
-	b.isVersionSet = true
-	b.versionID = vid
+//SetVersion Base implementation of set version
+func (b *BaseModel) SetVersion(version string) {
+	b.version = &version
 }
 
-//GetVersionID Base implementation of get version id. errors out if called without setting the version id.
-func (b *BaseModel) GetVersionID() (string, error) {
-	if !b.isVersionSet {
-		err := fmt.Errorf("calling getVersionID without setting it")
-		return "", err
+//GetVersion Base implementation of get version. Default version is "0".
+func (b *BaseModel) GetVersion() string {
+	if b.version == nil {
+		return defaultVersion
 	}
-	return b.versionID, nil
+	return *b.version
 }
 
 // GetBasePrefix returns the prefix

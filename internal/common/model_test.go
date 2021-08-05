@@ -14,15 +14,15 @@ func TestBaseModel_Prefix(t *testing.T) {
 	assert.Equal(t, "metro-"+app.GetEnv()+"/", GetBasePrefix())
 }
 
-func TestSetVersionID(t *testing.T) {
+func TestSetVersion(t *testing.T) {
 	m := BaseModel{}
-	m.SetVersionID("v1")
-	vid, _ := m.GetVersionID()
-	assert.Equal(t, "v1", vid)
+	m.SetVersion("v1")
+	ver := m.GetVersion()
+	assert.Equal(t, "v1", ver)
 }
 
-func TestGetVersionIDUnset(t *testing.T) {
+func TestGetVersionUnset(t *testing.T) {
 	m := BaseModel{}
-	_, err := m.GetVersionID()
-	assert.NotNil(t, err)
+	ver := m.GetVersion()
+	assert.Equal(t, ver, "0")
 }

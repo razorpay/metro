@@ -213,17 +213,14 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	for _, nb := range nodeBindings {
 		found := false
 		for _, sub := range sm.subCache {
-			sVID, verr := sub.GetVersionID()
-			if verr != nil {
-				return verr
-			}
+			subVersion := sub.GetVersion()
 			if sub.Name == nb.SubscriptionID {
-				if nb.SubscriptionVersionID == sVID {
+				if nb.SubscriptionVersion == subVersion {
 					found = true
 					break
 				}
 				logger.Ctx(ctx).Infow("subscription updated, stale node binding will be deleted",
-					"subscription", sub.Name, "stale versionid", nb.SubscriptionVersionID, "new versionid", sVID)
+					"subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
 			}
 		}
 
@@ -279,12 +276,9 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	// Create bindings for new subscriptions
 	for _, sub := range sm.subCache {
 		found := false
-		sVID, verr := sub.GetVersionID()
-		if verr != nil {
-			return verr
-		}
+		subVersion := sub.GetVersion()
 		for _, nb := range nodeBindings {
-			if sub.Name == nb.SubscriptionID && nb.SubscriptionVersionID == sVID {
+			if sub.Name == nb.SubscriptionID && nb.SubscriptionVersion == subVersion {
 				found = true
 				break
 			}
@@ -292,7 +286,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 
 		if !found {
 			logger.Ctx(ctx).Infow("scheduling subscription on nodes",
-				"subscription", sub.Name, "topic", sub.Topic, "subscription versionid", sVID)
+				"subscription", sub.Name, "topic", sub.Topic, "subscription version", subVersion)
 
 			topicM, terr := sm.topicCore.Get(ctx, sub.Topic)
 			if terr != nil {

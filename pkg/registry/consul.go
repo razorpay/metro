@@ -262,7 +262,7 @@ func (c *ConsulClient) Get(ctx context.Context, key string) (*Pair, error) {
 	if kv == nil {
 		return nil, errors.New("key not found")
 	}
-	return &Pair{Key: key, Value: kv.Value, VersionID: strconv.FormatUint(kv.ModifyIndex, 10)}, nil
+	return &Pair{Key: key, Value: kv.Value, Version: strconv.FormatUint(kv.ModifyIndex, 10)}, nil
 }
 
 // List returns a slice of pairs for a key prefix
@@ -286,9 +286,9 @@ func (c *ConsulClient) List(ctx context.Context, prefix string) ([]Pair, error) 
 
 	for _, kv := range kvs {
 		pairs = append(pairs, Pair{
-			Key:       kv.Key,
-			Value:     kv.Value,
-			VersionID: strconv.FormatUint(kv.ModifyIndex, 10),
+			Key:     kv.Key,
+			Value:   kv.Value,
+			Version: strconv.FormatUint(kv.ModifyIndex, 10),
 		})
 	}
 

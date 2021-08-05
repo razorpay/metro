@@ -411,7 +411,7 @@ func TestGetSuccess(t *testing.T) {
 	ctx := context.Background()
 	val, err := c.Get(ctx, "k1")
 	t.Log(val)
-	assert.Equal(t, &Pair{Key: "k1", Value: []byte("v1"), VersionID: "0", SessionID: ""}, val)
+	assert.Equal(t, &Pair{Key: "k1", Value: []byte("v1"), Version: "0", SessionID: ""}, val)
 	assert.Nil(t, err)
 }
 

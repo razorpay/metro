@@ -6,12 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/razorpay/metro/pkg/logger"
-
-	"github.com/razorpay/metro/pkg/messagebroker"
-
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
 const (
@@ -57,9 +55,9 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 func (r *Retrier) Stop(ctx context.Context) {
 	logger.Ctx(ctx).Infow("retrier: stopping all delay consumers for topics", "delay_topics", r.dc.GetDelayTopics())
 	wg := sync.WaitGroup{}
-	r.delayConsumers.Range(func(_, delayConsumer interface{}) bool {
+	r.delayConsumers.Range(func(_, dcFromMap interface{}) bool {
 		wg.Add(1)
-		dc := delayConsumer.(*DelayConsumer)
+		dc := dcFromMap.(*DelayConsumer)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
 			dc.cancelFunc()

@@ -104,6 +104,7 @@ func (dc *DelayConsumer) pause(msg *messagebroker.ReceivedMessage) {
 
 // push a message onto the configured dead letter topic
 func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) error {
+	logger.Ctx(dc.ctx).Infow("delay-consumer: pushing to dead-letter", dc.config.LogFields()...)
 	dlProducer, err := dc.bs.GetProducer(dc.ctx, messagebroker.ProducerClientOptions{
 		Topic:     msg.DeadLetterTopic,
 		TimeoutMs: defaultBrokerOperationsTimeoutMs,

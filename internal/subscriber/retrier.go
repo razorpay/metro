@@ -135,10 +135,11 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 // given a slice of pre-defined delay intervals, min and max backoff, the function returns the next closest interval
 func findClosestDelayInterval(min uint, max uint, intervals []subscription.Interval, nextDelayInterval float64) subscription.Interval {
 	newDelay := nextDelayInterval
+	// restrict newDelay based on the given min-max boundary conditions
 	if newDelay < float64(min) {
 		newDelay = float64(min)
 	} else if newDelay > float64(max) {
-		return subscription.MaxDelay
+		newDelay = float64(max)
 	}
 
 	// find the closest interval greater-equal to newDelay

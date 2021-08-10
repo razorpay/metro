@@ -3,12 +3,13 @@
 package stream
 
 import (
+	"testing"
+	"time"
+
 	"github.com/golang/protobuf/jsonpb"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"testing"
-	"time"
 )
 
 func Test_ProtoMarhshalUnMarshal(t *testing.T) {

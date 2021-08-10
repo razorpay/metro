@@ -44,7 +44,7 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
-	logger.Ctx(ctx).Infow("produce request completed", "req", req.Topic)
+	logger.Ctx(ctx).Infow("produce request completed", "req", req.Topic, "message_ids", msgIDs)
 	return &metrov1.PublishResponse{MessageIds: msgIDs}, nil
 }
 

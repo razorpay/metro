@@ -3,7 +3,6 @@ package stream
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
@@ -129,8 +129,8 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 
 		startTime := time.Now()
 		pushRequest := newPushEndpointRequest(message, subModel.Name)
-		postBody, _ := json.Marshal(pushRequest)
-		postData := bytes.NewBuffer(postBody)
+		postData := getRequestBytes(pushRequest)
+
 		req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
 		if subModel.HasCredentials() {
 			req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
@@ -257,4 +257,21 @@ func newPushEndpointRequest(message *metrov1.ReceivedMessage, subscription strin
 		Message:      message.Message,
 		Subscription: subscription,
 	}
+}
+
+// use `golang/protobuf/jsonpb` lib to marhsal/unmarhsal all proto structs
+func getRequestBytes(pushRequest *metrov1.PushEndpointRequest) *bytes.Buffer {
+	marshaler := jsonpb.Marshaler{
+		EnumsAsInts:  false,
+		EmitDefaults: false,
+		Indent:       "",
+		OrigName:     false,
+		AnyResolver:  nil,
+	}
+
+	var b []byte
+	byteBuffer := bytes.NewBuffer(b)
+	marshaler.Marshal(byteBuffer, pushRequest)
+
+	return byteBuffer
 }

@@ -14,8 +14,8 @@ import (
 
 func Test_ProtoMarhshalUnMarshal(t *testing.T) {
 
-	const layout = "Jan 2, 2006 at 3:04pm (MST)"
-	tm, _ := time.Parse(layout, "Jan 1, 2021 at 12:05pm (IST)") // using fixed time for deterministic test results
+	const layout = "Jan 2, 2006 3:04pm"
+	tm, _ := time.Parse(layout, "Jan 1, 2021 12:05pm") // using fixed time for deterministic test results
 
 	originalReq := &metrov1.PushEndpointRequest{
 		Message: &metrov1.PubsubMessage{
@@ -35,7 +35,7 @@ func Test_ProtoMarhshalUnMarshal(t *testing.T) {
 	reqBytes := getRequestBytes(originalReq)
 	reqAsString := reqBytes.String()
 	// match the string generated after proto marshalling
-	assert.Equal(t, reqAsString, "{\"message\":{\"data\":\"YWJj\",\"attributes\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"messageId\":\"msg-1\",\"publishTime\":\"2021-01-01T06:35:00Z\",\"orderingKey\":\"ok-1\"},\"subscription\":\"subs-1\"}")
+	assert.Equal(t, reqAsString, "{\"message\":{\"data\":\"YWJj\",\"attributes\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"messageId\":\"msg-1\",\"publishTime\":\"2021-01-01T12:05:00Z\",\"orderingKey\":\"ok-1\"},\"subscription\":\"subs-1\"}")
 
 	// unmarshal
 	currentReq := metrov1.PushEndpointRequest{}

@@ -44,6 +44,7 @@ func (r *Repo) List(ctx context.Context, prefix string) ([]common.IModel, error)
 		if err != nil {
 			return nil, err
 		}
+		m.SetVersion(pair.Version)
 		models = append(models, &m)
 	}
 	return models, nil

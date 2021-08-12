@@ -2,6 +2,8 @@ package registry
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -205,7 +207,7 @@ func (c *ConsulClient) Watch(ctx context.Context, wh *WatchConfig) (IWatcher, er
 }
 
 // Put a key value pair
-func (c *ConsulClient) Put(ctx context.Context, key string, value []byte) error {
+func (c *ConsulClient) Put(ctx context.Context, key string, value []byte) (string, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.Put")
 	defer span.Finish()
 
@@ -216,15 +218,33 @@ func (c *ConsulClient) Put(ctx context.Context, key string, value []byte) error 
 		registryOperationTimeTaken.WithLabelValues(env, "Put").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	_, err := c.client.KV().Put(&api.KVPair{
-		Key:   key,
-		Value: value,
-	}, nil)
-	return err
+	// Using transaction because a simple put does not fetch the modifyindex
+	putTxn := api.TxnOps{&api.TxnOp{KV: &api.KVTxnOp{Verb: api.KVSet, Key: key, Value: value}}}
+	ok, resp, _, err := c.client.Txn().Txn(putTxn, nil)
+	if !ok {
+		if err != nil {
+			return "", err
+		}
+		if len(resp.Errors) == 0 {
+			// scenario not possible
+			err = fmt.Errorf("could not execute put")
+		} else {
+			err = fmt.Errorf(resp.Errors[0].What)
+		}
+		return "", err
+	}
+
+	if len(resp.Results) == 0 || resp.Results[0].KV == nil {
+		// scenario not possible
+		err = fmt.Errorf("error in consul transaction: received empty result list")
+		return "", err
+	}
+
+	return strconv.FormatUint(resp.Results[0].KV.ModifyIndex, 10), err
 }
 
 // Get returns a value for a key
-func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
+func (c *ConsulClient) Get(ctx context.Context, key string) (*Pair, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.Get")
 	defer span.Finish()
 
@@ -242,7 +262,7 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 	if kv == nil {
 		return nil, errors.New("key not found")
 	}
-	return kv.Value, nil
+	return &Pair{Key: key, Value: kv.Value, Version: strconv.FormatUint(kv.ModifyIndex, 10)}, nil
 }
 
 // List returns a slice of pairs for a key prefix
@@ -266,8 +286,9 @@ func (c *ConsulClient) List(ctx context.Context, prefix string) ([]Pair, error) 
 
 	for _, kv := range kvs {
 		pairs = append(pairs, Pair{
-			Key:   kv.Key,
-			Value: kv.Value,
+			Key:     kv.Key,
+			Value:   kv.Value,
+			Version: strconv.FormatUint(kv.ModifyIndex, 10),
 		})
 	}
 

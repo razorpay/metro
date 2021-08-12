@@ -39,11 +39,13 @@ func (s *Scheduler) Schedule(subscription *subscription.Model, nbs []*nodebindin
 	if err != nil {
 		return nil, err
 	}
+	subVersion := subscription.GetVersion()
 
 	nb := nodebinding.Model{
-		ID:             uuid.New().String(),
-		NodeID:         node.ID,
-		SubscriptionID: subscription.Name,
+		ID:                  uuid.New().String(),
+		NodeID:              node.ID,
+		SubscriptionID:      subscription.Name,
+		SubscriptionVersion: subVersion,
 	}
 
 	return &nb, nil

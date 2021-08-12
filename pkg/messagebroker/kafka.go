@@ -414,10 +414,6 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
-	logger.Ctx(ctx).Infow("kafka: get messages from topic request received", "request", request)
-	defer func() {
-		logger.Ctx(ctx).Infow("kafka: get messages from topic request completed", "request", request)
-	}()
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.ReceiveMessages")
 	defer span.Finish()

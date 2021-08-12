@@ -461,6 +461,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 					protoMsg := &metrov1.PubsubMessage{}
 					err = proto.Unmarshal(msg.Data, protoMsg)
 					if err != nil {
+						logger.Ctx(ctx).Errorw("subscriber: error in proto unmarshal", "logFields", s.getLogFields(), "error", err.Error())
 						s.errChan <- err
 						continue
 					}
@@ -468,9 +469,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 					// set messageID and publish time
 					protoMsg.MessageId = msg.MessageID
 					ts := &timestamppb.Timestamp{}
-					ts.Seconds = msg.PublishTime.Unix() // test this
+					ts.Seconds = msg.PublishTime.Unix()
 					protoMsg.PublishTime = ts
-					// TODO: fix delivery attempt
 
 					// store the processed r1 in a map for limit checks
 					tp := NewTopicPartition(msg.Topic, msg.Partition)
@@ -485,6 +485,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 						})
 
 						if err != nil {
+							logger.Ctx(ctx).Errorw("subscriber: error in reading topic metadata", "logFields", s.getLogFields(), "error", err.Error())
 							s.errChan <- err
 							continue
 						}
@@ -520,6 +521,10 @@ func (s *Subscriber) Run(ctx context.Context) {
 			caseStartTime := time.Now()
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
+		case err := <-s.errChan:
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriber: got error on errCh channel", "logFields", s.getLogFields(), "error", err.Error())
+			}
 		case <-ctx.Done():
 			logger.Ctx(ctx).Infow("subscriber: <-ctx.Done() called", "logFields", s.getLogFields())
 

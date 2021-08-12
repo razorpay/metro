@@ -280,6 +280,11 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 
 // GetTopicMetadata fetches the given topics metadata stored in the broker
 func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	logger.Ctx(ctx).Infow("kafka: get metadata request received", "request", request)
+	defer func() {
+		logger.Ctx(ctx).Infow("kafka: get metadata request completed", "request", request)
+	}()
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.GetMetadata")
 	defer span.Finish()
 
@@ -300,7 +305,7 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 
 	// TODO : normalize timeouts
 	resp, err := k.Consumer.Committed(tps, 5000)
-	if err != nil || resp == nil || len(resp) == 0 {
+	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "GetTopicMetadata", err.Error()).Inc()
 		return GetTopicMetadataResponse{}, err
 	}
@@ -311,11 +316,17 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 		Topic:     request.Topic,
 		Partition: request.Partition,
 		Offset:    int32(offset),
-	}, err
+	}, nil
 }
 
 // SendMessage sends a message on the topic
 func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
+
+	logger.Ctx(ctx).Infow("kafka: send message to topic request received", "request", request.Topic)
+	defer func() {
+		logger.Ctx(ctx).Infow("kafka: send message to topic request completed", "request", request.Topic)
+	}()
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.SendMessage")
 	defer span.Finish()
 
@@ -388,8 +399,6 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	select {
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
-		//case <-time.After(time.Duration(request.TimeoutMs) * time.Millisecond):
-		//	return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutMs)
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {
@@ -405,6 +414,11 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
+	logger.Ctx(ctx).Infow("kafka: get messages from topic request received", "request", request)
+	defer func() {
+		logger.Ctx(ctx).Infow("kafka: get messages from topic request completed", "request", request)
+	}()
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.ReceiveMessages")
 	defer span.Finish()
 

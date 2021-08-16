@@ -34,7 +34,10 @@ func newSubscriberServer(projectCore project.ICore, brokerStore brokerstore.IBro
 // CreateSubscription to create a new subscription
 func (s subscriberserver) CreateSubscription(ctx context.Context, req *metrov1.Subscription) (*metrov1.Subscription, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to create subscription", "name", req.Name, "topic", req.Topic)
-	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.CreateSubscription")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.CreateSubscription", opentracing.Tags{
+		"topic":        req.Topic,
+		"subscription": req.Name,
+	})
 	defer span.Finish()
 
 	m, err := subscription.GetValidatedModelForCreate(ctx, req)
@@ -87,7 +90,10 @@ func (s subscriberserver) UpdateSubscription(ctx context.Context, req *metrov1.U
 func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to ack messages", "ack_req", req.String())
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.Acknowledge")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.Acknowledge", opentracing.Tags{
+		"subscription": req.Subscription,
+		"ack_ids":      req.AckIds,
+	})
 	defer span.Finish()
 
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
@@ -107,6 +113,12 @@ func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.Acknowle
 // Pull messages
 func (s subscriberserver) Pull(ctx context.Context, req *metrov1.PullRequest) (*metrov1.PullResponse, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to pull messages", "pull_req", req.String())
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.Pull", opentracing.Tags{
+		"subscription": req.Subscription,
+	})
+	defer span.Finish()
+
 	// non streaming pull not to be supported
 	/*
 		res, err := s.subscriberCore.Pull(ctx, &subscriber.PullRequest{req.Subscription, 0, 0}, 2, xid.New().String()) // TODO: fix
@@ -179,7 +191,9 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to delete subscription", "name", req.Subscription)
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.DeleteSubscription")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.DeleteSubscription", opentracing.Tags{
+		"subscription": req.Subscription,
+	})
 	defer span.Finish()
 
 	m, err := subscription.GetValidatedModelForDelete(ctx, &metrov1.Subscription{Name: req.Subscription})
@@ -197,7 +211,10 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("subscriberserver: received request to modack messages", "mod_ack_req", req.String())
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.ModifyAckDeadline")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.ModifyAckDeadline", opentracing.Tags{
+		"subscription": req.Subscription,
+		"ack_ids":      req.AckIds,
+	})
 	defer span.Finish()
 
 	parsedReq, parseErr := stream.NewParsedModifyAckDeadlineRequest(req)

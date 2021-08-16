@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"golang.org/x/sync/errgroup"
 )
 
 // IStream ...
@@ -26,6 +28,7 @@ type IStream interface {
 type pullStream struct {
 	clientID               string
 	subscriberID           string
+	subscription           *subscription.Model
 	subscriberCore         subscriber.ICore
 	subscriptionSubscriber subscriber.ISubscriber
 
@@ -90,14 +93,16 @@ func (s *pullStream) run() error {
 			if parsedReq.HasAcknowledgement() {
 				// request to ack messages
 				for _, ackMsg := range parsedReq.AckMessages {
-					s.subscriptionSubscriber.GetAckChannel() <- ackMsg
+					s.subscriptionSubscriber.GetAckChannel() <- ackMsg.WithContext(s.ctx)
 				}
 			}
 
 			if parsedReq.HasModifyAcknowledgement() {
 				// request to mod ack messages
 				for _, modAckMsg := range parsedReq.AckMessages {
-					s.subscriptionSubscriber.GetModAckChannel() <- subscriber.NewModAckMessage(modAckMsg, parsedReq.ModifyDeadlineMsgIdsWithSecs[modAckMsg.MessageID])
+					modAckReq := subscriber.NewModAckMessage(modAckMsg, parsedReq.ModifyDeadlineMsgIdsWithSecs[modAckMsg.MessageID])
+					modAckReq = modAckReq.WithContext(s.ctx)
+					s.subscriptionSubscriber.GetModAckChannel() <- modAckReq
 				}
 			}
 
@@ -108,22 +113,31 @@ func (s *pullStream) run() error {
 			}
 		default:
 			// once stream is established, we can continuously send messages over it
-			req := &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
-			s.subscriptionSubscriber.GetRequestChannel() <- req
-			logger.Ctx(s.ctx).Debugw("stream: sending default pull request over stream", "req", req)
-			select {
-			case res := <-s.subscriptionSubscriber.GetResponseChannel():
-				if len(res.ReceivedMessages) > 0 {
-					err := s.server.Send(&metrov1.StreamingPullResponse{ReceivedMessages: res.ReceivedMessages})
-					if err != nil {
-						logger.Ctx(s.ctx).Errorw("error in send", "msg", err.Error())
-						s.stop()
-						return nil
-					}
-					logger.Ctx(s.ctx).Debugw("stream: StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages), "subscriber", s.subscriberID)
-				}
-			}
+			s.pull()
 			timeout.Reset(time.Duration(streamAckDeadlineSecs) * time.Second)
+		}
+	}
+}
+
+func (s *pullStream) pull() {
+	span, ctx := opentracing.StartSpanFromContext(context.Background(), "PullStream.ProcessMessages", opentracing.Tags{
+		"subscriber":   s.subscriberID,
+		"subscription": s.subscription.Name,
+		"topic":        s.subscription.Topic,
+	})
+	defer span.Finish()
+	req := &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
+	s.subscriptionSubscriber.GetRequestChannel() <- req.WithContext(ctx)
+	logger.Ctx(ctx).Debugw("stream: sending default pull request over stream", "req", req)
+	select {
+	case res := <-s.subscriptionSubscriber.GetResponseChannel():
+		if len(res.ReceivedMessages) > 0 {
+			err := s.server.Send(&metrov1.StreamingPullResponse{ReceivedMessages: res.ReceivedMessages})
+			if err != nil {
+				logger.Ctx(ctx).Errorw("error in send", "msg", err.Error())
+				s.stop()
+			}
+			logger.Ctx(ctx).Debugw("stream: StreamingPullResponse sent", "numOfMessages", len(res.ReceivedMessages), "subscriber", s.subscriberID)
 		}
 	}
 }
@@ -144,12 +158,26 @@ func (s *pullStream) receive() {
 	s.reqChan <- req
 }
 
-func (s *pullStream) acknowledge(_ context.Context, req *subscriber.AckMessage) {
-	s.subscriptionSubscriber.GetAckChannel() <- req
+func (s *pullStream) acknowledge(ctx context.Context, req *subscriber.AckMessage) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PullStream.Acknowledge", opentracing.Tags{
+		"subscriber": req.SubscriberID,
+		"topic":      req.Topic,
+		"message_id": req.MessageID,
+	})
+	defer span.Finish()
+
+	s.subscriptionSubscriber.GetAckChannel() <- req.WithContext(ctx)
 }
 
-func (s *pullStream) modifyAckDeadline(_ context.Context, req *subscriber.ModAckMessage) {
-	s.subscriptionSubscriber.GetModAckChannel() <- req
+func (s *pullStream) modifyAckDeadline(ctx context.Context, req *subscriber.ModAckMessage) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PullStream.Acknowledge", opentracing.Tags{
+		"subscriber": req.AckMessage.SubscriberID,
+		"topic":      req.AckMessage.Topic,
+		"message_id": req.AckMessage.MessageID,
+	})
+	defer span.Finish()
+
+	s.subscriptionSubscriber.GetModAckChannel() <- req.WithContext(ctx)
 }
 
 func (s *pullStream) stop() {
@@ -165,8 +193,14 @@ func (s *pullStream) stop() {
 	}
 }
 
-func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID string, subscription *subscription.Model, subscriberCore subscriber.ICore, errGroup *errgroup.Group, cleanupCh chan cleanupMessage) (*pullStream, error) {
-
+func newPullStream(
+	server metrov1.Subscriber_StreamingPullServer,
+	clientID string,
+	subscription *subscription.Model,
+	subscriberCore subscriber.ICore,
+	errGroup *errgroup.Group,
+	cleanupCh chan cleanupMessage,
+) (*pullStream, error) {
 	// use the clientID as the subscriberID if provided
 	subscriberID := clientID
 	if subscriberID == "" {
@@ -191,6 +225,7 @@ func newPullStream(server metrov1.Subscriber_StreamingPullServer, clientID strin
 		ctx:                    server.Context(),
 		server:                 server,
 		clientID:               clientID,
+		subscription:           subscription,
 		subscriberCore:         subscriberCore,
 		subscriptionSubscriber: subs,
 		responseChan:           make(chan metrov1.PullResponse),

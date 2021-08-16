@@ -30,7 +30,9 @@ func NewCore(bs brokerstore.IBrokerStore) ICore {
 
 // Publish messages
 func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherCore.Publish")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherCore.Publish", opentracing.Tags{
+		"topic": req.Topic,
+	})
 	defer span.Finish()
 
 	producerOps := messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutMs: 500}

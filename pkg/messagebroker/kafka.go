@@ -346,7 +346,18 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		logger.Ctx(ctx).Infow("kafka: send message to topic request completed", "topic", request.Topic)
 	}()
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.SendMessage")
+	// Set message id
+	msgID := request.MessageID
+	if msgID == "" {
+		// generate a message id and attach only if not sent by the caller
+		// in case of retry push to topic, the same messageID is to be re-used
+		msgID = xid.New().String()
+	}
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.SendMessage", opentracing.Tags{
+		"topic":      request.Topic,
+		"message_id": msgID,
+	})
 	defer span.Finish()
 
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "SendMessage").Inc()
@@ -369,12 +380,6 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}
 
 	logger.Ctx(ctx).Infow("kafka: send message appending headers to request", "topic", request.Topic)
-	msgID := request.MessageID
-	if msgID == "" {
-		// generate a message id and attach only if not sent by the caller
-		// in case of retry push to topic, the same messageID is to be re-used
-		msgID = xid.New().String()
-	}
 
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   messageID,
@@ -403,16 +408,24 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	logger.Ctx(ctx).Infow("kafka: send message appending headers to request completed", "request", request.Topic, "kHeaders", kHeaders)
 
+	// Adds the span context in the headers of message
+	// This header data will be used by consumer to resume the current context
+	carrier := kafkaHeadersCarrier(kHeaders)
+	injectErr := opentracing.GlobalTracer().Inject(span.Context(), opentracing.TextMap, &carrier)
+	if injectErr != nil {
+		logger.Ctx(ctx).Warnw("error injecting span context in message headers", "error", injectErr.Error())
+	}
+
 	deliveryChan := make(chan kafkapkg.Event, 1000)
 	defer close(deliveryChan)
 
 	tp := NormalizeTopicName(request.Topic)
-	logger.Ctx(ctx).Debugw("normalized topic name", "topic", tp)
+	logger.Ctx(ctx).Debugw("normalized topic name", "topic", tp, "headers", carrier)
 	err = k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &tp, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
 		Key:            []byte(request.OrderingKey),
-		Headers:        kHeaders,
+		Headers:        carrier,
 	}, deliveryChan)
 	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
@@ -471,10 +484,31 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				}
 			}
 
+			// Get span context from headers
+			carrier := kafkaHeadersCarrier(msg.Headers)
+			spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
+			if extractErr != nil {
+				logger.Ctx(ctx).Infow("failed to get span context from message", "error", extractErr.Error())
+			}
+
+			messageSpan, _ := opentracing.StartSpanFromContext(
+				ctx,
+				"Kafka:MessageReceived",
+				opentracing.FollowsFrom(spanContext),
+				opentracing.Tags{
+					"message_id": msgID,
+					"topic":      msg.TopicPartition.Topic,
+					"partition":  msg.TopicPartition.Partition,
+					"offset":     msg.TopicPartition.Offset,
+				})
+			messageSpan.Finish()
+
 			offset, _ := strconv.ParseInt(fmt.Sprintf("%v", int32(msg.TopicPartition.Offset)), 10, 0)
 			po := NewPartitionOffset(msg.TopicPartition.Partition, int32(offset))
+
 			msgs[po.String()] = ReceivedMessage{
-				Data: msg.Value, MessageID: msgID,
+				Data:        msg.Value,
+				MessageID:   msgID,
 				Topic:       *msg.TopicPartition.Topic,
 				Partition:   msg.TopicPartition.Partition,
 				Offset:      int32(msg.TopicPartition.Offset),

@@ -121,7 +121,6 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 
 // Acknowledge ...
 func (s *Manager) Acknowledge(ctx context.Context, parsedReq *ParsedStreamingPullRequest) error {
-
 	// holds a map of ackMsgs to their corresponding originating server addresses
 	msgsToBeProxied := make(map[string][]*subscriber.AckMessage, 0)
 

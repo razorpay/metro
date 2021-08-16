@@ -111,6 +111,8 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"request.timeout.ms":      30000,
 		"delivery.timeout.ms":     150000,
 		"connections.max.idle.ms": 180000,
+		"go.logs.channel.enable":  true,
+		"debug":                   "all",
 	}
 
 	if bConfig.EnableTLS {
@@ -129,6 +131,14 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		logger.Ctx(ctx).Infow("starting producer log reader...")
+		select {
+		case log := <-p.Logs():
+			logger.Ctx(ctx).Infow("kafka producer logs", "options", options, "log", log.String())
+		}
+	}()
 
 	logger.Ctx(ctx).Infow("kafka producer: initialized")
 

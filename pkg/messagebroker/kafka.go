@@ -107,7 +107,7 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
 		"socket.keepalive.enable": true,
 		"retries":                 3,
-		"linger.ms":               100,
+		"linger.ms":               0,
 		"request.timeout.ms":      3000,
 		"delivery.timeout.ms":     10000,
 		"connections.max.idle.ms": 180000,
@@ -341,9 +341,9 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 // SendMessage sends a message on the topic
 func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
 
-	logger.Ctx(ctx).Infow("kafka: send message to topic request received", "request", request.Topic)
+	logger.Ctx(ctx).Infow("kafka: send message to topic request received", "topic", request.Topic)
 	defer func() {
-		logger.Ctx(ctx).Infow("kafka: send message to topic request completed", "request", request.Topic)
+		logger.Ctx(ctx).Infow("kafka: send message to topic request completed", "topic", request.Topic)
 	}()
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.SendMessage")
@@ -368,7 +368,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		}
 	}
 
-	logger.Ctx(ctx).Infow("kafka: send message appending headers to request", "request", request.Topic)
+	logger.Ctx(ctx).Infow("kafka: send message appending headers to request", "topic", request.Topic)
 	msgID := request.MessageID
 	if msgID == "" {
 		// generate a message id and attach only if not sent by the caller
@@ -720,7 +720,7 @@ func (k *KafkaBroker) Shutdown(ctx context.Context) {
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Shutdown").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	logger.Ctx(ctx).Infow("kafka: request to close the consumer", "topic", k.COptions.Topics)
+	logger.Ctx(ctx).Infow("kafka: request to close the producer", "topic", k.COptions.Topics)
 
 	k.Producer.Close()
 

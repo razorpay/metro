@@ -69,8 +69,8 @@ type IBrokerStore interface {
 	// GetProducer returns for an existing producer instance, if available returns that else creates as new instance
 	GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error)
 
-	// ShutdownAndRemoveProducer deletes the producer from the store followed by a shutdown
-	ShutdownAndRemoveProducer(ctx context.Context, op messagebroker.ProducerClientOptions) bool
+	// RemoveProducer deletes the producer from the store followed by a shutdown
+	RemoveProducer(ctx context.Context, op messagebroker.ProducerClientOptions) bool
 
 	// GetAdmin returns for an existing admin instance, if available returns that else creates as new instance
 	GetAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
@@ -205,18 +205,18 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	return producer.(messagebroker.Producer), nil
 }
 
-// ShutdownAndRemoveProducer deletes the producer from the store followed by a shutdown
-func (b *BrokerStore) ShutdownAndRemoveProducer(ctx context.Context, op messagebroker.ProducerClientOptions) bool {
+// RemoveProducer deletes the producer from the store followed by a shutdown
+func (b *BrokerStore) RemoveProducer(ctx context.Context, op messagebroker.ProducerClientOptions) bool {
 	logger.Ctx(ctx).Infow("brokerstore: request to shutdown & remove producer", "options", op.Topic)
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.ShutdownAndRemoveProducer")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.RemoveProducer")
 	defer span.Finish()
 
-	brokerStoreOperationCount.WithLabelValues(env, "ShutdownAndRemoveProducer").Inc()
+	brokerStoreOperationCount.WithLabelValues(env, "RemoveProducer").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		brokerStoreOperationTimeTaken.WithLabelValues(env, "ShutdownAndRemoveProducer").Observe(time.Now().Sub(startTime).Seconds())
+		brokerStoreOperationTimeTaken.WithLabelValues(env, "RemoveProducer").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
 	wasProducerFound := false
@@ -226,7 +226,7 @@ func (b *BrokerStore) ShutdownAndRemoveProducer(ctx context.Context, op messageb
 	defer b.partitionLock.Unlock(key.String()) // unlock
 
 	producer, ok := b.producerMap.Load(key.String())
-	if ok {
+	if ok && producer != nil {
 		wasProducerFound = true
 		b.producerMap.Delete(producer)
 		producer.(messagebroker.Producer).Shutdown(ctx)

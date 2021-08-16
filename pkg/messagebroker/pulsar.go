@@ -311,4 +311,5 @@ func (p *PulsarBroker) IsHealthy(_ context.Context) (bool, error) {
 
 // Shutdown closes the producer
 func (p *PulsarBroker) Shutdown(ctx context.Context) {
+	panic("implement this!")
 }

@@ -106,11 +106,13 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
 		"socket.keepalive.enable": true,
-		"retries":                 2,
+		"retries":                 3,
 		"linger.ms":               0,
-		"request.timeout.ms":      30000,
-		"delivery.timeout.ms":     150000,
+		"request.timeout.ms":      3000,
+		"delivery.timeout.ms":     10000,
 		"connections.max.idle.ms": 180000,
+		"go.logs.channel.enable":  true,
+		"debug":                   "all",
 	}
 
 	if bConfig.EnableTLS {
@@ -129,6 +131,16 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		logger.Ctx(ctx).Infow("starting producer log reader...", "topic", options.Topic)
+		select {
+		case <-ctx.Done():
+			return
+		case log := <-p.Logs():
+			logger.Ctx(ctx).Infow("kafka producer logs", "topic", options.Topic, "log", log.String())
+		}
+	}()
 
 	logger.Ctx(ctx).Infow("kafka producer: initialized")
 
@@ -328,9 +340,10 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 
 // SendMessage sends a message on the topic
 func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopicRequest) (*SendMessageToTopicResponse, error) {
-	logger.Ctx(ctx).Infow("kafka: send message to topic request received", "request", request.Topic)
+
+	logger.Ctx(ctx).Infow("kafka: send message to topic request received", "topic", request.Topic)
 	defer func() {
-		logger.Ctx(ctx).Infow("kafka: send message to topic request completed", "request", request.Topic)
+		logger.Ctx(ctx).Infow("kafka: send message to topic request completed", "topic", request.Topic)
 	}()
 
 	// Set message id
@@ -366,22 +379,34 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		}
 	}
 
+	logger.Ctx(ctx).Infow("kafka: send message appending headers to request", "topic", request.Topic)
+
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   messageID,
 		Value: []byte(msgID),
 	})
 
-	rc, _ := json.Marshal(request.RetryCount)
+	rc, err := json.Marshal(request.RetryCount)
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   retryCount,
 		Value: rc,
 	})
+	if err != nil {
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
+		return nil, err
+	}
 
-	mpt, _ := json.Marshal(time.Now().Unix())
+	mpt, err := json.Marshal(time.Now().Unix())
 	kHeaders = append(kHeaders, kafkapkg.Header{
 		Key:   msgProduceTime,
 		Value: mpt,
 	})
+	if err != nil {
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
+		return nil, err
+	}
+
+	logger.Ctx(ctx).Infow("kafka: send message appending headers to request completed", "request", request.Topic, "kHeaders", kHeaders)
 
 	// Adds the span context in the headers of message
 	// This header data will be used by consumer to resume the current context
@@ -396,7 +421,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	tp := NormalizeTopicName(request.Topic)
 	logger.Ctx(ctx).Debugw("normalized topic name", "topic", tp, "headers", carrier)
-	err := k.Producer.Produce(&kafkapkg.Message{
+	err = k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &tp, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
 		Key:            []byte(request.OrderingKey),
@@ -405,12 +430,6 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
 		return nil, err
-	}
-
-	// if timeout not send, override with default timeout set during client creation
-	timeout := request.TimeoutMs
-	if timeout == 0 {
-		timeout = int(k.POptions.TimeoutMs)
 	}
 
 	var m *kafkapkg.Message
@@ -469,7 +488,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			carrier := kafkaHeadersCarrier(msg.Headers)
 			spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
 			if extractErr != nil {
-				logger.Ctx(ctx).Infow("failed to get span context from message", "error", extractErr.Error())
+				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
 			}
 
 			messageSpan, _ := opentracing.StartSpanFromContext(
@@ -724,4 +743,20 @@ func (k *KafkaBroker) IsHealthy(ctx context.Context) (bool, error) {
 	}
 
 	return false, err
+}
+
+// Shutdown closes the producer
+func (k *KafkaBroker) Shutdown(ctx context.Context) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Shutdown").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Shutdown").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	logger.Ctx(ctx).Infow("kafka: request to close the producer", "topic", k.COptions.Topics)
+
+	k.Producer.Close()
+
+	logger.Ctx(ctx).Infow("kafka: producer closed...", "topic", k.COptions.Topics)
 }

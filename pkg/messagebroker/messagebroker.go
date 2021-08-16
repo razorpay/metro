@@ -28,6 +28,9 @@ type Admin interface {
 type Producer interface {
 	// SendMessage sends a message on the topic
 	SendMessage(context.Context, SendMessageToTopicRequest) (*SendMessageToTopicResponse, error)
+
+	// Shutdown closes the producer
+	Shutdown(context.Context)
 }
 
 // Consumer interface for consuming messages

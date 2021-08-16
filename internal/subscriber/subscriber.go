@@ -413,22 +413,37 @@ func (s *Subscriber) Run(ctx context.Context) {
 			if req == nil {
 				continue
 			}
+			if ctx.Err() != nil {
+				continue
+			}
 			caseStartTime := time.Now()
 			s.pull(req)
 			subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case ackRequest := <-s.ackChan:
 			caseStartTime := time.Now()
+			if ctx.Err() != nil {
+				continue
+			}
 			s.acknowledge(ackRequest)
 			subscriberTimeTakenInAckChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case modAckRequest := <-s.modAckChan:
 			caseStartTime := time.Now()
+			if ctx.Err() != nil {
+				continue
+			}
 			s.modifyAckDeadline(modAckRequest)
 			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-s.deadlineTicker.C:
 			caseStartTime := time.Now()
+			if ctx.Err() != nil {
+				continue
+			}
 			s.checkAndEvictBasedOnAckDeadline(ctx)
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case err := <-s.errChan:
+			if ctx.Err() != nil {
+				continue
+			}
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: got error on errCh channel", "logFields", s.getLogFields(), "error", err.Error())
 			}

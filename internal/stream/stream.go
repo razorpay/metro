@@ -171,7 +171,7 @@ func (ps *PushStream) pushMessage(ctx context.Context, subModel *subscription.Mo
 
 	startTime := time.Now()
 	pushRequest := newPushEndpointRequest(message, subModel.Name)
-	postData := getRequestBytes(pushRequest)	
+	postData := getRequestBytes(pushRequest)
 	req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
 	if subModel.HasCredentials() {
 		req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())

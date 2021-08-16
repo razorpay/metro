@@ -23,7 +23,7 @@ const (
 )
 
 var (
-	ErrProducerUnavailable = errors.New("producer unavailable")
+	errProducerUnavailable = errors.New("producer unavailable")
 )
 
 // KafkaBroker for kafka
@@ -427,7 +427,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	logger.Ctx(ctx).Debugw("normalized topic name", "topic", tp, "headers", carrier)
 
 	if k.Producer == nil {
-		return nil, ErrProducerUnavailable
+		return nil, errProducerUnavailable
 	}
 
 	err = k.Producer.Produce(&kafkapkg.Message{

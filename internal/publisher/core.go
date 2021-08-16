@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -32,7 +33,8 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherCore.Publish")
 	defer span.Finish()
 
-	producer, err := p.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutMs: 500})
+	producerOps := messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutMs: 500}
+	producer, err := p.bs.GetProducer(ctx, producerOps)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in getting producer", "msg", err.Error())
 		return nil, err
@@ -51,14 +53,16 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 		if err != nil {
 			return nil, fmt.Errorf("unable to marshal message")
 		}
-		// TODO: rationalise TimeoutMs
 		msgResp, err := producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 			Topic:       req.Topic,
 			Message:     dataWithMeta,
 			OrderingKey: msg.OrderingKey,
-			TimeoutMs:   500,
 		})
 		if err != nil {
+			if err.Error() == kafka.ErrMsgTimedOut.String() {
+				logger.Ctx(ctx).Infow("got error : [%v], rotating producer", "error", err.Error())
+				p.bs.ShutdownAndRemoveProducer(ctx, producerOps)
+			}
 			logger.Ctx(ctx).Errorw("error in sending messages", "msg", err.Error())
 			return nil, err
 		}

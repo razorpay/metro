@@ -69,6 +69,9 @@ type IBrokerStore interface {
 	// GetProducer returns for an existing producer instance, if available returns that else creates as new instance
 	GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error)
 
+	// ShutdownAndRemoveProducer deletes the producer from the store followed by a shutdown
+	ShutdownAndRemoveProducer(ctx context.Context, op messagebroker.ProducerClientOptions) bool
+
 	// GetAdmin returns for an existing admin instance, if available returns that else creates as new instance
 	GetAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
 }
@@ -177,17 +180,17 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 		brokerStoreOperationTimeTaken.WithLabelValues(env, "GetProducer").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	// TODO: perf and check if single producer for a topic works
 	key := NewKey(b.variant, op.Topic)
 	producer, ok := b.producerMap.Load(key.String())
-	if ok {
+	if ok && producer != nil {
+		logger.Ctx(ctx).Infow("found existing producer, skipping init and re-using", "key", key)
 		return producer.(messagebroker.Producer), nil
 	}
 	b.partitionLock.Lock(key.String())         // lock
 	defer b.partitionLock.Unlock(key.String()) // unlock
 
 	producer, ok = b.producerMap.Load(key.String()) // double-check
-	if ok {
+	if ok && producer != nil {
 		return producer.(messagebroker.Producer), nil
 	}
 	newProducer, perr := messagebroker.NewProducerClient(ctx,
@@ -200,6 +203,40 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	}
 	producer, _ = b.producerMap.LoadOrStore(key.String(), newProducer)
 	return producer.(messagebroker.Producer), nil
+}
+
+// ShutdownAndRemoveProducer deletes the producer from the store followed by a shutdown
+func (b *BrokerStore) ShutdownAndRemoveProducer(ctx context.Context, op messagebroker.ProducerClientOptions) bool {
+	logger.Ctx(ctx).Infow("brokerstore: request to shutdown & remove producer", "options", op.Topic)
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.ShutdownAndRemoveProducer")
+	defer span.Finish()
+
+	brokerStoreOperationCount.WithLabelValues(env, "ShutdownAndRemoveProducer").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		brokerStoreOperationTimeTaken.WithLabelValues(env, "ShutdownAndRemoveProducer").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	wasProducerFound := false
+
+	key := NewKey(b.variant, op.Topic)
+	b.partitionLock.Lock(key.String())         // lock
+	defer b.partitionLock.Unlock(key.String()) // unlock
+
+	producer, ok := b.producerMap.Load(key.String())
+	if ok {
+		wasProducerFound = true
+		b.producerMap.Delete(producer)
+		producer.(messagebroker.Producer).Shutdown(ctx)
+	}
+
+	if wasProducerFound {
+		logger.Ctx(ctx).Infow("brokerstore: producer shutdown & remove completed", "key", key)
+	}
+
+	return wasProducerFound
 }
 
 // GetAdmin returns for an existing admin instance, if available returns that else creates as new instance

@@ -488,7 +488,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			carrier := kafkaHeadersCarrier(msg.Headers)
 			spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
 			if extractErr != nil {
-				logger.Ctx(ctx).Infow("failed to get span context from message", "error", extractErr.Error())
+				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
 			}
 
 			messageSpan, _ := opentracing.StartSpanFromContext(

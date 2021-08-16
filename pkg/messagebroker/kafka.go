@@ -22,6 +22,10 @@ const (
 	msgProduceTime = "msgProduceTime"
 )
 
+var (
+	ErrProducerUnavailable = errors.New("producer unavailable")
+)
+
 // KafkaBroker for kafka
 type KafkaBroker struct {
 	Producer *kafkapkg.Producer
@@ -421,6 +425,11 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	tp := NormalizeTopicName(request.Topic)
 	logger.Ctx(ctx).Debugw("normalized topic name", "topic", tp, "headers", carrier)
+
+	if k.Producer == nil {
+		return nil, ErrProducerUnavailable
+	}
+
 	err = k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &tp, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
@@ -756,7 +765,10 @@ func (k *KafkaBroker) Shutdown(ctx context.Context) {
 
 	logger.Ctx(ctx).Infow("kafka: request to close the producer", "topic", k.COptions.Topics)
 
-	k.Producer.Close()
+	if k.Producer != nil {
+		k.Producer.Close()
+		logger.Ctx(ctx).Infow("kafka: producer closed", "topic", k.COptions.Topics)
+	}
 
-	logger.Ctx(ctx).Infow("kafka: producer closed...", "topic", k.COptions.Topics)
+	logger.Ctx(ctx).Infow("kafka: producer already closed", "topic", k.COptions.Topics)
 }

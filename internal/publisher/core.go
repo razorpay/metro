@@ -62,7 +62,7 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 		})
 		if err != nil {
 			if err.Error() == kafka.ErrMsgTimedOut.String() {
-				logger.Ctx(ctx).Infow("got error : [%v], rotating producer", "error", err.Error())
+				logger.Ctx(ctx).Infow("got error, rotating producer", "error", err.Error())
 				p.bs.RemoveProducer(ctx, producerOps)
 			}
 			logger.Ctx(ctx).Errorw("error in sending messages", "msg", err.Error())

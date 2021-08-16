@@ -50,11 +50,12 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
-		"auto.offset.reset":  "latest",
-		"enable.auto.commit": false,
-		"group.id":           options.GroupID,
-		"group.instance.id":  options.GroupInstanceID,
+		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
+		"socket.keepalive.enable": true,
+		"auto.offset.reset":       "latest",
+		"enable.auto.commit":      false,
+		"group.id":                options.GroupID,
+		"group.instance.id":       options.GroupInstanceID,
 	}
 
 	logger.Ctx(ctx).Infow("kafka consumer: initializing new", "configMap", configMap, "options", options)
@@ -103,7 +104,13 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	logger.Ctx(ctx).Infow("kafka producer: initializing new", "options", options)
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
+		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
+		"socket.keepalive.enable": true,
+		"retries":                 2,
+		"linger.ms":               0,
+		"request.timeout.ms":      30000,
+		"delivery.timeout.ms":     150000,
+		"connections.max.idle.ms": 180000,
 	}
 
 	if bConfig.EnableTLS {

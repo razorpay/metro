@@ -209,7 +209,9 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 func (b *BrokerStore) RemoveProducer(ctx context.Context, op messagebroker.ProducerClientOptions) bool {
 	logger.Ctx(ctx).Infow("brokerstore: request to shutdown & remove producer", "options", op.Topic)
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.RemoveProducer")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.RemoveProducer", opentracing.Tags{
+		"topic": op.Topic,
+	})
 	defer span.Finish()
 
 	brokerStoreOperationCount.WithLabelValues(env, "RemoveProducer").Inc()

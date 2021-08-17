@@ -29,6 +29,9 @@ type Producer interface {
 	// SendMessage sends a message on the topic
 	SendMessage(context.Context, SendMessageToTopicRequest) (*SendMessageToTopicResponse, error)
 
+	// IsClosed checks if producer has been closed
+	IsClosed(context.Context) bool
+
 	// Shutdown closes the producer
 	Shutdown(context.Context)
 }

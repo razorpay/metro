@@ -94,6 +94,11 @@ func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTop
 	return &emptypb.Empty{}, nil
 }
 
-func (s publisherServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
-	return interceptors.AppAuth(ctx, s.credentialsCore)
+//AuthFuncOverride - Override function called by the auth interceptor
+func (s publisherServer) AuthFuncOverride(ctx context.Context, _ string, req interface{}) (context.Context, error) {
+	projectID, err := getProjectIDFromRequest(ctx, req)
+	if err != nil {
+		return ctx, err
+	}
+	return interceptors.AppAuth(ctx, s.credentialsCore, projectID)
 }

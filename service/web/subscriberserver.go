@@ -229,6 +229,11 @@ func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.Mo
 	return new(emptypb.Empty), nil
 }
 
-func (s subscriberserver) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
-	return interceptors.AppAuth(ctx, s.credentialCore)
+//AuthFuncOverride - Override function called by the auth interceptor
+func (s subscriberserver) AuthFuncOverride(ctx context.Context, _ string, req interface{}) (context.Context, error) {
+	projectID, err := getProjectIDFromRequest(ctx, req)
+	if err != nil {
+		return ctx, err
+	}
+	return interceptors.AppAuth(ctx, s.credentialCore, projectID)
 }

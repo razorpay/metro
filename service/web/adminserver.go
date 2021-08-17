@@ -172,6 +172,6 @@ func (s adminServer) DeleteProjectCredentials(ctx context.Context, req *metrov1.
 	return &emptypb.Empty{}, nil
 }
 
-func (s adminServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+func (s adminServer) AuthFuncOverride(ctx context.Context, _ string, _ interface{}) (context.Context, error) {
 	return interceptors.AdminAuth(ctx, s.admin)
 }

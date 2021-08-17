@@ -20,7 +20,7 @@ func init() {
 func getProjectIDFromRequest(ctx context.Context, req interface{}) (string, error) {
 	resourceName, err := getResourceNameFromRequest(ctx, req)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	return getProjectIDFromResourceName(ctx, resourceName)
 }
@@ -59,8 +59,8 @@ func getResourceNameFromRequest(ctx context.Context, req interface{}) (string, e
 func getProjectIDFromResourceName(ctx context.Context, resourceName string) (string, error) {
 	matches := projectIDRegex.FindStringSubmatch(resourceName)
 	if len(matches) < 2 {
-		logger.Ctx(ctx).Warnw("could not extract project id from resource name", "resource name", resourceName)
-		return "", nil
+		logger.Ctx(ctx).Errorw("could not extract project id from resource name", "resource name", resourceName)
+		return "", merror.New(merror.InvalidArgument, "Resource name is invalid")
 	}
 	return matches[1], nil
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -61,10 +60,10 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 			OrderingKey: msg.OrderingKey,
 		})
 		if err != nil {
-			if err.Error() == kafka.ErrMsgTimedOut.String() {
-				logger.Ctx(ctx).Infow("got error, rotating producer", "error", err.Error())
-				p.bs.RemoveProducer(ctx, producerOps)
-			}
+			//if err.Error() == kafka.ErrMsgTimedOut.String() {
+			//	logger.Ctx(ctx).Infow("got error, rotating producer", "error", err.Error())
+			//	p.bs.RemoveProducer(ctx, producerOps)
+			//}
 			logger.Ctx(ctx).Errorw("error in sending messages", "msg", err.Error())
 			return nil, err
 		}

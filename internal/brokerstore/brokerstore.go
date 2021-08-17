@@ -183,16 +183,25 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	key := NewKey(b.variant, op.Topic)
 	producer, ok := b.producerMap.Load(key.String())
 	if ok && producer != nil {
-		logger.Ctx(ctx).Infow("found existing producer, skipping init and re-using", "key", key)
-		return producer.(messagebroker.Producer), nil
+		p := producer.(messagebroker.Producer)
+		if !p.IsClosed(ctx) {
+			logger.Ctx(ctx).Infow("found existing producer, skipping init and re-using", "key", key)
+			return p, nil
+		}
 	}
 	b.partitionLock.Lock(key.String())         // lock
 	defer b.partitionLock.Unlock(key.String()) // unlock
 
 	producer, ok = b.producerMap.Load(key.String()) // double-check
 	if ok && producer != nil {
-		return producer.(messagebroker.Producer), nil
+		p := producer.(messagebroker.Producer)
+		if !p.IsClosed(ctx) {
+			logger.Ctx(ctx).Infow("found existing producer, skipping init and re-using", "key", key)
+			return producer.(messagebroker.Producer), nil
+		}
+		return p, nil
 	}
+
 	newProducer, perr := messagebroker.NewProducerClient(ctx,
 		b.variant,
 		b.bConfig,
@@ -201,8 +210,10 @@ func (b *BrokerStore) GetProducer(ctx context.Context, op messagebroker.Producer
 	if perr != nil {
 		return nil, perr
 	}
-	producer, _ = b.producerMap.LoadOrStore(key.String(), newProducer)
-	return producer.(messagebroker.Producer), nil
+
+	// can safely override any previously available values for this producer key
+	b.producerMap.Store(key.String(), newProducer)
+	return newProducer.(messagebroker.Producer), nil
 }
 
 // RemoveProducer deletes the producer from the store followed by a shutdown
@@ -232,6 +243,8 @@ func (b *BrokerStore) RemoveProducer(ctx context.Context, op messagebroker.Produ
 		wasProducerFound = true
 		b.producerMap.Delete(producer)
 		producer.(messagebroker.Producer).Shutdown(ctx)
+		// init a new producer after removal so that a non-nil producer is available on subsequent calls
+		b.GetProducer(ctx, op)
 	}
 
 	if wasProducerFound {

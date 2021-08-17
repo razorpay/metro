@@ -39,6 +39,9 @@ type KafkaBroker struct {
 	POptions *ProducerClientOptions
 	COptions *ConsumerClientOptions
 	AOptions *AdminClientOptions
+
+	// flags
+	isProducerClosed bool
 }
 
 // newKafkaConsumerClient returns a kafka consumer
@@ -756,6 +759,9 @@ func (k *KafkaBroker) IsHealthy(ctx context.Context) (bool, error) {
 
 // Shutdown closes the producer
 func (k *KafkaBroker) Shutdown(ctx context.Context) {
+	// immediately mark the producer as closed so that it is not re-used during the close operation
+	k.isProducerClosed = true
+
 	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Shutdown").Inc()
 
 	startTime := time.Now()
@@ -771,4 +777,9 @@ func (k *KafkaBroker) Shutdown(ctx context.Context) {
 	}
 
 	logger.Ctx(ctx).Infow("kafka: producer already closed", "topic", k.COptions.Topics)
+}
+
+// IsClosed checks if producer has been closed
+func (k *KafkaBroker) IsClosed(_ context.Context) bool {
+	return k.isProducerClosed
 }

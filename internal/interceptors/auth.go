@@ -48,12 +48,6 @@ func getUserPassword(ctx context.Context) (user string, password []byte, err err
 		return
 	}
 
-	// `uri` gets set inside `runtime.WithMetadata()`. check `server.go` for implementation
-	// this is ideally a single-valued slice
-	// if val := md.Get("uri"); val != nil && len(val) > 0 {
-	// 	projectID = extractProjectIDFromURI(val[0])
-	// }
-
 	headers := md.Get(authorizationHeaderKey)
 	if len(headers) != 1 {
 		err = status.Error(codes.Unauthenticated, "invalid authorization header")
@@ -90,22 +84,6 @@ func secureCompare(expected, actual string) bool {
 
 	return false
 }
-
-// extractProjectIDFromURI : This function extracts the projectID from the HTTP request URI.
-// Example1: extractProjectIDFromURI("/v1/projects/project1/topics/t123") = project1
-// Example2: extractProjectIDFromURI("/v1/projects/project7/subscriptions/s123") = project7
-// Example3: extractProjectIDFromURI("/v1/admin/topic/t987") = ""
-// func extractProjectIDFromURI(uri string) string {
-// 	if uri == "" {
-// 		return ""
-// 	}
-
-// 	parts := strings.Split(uri, "/")
-// 	if len(parts) >= 4 && parts[2] == "projects" && parts[3] != "" {
-// 		return parts[3]
-// 	}
-// 	return ""
-// }
 
 // AppAuth implements app project based basic auth validations
 func AppAuth(ctx context.Context, credentialCore credentials.ICore, resourceProjectID string) (context.Context, error) {

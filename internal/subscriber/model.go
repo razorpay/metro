@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"container/heap"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -13,13 +14,18 @@ import (
 
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 	"github.com/razorpay/metro/pkg/messagebroker"
-
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 // PullRequest ...
 type PullRequest struct {
+	ctx              context.Context
 	MaxNumOfMessages int32
+}
+
+// WithContext can be used to set the current context to the request
+func (req *PullRequest) WithContext(ctx context.Context) *PullRequest {
+	req.ctx = ctx
+	return req
 }
 
 // AcknowledgeRequest ...
@@ -51,21 +57,6 @@ func (mr *ModifyAckDeadlineRequest) IsEmpty() bool {
 	return false
 }
 
-// FromProto returns different structs for pull, ack and modack
-func FromProto(req *metrov1.StreamingPullRequest) (*AcknowledgeRequest, *ModifyAckDeadlineRequest, error) {
-	if len(req.ModifyDeadlineAckIds) != len(req.ModifyDeadlineSeconds) {
-		return nil, nil, fmt.Errorf("length of modify_deadline_ack_ids and modify_deadline_seconds not same")
-	}
-	ar := &AcknowledgeRequest{
-		req.AckIds,
-	}
-	mr := &ModifyAckDeadlineRequest{
-		req.ModifyDeadlineSeconds,
-		req.ModifyDeadlineAckIds,
-	}
-	return ar, mr, nil
-}
-
 // IAckMessage ...
 type IAckMessage interface {
 	BuildAckID() string
@@ -76,6 +67,7 @@ type IAckMessage interface {
 
 // AckMessage ...
 type AckMessage struct {
+	ctx           context.Context
 	ServerAddress string
 	SubscriberID  string
 	Topic         string
@@ -99,6 +91,12 @@ func NewAckMessage(subscriberID, topic string, partition, offset, deadline int32
 		Deadline:     deadline,
 		Offset:       offset,
 	}
+}
+
+// WithContext can be used to set the current context to the request
+func (a *AckMessage) WithContext(ctx context.Context) *AckMessage {
+	a.ctx = ctx
+	return a
 }
 
 func (a *AckMessage) String() string {
@@ -278,18 +276,26 @@ func (tp TopicPartition) String() string {
 
 // ModAckMessage ...
 type ModAckMessage struct {
-	ackMessage  *AckMessage
+	ctx         context.Context
+	AckMessage  *AckMessage
 	ackDeadline int32
 }
 
+// WithContext can be used to set the current context to the request
+func (a *ModAckMessage) WithContext(ctx context.Context) *ModAckMessage {
+	a.ctx = ctx
+	return a
+}
+
+// String ...
 func (a *ModAckMessage) String() string {
-	return fmt.Sprintf("ackMessage:[%v], ackDeadline:[%v]", a.ackMessage, a.ackDeadline)
+	return fmt.Sprintf("ackMessage:[%v], ackDeadline:[%v]", a.AckMessage, a.ackDeadline)
 }
 
 // NewModAckMessage ...
 func NewModAckMessage(ackMessage *AckMessage, ackDeadline int32) *ModAckMessage {
 	return &ModAckMessage{
-		ackMessage:  ackMessage,
+		AckMessage:  ackMessage,
 		ackDeadline: ackDeadline,
 	}
 }

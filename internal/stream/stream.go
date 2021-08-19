@@ -3,7 +3,6 @@ package stream
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,12 +10,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/razorpay/metro/internal/httpclient"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/opentracing/opentracing-go"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"golang.org/x/sync/errgroup"
 )
 
 // PushStream provides reads from broker and publishes messages for the push subscription
@@ -79,19 +80,34 @@ func (ps *PushStream) Start() error {
 					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 				}
 			default:
-				logger.Ctx(ps.ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
-				ps.subs.GetRequestChannel() <- &subscriber.PullRequest{MaxNumOfMessages: 10}
-				logger.Ctx(ps.ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
-				data := <-ps.subs.GetResponseChannel()
-				if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-					logger.Ctx(ps.ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())
-					ps.processPushStreamResponse(ps.ctx, ps.subscription, data)
-				}
+				ps.processMessages()
 			}
 		}
 	})
 
 	return errGrp.Wait()
+}
+
+func (ps *PushStream) processMessages() {
+	ctx := context.Background()
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessMessages", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+	})
+	defer span.Finish()
+
+	// Send message pull request to subsriber request channel
+	logger.Ctx(ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
+	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: 10}).WithContext(ctx)
+
+	// wait for response data from subscriber response channel
+	logger.Ctx(ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
+	data := <-ps.subs.GetResponseChannel()
+	if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
+		logger.Ctx(ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())
+		ps.processPushStreamResponse(ctx, ps.subscription, data)
+	}
 }
 
 // Stop is used to terminate the push subscription processing
@@ -118,58 +134,98 @@ func (ps *PushStream) stopSubscriber() {
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
 	logger.Ctx(ctx).Infow("worker: response", "len(data)", len(data.ReceivedMessages), "logFields", ps.getLogFields())
 
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessWebhooks", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+	})
+	defer span.Finish()
+
 	for _, message := range data.ReceivedMessages {
-		logger.Ctx(ps.ctx).Infow("worker: publishing response data to subscription endpoint", "logFields", ps.getLogFields())
 		if message.AckId == "" {
 			continue
 		}
 
-		logFields := ps.getLogFields()
-		logFields["messageId"] = message.Message.MessageId
-		logFields["ackId"] = message.AckId
-
-		startTime := time.Now()
-		pushRequest := newPushEndpointRequest(message, subModel.Name)
-		postBody, _ := json.Marshal(pushRequest)
-		postData := bytes.NewBuffer(postBody)
-		req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
-		if subModel.HasCredentials() {
-			req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
-		}
-
-		logFields["endpoint"] = subModel.PushConfig.PushEndpoint
-		logger.Ctx(ps.ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
-		resp, err := ps.httpClient.Do(req)
-		workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, ps.subs.GetID()).Inc()
-		workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
-		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: error posting messages to subscription url", "logFields", logFields, "error", err.Error())
+		success := ps.pushMessage(ctx, subModel, message)
+		if !success {
 			ps.nack(ctx, message)
-			return
-		}
-
-		logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
-		workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			// Ack
-			ps.ack(ctx, message)
-			workerMessagesAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, ps.subs.GetID()).Inc()
 		} else {
-			// Nack
-			ps.nack(ctx, message)
-			workerMessagesNAckd.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, ps.subs.GetID()).Inc()
-		}
-
-		// discard response.Body after usage and ignore errors
-		_, err = io.Copy(ioutil.Discard, resp.Body)
-		err = resp.Body.Close()
-		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
+			ps.ack(ctx, message)
 		}
 	}
 }
 
+func (ps *PushStream) pushMessage(ctx context.Context, subModel *subscription.Model, message *metrov1.ReceivedMessage) bool {
+	logger.Ctx(ctx).Infow("worker: publishing response data to subscription endpoint", "logFields", ps.getLogFields())
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.PushMessage", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+		"message_id":   message.Message.MessageId,
+	})
+	defer span.Finish()
+
+	logFields := ps.getLogFields()
+	logFields["messageId"] = message.Message.MessageId
+	logFields["ackId"] = message.AckId
+
+	startTime := time.Now()
+	pushRequest := newPushEndpointRequest(message, subModel.Name)
+	postData := getRequestBytes(pushRequest)
+	req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
+	if subModel.HasCredentials() {
+		req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
+	}
+
+	logFields["endpoint"] = subModel.PushConfig.PushEndpoint
+	logger.Ctx(ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
+	resp, err := ps.httpClient.Do(req)
+
+	// log metrics
+	workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, ps.subs.GetID()).Inc()
+	workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
+
+	// Process responnse
+	if err != nil {
+		logger.Ctx(ctx).Errorw("worker: error posting messages to subscription url", "logFields", logFields, "error", err.Error())
+		return false
+	}
+
+	logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
+	workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
+
+	success := false
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		success = true
+	}
+
+	// discard response.Body after usage and ignore errors
+	_, err = io.Copy(ioutil.Discard, resp.Body)
+	err = resp.Body.Close()
+	if err != nil {
+		logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
+	}
+
+	return success
+}
+
 func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.Nack", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+		"message_id":   message.Message.MessageId,
+	})
+	defer span.Finish()
+
+	workerMessagesNAckd.WithLabelValues(
+		env,
+		ps.subscription.ExtractedTopicName,
+		ps.subscription.ExtractedSubscriptionName,
+		ps.subscription.PushConfig.PushEndpoint,
+		ps.subs.GetID(),
+	).Inc()
+
 	logFields := ps.getLogFields()
 	logFields["messageId"] = message.Message.MessageId
 	logFields["ackId"] = message.AckId
@@ -177,7 +233,7 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 	logger.Ctx(ctx).Infow("worker: sending nack request to subscriber", "logFields", logFields)
 	ackReq := subscriber.ParseAckID(message.AckId)
 	// deadline is set to 0 for nack
-	modackReq := subscriber.NewModAckMessage(ackReq, 0)
+	modackReq := subscriber.NewModAckMessage(ackReq, 0).WithContext(ctx)
 	// check for closed channel before sending request
 	if ps.subs.GetModAckChannel() != nil {
 		ps.subs.GetModAckChannel() <- modackReq
@@ -185,12 +241,28 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 }
 
 func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.Ack", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+		"message_id":   message.Message.MessageId,
+	})
+	defer span.Finish()
+
+	workerMessagesAckd.WithLabelValues(
+		env,
+		ps.subscription.ExtractedTopicName,
+		ps.subscription.ExtractedSubscriptionName,
+		ps.subscription.PushConfig.PushEndpoint,
+		ps.subs.GetID(),
+	).Inc()
+
 	logFields := ps.getLogFields()
 	logFields["messageId"] = message.Message.MessageId
 	logFields["ackId"] = message.AckId
 
 	logger.Ctx(ctx).Infow("worker: sending ack request to subscriber", "logFields", logFields)
-	ackReq := subscriber.ParseAckID(message.AckId)
+	ackReq := subscriber.ParseAckID(message.AckId).WithContext(ctx)
 	// check for closed channel before sending request
 	if ps.subs.GetAckChannel() != nil {
 		ps.subs.GetAckChannel() <- ackReq
@@ -206,7 +278,7 @@ func (ps *PushStream) getLogFields() map[string]interface{} {
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
 
 	// get subscription Model details
@@ -236,7 +308,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 }
 
 // NewHTTPClientWithConfig return a http client
-func NewHTTPClientWithConfig(config *httpclient.Config) *http.Client {
+func NewHTTPClientWithConfig(config *HTTPClientConfig) *http.Client {
 	tr := &http.Transport{
 		ResponseHeaderTimeout: time.Duration(config.ResponseHeaderTimeoutMS) * time.Millisecond,
 		DialContext: (&net.Dialer{
@@ -258,4 +330,21 @@ func newPushEndpointRequest(message *metrov1.ReceivedMessage, subscription strin
 		Message:      message.Message,
 		Subscription: subscription,
 	}
+}
+
+// use `golang/protobuf/jsonpb` lib to marhsal/unmarhsal all proto structs
+func getRequestBytes(pushRequest *metrov1.PushEndpointRequest) *bytes.Buffer {
+	marshaler := jsonpb.Marshaler{
+		EnumsAsInts:  false,
+		EmitDefaults: false,
+		Indent:       "",
+		OrigName:     false,
+		AnyResolver:  nil,
+	}
+
+	var b []byte
+	byteBuffer := bytes.NewBuffer(b)
+	marshaler.Marshal(byteBuffer, pushRequest)
+
+	return byteBuffer
 }

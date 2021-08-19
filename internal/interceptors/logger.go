@@ -4,6 +4,7 @@ import (
 	"context"
 
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/pkg/logger"
 	"google.golang.org/grpc"
 )
@@ -16,7 +17,7 @@ func UnaryServerLoggerInterceptor() grpc.UnaryServerInterceptor {
 		ctx = context.WithValue(ctx, logger.CtxKey, l)
 		resp, err := handler(ctx, req)
 		if err != nil {
-			l.Errorw("error in grpc handler", "info", info, "payload", req, "error", err.Error())
+			l.Infow("error in grpc handler", "info", info, "payload", req, "error", errors.WithStack(err))
 		}
 		return resp, err
 	}

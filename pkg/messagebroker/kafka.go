@@ -14,6 +14,10 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
+var (
+	errProducerUnavailable = errors.New("producer unavailable")
+)
+
 // KafkaBroker for kafka
 type KafkaBroker struct {
 	Producer *kafkapkg.Producer
@@ -27,6 +31,9 @@ type KafkaBroker struct {
 	POptions *ProducerClientOptions
 	COptions *ConsumerClientOptions
 	AOptions *AdminClientOptions
+
+	// flags
+	isProducerClosed bool
 }
 
 // newKafkaConsumerClient returns a kafka consumer
@@ -48,11 +55,12 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	}
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers":  strings.Join(bConfig.Brokers, ","),
-		"auto.offset.reset":  "latest",
-		"enable.auto.commit": false,
-		"group.id":           options.GroupID,
-		"group.instance.id":  options.GroupInstanceID,
+		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
+		"socket.keepalive.enable": true,
+		"auto.offset.reset":       "latest",
+		"enable.auto.commit":      false,
+		"group.id":                options.GroupID,
+		"group.instance.id":       options.GroupInstanceID,
 	}
 
 	logger.Ctx(ctx).Infow("kafka consumer: initializing new", "configMap", configMap, "options", options)
@@ -101,7 +109,15 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	logger.Ctx(ctx).Infow("kafka producer: initializing new", "options", options)
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers": strings.Join(bConfig.Brokers, ","),
+		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
+		"socket.keepalive.enable": true,
+		"retries":                 3,
+		"linger.ms":               0,
+		"request.timeout.ms":      3000,
+		"delivery.timeout.ms":     10000,
+		"connections.max.idle.ms": 180000,
+		"go.logs.channel.enable":  true,
+		"debug":                   "all",
 	}
 
 	if bConfig.EnableTLS {
@@ -120,6 +136,16 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		logger.Ctx(ctx).Infow("starting producer log reader...", "topic", options.Topic)
+		select {
+		case <-ctx.Done():
+			return
+		case log := <-p.Logs():
+			logger.Ctx(ctx).Infow("kafka producer logs", "topic", options.Topic, "log", log.String())
+		}
+	}()
 
 	logger.Ctx(ctx).Infow("kafka producer: initialized")
 
@@ -235,7 +261,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 
 	for _, tp := range topicsResp {
 		if tp.Error.Code() != kafkapkg.ErrNoError && tp.Error.Code() != kafkapkg.ErrTopicAlreadyExists {
-			messageBrokerOperationError.WithLabelValues(env, Kafka, "CreateTopic", tp.Error.Error()).Inc()
+			messageBrokerOperationError.WithLabelValues(env, Kafka, "CreateTopic", tp.Error.String()).Inc()
 			return CreateTopicResponse{
 				Response: topicsResp,
 			}, fmt.Errorf("kafka: %v", tp.Error.String())
@@ -279,6 +305,11 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 
 // GetTopicMetadata fetches the given topics metadata stored in the broker
 func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+	logger.Ctx(ctx).Infow("kafka: get metadata request received", "request", request)
+	defer func() {
+		logger.Ctx(ctx).Infow("kafka: get metadata request completed", "request", request)
+	}()
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.GetMetadata")
 	defer span.Finish()
 
@@ -300,7 +331,7 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 
 	// TODO : normalize timeouts
 	resp, err := k.Consumer.Committed(tps, 5000)
-	if err != nil || resp == nil || len(resp) == 0 {
+	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "GetTopicMetadata", err.Error()).Inc()
 		return GetTopicMetadataResponse{}, err
 	}
@@ -311,7 +342,7 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 		Topic:     request.Topic,
 		Partition: request.Partition,
 		Offset:    int32(offset),
-	}, err
+	}, nil
 }
 
 // SendMessage sends a message on the topic
@@ -336,6 +367,11 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	topicN := normalizeTopicName(request.Topic)
 	logger.Ctx(ctx).Debugw("normalized topic name", "topic", topicN)
+
+	if k.Producer == nil {
+		return nil, errProducerUnavailable
+	}
+
 	err := k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &topicN, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
@@ -347,18 +383,10 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		return nil, err
 	}
 
-	// if timeout not send, override with default timeout set during client creation
-	timeout := request.TimeoutMs
-	if timeout == 0 {
-		timeout = int(k.POptions.TimeoutMs)
-	}
-
 	var m *kafkapkg.Message
 	select {
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
-		//case <-time.After(time.Duration(request.TimeoutMs) * time.Millisecond):
-		//	return nil, fmt.Errorf("failed to produce message to topic [%v] due to timeout [%v]", request.Topic, request.TimeoutMs)
 	}
 
 	if m != nil && m.TopicPartition.Error != nil {
@@ -374,6 +402,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.ReceiveMessages")
 	defer span.Finish()
 
@@ -629,4 +658,31 @@ func (k *KafkaBroker) IsHealthy(ctx context.Context) (bool, error) {
 	}
 
 	return false, err
+}
+
+// Shutdown closes the producer
+func (k *KafkaBroker) Shutdown(ctx context.Context) {
+	// immediately mark the producer as closed so that it is not re-used during the close operation
+	k.isProducerClosed = true
+
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Shutdown").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Shutdown").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	logger.Ctx(ctx).Infow("kafka: request to close the producer", "topic", k.COptions.Topics)
+
+	if k.Producer != nil {
+		k.Producer.Close()
+		logger.Ctx(ctx).Infow("kafka: producer closed", "topic", k.COptions.Topics)
+	}
+
+	logger.Ctx(ctx).Infow("kafka: producer already closed", "topic", k.COptions.Topics)
+}
+
+// IsClosed checks if producer has been closed
+func (k *KafkaBroker) IsClosed(_ context.Context) bool {
+	return k.isProducerClosed
 }

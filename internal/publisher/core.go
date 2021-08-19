@@ -29,10 +29,13 @@ func NewCore(bs brokerstore.IBrokerStore) ICore {
 
 // Publish messages
 func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherCore.Publish")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherCore.Publish", opentracing.Tags{
+		"topic": req.Topic,
+	})
 	defer span.Finish()
 
-	producer, err := p.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutMs: 500})
+	producerOps := messagebroker.ProducerClientOptions{Topic: req.Topic, TimeoutMs: 500}
+	producer, err := p.bs.GetProducer(ctx, producerOps)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in getting producer", "msg", err.Error())
 		return nil, err
@@ -51,14 +54,17 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 		if err != nil {
 			return nil, fmt.Errorf("unable to marshal message")
 		}
-		// TODO: rationalise TimeoutMs
 		msgResp, err := producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 			Topic:       req.Topic,
 			Message:     dataWithMeta,
 			OrderingKey: msg.OrderingKey,
-			TimeoutMs:   500,
 		})
 		if err != nil {
+			// TODO : handle gracefully
+			//if err.Error() == kafka.ErrMsgTimedOut.String() {
+			//	logger.Ctx(ctx).Infow("got error, rotating producer", "error", err.Error())
+			//	p.bs.RemoveProducer(ctx, producerOps)
+			//}
 			logger.Ctx(ctx).Errorw("error in sending messages", "msg", err.Error())
 			return nil, err
 		}

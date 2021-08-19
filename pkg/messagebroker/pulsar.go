@@ -314,3 +314,13 @@ func (p *PulsarBroker) IsHealthy(_ context.Context) (bool, error) {
 	err := p.Admin.Brokers().HealthCheck()
 	return err == nil, err
 }
+
+// Shutdown closes the producer
+func (p *PulsarBroker) Shutdown(ctx context.Context) {
+	panic("implement this!")
+}
+
+// IsClosed checks if producer has been closed
+func (p *PulsarBroker) IsClosed(_ context.Context) bool {
+	panic("implement this!")
+}

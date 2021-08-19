@@ -8,13 +8,16 @@ import (
 
 // Pair is the registry struct returned to watch handler
 type Pair struct {
-	Key       string
-	Value     []byte
+	Key   string
+	Value []byte
+	// Version - The version of the stored key-value pair
+	// Set by the registry, ModifyIndex in case of consul
+	Version   string
 	SessionID string
 }
 
 func (pair *Pair) String() string {
-	return fmt.Sprintf("key: %s, value: %s, sessionID: %s", pair.Key, string(pair.Value), pair.SessionID)
+	return fmt.Sprintf("key: %s, value: %s, sessionID: %s, version: %s", pair.Key, string(pair.Value), pair.SessionID, pair.Version)
 }
 
 // IRegistry implements a generic interface for service discovery
@@ -46,10 +49,10 @@ type IRegistry interface {
 	Watch(ctx context.Context, wh *WatchConfig) (IWatcher, error)
 
 	// Put a key value pair
-	Put(ctx context.Context, key string, value []byte) error
+	Put(ctx context.Context, key string, value []byte) (string, error)
 
 	// Get returns a value for a key
-	Get(ctx context.Context, key string) ([]byte, error)
+	Get(ctx context.Context, key string) (*Pair, error)
 
 	// List returns a keys with matching key prefix
 	ListKeys(ctx context.Context, prefix string) ([]string, error)

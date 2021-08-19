@@ -6,13 +6,15 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/opentracing/opentracing-go"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -120,7 +122,15 @@ func (s *Subscriber) retry(ctx context.Context, msg messagebroker.ReceivedMessag
 }
 
 // acknowledge messages
-func (s *Subscriber) acknowledge(ctx context.Context, req *AckMessage) {
+func (s *Subscriber) acknowledge(req *AckMessage) {
+	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Ack", opentracing.Tags{
+		"subscriber":   req.SubscriberID,
+		"topic":        req.Topic,
+		"subscription": s.subscription,
+		"message_id":   req.MessageID,
+		"partition":    req.Partition,
+	})
+	defer span.Finish()
 
 	if req == nil {
 		return
@@ -252,17 +262,26 @@ func (s *Subscriber) removeMessageFromMemory(ctx context.Context, stats *Consump
 }
 
 // modifyAckDeadline for messages
-func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) {
+func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
+	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:ModifyAck", opentracing.Tags{
+		"subscriber":   req.ackMessage.SubscriberID,
+		"topic":        req.ackMessage.Topic,
+		"subscription": s.subscription,
+		"message_id":   req.ackMessage.MessageID,
+		"partition":    req.ackMessage.Partition,
+	})
+	defer span.Finish()
+
 	if req == nil {
 		return
 	}
 
 	logFields := s.getLogFields()
-	logFields["messageId"] = req.ackMessage.MessageID
+	logFields["messageId"] = req.AckMessage.MessageID
 
 	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "logFields", logFields)
 
-	tp := req.ackMessage.ToTopicPartition()
+	tp := req.AckMessage.ToTopicPartition()
 	stats := s.consumedMessageStats[tp]
 
 	deadlineBasedHeap := stats.deadlineBasedMinHeap
@@ -270,7 +289,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 		return
 	}
 
-	msgID := req.ackMessage.MessageID
+	msgID := req.AckMessage.MessageID
 	// check if message is present in-memory or not
 	if _, ok := stats.consumedMessages[msgID]; !ok {
 		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "logFields", logFields)
@@ -296,7 +315,7 @@ func (s *Subscriber) modifyAckDeadline(ctx context.Context, req *ModAckMessage) 
 	}
 
 	// NOTE: currently we are not supporting non-zero mod ack. below code implementation is to handle that in future
-	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.ackMessage.MessageID]
+	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.AckMessage.MessageID]
 
 	// update the deadline of the identified message
 	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
@@ -353,132 +372,40 @@ func (s *Subscriber) Run(ctx context.Context) {
 			if req == nil {
 				continue
 			}
-
-			// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
-			func() {
-				caseStartTime := time.Now()
-				defer func() {
-					subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
-				}()
-
-				if s.consumer == nil {
-					return
-				}
-
-				if s.canConsumeMore() == false {
-					logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "logFields", s.getLogFields())
-					// check if consumer is paused once maxOutstanding messages limit is hit
-					if s.isPaused == false {
-						// if not, pause all topic-partitions for consumer
-						for tp := range s.consumedMessageStats {
-							s.consumer.Pause(ctx, messagebroker.PauseOnTopicRequest{
-								Topic:     tp.topic,
-								Partition: tp.partition,
-							})
-							logger.Ctx(ctx).Infow("subscriber: pausing consumer", "logFields", s.getLogFields())
-							subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
-							s.isPaused = true
-						}
-					}
-				} else {
-					// resume consumer if paused and is allowed to consume more messages
-					if s.isPaused {
-						s.isPaused = false
-						for tp := range s.consumedMessageStats {
-							s.consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{
-								Topic:     tp.topic,
-								Partition: tp.partition,
-							})
-							logger.Ctx(ctx).Infow("subscriber: resuming consumer", "logFields", s.getLogFields())
-							subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Dec()
-						}
-					}
-				}
-
-				sm := make([]*metrov1.ReceivedMessage, 0)
-				resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInMs})
-				if err != nil {
-					logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "logFields", s.getLogFields(), "error", err.Error())
-
-					// Write empty data on the response channel in case of error, this is needed because sender blocks
-					// on the response channel in a goroutine after sending request, error channel is not read until
-					// response channel blocking call returns
-					s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
-
-					// send error details via error channel
-					s.errChan <- err
-					return
-				}
-
-				if len(resp.PartitionOffsetWithMessages) > 0 {
-					logFields := s.getLogFields()
-					logFields["messageCount"] = len(resp.PartitionOffsetWithMessages)
-					logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "logFields", logFields)
-				}
-
-				for _, msg := range resp.PartitionOffsetWithMessages {
-					protoMsg := &metrov1.PubsubMessage{}
-					err = proto.Unmarshal(msg.Data, protoMsg)
-					if err != nil {
-						s.errChan <- err
-						continue
-					}
-
-					// set messageID and publish time
-					protoMsg.MessageId = msg.MessageID
-					ts := &timestamppb.Timestamp{}
-					ts.Seconds = msg.PublishTime.Unix() // test this
-					protoMsg.PublishTime = ts
-					// TODO: fix delivery attempt
-
-					// store the processed r1 in a map for limit checks
-					tp := NewTopicPartition(msg.Topic, msg.Partition)
-					if _, ok := s.consumedMessageStats[tp]; !ok {
-						// init the stats data store before updating
-						s.consumedMessageStats[tp] = NewConsumptionMetadata()
-
-						// query and set the max committed offset for each topic partition
-						resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
-							Topic:     s.topic,
-							Partition: msg.Partition,
-						})
-
-						if err != nil {
-							s.errChan <- err
-							continue
-						}
-						s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
-					}
-
-					ackDeadline := time.Now().Add(minAckDeadline).Unix()
-					s.consumedMessageStats[tp].Store(msg, ackDeadline)
-
-					ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
-					sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
-
-					subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription.Name, s.subscriberID).Inc()
-					subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
-					subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
-				}
-
-				if len(sm) > 0 {
-					s.logInMemoryStats(ctx)
-				}
-				s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
-			}()
-
+			if ctx.Err() != nil {
+				continue
+			}
+			caseStartTime := time.Now()
+			s.pull(req)
+			subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case ackRequest := <-s.ackChan:
 			caseStartTime := time.Now()
-			s.acknowledge(ctx, ackRequest)
-			subscriberTimeTakenInAckChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
+			if ctx.Err() != nil {
+				continue
+			}
+			s.acknowledge(ackRequest)
+			subscriberTimeTakenInAckChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case modAckRequest := <-s.modAckChan:
 			caseStartTime := time.Now()
-			s.modifyAckDeadline(ctx, modAckRequest)
-			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
+			if ctx.Err() != nil {
+				continue
+			}
+			s.modifyAckDeadline(modAckRequest)
+			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-s.deadlineTicker.C:
 			caseStartTime := time.Now()
+			if ctx.Err() != nil {
+				continue
+			}
 			s.checkAndEvictBasedOnAckDeadline(ctx)
-			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
+			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription).Observe(time.Now().Sub(caseStartTime).Seconds())
+		case err := <-s.errChan:
+			if ctx.Err() != nil {
+				continue
+			}
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriber: got error on errCh channel", "logFields", s.getLogFields(), "error", err.Error())
+			}
 		case <-ctx.Done():
 			logger.Ctx(ctx).Infow("subscriber: <-ctx.Done() called", "logFields", s.getLogFields())
 
@@ -491,7 +418,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			close(s.responseChan)
 			close(s.errChan)
 
-			wasConsumerFound := s.bs.RemoveConsumer(ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription.Name})
+			wasConsumerFound := s.bs.RemoveConsumer(ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription})
 			if wasConsumerFound {
 				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.
 				// if the entry is already deleted from brokerStore, that means some other goroutine has already closed the consumer.
@@ -503,6 +430,128 @@ func (s *Subscriber) Run(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (s *Subscriber) pull(req *PullRequest) {
+	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Pull", opentracing.Tags{
+		"subscriber":   s.subscriberID,
+		"subscription": s.subscription,
+	})
+	defer span.Finish()
+
+			// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
+			func() {
+				caseStartTime := time.Now()
+				defer func() {
+					subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
+				}()
+
+	if s.consumer == nil {
+		return
+	}
+
+	// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
+	if s.canConsumeMore() == false {
+		logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "logFields", s.getLogFields())
+		// check if consumer is paused once maxOutstanding messages limit is hit
+		if s.isPaused == false {
+			// if not, pause all topic-partitions for consumer
+			for tp := range s.consumedMessageStats {
+				s.consumer.Pause(ctx, messagebroker.PauseOnTopicRequest{
+					Topic:     tp.topic,
+					Partition: tp.partition,
+				})
+				logger.Ctx(ctx).Infow("subscriber: pausing consumer", "logFields", s.getLogFields())
+				subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Inc()
+				s.isPaused = true
+			}
+		}
+	} else {
+		// resume consumer if paused and is allowed to consume more messages
+		if s.isPaused {
+			s.isPaused = false
+			for tp := range s.consumedMessageStats {
+				s.consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{
+					Topic:     tp.topic,
+					Partition: tp.partition,
+				})
+				logger.Ctx(ctx).Infow("subscriber: resuming consumer", "logFields", s.getLogFields())
+				subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription, s.subscriberID).Dec()
+			}
+		}
+	}
+
+	sm := make([]*metrov1.ReceivedMessage, 0)
+	resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInMs})
+	if err != nil {
+		logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "logFields", s.getLogFields(), "error", err.Error())
+
+		// Write empty data on the response channel in case of error, this is needed because sender blocks
+		// on the response channel in a goroutine after sending request, error channel is not read until
+		// response channel blocking call returns
+		s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+
+		// send error details via error channel
+		s.errChan <- err
+		return
+	}
+
+	if len(resp.PartitionOffsetWithMessages) > 0 {
+		logFields := s.getLogFields()
+		logFields["messageCount"] = len(resp.PartitionOffsetWithMessages)
+		logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "logFields", logFields)
+	}
+
+	for _, msg := range resp.PartitionOffsetWithMessages {
+		protoMsg := &metrov1.PubsubMessage{}
+		err = proto.Unmarshal(msg.Data, protoMsg)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("subscriber: error in proto unmarshal", "logFields", s.getLogFields(), "error", err.Error())
+			s.errChan <- err
+			continue
+		}
+
+		// set messageID and publish time
+		protoMsg.MessageId = msg.MessageID
+		ts := &timestamppb.Timestamp{}
+		ts.Seconds = msg.PublishTime.Unix()
+		protoMsg.PublishTime = ts
+
+		// store the processed r1 in a map for limit checks
+		tp := NewTopicPartition(msg.Topic, msg.Partition)
+		if _, ok := s.consumedMessageStats[tp]; !ok {
+			// init the stats data store before updating
+			s.consumedMessageStats[tp] = NewConsumptionMetadata()
+
+			// query and set the max committed offset for each topic partition
+			resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
+				Topic:     s.topic,
+				Partition: msg.Partition,
+			})
+
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriber: error in reading topic metadata", "logFields", s.getLogFields(), "error", err.Error())
+				s.errChan <- err
+				continue
+			}
+			s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
+		}
+
+		ackDeadline := time.Now().Add(minAckDeadline).Unix()
+		s.consumedMessageStats[tp].Store(msg, ackDeadline)
+
+		ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
+		sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: 1})
+
+		subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription.Name, s.subscriberID).Inc()
+		subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
+		subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+	}
+
+	if len(sm) > 0 {
+		s.logInMemoryStats(ctx)
+	}
+	s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 }
 
 func (s *Subscriber) logInMemoryStats(ctx context.Context) {

@@ -1,7 +1,7 @@
 package worker
 
 import (
-	"github.com/razorpay/metro/internal/httpclient"
+	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 

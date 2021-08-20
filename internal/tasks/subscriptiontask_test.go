@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/razorpay/metro/internal/httpclient"
+	"github.com/razorpay/metro/pkg/httpclient"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"

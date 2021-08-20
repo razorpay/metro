@@ -18,7 +18,7 @@ const (
 
 	defaultMaximumBackoffInSeconds    uint = 600
 	lowerBoundMaximumBackoffInSeconds uint = 0
-	upperBoundMaximumBackoffInSeconds uint = 600
+	upperBoundMaximumBackoffInSeconds uint = 3600
 
 	defaultMaxDeliveryAttempts    int32 = 5
 	lowerBoundMaxDeliveryAttempts int32 = 1

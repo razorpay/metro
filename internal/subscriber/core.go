@@ -51,7 +51,6 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	// using the subscriber ctx for retrier as well. This way when the ctx() for subscribers is done,
 	// all the delay-consumers spawned within retrier would also get marked as done.
 	var retrier IRetrier
-	// TODO : add a default retrier here for old subscriptions for backward compatibility
 	if subscription.DelayConfig != nil {
 		retrier, err = NewRetrier(subsCtx, subscription.DelayConfig, c.bs, NewPushToPrimaryRetryTopicHandler(c.bs))
 		if err != nil {

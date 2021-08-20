@@ -21,17 +21,17 @@ const (
 	upperBoundMaximumBackoffInSeconds uint = 600
 
 	defaultMaxDeliveryAttempts    int32 = 5
-	lowerBoundMaxDeliveryAttempts int32 = 5
+	lowerBoundMaxDeliveryAttempts int32 = 1
 	upperBoundMaxDeliveryAttempts int32 = 100
 )
 
 var (
 	// ErrInvalidMinBackoff ...
-	ErrInvalidMinBackoff = errors.New("min backoff should be between 0 and 600 seconds")
+	ErrInvalidMinBackoff = errors.New(fmt.Sprintf("min backoff should be between %v and %v seconds", lowerBoundMinimumBackoffInSeconds, upperBoundMinimumBackoffInSeconds))
 	// ErrInvalidMaxBackoff ...
-	ErrInvalidMaxBackoff = errors.New("max backoff should be between 0 and 600 seconds")
+	ErrInvalidMaxBackoff = errors.New(fmt.Sprintf("max backoff should be between %v and %v seconds", lowerBoundMaximumBackoffInSeconds, upperBoundMaximumBackoffInSeconds))
 	// ErrInvalidMaxDeliveryAttempt ...
-	ErrInvalidMaxDeliveryAttempt = errors.New("max delivery attempt should be between 5 and 100")
+	ErrInvalidMaxDeliveryAttempt = errors.New(fmt.Sprintf("max delivery attempt should be between %v and %v", lowerBoundMaxDeliveryAttempts, upperBoundMaxDeliveryAttempts))
 )
 
 // Interval is internal delay type per allowed interval

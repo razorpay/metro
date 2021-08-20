@@ -38,35 +38,33 @@ var (
 type Interval uint
 
 var (
-	// Delay5sec ...
+	// Delay5sec 5sec
 	Delay5sec Interval = 5
-	// Delay10sec ...
-	Delay10sec Interval = 10
-	// Delay30sec ...
+	// Delay30sec 30sec
 	Delay30sec Interval = 30
-	// Delay60sec ...
+	// Delay60sec 1min
 	Delay60sec Interval = 60
-	// Delay120sec ...
-	Delay120sec Interval = 120
-	// Delay150sec ...
+	// Delay150sec 2.5min
 	Delay150sec Interval = 150
-	// Delay300sec ...
+	// Delay300sec 5min
 	Delay300sec Interval = 300
-	// Delay450sec ...
-	Delay450sec Interval = 450
-	// Delay600sec ...
+	// Delay600sec 10min
 	Delay600sec Interval = 600
+	// Delay1800sec 30min
+	Delay1800sec Interval = 1800
+	// Delay3600sec 60min
+	Delay3600sec Interval = 3600
 )
 
 var (
 	// MinDelay ...
 	MinDelay = Delay5sec
 	// MaxDelay ...
-	MaxDelay = Delay600sec
+	MaxDelay = Delay3600sec
 )
 
 // Intervals during subscription creation, query from the allowed intervals list, and create all the needed topics for retry.
-var Intervals = []Interval{Delay5sec, Delay10sec, Delay30sec, Delay60sec, Delay120sec, Delay150sec, Delay300sec, Delay450sec, Delay600sec}
+var Intervals = []Interval{Delay5sec, Delay30sec, Delay60sec, Delay150sec, Delay300sec, Delay600sec, Delay1800sec, Delay3600sec}
 
 // DelayConsumerConfig ...
 type DelayConsumerConfig struct {

@@ -8,7 +8,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
-	"github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/subscription"
@@ -230,10 +229,6 @@ func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.Mo
 }
 
 //AuthFuncOverride - Override function called by the auth interceptor
-func (s subscriberserver) AuthFuncOverride(ctx context.Context, _ string, req interface{}) (context.Context, error) {
-	projectID, err := getProjectIDFromRequest(ctx, req)
-	if err != nil {
-		return ctx, err
-	}
-	return interceptors.AppAuth(ctx, s.credentialCore, projectID)
+func (s subscriberserver) AuthFuncOverride(ctx context.Context, fullMethodName string, req interface{}) (context.Context, error) {
+	return authRequest(ctx, s.credentialCore, fullMethodName, req)
 }

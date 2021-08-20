@@ -19,6 +19,11 @@ const (
 	authorizationHeaderKey = "authorization"
 )
 
+var (
+	unauthenticatedError = status.Error(codes.Unauthenticated, "Unauthenticated")
+	unauthorizedError    = status.Error(codes.PermissionDenied, "Unauthorized")
+)
+
 // serviceAuthFuncOverride - An interface to check if the server implements the authFuncOveride method
 type serviceAuthFuncOverride interface {
 	AuthFuncOverride(ctx context.Context, fullMethodName string, req interface{}) (context.Context, error)
@@ -93,26 +98,26 @@ func AppAuth(ctx context.Context, credentialCore credentials.ICore, resourceProj
 	}
 
 	if !credentials.IsValidUsername(user) {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
+		return nil, unauthenticatedError
 	}
 
 	projectID := credentials.GetProjectIDFromUsername(user)
 	// lookup the credential
 	credential, err := credentialCore.Get(ctx, projectID, user)
 	if err != nil {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
+		return nil, unauthenticatedError
 	}
 
 	expectedPassword := credential.GetPassword()
 	// check the header password matches the expected password
 	if !secureCompare(expectedPassword, string(password)) {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
+		return nil, unauthenticatedError
 	}
 
 	// match the credential projectID and the resource projectID
 	// this way we enforce that the credential is accessing only its own projectID's resources
 	if !strings.EqualFold(resourceProjectID, credential.GetProjectID()) {
-		return nil, status.Error(codes.PermissionDenied, "Unauthorized")
+		return nil, unauthorizedError
 	}
 
 	newCtx := context.WithValue(ctx, credentials.CtxKey.String(), credentials.NewCredential(user, string(password)))
@@ -127,7 +132,7 @@ func AdminAuth(ctx context.Context, admin *credentials.Model) (context.Context, 
 	}
 
 	if !secureCompare(admin.Username, user) || !secureCompare(admin.Password, string(password)) {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
+		return nil, unauthenticatedError
 	}
 
 	return ctx, nil

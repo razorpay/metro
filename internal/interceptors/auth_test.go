@@ -119,37 +119,38 @@ func Test_AppAuth_Success(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func Test_AppAuth_Failure1(t *testing.T) {
+func Test_AppAuth_MissingHeader(t *testing.T) {
 	ctx := context.Background()
-	ctx, err := AppAuth(ctx, nil, "") // missing auth header
+	ctx, err := AppAuth(ctx, nil, "project-123") // missing auth header
 	assert.NotNil(t, err)
 }
 
-func Test_AppAuth_Failure2(t *testing.T) {
+func Test_AppAuth_WrongUsernameFormat(t *testing.T) {
 	ctx := context.Background()
 	pairs := []string{authorizationHeaderKey, "Basic YWRtaW46c3VwZXJzZWNyZXQ=", "uri", "/v1/projects/dummy12/topics/t123"} // wrong user name format
 	md := metadata.Pairs(pairs...)
 	newCtx := metadata.NewIncomingContext(ctx, md)
 
-	ctx, err := AppAuth(newCtx, nil, "")
+	ctx, err := AppAuth(newCtx, nil, "project-123")
 	assert.NotNil(t, err)
 }
 
-func Test_AppAuth_Failure3(t *testing.T) {
+func Test_AppAuth_CredentialCoreError(t *testing.T) {
 	ctx := context.Background()
 	pairs := []string{authorizationHeaderKey, "Basic ZHVtbXkxMl9fMTNhMDExOjJMOUo0QTByZHpjSU83MjIwODlM", "uri", "/v1/projects/dummy12/topics/t123"}
 	md := metadata.Pairs(pairs...)
 	newCtx := metadata.NewIncomingContext(ctx, md)
+	projectID := "project-123"
 
 	ctrl := gomock.NewController(t)
 	mockCore := mocks1.NewMockICore(ctrl)
 	mockCore.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("some error")) // credential core error
 
-	ctx, err := AppAuth(newCtx, mockCore, "")
-	assert.NotNil(t, err)
+	ctx, err := AppAuth(newCtx, mockCore, projectID)
+	assert.Equal(t, unauthenticatedError, err)
 }
 
-func Test_AppAuth_Failure4(t *testing.T) {
+func Test_AppAuth_ProjectMismatch(t *testing.T) {
 	ctx := context.Background()
 	pairs := []string{authorizationHeaderKey, "Basic ZHVtbXkxMl9fMTNhMDExOjJMOUo0QTByZHpjSU83MjIwODlM", "uri", "/v1/projects/wrongProjectID/topics/t123"}
 	md := metadata.Pairs(pairs...)
@@ -165,12 +166,12 @@ func Test_AppAuth_Failure4(t *testing.T) {
 	mockCore := mocks1.NewMockICore(ctrl)
 	mockCore.EXPECT().Get(gomock.Any(), project, username).Return(dummyCreds, nil)
 
-	// uri projectID and credential projectID mismatch
-	ctx, err := AppAuth(newCtx, mockCore, "")
-	assert.NotNil(t, err)
+	// resource projectID and credential projectID mismatch
+	ctx, err := AppAuth(newCtx, mockCore, "wrong-project")
+	assert.Equal(t, unauthorizedError, err)
 }
 
-func Test_AppAuth_Failure5(t *testing.T) {
+func Test_AppAuth_WrongPassword(t *testing.T) {
 	ctx := context.Background()
 	pairs := []string{authorizationHeaderKey, "Basic ZHVtbXkxMl9fMTNhMDExOjJMOUo0QTByZHpjSU83MjIwODlM", "uri", "/v1/projects/dummy12/topics/t123"}
 	md := metadata.Pairs(pairs...)
@@ -186,6 +187,6 @@ func Test_AppAuth_Failure5(t *testing.T) {
 	mockCore := mocks1.NewMockICore(ctrl)
 	mockCore.EXPECT().Get(gomock.Any(), project, username).Return(dummyCreds, nil)
 
-	ctx, err := AppAuth(newCtx, mockCore, "")
-	assert.NotNil(t, err)
+	ctx, err := AppAuth(newCtx, mockCore, project)
+	assert.Equal(t, unauthenticatedError, err)
 }

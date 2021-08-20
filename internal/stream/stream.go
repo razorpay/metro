@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/subscriber"
@@ -16,7 +18,6 @@ import (
 	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"golang.org/x/sync/errgroup"
 )
 
 // PushStream provides reads from broker and publishes messages for the push subscription

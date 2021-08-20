@@ -18,11 +18,7 @@ var (
 )
 
 func init() {
-	var err error
-	usernameRegex, err = regexp.Compile("([a-z][a-z0-9-]{5,29})__[a-zA-Z0-9]{6}")
-	if err != nil {
-		panic(err)
-	}
+	usernameRegex = regexp.MustCompile("([a-z][a-z0-9-]{5,29})__[a-zA-Z0-9]{6}")
 }
 
 // GetValidatedModelForCreate validates an incoming proto request and returns the model for create requests

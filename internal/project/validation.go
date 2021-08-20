@@ -13,11 +13,7 @@ import (
 var idRegex *regexp.Regexp
 
 func init() {
-	var err error
-	idRegex, err = regexp.Compile("([a-z][a-z0-9-]{5,29})$")
-	if err != nil {
-		panic(err)
-	}
+	idRegex = regexp.MustCompile("([a-z][a-z0-9-]{5,29})$")
 }
 
 // GetValidatedModelForCreate validates an incoming proto request and returns a project model for create requests

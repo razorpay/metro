@@ -15,13 +15,9 @@ import (
 var topicNameRegex *regexp.Regexp
 
 func init() {
-	var err error
 	// https://github.com/googleapis/googleapis/blob/69697504d9eba1d064820c3085b4750767be6d08/google/pubsub/v1/pubsub.proto#L170
 	// Note: check for project ID would happen while creating the project, hence not enforcing it here
-	topicNameRegex, err = regexp.Compile("projects/(.*)/topics/([A-Za-z][A-Za-z0-9-_.~+%]{2,254})$")
-	if err != nil {
-		panic(err)
-	}
+	topicNameRegex = regexp.MustCompile("projects/(.*)/topics/([A-Za-z][A-Za-z0-9-_.~+%]{2,254})$")
 }
 
 // GetValidatedModel validates an incoming proto request and returns the model

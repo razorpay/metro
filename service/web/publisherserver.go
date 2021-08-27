@@ -6,7 +6,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
-	"github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
@@ -94,6 +93,7 @@ func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTop
 	return &emptypb.Empty{}, nil
 }
 
-func (s publisherServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
-	return interceptors.AppAuth(ctx, s.credentialsCore)
+//AuthFuncOverride - Override function called by the auth interceptor
+func (s publisherServer) AuthFuncOverride(ctx context.Context, fullMethodName string, req interface{}) (context.Context, error) {
+	return authRequest(ctx, s.credentialsCore, fullMethodName, req)
 }

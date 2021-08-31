@@ -72,7 +72,7 @@ func (s *pullStream) run() error {
 			}
 			return nil
 		case err := <-s.subscriptionSubscriber.GetErrorChannel():
-			streamManagerSubscriberErrors.WithLabelValues(env, s.subscriberID, s.subscriptionSubscriber.GetSubscription(), err.Error()).Inc()
+			streamManagerSubscriberErrors.WithLabelValues(env, s.subscriberID, s.subscriptionSubscriber.GetSubscriptionName(), err.Error()).Inc()
 			if messagebroker.IsErrorRecoverable(err) {
 				// no need to stop the subscriber in such cases. just log and return
 				logger.Ctx(s.ctx).Errorw("subscriber: got recoverable error", err.Error())
@@ -191,7 +191,7 @@ func (s *pullStream) stop() {
 	// notify stream manager to cleanup subscriber held in-memory
 	s.cleanupCh <- cleanupMessage{
 		subscriberID: s.subscriberID,
-		subscription: s.subscriptionSubscriber.GetSubscription(),
+		subscription: s.subscriptionSubscriber.GetSubscriptionName(),
 	}
 }
 

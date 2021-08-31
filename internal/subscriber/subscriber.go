@@ -25,7 +25,7 @@ const (
 // ISubscriber is interface over high level subscriber
 type ISubscriber interface {
 	GetID() string
-	GetSubscription() string
+	GetSubscriptionName() string
 	GetResponseChannel() chan *metrov1.PullResponse
 	GetRequestChannel() chan *PullRequest
 	GetAckChannel() chan *AckMessage
@@ -75,7 +75,7 @@ func (s *Subscriber) GetID() string {
 }
 
 // GetSubscription ...
-func (s *Subscriber) GetSubscription() string {
+func (s *Subscriber) GetSubscriptionName() string {
 	return s.subscription.Name
 }
 

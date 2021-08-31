@@ -22,6 +22,7 @@ type ICore interface {
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
+	CreateDelayTopics(ctx context.Context, m *Model, topicModel *topic.Model) error
 }
 
 // Core implements all business logic for a subscription
@@ -112,25 +113,11 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 			return err
 		}
 
-		// create all the needed delay topics
-		for _, delayTopic := range m.DelayConfig.DelayTopics {
-			err = c.topicCore.CreateTopic(ctx, &topic.Model{
-				Name:               delayTopic,
-				ExtractedProjectID: m.ExtractedSubscriptionProjectID,
-				ExtractedTopicName: delayTopic,
-				NumPartitions:      topicModel.NumPartitions,
-			})
-			if val, ok := err.(*merror.MError); ok {
-				// in-case users delete and re-create a subscription
-				// we should ideally be deleting all associated topics
-				// temp check, remove once delete subscription feature is live
-				if val.Code() == merror.AlreadyExists {
-					continue
-				}
-			} else if err != nil {
-				logger.Ctx(ctx).Errorw("failed to create delay topic for subscription", "name", delayTopic, "error", err.Error())
-				return err
-			}
+		// this creates the needed delay topics in the broker
+		err = c.CreateDelayTopics(ctx, m, topicModel)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
+			return err
 		}
 	}
 
@@ -300,4 +287,32 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 		return nil, err
 	}
 	return model, nil
+}
+
+// CreateDelayTopics - creates needed delay topics for a subscription
+func (c *Core) CreateDelayTopics(ctx context.Context, m *Model, topicModel *topic.Model) error {
+	if m == nil || topicModel == nil {
+		return nil
+	}
+
+	for _, delayTopic := range m.DelayConfig.DelayTopics {
+		err := c.topicCore.CreateTopic(ctx, &topic.Model{
+			Name:               delayTopic,
+			ExtractedProjectID: m.ExtractedSubscriptionProjectID,
+			ExtractedTopicName: delayTopic,
+			NumPartitions:      topicModel.NumPartitions,
+		})
+		if val, ok := err.(*merror.MError); ok {
+			// in-case users delete and re-create a subscription
+			// we should ideally be deleting all associated topics
+			// temp check, remove once delete subscription feature is live
+			if val.Code() == merror.AlreadyExists {
+				continue
+			}
+		} else if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create delay topic for subscription", "name", delayTopic, "error", err.Error())
+			return err
+		}
+	}
+	return nil
 }

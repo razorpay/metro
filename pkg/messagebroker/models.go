@@ -37,25 +37,33 @@ type SendMessageToTopicRequest struct {
 
 // MessageHeader contains the fields passed around in the message headers
 type MessageHeader struct {
-	MessageID   string
+	// the unique identifier of each broker message
+	MessageID string
+	// time at which the message was pushed onto the broker
 	PublishTime time.Time
-	// message was read from this topic
+	// the first topic from where the message originated from
+	// the message eventually can cycle through multiple delay and dead-letter topics
 	SourceTopic string
-	// primary retry topic
+	// the current retry topic through which the message is read from
 	RetryTopic string
-	// topic from where the first message originated from, before any retry
-	Subscription      string
+	// the subscription name from where this message originated
+	Subscription string
+	// the number of retries already attempted for the current message
 	CurrentRetryCount int32
-	MaxRetryCount     int32
-	// destination topic
+	// max attempted based on the dead-letter policy configured in the subscription
+	MaxRetryCount int32
+	// the current topic where the message is being read from
 	CurrentTopic string
 	// the delay with which retry began
 	InitialDelayInterval uint
-	// the current delay being after applying backoff
+	// the current delay calculated being after applying backoff
 	CurrentDelayInterval uint
+	// the actual interval being used from the pre-defined list of intervals
 	ClosestDelayInterval uint
-	DeadLetterTopic      string
-	NextDeliveryTime     time.Time
+	// the dead letter topic name where is message will be pushed after exhausted all retries
+	DeadLetterTopic string
+	// the time interval after which this message can be read by the delay-consumer on a retry cycle
+	NextDeliveryTime time.Time
 }
 
 // LogFields ...

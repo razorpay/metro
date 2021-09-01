@@ -7,7 +7,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
-	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/health"
@@ -143,9 +142,9 @@ func (svc *Service) Start(ctx context.Context) error {
 
 func getInterceptors() []grpc.UnaryServerInterceptor {
 	// skip auth from test mode executions
-	if app.IsTestMode() {
-		return []grpc.UnaryServerInterceptor{}
-	}
+	// if app.IsTestMode() {
+	// 	return []grpc.UnaryServerInterceptor{}
+	// }
 
 	return []grpc.UnaryServerInterceptor{
 		interceptors.UnaryServerAuthInterceptor(func(ctx context.Context) (context.Context, error) {

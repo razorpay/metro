@@ -1,4 +1,4 @@
-package metro_pubsub
+package metroclient
 
 import (
 	"context"
@@ -16,12 +16,13 @@ const (
 	basicAuth  string = "basic"
 )
 
+// Credentials - Holds username and password of metro client
 type Credentials struct {
 	Username string
 	Password string
 }
 
-// newMetroClient - returns an initialized metro's per topic publisher client
+// NewMetroClient - returns an initialized metro's per topic publisher client
 func NewMetroClient(endpoint string, isTLSEnabled bool, projectID string, credentials Credentials) (*pubsub.Client, error) {
 	opts, err := getClientOptions(endpoint, isTLSEnabled, credentials)
 	if err != nil {
@@ -73,9 +74,9 @@ func (c *credentialsProvider) RequireTransportSecurity() bool {
 }
 
 // Token - returns a token for api authentication/authorization
-func (ts *credentialsProvider) Token() (*oauth2.Token, error) {
+func (c *credentialsProvider) Token() (*oauth2.Token, error) {
 	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(
-		ts.credentials.Username + ":" + ts.credentials.Password),
+		c.credentials.Username + ":" + c.credentials.Password),
 	)
 
 	return &oauth2.Token{

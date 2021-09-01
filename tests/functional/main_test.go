@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"testing"
 
@@ -50,7 +49,7 @@ func setup() {
 
 	var appConfig map[string]interface{}
 	if err = configreader.NewDefaultConfig().Load(env, &appConfig); err != nil {
-		os.Exit(5)
+		os.Exit(1)
 	}
 	if _, ok := appConfig["admin"]; ok {
 		adminUser = appConfig["admin"].(map[string]interface{})["username"].(string)
@@ -67,7 +66,7 @@ func setup() {
 
 	client, err = metro_pubsub.NewMetroClient(metroGrpcHost, false, projectId, metro_pubsub.Credentials{Username: username, Password: password})
 	if err != nil {
-		os.Exit(5)
+		os.Exit(2)
 	}
 }
 
@@ -77,12 +76,12 @@ func setupTestProjects() {
 	payload := bytes.NewBuffer([]byte("{\"name\": \"" + projectId + "\",\"projectId\": \"" + projectId + "\"}"))
 	req, err := http.NewRequest(http.MethodPost, url, payload)
 	if err != nil {
-		os.Exit(2)
+		os.Exit(3)
 	}
 	req.SetBasicAuth(adminUser, adminPassword)
 	r, err := http.DefaultClient.Do(req)
 	if err != nil || r.StatusCode != 200 {
-		os.Exit(2)
+		os.Exit(4)
 	}
 	setupProjectCredentials()
 }
@@ -94,35 +93,31 @@ func setupProjectCredentials() {
 	payload := bytes.NewBuffer([]byte(fmt.Sprintf(`{"username": "%s", "password":"password"}`, projectId+"_user")))
 	req, err := http.NewRequest(http.MethodPost, url, payload)
 	if err != nil {
-		os.Exit(2)
+		os.Exit(5)
 	}
 	req.SetBasicAuth(adminUser, adminPassword)
 	r, err := http.DefaultClient.Do(req)
 	if err != nil || r.StatusCode != 200 {
-		os.Exit(2)
+		os.Exit(6)
 	}
 	defer r.Body.Close()
 	if err = json.NewDecoder(r.Body).Decode(&parsedResponse); err != nil {
-		os.Exit(2)
+		os.Exit(7)
 	}
 	password = parsedResponse["password"]
 	username = parsedResponse["username"]
-	fmt.Println(password)
 }
 
 func teardown() {
 	// delete project from metro
-	url, err := url.Parse(fmt.Sprintf("%s/v1/projects/%s", metroHttpHost, projectId))
+	url := fmt.Sprintf("%s/v1/projects/%s", metroHttpHost, projectId)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		os.Exit(3)
-	}
-	req := &http.Request{
-		Method: "DELETE",
-		URL:    url,
+		os.Exit(8)
 	}
 	req.SetBasicAuth(adminUser, adminPassword)
 	r, err := http.DefaultClient.Do(req)
 	if err != nil || r.StatusCode != 200 {
-		os.Exit(4)
+		os.Exit(9)
 	}
 }

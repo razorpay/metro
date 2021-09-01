@@ -141,11 +141,6 @@ func (svc *Service) Start(ctx context.Context) error {
 }
 
 func getInterceptors() []grpc.UnaryServerInterceptor {
-	// skip auth from test mode executions
-	// if app.IsTestMode() {
-	// 	return []grpc.UnaryServerInterceptor{}
-	// }
-
 	return []grpc.UnaryServerInterceptor{
 		interceptors.UnaryServerAuthInterceptor(func(ctx context.Context) (context.Context, error) {
 			return ctx, nil

@@ -74,7 +74,7 @@ func (s *Subscriber) GetID() string {
 	return s.subscriberID
 }
 
-// GetSubscription ...
+// GetSubscriptionName ...
 func (s *Subscriber) GetSubscriptionName() string {
 	return s.subscription.Name
 }

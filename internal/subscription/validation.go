@@ -28,13 +28,9 @@ const (
 )
 
 func init() {
-	var err error
 	// https://github.com/googleapis/googleapis/blob/69697504d9eba1d064820c3085b4750767be6d08/google/pubsub/v1/pubsub.proto#L636
 	// Note: check for project ID would happen while creating the project, hence not enforcing it here
-	subscriptionNameRegex, err = regexp.Compile("projects/(.*)/subscriptions/([A-Za-z][A-Za-z0-9-_.~+%]{2,254})$")
-	if err != nil {
-		panic(err)
-	}
+	subscriptionNameRegex = regexp.MustCompile("projects/(.*)/subscriptions/([A-Za-z][A-Za-z0-9-_.~+%]{2,254})$")
 }
 
 // GetValidatedModelForCreate validates an incoming proto request and returns the model for create requests
@@ -67,6 +63,10 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	m.DeadLetterPolicy = &DeadLetterPolicy{
 		DeadLetterTopic:     topic.GetTopicName(p, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix),
 		MaxDeliveryAttempts: req.DeadLetterPolicy.GetMaxDeliveryAttempts(),
+	}
+
+	if err = validateDelayConfig(m); err != nil {
+		return nil, err
 	}
 
 	// set push auth
@@ -146,7 +146,7 @@ func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, 
 	return m, nil
 }
 
-func validateTopicName(ctx context.Context, name string) (string, error) {
+func validateTopicName(_ context.Context, name string) (string, error) {
 	if strings.HasSuffix(name, topic.RetryTopicSuffix) {
 		err := fmt.Errorf("subscription topic name cannot end with " + topic.RetryTopicSuffix)
 		return "", err
@@ -155,7 +155,7 @@ func validateTopicName(ctx context.Context, name string) (string, error) {
 	return name, nil
 }
 
-func validatePushConfig(ctx context.Context, config *metrov1.PushConfig) (string, error) {
+func validatePushConfig(_ context.Context, config *metrov1.PushConfig) (string, error) {
 	if config != nil {
 		urlEndpoint := config.PushEndpoint
 		_, err := url.ParseRequestURI(urlEndpoint)
@@ -168,7 +168,7 @@ func validatePushConfig(ctx context.Context, config *metrov1.PushConfig) (string
 	return "", nil
 }
 
-func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (projectID string, subscriptionName string, err error) {
+func extractSubscriptionMetaAndValidate(_ context.Context, name string) (projectID string, subscriptionName string, err error) {
 	match := subscriptionNameRegex.FindStringSubmatch(name)
 	if len(match) != 3 {
 		err = fmt.Errorf("invalid subscription name")

@@ -1,4 +1,4 @@
-package subscriber
+package retry
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
-// RetryMessageHandler defines the contract to process a retry-able broker message
-type RetryMessageHandler interface {
+// MessageHandler defines the contract to process a retry-able broker message
+type MessageHandler interface {
 	Do(ctx context.Context, msg messagebroker.ReceivedMessage) error
 }
 
@@ -18,7 +18,7 @@ type PushToPrimaryRetryTopic struct {
 }
 
 // NewPushToPrimaryRetryTopicHandler inits a new retry handler
-func NewPushToPrimaryRetryTopicHandler(bs brokerstore.IBrokerStore) RetryMessageHandler {
+func NewPushToPrimaryRetryTopicHandler(bs brokerstore.IBrokerStore) MessageHandler {
 	return &PushToPrimaryRetryTopic{bs: bs}
 }
 

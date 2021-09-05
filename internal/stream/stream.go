@@ -173,6 +173,7 @@ func (ps *PushStream) pushMessage(ctx context.Context, subModel *subscription.Mo
 	pushRequest := newPushEndpointRequest(message, subModel.Name)
 	postData := getRequestBytes(pushRequest)
 	req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
+	req.Header.Set("Content-Type", "application/json")
 	if subModel.HasCredentials() {
 		req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
 	}
@@ -200,6 +201,14 @@ func (ps *PushStream) pushMessage(ctx context.Context, subModel *subscription.Mo
 	}
 
 	// discard response.Body after usage and ignore errors
+	if !success {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logger.Ctx(ps.ctx).Errorw("worker: push was unsuccessful and could not read response body", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
+		} else {
+			logger.Ctx(ps.ctx).Errorw("worker: push was unsuccessful", "status", resp.StatusCode, "body", string(bodyBytes), "logFields", logFields)
+		}
+	}
 	_, err = io.Copy(ioutil.Discard, resp.Body)
 	err = resp.Body.Close()
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/subscriber/retry"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -50,9 +51,9 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	subsCtx, cancelFunc := context.WithCancel(ctx)
 	// using the subscriber ctx for retrier as well. This way when the ctx() for subscribers is done,
 	// all the delay-consumers spawned within retrier would also get marked as done.
-	var retrier IRetrier
-	if subscription.DelayConfig != nil {
-		retrier, err = NewRetrier(subsCtx, subscription.DelayConfig, c.bs, NewPushToPrimaryRetryTopicHandler(c.bs))
+	var retrier retry.IRetrier
+	if subscription.RetryPolicy != nil && subscription.DeadLetterPolicy != nil {
+		retrier, err = retry.NewRetrier(subsCtx, subscription, c.bs, retry.NewPushToPrimaryRetryTopicHandler(c.bs))
 		if err != nil {
 			return nil, err
 		}

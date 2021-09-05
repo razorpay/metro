@@ -106,13 +106,6 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 			return err
 		}
 
-		// this creates the needed retry/delay topic configs
-		m.DelayConfig, err = NewDelayConfig(m)
-		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to init delay config", "error", err.Error())
-			return err
-		}
-
 		// this creates the needed delay topics in the broker
 		err = c.CreateDelayTopics(ctx, m, topicModel)
 		if err != nil {
@@ -295,7 +288,7 @@ func (c *Core) CreateDelayTopics(ctx context.Context, m *Model, topicModel *topi
 		return nil
 	}
 
-	for _, delayTopic := range m.DelayConfig.DelayTopics {
+	for _, delayTopic := range m.GetDelayTopics() {
 		err := c.topicCore.CreateTopic(ctx, &topic.Model{
 			Name:               delayTopic,
 			ExtractedProjectID: m.ExtractedSubscriptionProjectID,

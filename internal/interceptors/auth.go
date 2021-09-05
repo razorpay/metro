@@ -19,22 +19,38 @@ const (
 	authorizationHeaderKey = "authorization"
 )
 
-// UnaryServerAuthInterceptor creates an authenticator interceptor with the given AuthFunc
-func UnaryServerAuthInterceptor(authFunc grpc_auth.AuthFunc) grpc.UnaryServerInterceptor {
-	return grpc_auth.UnaryServerInterceptor(authFunc)
+var (
+	unauthenticatedError = status.Error(codes.Unauthenticated, "Unauthenticated")
+	unauthorizedError    = status.Error(codes.PermissionDenied, "Unauthorized")
+)
+
+// serviceAuthFuncOverride - An interface to check if the server implements the authFuncOveride method
+type serviceAuthFuncOverride interface {
+	AuthFuncOverride(ctx context.Context, fullMethodName string, req interface{}) (context.Context, error)
 }
 
-func getUserPasswordProjectID(ctx context.Context) (user string, password []byte, projectID string, err error) {
+// UnaryServerAuthInterceptor - creates an authenticator interceptor with the given AuthFunc
+func UnaryServerAuthInterceptor(authFunc grpc_auth.AuthFunc) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		var newCtx context.Context
+		var err error
+		if overrideSrv, ok := info.Server.(serviceAuthFuncOverride); ok {
+			newCtx, err = overrideSrv.AuthFuncOverride(ctx, info.FullMethod, req)
+		} else {
+			newCtx, err = authFunc(ctx)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return handler(newCtx, req)
+	}
+}
+
+func getUserPassword(ctx context.Context) (user string, password []byte, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		err = status.Error(codes.Unauthenticated, "could not parse incoming context")
 		return
-	}
-
-	// `uri` gets set inside `runtime.WithMetadata()`. check `server.go` for implementation
-	// this is ideally a single-valued slice
-	if val := md.Get("uri"); val != nil && len(val) > 0 {
-		projectID = extractProjectIDFromURI(val[0])
 	}
 
 	headers := md.Get(authorizationHeaderKey)
@@ -74,50 +90,34 @@ func secureCompare(expected, actual string) bool {
 	return false
 }
 
-// extractProjectIDFromURI : This function extracts the projectID from the HTTP request URI.
-// Example1: extractProjectIDFromURI("/v1/projects/project1/topics/t123") = project1
-// Example2: extractProjectIDFromURI("/v1/projects/project7/subscriptions/s123") = project7
-// Example3: extractProjectIDFromURI("/v1/admin/topic/t987") = ""
-func extractProjectIDFromURI(uri string) string {
-	if uri == "" {
-		return ""
-	}
-
-	parts := strings.Split(uri, "/")
-	if len(parts) >= 4 && parts[2] == "projects" && parts[3] != "" {
-		return parts[3]
-	}
-	return ""
-}
-
 // AppAuth implements app project based basic auth validations
-func AppAuth(ctx context.Context, credentialCore credentials.ICore) (context.Context, error) {
-	user, password, uriProjectID, err := getUserPasswordProjectID(ctx)
+func AppAuth(ctx context.Context, credentialCore credentials.ICore, resourceProjectID string) (context.Context, error) {
+	user, password, err := getUserPassword(ctx)
 	if err != nil {
 		return ctx, err
 	}
 
 	if !credentials.IsValidUsername(user) {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
+		return nil, unauthenticatedError
 	}
 
 	projectID := credentials.GetProjectIDFromUsername(user)
 	// lookup the credential
 	credential, err := credentialCore.Get(ctx, projectID, user)
 	if err != nil {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
-	}
-
-	// match the credential projectID and the uri projectID
-	// this way we enforce that the credential is accessing only its own projectID's resources
-	if !strings.EqualFold(uriProjectID, credential.GetProjectID()) {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
+		return nil, unauthenticatedError
 	}
 
 	expectedPassword := credential.GetPassword()
 	// check the header password matches the expected password
 	if !secureCompare(expectedPassword, string(password)) {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
+		return nil, unauthenticatedError
+	}
+
+	// match the credential projectID and the resource projectID
+	// this way we enforce that the credential is accessing only its own projectID's resources
+	if !strings.EqualFold(resourceProjectID, credential.GetProjectID()) {
+		return nil, unauthorizedError
 	}
 
 	newCtx := context.WithValue(ctx, credentials.CtxKey.String(), credentials.NewCredential(user, string(password)))
@@ -126,13 +126,13 @@ func AppAuth(ctx context.Context, credentialCore credentials.ICore) (context.Con
 
 // AdminAuth implements admin credentials based basic auth validations
 func AdminAuth(ctx context.Context, admin *credentials.Model) (context.Context, error) {
-	user, password, _, err := getUserPasswordProjectID(ctx)
+	user, password, err := getUserPassword(ctx)
 	if err != nil {
 		return ctx, err
 	}
 
 	if !secureCompare(admin.Username, user) || !secureCompare(admin.Password, string(password)) {
-		return nil, status.Error(codes.Unauthenticated, "Unauthenticated")
+		return nil, unauthenticatedError
 	}
 
 	return ctx, nil

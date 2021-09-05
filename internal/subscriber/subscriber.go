@@ -5,6 +5,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/razorpay/metro/internal/subscriber/retry"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -57,7 +59,7 @@ type Subscriber struct {
 	isPaused               bool
 	ctx                    context.Context
 	bs                     brokerstore.IBrokerStore
-	retrier                IRetrier
+	retrier                retry.IRetrier
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
@@ -92,11 +94,11 @@ func (s *Subscriber) retry(ctx context.Context, msg messagebroker.ReceivedMessag
 	msg.SourceTopic = s.subscription.Topic
 	msg.RetryTopic = s.subscription.GetRetryTopic() // push retried messages to primary retry topic
 	msg.CurrentTopic = s.subscription.Topic         // initially these will be same
-	msg.Subscription = s.subscription.DelayConfig.Subscription
+	msg.Subscription = s.subscription.Name
 	msg.CurrentRetryCount = msg.CurrentRetryCount + 1 // should be zero to begin with
-	msg.MaxRetryCount = s.subscription.DelayConfig.MaxDeliveryAttempts
-	msg.DeadLetterTopic = s.subscription.DelayConfig.DeadLetterTopic
-	msg.InitialDelayInterval = s.subscription.DelayConfig.MinimumBackoffInSeconds
+	msg.MaxRetryCount = s.subscription.DeadLetterPolicy.MaxDeliveryAttempts
+	msg.DeadLetterTopic = s.subscription.DeadLetterPolicy.DeadLetterTopic
+	msg.InitialDelayInterval = s.subscription.RetryPolicy.MinimumBackoff
 
 	err := s.retrier.Handle(ctx, msg)
 	if err != nil {

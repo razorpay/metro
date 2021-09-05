@@ -1,4 +1,4 @@
-package subscriber
+package retry
 
 import (
 	"context"
@@ -24,17 +24,17 @@ type IRetrier interface {
 
 // Retrier implements all business logic for IRetrier
 type Retrier struct {
-	dc             *subscription.DelayConfig
+	subs           *subscription.Model
 	bs             brokerstore.IBrokerStore
 	delayConsumers sync.Map
 }
 
 // NewRetrier inits a new retrier which internally takes care of spawning the needed delay-consumers.
-func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstore.IBrokerStore, handler RetryMessageHandler) (IRetrier, error) {
+func NewRetrier(ctx context.Context, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler) (IRetrier, error) {
 	delayConsumers := sync.Map{}
 
-	for interval, config := range dc.GetDelayTopicsMap() {
-		dc, err := NewDelayConsumer(ctx, config, bs, handler)
+	for interval, topic := range subs.GetDelayTopicsMap() {
+		dc, err := NewDelayConsumer(ctx, topic, subs, bs, handler)
 		if err != nil {
 			return nil, err
 		}
@@ -43,7 +43,7 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 	}
 
 	r := &Retrier{
-		dc:             dc,
+		subs:           subs,
 		bs:             bs,
 		delayConsumers: delayConsumers,
 	}
@@ -53,7 +53,7 @@ func NewRetrier(ctx context.Context, dc *subscription.DelayConfig, bs brokerstor
 
 // Stop gracefully stop call the spawned delay-consumers for retry
 func (r *Retrier) Stop(ctx context.Context) {
-	logger.Ctx(ctx).Infow("retrier: stopping all delay consumers for topics", "delay_topics", r.dc.GetDelayTopics())
+	logger.Ctx(ctx).Infow("retrier: stopping all delay consumers for topics", "delay_topics", r.subs.GetDelayTopics())
 	wg := sync.WaitGroup{}
 	r.delayConsumers.Range(func(_, dcFromMap interface{}) bool {
 		wg.Add(1)
@@ -79,7 +79,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 	nextDelayInterval := calculateNextUsingExponentialBackoff(float64(msg.InitialDelayInterval), float64(msg.CurrentDelayInterval), float64(msg.CurrentRetryCount))
 
 	// next allowed delay interval from the list of pre-defined intervals
-	dInterval := findClosestDelayInterval(r.dc.MinimumBackoffInSeconds, r.dc.MaximumBackoffInSeconds, availableDelayIntervals, nextDelayInterval)
+	dInterval := findClosestDelayInterval(r.subs.RetryPolicy.MinimumBackoff, r.subs.RetryPolicy.MaximumBackoff, availableDelayIntervals, nextDelayInterval)
 	dcFromMap, _ := r.delayConsumers.Load(dInterval)
 	dc := dcFromMap.(*DelayConsumer)
 
@@ -93,7 +93,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		CurrentRetryCount:    msg.CurrentRetryCount,
 		RetryTopic:           msg.RetryTopic,
 		MaxRetryCount:        msg.MaxRetryCount,
-		CurrentTopic:         dc.config.Topic,
+		CurrentTopic:         dc.topic,
 		NextDeliveryTime:     nextDeliveryTime,
 		DeadLetterTopic:      msg.DeadLetterTopic,
 		InitialDelayInterval: msg.InitialDelayInterval,
@@ -103,25 +103,25 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 
 	// new broker message
 	newMessage := messagebroker.SendMessageToTopicRequest{
-		Topic:         dc.config.Topic,
+		Topic:         dc.topic,
 		Message:       msg.Data,
 		MessageHeader: newMessageHeaders,
 	}
 
 	// given a message, produce to the correct topic
 	producer, err := r.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
-		Topic:     dc.config.Topic,
+		Topic:     dc.topic,
 		TimeoutMs: defaultBrokerOperationsTimeoutMs,
 	})
 	if err != nil {
-		logger.Ctx(ctx).Errorw("retrier: failed to init producer for delay topic", "topic", dc.config.Topic, "error", err.Error())
+		logger.Ctx(ctx).Errorw("retrier: failed to init producer for delay topic", "topic", dc.topic, "error", err.Error())
 		return err
 	}
 
 	// push message onto the identified delay-topic
 	_, err = producer.SendMessage(ctx, newMessage)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("retrier: failed to produce to delay topic", "topic", dc.config.Topic, "error", err.Error())
+		logger.Ctx(ctx).Errorw("retrier: failed to produce to delay topic", "topic", dc.topic, "error", err.Error())
 		return err
 	}
 

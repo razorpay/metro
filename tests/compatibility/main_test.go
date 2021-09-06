@@ -11,11 +11,11 @@ import (
 	"os"
 	"testing"
 
+	"cloud.google.com/go/pubsub"
 	"github.com/google/uuid"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 
-	"cloud.google.com/go/pubsub"
 	configreader "github.com/razorpay/metro/pkg/config"
 	metro_pubsub "github.com/razorpay/metro/tests/metroclient"
 )

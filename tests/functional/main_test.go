@@ -12,6 +12,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/google/uuid"
+
 	configreader "github.com/razorpay/metro/pkg/config"
 	metro_pubsub "github.com/razorpay/metro/tests/metroclient"
 )

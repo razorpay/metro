@@ -107,8 +107,8 @@ func (m *Model) HasCredentials() bool {
 
 func (m *Model) setDefaultRetryPolicy() {
 	m.RetryPolicy = &RetryPolicy{
-		MinimumBackoff: 10,
-		MaximumBackoff: 10,
+		MinimumBackoff: 5,
+		MaximumBackoff: 5,
 	}
 }
 

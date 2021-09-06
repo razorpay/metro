@@ -22,6 +22,7 @@ type ICore interface {
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
+	Migrate(ctx context.Context, names []string) error
 }
 
 // Core implements all business logic for a subscription
@@ -274,4 +275,70 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 		return nil, err
 	}
 	return model, nil
+}
+
+// Migrate takes care of migrating the old subscription model to new
+func (c *Core) Migrate(ctx context.Context, names []string) error {
+
+	subscriptionsToUpdate := make([]*Model, 0)
+	if names == nil || len(names) == 0 {
+		models, err := c.List(ctx, Prefix)
+		if err != nil {
+			return err
+		}
+		subscriptionsToUpdate = append(subscriptionsToUpdate, models...)
+	} else {
+		for _, name := range names {
+			model, err := c.Get(ctx, name)
+			if err != nil {
+				return err
+			}
+			subscriptionsToUpdate = append(subscriptionsToUpdate, model)
+		}
+	}
+
+	logger.Ctx(ctx).Infow("migration: found subscriptions to migrate", "count", len(subscriptionsToUpdate))
+
+	topicNames := make([]string, 0)
+	for _, model := range subscriptionsToUpdate {
+		// update retry policy if not set
+		if model.RetryPolicy == nil {
+			model.setDefaultRetryPolicy()
+		}
+
+		// update dead letter policy if not set
+		if model.DeadLetterPolicy == nil {
+			model.setDefaultDeadLetterPolicy()
+		}
+
+		// collect all the delay topic names to be created
+		topicNames = append(topicNames, model.getDelayTopicNames()...)
+
+		logger.Ctx(ctx).Infow("migration: updating subscription", "model", model.Name)
+		// update the subscription model
+		err := c.UpdateSubscription(ctx, model)
+		if err != nil {
+			return err
+		}
+	}
+
+	logger.Ctx(ctx).Infow("migration: delay topics to create", "count", len(topicNames), "topicNames", topicNames)
+	// collect the success and failed topic names so that they can be retried if needed
+	successTopicNames, failedTopicNames := make([]string, 0), make([]string, 0)
+	for _, tName := range topicNames {
+		err := c.topicCore.CreateTopic(ctx, &topic.Model{
+			Name:          tName,
+			NumPartitions: topic.DefaultNumPartitions,
+		})
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("migration: failed to create delay topic", "tName", tName, "error", err.Error())
+			failedTopicNames = append(failedTopicNames, tName)
+			continue
+		}
+		successTopicNames = append(successTopicNames, tName)
+	}
+
+	logger.Ctx(ctx).Infow("migration: request completed", "successTopicNames", successTopicNames, "failedTopicNames", failedTopicNames)
+	return nil
 }

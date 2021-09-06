@@ -301,24 +301,30 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 	topicNames := make([]string, 0)
 	for _, model := range subscriptionsToUpdate {
+		needsUpdate := false
+
 		// update retry policy if not set
 		if model.RetryPolicy == nil {
 			model.setDefaultRetryPolicy()
+			needsUpdate = true
 		}
 
 		// update dead letter policy if not set
 		if model.DeadLetterPolicy == nil {
 			model.setDefaultDeadLetterPolicy()
+			needsUpdate = true
 		}
 
-		// collect all the delay topic names to be created
-		topicNames = append(topicNames, model.getDelayTopicNames()...)
+		if needsUpdate {
+			// collect all the delay topic names to be created
+			topicNames = append(topicNames, model.getDelayTopicNames()...)
 
-		logger.Ctx(ctx).Infow("migration: updating subscription", "model", model.Name)
-		// update the subscription model
-		err := c.UpdateSubscription(ctx, model)
-		if err != nil {
-			return err
+			logger.Ctx(ctx).Infow("migration: updating subscription", "model", model.Name)
+			// update the subscription model
+			err := c.UpdateSubscription(ctx, model)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

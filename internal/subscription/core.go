@@ -278,6 +278,10 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 }
 
 // Migrate takes care of migrating the old subscription model to new
+// As of now it specifically takes care of two things:
+// 1. Updating the missing retry and dead-letter policies with default values.
+// 2. Create the needed delay topics for a subscription retry to work.
+// In future, modify this function as needed to support additional migration use-cases.
 func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 	subscriptionsToUpdate := make([]*Model, 0)

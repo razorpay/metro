@@ -338,9 +338,14 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 	// collect the success and failed topic names so that they can be retried if needed
 	successTopicNames, failedTopicNames := make([]string, 0), make([]string, 0)
 	for _, tName := range topicNames {
-		tModel, _ := topic.GetValidatedModel(ctx, &metrov1.Topic{
+		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
 			Name: tName,
 		})
+		if terr != nil {
+			logger.Ctx(ctx).Errorw("migration: failed to create validated topic model", "tName", tName, "error", terr.Error())
+			failedTopicNames = append(failedTopicNames, tName)
+			continue
+		}
 
 		err := c.topicCore.CreateTopic(ctx, tModel)
 		if err != nil {

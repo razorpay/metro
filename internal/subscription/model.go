@@ -119,18 +119,6 @@ func (m *Model) setDefaultDeadLetterPolicy() {
 	}
 }
 
-const delayTopicNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
-
-var intervals = []int{5, 30, 60, 150, 300, 600, 1800, 3600}
-
-func (m *Model) getDelayTopicNames() []string {
-	names := make([]string, 0)
-	for _, interval := range intervals {
-		names = append(names, fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, interval))
-	}
-	return names
-}
-
 // GetDelayTopicsMap returns the all the delay topic names to its interval map
 func (m *Model) GetDelayTopicsMap() map[Interval]string {
 	return map[Interval]string{
@@ -161,42 +149,42 @@ func (m *Model) GetDelayTopics() []string {
 
 // GetDelay5secTopic returns the formatted delay topic name for 5sec interval
 func (m *Model) GetDelay5secTopic() string {
-	return fmt.Sprintf(delayTopicNameFormat, m.Name, Delay5sec)
+	return fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay5sec)
 }
 
 // GetDelay30secTopic returns the formatted delay topic name for 30sec interval
 func (m *Model) GetDelay30secTopic() string {
-	return fmt.Sprintf(delayTopicNameFormat, m.Name, Delay30sec)
+	return fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay30sec)
 }
 
 // GetDelay60secTopic returns the formatted delay topic name for 60sec interval
 func (m *Model) GetDelay60secTopic() string {
-	return fmt.Sprintf(delayTopicNameFormat, m.Name, Delay60sec)
+	return fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay60sec)
 }
 
 // GetDelay150secTopic returns the formatted delay topic name for 150sec interval
 func (m *Model) GetDelay150secTopic() string {
-	return fmt.Sprintf(delayTopicNameFormat, m.Name, Delay150sec)
+	return fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay150sec)
 }
 
 // GetDelay300secTopic returns the formatted delay topic name for 300sec interval
 func (m *Model) GetDelay300secTopic() string {
-	return fmt.Sprintf(delayTopicNameFormat, m.Name, Delay300sec)
+	return fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay300sec)
 }
 
 // GetDelay600secTopic returns the formatted delay topic name for 600sec interval
 func (m *Model) GetDelay600secTopic() string {
-	return fmt.Sprintf(delayTopicNameFormat, m.Name, Delay600sec)
+	return fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay600sec)
 }
 
 // GetDelay1800secTopic returns the formatted delay topic name for 1800sec interval
 func (m *Model) GetDelay1800secTopic() string {
-	return fmt.Sprintf(delayTopicNameFormat, m.Name, Delay1800sec)
+	return fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay1800sec)
 }
 
 // GetDelay3600secTopic returns the formatted delay topic name for 3600sec interval
 func (m *Model) GetDelay3600secTopic() string {
-	return fmt.Sprintf(delayTopicNameFormat, m.Name, Delay3600sec)
+	return fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay3600sec)
 }
 
 // GetDelayConsumerGroupID returns the consumer group ID to be used by the delay consumers

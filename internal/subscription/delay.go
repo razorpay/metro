@@ -7,7 +7,7 @@ import (
 )
 
 // subs-delay-30-seconds, subs-delay-60-seconds ... subs-delay-600-seconds
-const delayTopicNameFormat = "%v-delay-%v-seconds"
+const delayTopicNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
 
 // subs-cg
 const delayConsumerGroupIDFormat = "%v-cg"

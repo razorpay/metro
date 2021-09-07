@@ -292,12 +292,16 @@ func (c *Core) CreateDelayTopics(ctx context.Context, m *Model, topicModel *topi
 	}
 
 	for _, delayTopic := range m.GetDelayTopics() {
-		err := c.topicCore.CreateTopic(ctx, &topic.Model{
-			Name:               delayTopic,
-			ExtractedProjectID: m.ExtractedSubscriptionProjectID,
-			ExtractedTopicName: delayTopic,
-			NumPartitions:      topicModel.NumPartitions,
+
+		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
+			Name: delayTopic,
 		})
+		if terr != nil {
+			logger.Ctx(ctx).Errorw("failed to create validated topic model", "delayTopic", delayTopic, "error", terr.Error())
+			return terr
+		}
+
+		err := c.topicCore.CreateTopic(ctx, tModel)
 		if val, ok := err.(*merror.MError); ok {
 			// in-case users delete and re-create a subscription
 			// we should ideally be deleting all associated topics
@@ -357,7 +361,7 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 		if needsUpdate {
 			// collect all the delay topic names to be created
-			topicNames = append(topicNames, model.getDelayTopicNames()...)
+			topicNames = append(topicNames, model.GetDelayTopics()...)
 
 			logger.Ctx(ctx).Infow("migration: updating subscription", "model", model.Name)
 			// update the subscription model

@@ -1,6 +1,8 @@
 package subscription
 
 import (
+	"fmt"
+
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/topic"
@@ -101,4 +103,30 @@ func (m *Model) GetCredentials() *credentials.Model {
 // HasCredentials returns true if a subscription has credentials for push endpoint
 func (m *Model) HasCredentials() bool {
 	return m.PushConfig.Credentials != nil
+}
+
+func (m *Model) setDefaultRetryPolicy() {
+	m.RetryPolicy = &RetryPolicy{
+		MinimumBackoff: 5,
+		MaximumBackoff: 5,
+	}
+}
+
+func (m *Model) setDefaultDeadLetterPolicy() {
+	m.DeadLetterPolicy = &DeadLetterPolicy{
+		DeadLetterTopic:     m.GetDeadLetterTopic(),
+		MaxDeliveryAttempts: 5,
+	}
+}
+
+const delayTopicNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
+
+var intervals = []int{5, 30, 60, 150, 300, 600, 1800, 3600}
+
+func (m *Model) getDelayTopicNames() []string {
+	names := make([]string, 0)
+	for _, interval := range intervals {
+		names = append(names, fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, interval))
+	}
+	return names
 }

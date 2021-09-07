@@ -312,11 +312,8 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 		// update retry policy if not set
 		if model.RetryPolicy == nil {
 			model.setDefaultRetryPolicy()
-			needsUpdate = true
-		}
-
-		// update dead letter policy if not set
-		if model.DeadLetterPolicy == nil {
+			// update dead letter policy every time as previously we were saving only dead-letter topic names
+			// this takes care of updating max_delivery_attempts
 			model.setDefaultDeadLetterPolicy()
 			needsUpdate = true
 		}

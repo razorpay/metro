@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
@@ -336,11 +338,11 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 	// collect the success and failed topic names so that they can be retried if needed
 	successTopicNames, failedTopicNames := make([]string, 0), make([]string, 0)
 	for _, tName := range topicNames {
-		err := c.topicCore.CreateTopic(ctx, &topic.Model{
-			Name:          tName,
-			NumPartitions: topic.DefaultNumPartitions,
+		tModel, _ := topic.GetValidatedModel(ctx, &metrov1.Topic{
+			Name: tName,
 		})
 
+		err := c.topicCore.CreateTopic(ctx, tModel)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("migration: failed to create delay topic", "tName", tName, "error", err.Error())
 			failedTopicNames = append(failedTopicNames, tName)

@@ -119,14 +119,14 @@ func (m *Model) setDefaultDeadLetterPolicy() {
 	}
 }
 
-const delayTopicNameFormat = "%v-delay-%v-seconds"
+const delayTopicNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
 
 var intervals = []int{5, 30, 60, 150, 300, 600, 1800, 3600}
 
 func (m *Model) getDelayTopicNames() []string {
 	names := make([]string, 0)
 	for _, interval := range intervals {
-		names = append(names, fmt.Sprintf(delayTopicNameFormat, m.Name, interval))
+		names = append(names, fmt.Sprintf(delayTopicNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, interval))
 	}
 	return names
 }

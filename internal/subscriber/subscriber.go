@@ -416,7 +416,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			close(s.responseChan)
 			close(s.errChan)
 
-			wasConsumerFound := s.bs.RemoveConsumer(ctx, s.subscriberID, messagebroker.ConsumerClientOptions{GroupID: s.subscription.Name})
+			wasConsumerFound := s.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: s.subscription.Name, GroupInstanceID: s.subscriberID})
 			if wasConsumerFound {
 				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.
 				// if the entry is already deleted from brokerStore, that means some other goroutine has already closed the consumer.

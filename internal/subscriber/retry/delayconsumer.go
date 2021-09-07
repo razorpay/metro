@@ -61,7 +61,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 		select {
 		case <-dc.ctx.Done():
 			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.LogFields()...)
-			dc.bs.RemoveConsumer(ctx, dc.subs.GetDelayConsumerGroupInstanceID(dc.topic), messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic)})
+			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.topic)})
 			dc.consumer.Close(dc.ctx)
 			return
 		default:

@@ -86,3 +86,26 @@ func TestSubscriptionCore_UpdateSubscriptionProjectNotExists(t *testing.T) {
 	err := core.UpdateSubscription(ctx, &sub)
 	assert.NotNil(t, err)
 }
+
+func TestSubscriptionCore_CreateDelayTopics(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
+
+	err := core.CreateDelayTopics(ctx, nil)
+	assert.Nil(t, err)
+
+	sub := &Model{
+		Name:                           "projects/dummy1/subscriptions/subs1",
+		Topic:                          "projects/dummy1/topics/topic1",
+		ExtractedSubscriptionProjectID: "dummy1",
+		ExtractedSubscriptionName:      "subs1",
+	}
+
+	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).Times(8)
+	err = core.CreateDelayTopics(ctx, sub)
+	assert.Nil(t, err)
+}

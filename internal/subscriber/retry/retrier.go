@@ -157,3 +157,16 @@ func findClosestDelayInterval(min uint, max uint, intervals []subscription.Inter
 func calculateNextUsingExponentialBackoff(initialInterval, currentInterval, currentRetryCount float64) float64 {
 	return currentInterval + initialInterval*math.Pow(2, currentRetryCount-1)
 }
+
+// helper function used in testcases to calculate all the retry intervals
+func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []subscription.Interval) []float64 {
+	expectedIntervals := make([]float64, 0)
+	for currentRetryCount <= maxRetryCount {
+		nextDelayInterval := calculateNextUsingExponentialBackoff(float64(min), float64(currentInterval), float64(currentRetryCount))
+		closestInterval := float64(findClosestDelayInterval(uint(min), uint(max), availableDelayIntervals, nextDelayInterval))
+		expectedIntervals = append(expectedIntervals, closestInterval)
+		currentInterval = int(closestInterval)
+		currentRetryCount++
+	}
+	return expectedIntervals
+}

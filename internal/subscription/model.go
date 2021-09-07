@@ -97,12 +97,15 @@ func (m *Model) GetDeadLetterTopic() string {
 
 // GetCredentials returns the credentials for the push endpoint
 func (m *Model) GetCredentials() *credentials.Model {
-	return m.PushConfig.Credentials
+	if m.PushConfig != nil {
+		return m.PushConfig.Credentials
+	}
+	return nil
 }
 
 // HasCredentials returns true if a subscription has credentials for push endpoint
 func (m *Model) HasCredentials() bool {
-	return m.PushConfig.Credentials != nil
+	return m.PushConfig != nil && m.PushConfig.Credentials != nil
 }
 
 func (m *Model) setDefaultRetryPolicy() {

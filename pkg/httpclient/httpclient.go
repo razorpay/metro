@@ -20,6 +20,10 @@ type Config struct {
 
 // NewClient return a http client
 func NewClient(config *Config) *http.Client {
+	if config == nil {
+		return nil
+	}
+
 	tr := &http.Transport{
 		ResponseHeaderTimeout: time.Duration(config.ResponseHeaderTimeoutMS) * time.Millisecond,
 		DialContext: (&net.Dialer{

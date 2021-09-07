@@ -5,6 +5,8 @@ package subscription
 import (
 	"testing"
 
+	"github.com/razorpay/metro/internal/credentials"
+
 	"github.com/razorpay/metro/internal/common"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +21,18 @@ func getDummySubscriptionModel() *Model {
 		ExtractedTopicName:             "test-topic",
 		ExtractedSubscriptionName:      "test-subscription",
 		Topic:                          "projects/test-project/topics/test-topic",
+		DeadLetterPolicy: &DeadLetterPolicy{
+			DeadLetterTopic:     "projects/test-project/topics/test-subscription-dlq",
+			MaxDeliveryAttempts: 10,
+		},
+		PushConfig: &PushConfig{
+			PushEndpoint: "www.some-url.com",
+			Credentials: &credentials.Model{
+				Username:  "u",
+				Password:  "p",
+				ProjectID: "dummy1",
+			},
+		},
 	}
 }
 
@@ -30,4 +44,39 @@ func TestModel_Prefix(t *testing.T) {
 func TestModel_Key(t *testing.T) {
 	dSubscription := getDummySubscriptionModel()
 	assert.Equal(t, dSubscription.Prefix()+dSubscription.ExtractedSubscriptionName, dSubscription.Key())
+}
+
+func Test_Model(t *testing.T) {
+	dSubscription := getDummySubscriptionModel()
+
+	assert.True(t, dSubscription.IsPush())
+	assert.Equal(t, "projects/test-project/topics/test-topic", dSubscription.GetTopic())
+	assert.Equal(t, "projects/test-project/topics/test-subscription-retry", dSubscription.GetRetryTopic())
+	assert.Equal(t, "projects/test-project/topics/test-subscription-dlq", dSubscription.GetDeadLetterTopic())
+
+	assert.NotNil(t, dSubscription.GetCredentials())
+	assert.True(t, dSubscription.HasCredentials())
+	dSubscription.PushConfig = nil
+	assert.False(t, dSubscription.IsPush())
+	assert.Nil(t, dSubscription.GetCredentials())
+	assert.False(t, dSubscription.HasCredentials())
+
+	dSubscription.setDefaultRetryPolicy()
+	assert.Equal(t, uint(5), dSubscription.RetryPolicy.MinimumBackoff)
+	assert.Equal(t, uint(5), dSubscription.RetryPolicy.MaximumBackoff)
+
+	dSubscription.DeadLetterPolicy = nil
+	assert.Equal(t, "projects/test-project/topics/test-subscription-dlq", dSubscription.GetDeadLetterTopic())
+
+	dSubscription.setDefaultDeadLetterPolicy()
+	assert.Equal(t, int32(5), dSubscription.DeadLetterPolicy.MaxDeliveryAttempts)
+	assert.Equal(t, "projects/test-project/topics/test-subscription-dlq", dSubscription.DeadLetterPolicy.DeadLetterTopic)
+
+	delayTopics := dSubscription.GetDelayTopics()
+	assert.Equal(t, 8, len(delayTopics))
+	assert.Equal(t, 8, len(dSubscription.GetDelayTopicsMap()))
+	assert.Equal(t, []string{"projects/test-project/topics/test-subscription.delay.5.seconds", "projects/test-project/topics/test-subscription.delay.30.seconds", "projects/test-project/topics/test-subscription.delay.60.seconds", "projects/test-project/topics/test-subscription.delay.150.seconds", "projects/test-project/topics/test-subscription.delay.300.seconds", "projects/test-project/topics/test-subscription.delay.600.seconds", "projects/test-project/topics/test-subscription.delay.1800.seconds", "projects/test-project/topics/test-subscription.delay.3600.seconds"}, delayTopics)
+
+	assert.Equal(t, "test-subscription.delay.5.seconds-cg", dSubscription.GetDelayConsumerGroupID("test-subscription.delay.5.seconds"))
+	assert.Equal(t, "test-subscription.delay.5.seconds-cgi", dSubscription.GetDelayConsumerGroupInstanceID("test-subscription.delay.5.seconds"))
 }

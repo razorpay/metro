@@ -24,7 +24,7 @@ type ICore interface {
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
-	CreateDelayTopics(ctx context.Context, m *Model, topicModel *topic.Model) error
+	CreateDelayTopics(ctx context.Context, m *Model) error
 	Migrate(ctx context.Context, names []string) error
 }
 
@@ -110,7 +110,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		}
 
 		// this creates the needed delay topics in the broker
-		err = c.CreateDelayTopics(ctx, m, topicModel)
+		err = c.CreateDelayTopics(ctx, m)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
 			return err
@@ -286,8 +286,8 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 }
 
 // CreateDelayTopics - creates needed delay topics for a subscription
-func (c *Core) CreateDelayTopics(ctx context.Context, m *Model, topicModel *topic.Model) error {
-	if m == nil || topicModel == nil {
+func (c *Core) CreateDelayTopics(ctx context.Context, m *Model) error {
+	if m == nil {
 		return nil
 	}
 

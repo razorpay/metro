@@ -30,7 +30,7 @@ func NewDelayConsumer(ctx context.Context, topic string, subs *subscription.Mode
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
-	consumerOps := messagebroker.ConsumerClientOptions{Topics: []string{topic}, GroupID: subs.GetDelayConsumerGroupID(), GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(topic)}
+	consumerOps := messagebroker.ConsumerClientOptions{Topics: []string{topic}, GroupID: subs.GetDelayConsumerGroupID(topic), GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(topic)}
 	consumer, err := bs.GetConsumer(ctx, consumerOps)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("delay-consumer: failed to create consumer", "error", err.Error())
@@ -45,6 +45,7 @@ func NewDelayConsumer(ctx context.Context, topic string, subs *subscription.Mode
 		cancelFunc: cancel,
 		topic:      topic,
 		consumer:   consumer,
+		subs:       subs,
 		bs:         bs,
 		handler:    handler,
 		doneCh:     make(chan struct{}),
@@ -55,12 +56,12 @@ func NewDelayConsumer(ctx context.Context, topic string, subs *subscription.Mode
 func (dc *DelayConsumer) Run(ctx context.Context) {
 	defer close(dc.doneCh)
 
-	logger.Ctx(ctx).Infow("delay-consumer: running", dc.LogFields())
+	logger.Ctx(ctx).Infow("delay-consumer: running", dc.LogFields()...)
 	for {
 		select {
 		case <-dc.ctx.Done():
-			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.LogFields())
-			dc.bs.RemoveConsumer(ctx, dc.subs.GetDelayConsumerGroupInstanceID(dc.topic), messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID()})
+			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.LogFields()...)
+			dc.bs.RemoveConsumer(ctx, dc.subs.GetDelayConsumerGroupInstanceID(dc.topic), messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic)})
 			dc.consumer.Close(dc.ctx)
 			return
 		default:
@@ -175,7 +176,7 @@ func (dc *DelayConsumer) LogFields(kv ...interface{}) []interface{} {
 	fields := []interface{}{
 		"delayConsumerConfig", map[string]interface{}{
 			"topic":           dc.topic,
-			"groupID":         dc.subs.GetDelayConsumerGroupID(),
+			"groupID":         dc.subs.GetDelayConsumerGroupID(dc.topic),
 			"groupInstanceID": dc.subs.GetDelayConsumerGroupInstanceID(dc.topic),
 		},
 	}

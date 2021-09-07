@@ -7,12 +7,15 @@ import (
 )
 
 // subs-delay-30-seconds, subs-delay-60-seconds ... subs-delay-600-seconds
-const delayTopicNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
+const delayTopicNameFormat = "%v.delay.%v.seconds"
 
-// subs-cg
+// projects/p1/topics/subs.delay.30.seconds
+const delayTopicWithProjectNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
+
+// subs.delay.30.seconds-cg
 const delayConsumerGroupIDFormat = "%v-cg"
 
-// subs-delay-30-seconds-cgi
+// subs.delay.30.seconds-cgi
 const delayConsumerGroupInstanceIDFormat = "%v-cgi"
 
 const (

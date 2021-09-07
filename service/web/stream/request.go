@@ -42,7 +42,10 @@ func NewParsedStreamingPullRequest(req *metrov1.StreamingPullRequest) (*ParsedSt
 		modifyDeadlineMsgIdsWithSecs := make(map[string]int32)
 		parsedReq.AckIDs = req.AckIds
 		for index, ackID := range req.AckIds {
-			ackMessage := subscriber.ParseAckID(ackID)
+			ackMessage, err := subscriber.ParseAckID(ackID)
+			if err != nil {
+				return nil, err
+			}
 			ackMessages = append(ackMessages, ackMessage)
 			modifyDeadlineMsgIdsWithSecs[ackMessage.MessageID] = req.ModifyDeadlineSeconds[index]
 		}
@@ -64,7 +67,10 @@ func NewParsedAcknowledgeRequest(req *metrov1.AcknowledgeRequest) (*ParsedStream
 		ackMessages := make([]*subscriber.AckMessage, 0)
 		parsedReq.AckIDs = req.AckIds
 		for _, ackID := range req.AckIds {
-			ackMessage := subscriber.ParseAckID(ackID)
+			ackMessage, err := subscriber.ParseAckID(ackID)
+			if err != nil {
+				return nil, err
+			}
 			ackMessages = append(ackMessages, ackMessage)
 		}
 		parsedReq.AckIDs = req.AckIds
@@ -85,7 +91,10 @@ func NewParsedModifyAckDeadlineRequest(req *metrov1.ModifyAckDeadlineRequest) (*
 		modifyDeadlineMsgIdsWithSecs := make(map[string]int32)
 		parsedReq.AckIDs = req.AckIds
 		for _, ackID := range req.AckIds {
-			ackMessage := subscriber.ParseAckID(ackID)
+			ackMessage, err := subscriber.ParseAckID(ackID)
+			if err != nil {
+				return nil, err
+			}
 			ackMessages = append(ackMessages, ackMessage)
 			modifyDeadlineMsgIdsWithSecs[ackMessage.MessageID] = req.AckDeadlineSeconds
 		}

@@ -240,7 +240,11 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 	logFields["ackId"] = message.AckId
 
 	logger.Ctx(ctx).Infow("worker: sending nack request to subscriber", "logFields", logFields)
-	ackReq := subscriber.ParseAckID(message.AckId)
+	ackReq, err := subscriber.ParseAckID(message.AckId)
+	if err != nil {
+		logger.Ctx(ctx).Errorf("worker: error in parsing ackId", "error", err.Error(), "logFields", logFields)
+		return
+	}
 	// deadline is set to 0 for nack
 	modackReq := subscriber.NewModAckMessage(ackReq, 0).WithContext(ctx)
 	// check for closed channel before sending request
@@ -271,7 +275,13 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 	logFields["ackId"] = message.AckId
 
 	logger.Ctx(ctx).Infow("worker: sending ack request to subscriber", "logFields", logFields)
-	ackReq := subscriber.ParseAckID(message.AckId).WithContext(ctx)
+	ackReq, err := subscriber.ParseAckID(message.AckId)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("worker: error in parsing ackId", "error", err.Error(), "logFields", logFields)
+		return
+	}
+	ackReq = ackReq.WithContext(ctx)
+
 	// check for closed channel before sending request
 	if ps.subs.GetAckChannel() != nil {
 		ps.subs.GetAckChannel() <- ackReq

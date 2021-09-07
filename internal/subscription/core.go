@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
@@ -23,6 +25,7 @@ type ICore interface {
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
 	CreateDelayTopics(ctx context.Context, m *Model, topicModel *topic.Model) error
+	Migrate(ctx context.Context, names []string) error
 }
 
 // Core implements all business logic for a subscription
@@ -307,5 +310,86 @@ func (c *Core) CreateDelayTopics(ctx context.Context, m *Model, topicModel *topi
 			return err
 		}
 	}
+	return nil
+}
+
+// Migrate takes care of migrating the old subscription model to new
+// As of now it specifically takes care of two things:
+// 1. Updating the missing retry and dead-letter policies with default values.
+// 2. Create the needed delay topics for a subscription retry to work.
+// In future, modify this function as needed to support additional migration use-cases.
+func (c *Core) Migrate(ctx context.Context, names []string) error {
+
+	subscriptionsToUpdate := make([]*Model, 0)
+	if names == nil || len(names) == 0 {
+		models, err := c.List(ctx, Prefix)
+		if err != nil {
+			return err
+		}
+		subscriptionsToUpdate = append(subscriptionsToUpdate, models...)
+	} else {
+		for _, name := range names {
+			model, err := c.Get(ctx, name)
+			if err != nil {
+				return err
+			}
+			subscriptionsToUpdate = append(subscriptionsToUpdate, model)
+		}
+	}
+
+	logger.Ctx(ctx).Infow("migration: found subscriptions to migrate", "count", len(subscriptionsToUpdate))
+
+	topicNames := make([]string, 0)
+	for _, model := range subscriptionsToUpdate {
+		needsUpdate := false
+
+		// update retry policy if not set
+		if model.RetryPolicy == nil {
+			model.setDefaultRetryPolicy()
+			needsUpdate = true
+		}
+
+		// update dead letter policy if not set
+		if model.DeadLetterPolicy == nil {
+			model.setDefaultDeadLetterPolicy()
+			needsUpdate = true
+		}
+
+		if needsUpdate {
+			// collect all the delay topic names to be created
+			topicNames = append(topicNames, model.getDelayTopicNames()...)
+
+			logger.Ctx(ctx).Infow("migration: updating subscription", "model", model.Name)
+			// update the subscription model
+			err := c.UpdateSubscription(ctx, model)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	logger.Ctx(ctx).Infow("migration: delay topics to create", "count", len(topicNames), "topicNames", topicNames)
+	// collect the success and failed topic names so that they can be retried if needed
+	successTopicNames, failedTopicNames := make([]string, 0), make([]string, 0)
+	for _, tName := range topicNames {
+		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
+			Name: tName,
+		})
+		if terr != nil {
+			logger.Ctx(ctx).Errorw("migration: failed to create validated topic model", "tName", tName, "error", terr.Error())
+			failedTopicNames = append(failedTopicNames, tName)
+			continue
+		}
+
+		err := c.topicCore.CreateTopic(ctx, tModel)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("migration: failed to create delay topic", "tName", tName, "error", err.Error())
+			failedTopicNames = append(failedTopicNames, tName)
+			continue
+		}
+		successTopicNames = append(successTopicNames, tName)
+	}
+
+	logger.Ctx(ctx).Infow("migration: request completed", "successTopicNames", successTopicNames, "failedTopicNames", failedTopicNames)
 	return nil
 }

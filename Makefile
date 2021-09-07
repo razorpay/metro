@@ -199,7 +199,7 @@ docs-gh:
 
 .PHONY: test-functional-ci ## run functional tests on ci (github actions)
 test-functional-ci:
-	@METRO_TEST_HOST=metro-web MOCK_SERVER_HOST=mock-server go test ./tests/functional/... -tags=functional,musl
+	@METRO_TEST_HOST=metro-web MOCK_SERVER_HOST=mock-server APP_ENV=dev_docker go test ./tests/functional/... -tags=functional,musl
 
 .PHONY: test-functional ## run integration tests locally (metro service needs to be up)
 test-functional:
@@ -215,7 +215,7 @@ test-integration: test-unit-prepare
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:
-	@METRO_TEST_HOST=metro-web PUBSUB_TEST_HOST=pubsub go test -v ./tests/compatibility/... -tags=compatibility,musl
+	@METRO_TEST_HOST=metro-web PUBSUB_TEST_HOST=pubsub APP_ENV=dev_docker go test -v ./tests/compatibility/... -tags=compatibility,musl
 
 .PHONY: test-compat ## run compatibility tests locally (metro service and pubsub emulator needs to be up)
 test-compat:

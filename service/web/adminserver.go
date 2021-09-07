@@ -172,6 +172,18 @@ func (s adminServer) DeleteProjectCredentials(ctx context.Context, req *metrov1.
 	return &emptypb.Empty{}, nil
 }
 
+func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *metrov1.Subscriptions) (*emptypb.Empty, error) {
+	logger.Ctx(ctx).Infow("received request to migrate subscriptions", "subscriptions", subscriptions.GetNames())
+
+	err := s.subscriptionCore.Migrate(ctx, subscriptions.GetNames())
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	logger.Ctx(ctx).Infow("request to migrate subscriptions completed", "subscriptions", subscriptions.GetNames())
+	return &emptypb.Empty{}, nil
+}
+
 func (s adminServer) AuthFuncOverride(ctx context.Context, _ string, _ interface{}) (context.Context, error) {
 	return interceptors.AdminAuth(ctx, s.admin)
 }

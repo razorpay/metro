@@ -65,6 +65,13 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 		MaxDeliveryAttempts: req.DeadLetterPolicy.GetMaxDeliveryAttempts(),
 	}
 
+	if req.RetryPolicy != nil {
+		m.RetryPolicy = &RetryPolicy{
+			MinimumBackoff: uint(req.RetryPolicy.GetMinimumBackoff().Seconds),
+			MaximumBackoff: uint(req.RetryPolicy.GetMaximumBackoff().Seconds),
+		}
+	}
+
 	if err = validateDelayConfig(m); err != nil {
 		return nil, err
 	}

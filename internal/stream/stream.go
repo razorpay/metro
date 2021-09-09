@@ -319,8 +319,9 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 
 func newPushEndpointRequest(message *metrov1.ReceivedMessage, subscription string) *metrov1.PushEndpointRequest {
 	return &metrov1.PushEndpointRequest{
-		Message:      message.Message,
-		Subscription: subscription,
+		Message:         message.Message,
+		Subscription:    subscription,
+		DeliveryAttempt: uint32(message.DeliveryAttempt),
 	}
 }
 

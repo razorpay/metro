@@ -3,6 +3,7 @@
 package retry
 
 import (
+	"context"
 	"testing"
 
 	"github.com/razorpay/metro/internal/subscription"
@@ -86,4 +87,27 @@ func Test_Interval_Calculator(t *testing.T) {
 		actualIntervals := findAllRetryIntervals(test.min, test.max, test.currentRetryCount, test.maxRetryCount, test.currentInterval, availableDelayIntervals)
 		assert.Equal(t, test.want, actualIntervals)
 	}
+}
+
+// helper function used in testcases to calculate all the retry intervals
+func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []subscription.Interval) []float64 {
+	ctx := context.Background()
+	expectedIntervals := make([]float64, 0)
+	delayCalculator, _ := getDelayCalculator(ctx, exponentialDelayType)
+	for currentRetryCount <= maxRetryCount {
+		nextDelayInterval, _ := delayCalculator.CalculateNextDelayInterval(
+			ctx,
+			subscription.Interval(min),
+			subscription.Interval(max),
+			subscription.Interval(currentInterval),
+			availableDelayIntervals,
+			uint(currentRetryCount),
+		)
+		// calculateNextUsingExponentialBackoff(float64(min), float64(currentInterval), float64(currentRetryCount))
+		closestInterval := float64(findClosestDelayInterval(uint(min), uint(max), availableDelayIntervals, float64(nextDelayInterval)))
+		expectedIntervals = append(expectedIntervals, closestInterval)
+		currentInterval = int(closestInterval)
+		currentRetryCount++
+	}
+	return expectedIntervals
 }

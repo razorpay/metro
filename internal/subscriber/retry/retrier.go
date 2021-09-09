@@ -2,7 +2,6 @@ package retry
 
 import (
 	"context"
-	"math"
 	"sync"
 	"time"
 
@@ -76,10 +75,25 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 
 	availableDelayIntervals := subscription.Intervals
 
-	nextDelayInterval := calculateNextUsingExponentialBackoff(float64(msg.InitialDelayInterval), float64(msg.CurrentDelayInterval), float64(msg.CurrentRetryCount))
+	delayCalculator, err := getDelayCalculator(ctx, exponentialDelayType)
+	if err != nil {
+		return err
+	}
+
+	nextDelayInterval, err := delayCalculator.CalculateNextDelayInterval(
+		ctx,
+		subscription.Interval(msg.InitialDelayInterval),
+		subscription.Interval(r.subs.RetryPolicy.MaximumBackoff),
+		subscription.Interval(msg.CurrentDelayInterval),
+		availableDelayIntervals,
+		uint(msg.CurrentRetryCount),
+	)
+	if err != nil {
+		return err
+	}
 
 	// next allowed delay interval from the list of pre-defined intervals
-	dInterval := findClosestDelayInterval(r.subs.RetryPolicy.MinimumBackoff, r.subs.RetryPolicy.MaximumBackoff, availableDelayIntervals, nextDelayInterval)
+	dInterval := findClosestDelayInterval(r.subs.RetryPolicy.MinimumBackoff, r.subs.RetryPolicy.MaximumBackoff, availableDelayIntervals, float64(nextDelayInterval))
 	dcFromMap, _ := r.delayConsumers.Load(dInterval)
 	dc := dcFromMap.(*DelayConsumer)
 
@@ -149,24 +163,4 @@ func findClosestDelayInterval(min uint, max uint, intervals []subscription.Inter
 
 	// by default use the max available delay
 	return subscription.MaxDelay
-}
-
-// Using below formula
-// EXPONENTIAL: nextDelayInterval = currentDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
-//Refer http://exponentialbackoffcalculator.com/
-func calculateNextUsingExponentialBackoff(initialInterval, currentInterval, currentRetryCount float64) float64 {
-	return currentInterval + initialInterval*math.Pow(2, currentRetryCount-1)
-}
-
-// helper function used in testcases to calculate all the retry intervals
-func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []subscription.Interval) []float64 {
-	expectedIntervals := make([]float64, 0)
-	for currentRetryCount <= maxRetryCount {
-		nextDelayInterval := calculateNextUsingExponentialBackoff(float64(min), float64(currentInterval), float64(currentRetryCount))
-		closestInterval := float64(findClosestDelayInterval(uint(min), uint(max), availableDelayIntervals, nextDelayInterval))
-		expectedIntervals = append(expectedIntervals, closestInterval)
-		currentInterval = int(closestInterval)
-		currentRetryCount++
-	}
-	return expectedIntervals
 }

@@ -90,12 +90,15 @@ func TestSubscriptionCore_UpdateSubscriptionProjectNotExists(t *testing.T) {
 func TestSubscriptionCore_CreateDelayTopics(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
-	mockProjectCore := pCore.NewMockICore(ctrl)
 	mockTopicCore := tCore.NewMockICore(ctrl)
-	mockRepo := repo.NewMockIRepo(ctrl)
-	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
 
-	err := core.CreateDelayTopics(ctx, nil)
+	err := createDelayTopics(ctx, nil, mockTopicCore)
+	assert.Nil(t, err)
+
+	err = createDelayTopics(ctx, &Model{}, nil)
+	assert.Nil(t, err)
+
+	err = createDelayTopics(ctx, nil, nil)
 	assert.Nil(t, err)
 
 	sub := &Model{
@@ -105,7 +108,7 @@ func TestSubscriptionCore_CreateDelayTopics(t *testing.T) {
 		ExtractedSubscriptionName:      "subs1",
 	}
 
-	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).Times(8)
-	err = core.CreateDelayTopics(ctx, sub)
+	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).Times(8) // number of delay topics being created
+	err = createDelayTopics(ctx, sub, mockTopicCore)
 	assert.Nil(t, err)
 }

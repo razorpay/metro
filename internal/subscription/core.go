@@ -24,7 +24,6 @@ type ICore interface {
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
-	CreateDelayTopics(ctx context.Context, m *Model) error
 	Migrate(ctx context.Context, names []string) error
 }
 
@@ -110,7 +109,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		}
 
 		// this creates the needed delay topics in the broker
-		err = c.CreateDelayTopics(ctx, m)
+		err = createDelayTopics(ctx, m, c.topicCore)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
 			return err
@@ -285,9 +284,9 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	return model, nil
 }
 
-// CreateDelayTopics - creates needed delay topics for a subscription
-func (c *Core) CreateDelayTopics(ctx context.Context, m *Model) error {
-	if m == nil {
+// createDelayTopics - creates needed delay topics for a subscription
+func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) error {
+	if m == nil || topicCore == nil {
 		return nil
 	}
 
@@ -301,7 +300,7 @@ func (c *Core) CreateDelayTopics(ctx context.Context, m *Model) error {
 			return terr
 		}
 
-		err := c.topicCore.CreateTopic(ctx, tModel)
+		err := topicCore.CreateTopic(ctx, tModel)
 		if val, ok := err.(*merror.MError); ok {
 			// in-case users delete and re-create a subscription
 			// we should ideally be deleting all associated topics
@@ -314,6 +313,7 @@ func (c *Core) CreateDelayTopics(ctx context.Context, m *Model) error {
 			return err
 		}
 	}
+
 	return nil
 }
 

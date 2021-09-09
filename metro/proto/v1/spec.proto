@@ -835,4 +835,7 @@ message PushEndpointRequest {
 
     // Required. The message in the request was published for this subscription.
     string subscription = 2 [(google.api.field_behavior) = REQUIRED];
+
+    // Optional. The number of attempts made to deliver this message.
+    uint32 delivery_attempt = 3 [(google.api.field_behavior) = OPTIONAL];
 }

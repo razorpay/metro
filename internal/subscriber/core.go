@@ -53,7 +53,16 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	// all the delay-consumers spawned within retrier would also get marked as done.
 	var retrier retry.IRetrier
 	if subscription.RetryPolicy != nil && subscription.DeadLetterPolicy != nil {
-		retrier, err = retry.NewRetrier(subsCtx, subscription, c.bs, retry.NewPushToPrimaryRetryTopicHandler(c.bs), retry.NewExponentialWindowBackoff(), retry.NewClosestIntervalWithCeil())
+
+		newRetrier := retry.NewRetrierBuilder().
+			WithSubscription(subscription).
+			WithBrokerStore(c.bs).
+			WithBackoff(retry.NewExponentialWindowBackoff()).
+			WithIntervalFinder(retry.NewClosestIntervalWithCeil()).
+			WithMessageHandler(retry.NewPushToPrimaryRetryTopicHandler(c.bs)).
+			Build()
+
+		err = newRetrier.Start(subsCtx)
 		if err != nil {
 			return nil, err
 		}

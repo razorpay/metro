@@ -2,7 +2,6 @@ package retry
 
 import (
 	"context"
-	"math"
 	"sync"
 	"time"
 
@@ -19,6 +18,7 @@ const (
 // IRetrier interface over retrier core functionalities.
 type IRetrier interface {
 	Handle(context.Context, messagebroker.ReceivedMessage) error
+	Start(context.Context) error
 	Stop(context.Context)
 }
 
@@ -28,31 +28,22 @@ type Retrier struct {
 	bs             brokerstore.IBrokerStore
 	backoff        Backoff
 	finder         IntervalFinder
+	handler        MessageHandler
 	delayConsumers sync.Map
 }
 
-// NewRetrier inits a new retrier which internally takes care of spawning the needed delay-consumers.
-func NewRetrier(ctx context.Context, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, backoff Backoff, finder IntervalFinder) (IRetrier, error) {
-	delayConsumers := sync.Map{}
-
-	for interval, topic := range subs.GetDelayTopicsMap() {
-		dc, err := NewDelayConsumer(ctx, topic, subs, bs, handler)
+// Start starts a new retrier which internally takes care of spawning the needed delay-consumers.
+func (r *Retrier) Start(ctx context.Context) error {
+	// TODO : validate retrier params for nils and substitute with defaults
+	for interval, topic := range r.subs.GetDelayTopicsMap() {
+		dc, err := NewDelayConsumer(ctx, topic, r.subs, r.bs, r.handler)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		go dc.Run(ctx)                     // run the delay consumer
-		delayConsumers.Store(interval, dc) // store the delay consumer for lookup
+		go dc.Run(ctx)                       // run the delay consumer
+		r.delayConsumers.Store(interval, dc) // store the delay consumer for lookup
 	}
-
-	r := &Retrier{
-		subs:           subs,
-		bs:             bs,
-		backoff:        backoff,
-		finder:         finder,
-		delayConsumers: delayConsumers,
-	}
-
-	return r, nil
+	return nil
 }
 
 // Stop gracefully stop call the spawned delay-consumers for retry
@@ -144,35 +135,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 	return nil
 }
 
-// given a slice of pre-defined delay intervals, min and max backoff, the function returns the next closest interval
-func findClosestDelayInterval(min uint, max uint, intervals []subscription.Interval, nextDelayInterval float64) subscription.Interval {
-	newDelay := nextDelayInterval
-	// restrict newDelay based on the given min-max boundary conditions
-	if newDelay < float64(min) {
-		newDelay = float64(min)
-	} else if newDelay > float64(max) {
-		newDelay = float64(max)
-	}
-
-	// find the closest interval greater-equal to newDelay
-	for _, interval := range intervals {
-		if float64(interval) >= newDelay {
-			return interval
-		}
-	}
-
-	// by default use the max available delay
-	return subscription.MaxDelay
-}
-
-// Using below formula
-// EXPONENTIAL: nextDelayInterval = currentDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
-//Refer http://exponentialbackoffcalculator.com/
-func calculateNextUsingExponentialBackoff(initialInterval, currentInterval, currentRetryCount float64) float64 {
-	return currentInterval + initialInterval*math.Pow(2, currentRetryCount-1)
-}
-
-// helper function used in testcases to calculate all the retry intervals
+// helper function to calculate all the retry intervals
 func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []subscription.Interval) []float64 {
 	expectedIntervals := make([]float64, 0)
 

@@ -27,11 +27,12 @@ type Retrier struct {
 	subs           *subscription.Model
 	bs             brokerstore.IBrokerStore
 	backoff        Backoff
+	finder         IntervalFinder
 	delayConsumers sync.Map
 }
 
 // NewRetrier inits a new retrier which internally takes care of spawning the needed delay-consumers.
-func NewRetrier(ctx context.Context, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, backoff Backoff) (IRetrier, error) {
+func NewRetrier(ctx context.Context, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, backoff Backoff, finder IntervalFinder) (IRetrier, error) {
 	delayConsumers := sync.Map{}
 
 	for interval, topic := range subs.GetDelayTopicsMap() {
@@ -47,6 +48,7 @@ func NewRetrier(ctx context.Context, subs *subscription.Model, bs brokerstore.IB
 		subs:           subs,
 		bs:             bs,
 		backoff:        backoff,
+		finder:         finder,
 		delayConsumers: delayConsumers,
 	}
 
@@ -76,8 +78,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 
 	logger.Ctx(ctx).Infow("retrier: received msg for retry", msg.LogFields()...)
 
-	availableDelayIntervals := subscription.Intervals
-
+	// calculate the next backoff using the strategy
 	nextDelayInterval := r.backoff.Next(BackoffPolicy{
 		startInterval: float64(msg.InitialDelayInterval),
 		lastInterval:  float64(msg.CurrentDelayInterval),
@@ -85,8 +86,14 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		exponential:   2,
 	})
 
-	// next allowed delay interval from the list of pre-defined intervals
-	dInterval := findClosestDelayInterval(r.subs.RetryPolicy.MinimumBackoff, r.subs.RetryPolicy.MaximumBackoff, availableDelayIntervals, nextDelayInterval)
+	// find next allowed delay interval from the list of pre-defined intervals
+	dInterval := r.finder.Next(IntervalFinderParams{
+		min:           r.subs.RetryPolicy.MinimumBackoff,
+		max:           r.subs.RetryPolicy.MaximumBackoff,
+		delayInterval: nextDelayInterval,
+		intervals:     subscription.Intervals,
+	})
+
 	dcFromMap, _ := r.delayConsumers.Load(dInterval)
 	dc := dcFromMap.(*DelayConsumer)
 
@@ -168,7 +175,10 @@ func calculateNextUsingExponentialBackoff(initialInterval, currentInterval, curr
 // helper function used in testcases to calculate all the retry intervals
 func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []subscription.Interval) []float64 {
 	expectedIntervals := make([]float64, 0)
+
 	nef := NewExponentialWindowBackoff()
+	finder := NewClosestIntervalWithCeil()
+
 	for currentRetryCount <= maxRetryCount {
 		nextDelayInterval := nef.Next(BackoffPolicy{
 			startInterval: float64(min),
@@ -177,8 +187,14 @@ func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentIn
 			exponential:   2,
 		})
 
-		closestInterval := float64(findClosestDelayInterval(uint(min), uint(max), availableDelayIntervals, nextDelayInterval))
-		expectedIntervals = append(expectedIntervals, closestInterval)
+		closestInterval := finder.Next(IntervalFinderParams{
+			min:           uint(min),
+			max:           uint(max),
+			delayInterval: nextDelayInterval,
+			intervals:     availableDelayIntervals,
+		})
+
+		expectedIntervals = append(expectedIntervals, float64(closestInterval))
 		currentInterval = int(closestInterval)
 		currentRetryCount++
 	}

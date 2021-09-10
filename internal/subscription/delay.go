@@ -37,6 +37,8 @@ var (
 	ErrInvalidMinBackoff = errors.New(fmt.Sprintf("min backoff should be between %v and %v seconds", lowerBoundMinimumBackoffInSeconds, upperBoundMinimumBackoffInSeconds))
 	// ErrInvalidMaxBackoff ...
 	ErrInvalidMaxBackoff = errors.New(fmt.Sprintf("max backoff should be between %v and %v seconds", lowerBoundMaximumBackoffInSeconds, upperBoundMaximumBackoffInSeconds))
+	// ErrInvalidMinAndMaxBackoff ...
+	ErrInvalidMinAndMaxBackoff = errors.New("min backoff should be less or equal to max backoff")
 	// ErrInvalidMaxDeliveryAttempt ...
 	ErrInvalidMaxDeliveryAttempt = errors.New(fmt.Sprintf("max delivery attempt should be between %v and %v", lowerBoundMaxDeliveryAttempts, upperBoundMaxDeliveryAttempts))
 )
@@ -92,6 +94,10 @@ func validateDelayConfig(model *Model) error {
 		if maxB < lowerBoundMaximumBackoffInSeconds || maxB > upperBoundMaximumBackoffInSeconds {
 			return ErrInvalidMaxBackoff
 		}
+	}
+
+	if minB > maxB {
+		return ErrInvalidMinAndMaxBackoff
 	}
 
 	// currently dl-topics are auto-created for subscriptions, refer GetValidatedModelForCreate()

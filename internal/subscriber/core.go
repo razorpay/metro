@@ -54,7 +54,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	var retrier retry.IRetrier
 	if subscription.RetryPolicy != nil && subscription.DeadLetterPolicy != nil {
 
-		newRetrier := retry.NewRetrierBuilder().
+		retrier = retry.NewRetrierBuilder().
 			WithSubscription(subscription).
 			WithBrokerStore(c.bs).
 			WithBackoff(retry.NewExponentialWindowBackoff()).
@@ -62,7 +62,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 			WithMessageHandler(retry.NewPushToPrimaryRetryTopicHandler(c.bs)).
 			Build()
 
-		err = newRetrier.Start(subsCtx)
+		err = retrier.Start(subsCtx)
 		if err != nil {
 			return nil, err
 		}

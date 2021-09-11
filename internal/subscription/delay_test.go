@@ -62,6 +62,15 @@ func Test_validateDelayConfig(t *testing.T) {
 		},
 		{
 			m: &Model{
+				RetryPolicy: &RetryPolicy{
+					MaximumBackoff: 100,
+					MinimumBackoff: 200,
+				},
+			},
+			err: ErrInvalidMinAndMaxBackoff,
+		},
+		{
+			m: &Model{
 				DeadLetterPolicy: &DeadLetterPolicy{
 					MaxDeliveryAttempts: -40,
 				},

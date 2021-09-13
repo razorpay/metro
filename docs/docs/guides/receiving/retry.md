@@ -55,7 +55,7 @@ Below is a sample subscription with retry and dead letter policy
     }
 }
 ```
-In case a `deadLetterTopic` is not provided in the payload, messages would be delivered to a default dead letter topic created by metro whose name would be `<topic-name>-dlq`.
+In case a `deadLetterTopic` is not provided in the payload, messages would be delivered to a default dead letter topic created by metro whose name would be `<subscription-name>-dlq`.
 
 The default for `maxDeliveryAttempts` is 5. It's value can range from 1 to 100.
 The default for `minimumBackoff` is 10s. It's value can range from 0s to 600s.

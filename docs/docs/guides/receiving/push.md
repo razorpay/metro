@@ -31,7 +31,8 @@ The following example is the body of a `POST` request to a push endpoint:
         "publishTime": "2021-02-26T19:13:55.749Z",
         "publish_time": "2021-02-26T19:13:55.749Z",
     },
-   "subscription": "projects/myproject/subscriptions/mysubscription"
+   "subscription": "projects/myproject/subscriptions/mysubscription",
+   "deliveryAttempt": 1
 }
 ```
 

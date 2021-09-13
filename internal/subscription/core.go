@@ -82,8 +82,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 
 	// for subscription over deadletter topics, skip the retry and deadletter topic creation
 	if topicModel.IsDeadLetterTopic() == false {
-		// create retry topic for subscription
-		// TODO: update based on retry policy
+
 		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
 			Name:               m.GetRetryTopic(),
 			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
@@ -96,8 +95,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 			return err
 		}
 
-		// create deadletter topic for subscription
-		// TODO: read the deadletter policy and update accordingly
+		// create dead-letter topic for subscription
 		err = c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
 			Name:               m.GetDeadLetterTopic(),
 			ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
@@ -106,7 +104,14 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		})
 
 		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create deadletter topic for subscription", "name", m.GetDeadLetterTopic(), "error", err.Error())
+			logger.Ctx(ctx).Errorw("failed to create dead letter topic for subscription", "name", m.GetDeadLetterTopic(), "error", err.Error())
+			return err
+		}
+
+		// this creates the needed delay topics in the broker
+		err = createDelayTopics(ctx, m, c.topicCore)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
 			return err
 		}
 	}
@@ -279,6 +284,39 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 	return model, nil
 }
 
+// createDelayTopics - creates needed delay topics for a subscription
+func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) error {
+	if m == nil || topicCore == nil {
+		return nil
+	}
+
+	for _, delayTopic := range m.GetDelayTopics() {
+
+		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
+			Name: delayTopic,
+		})
+		if terr != nil {
+			logger.Ctx(ctx).Errorw("failed to create validated topic model", "delayTopic", delayTopic, "error", terr.Error())
+			return terr
+		}
+
+		err := topicCore.CreateTopic(ctx, tModel)
+		if val, ok := err.(*merror.MError); ok {
+			// in-case users delete and re-create a subscription
+			// we should ideally be deleting all associated topics
+			// temp check, remove once delete subscription feature is live
+			if val.Code() == merror.AlreadyExists {
+				continue
+			}
+		} else if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create delay topic for subscription", "name", delayTopic, "error", err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Migrate takes care of migrating the old subscription model to new
 // As of now it specifically takes care of two things:
 // 1. Updating the missing retry and dead-letter policies with default values.
@@ -320,7 +358,7 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 		if needsUpdate {
 			// collect all the delay topic names to be created
-			topicNames = append(topicNames, model.getDelayTopicNames()...)
+			topicNames = append(topicNames, model.GetDelayTopics()...)
 
 			logger.Ctx(ctx).Infow("migration: updating subscription", "model", model.Name)
 			// update the subscription model

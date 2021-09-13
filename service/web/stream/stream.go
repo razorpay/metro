@@ -6,6 +6,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/razorpay/metro/pkg/messagebroker"
+
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 	"golang.org/x/sync/errgroup"
@@ -70,8 +72,8 @@ func (s *pullStream) run() error {
 			}
 			return nil
 		case err := <-s.subscriptionSubscriber.GetErrorChannel():
-			streamManagerSubscriberErrors.WithLabelValues(env, s.subscriberID, s.subscriptionSubscriber.GetSubscription(), err.Error()).Inc()
-			if isErrorRecoverable(err) {
+			streamManagerSubscriberErrors.WithLabelValues(env, s.subscriberID, s.subscriptionSubscriber.GetSubscriptionName(), err.Error()).Inc()
+			if messagebroker.IsErrorRecoverable(err) {
 				// no need to stop the subscriber in such cases. just log and return
 				logger.Ctx(s.ctx).Errorw("subscriber: got recoverable error", err.Error())
 				return nil
@@ -189,7 +191,7 @@ func (s *pullStream) stop() {
 	// notify stream manager to cleanup subscriber held in-memory
 	s.cleanupCh <- cleanupMessage{
 		subscriberID: s.subscriberID,
-		subscription: s.subscriptionSubscriber.GetSubscription(),
+		subscription: s.subscriptionSubscriber.GetSubscriptionName(),
 	}
 }
 

@@ -299,31 +299,3 @@ func NewModAckMessage(ackMessage *AckMessage, ackDeadline int32) *ModAckMessage 
 		ackDeadline: ackDeadline,
 	}
 }
-
-// RetryMessage ...
-type RetryMessage struct {
-	Data       []byte
-	Topic      string
-	Partition  int32
-	Offset     int32
-	MessageID  string
-	RetryCount int32
-}
-
-// increments the retry attempt
-func (rm *RetryMessage) incrementAndGetRetryCount() int32 {
-	rm.RetryCount++
-	return rm.RetryCount
-}
-
-// NewRetryMessage ...
-func NewRetryMessage(topic string, partition, offset int32, data []byte, messageID string, retryCount int32) *RetryMessage {
-	return &RetryMessage{
-		Data:       data,
-		Topic:      topic,
-		Partition:  partition,
-		Offset:     offset,
-		MessageID:  messageID,
-		RetryCount: retryCount,
-	}
-}

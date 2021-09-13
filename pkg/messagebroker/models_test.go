@@ -3,8 +3,8 @@
 package messagebroker
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -16,25 +16,47 @@ func Test_NewPartitionOffset(t *testing.T) {
 	assert.Equal(t, po.String(), "[10]-[35]")
 }
 
-func Test_NewReceivedMessage(t *testing.T) {
-	data, _ := json.Marshal("abc")
-	tNow := time.Now()
-	rm := ReceivedMessage{
-		Data:        data,
-		MessageID:   "m1",
-		Topic:       "t1",
-		Partition:   11,
-		Offset:      99,
-		RetryCount:  0,
-		PublishTime: tNow,
-	}
-
-	assert.Equal(t, rm.String(), fmt.Sprintf("data=[%v], msgId=[%v], topic=[%v], partition=[%v], offset=[%v], publishTime=[%v]",
-		string(rm.Data), rm.MessageID, rm.Topic, rm.Partition, rm.Offset, tNow.Unix()))
-}
-
 func Test_pulsarAckMessage(t *testing.T) {
 	po := pulsarAckMessage{ID: "abc"}
 	data, _ := json.Marshal("abc")
 	assert.Equal(t, po.Serialize(), data)
+}
+
+func Test_GetMessagesFromTopicResponse(t *testing.T) {
+	msgs := make(map[string]ReceivedMessage)
+	msgs["10-99"] = ReceivedMessage{}
+	resp := GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}
+	assert.True(t, resp.HasNonZeroMessages())
+}
+
+func Test_ReceivedMessage(t *testing.T) {
+	tNow := time.Now()
+	tPast := tNow.Add(time.Second * 100 * -1)
+
+	rm := ReceivedMessage{
+		Data:       bytes.NewBufferString("abc").Bytes(),
+		Topic:      "t1",
+		Partition:  10,
+		Offset:     234,
+		Attributes: nil,
+		MessageHeader: MessageHeader{
+			MessageID:            "m1",
+			PublishTime:          tNow,
+			SourceTopic:          "st1",
+			RetryTopic:           "rt1",
+			Subscription:         "s1",
+			CurrentRetryCount:    2,
+			MaxRetryCount:        10,
+			CurrentTopic:         "ct1",
+			InitialDelayInterval: 10,
+			CurrentDelayInterval: 90,
+			ClosestDelayInterval: 150,
+			DeadLetterTopic:      "dlt1",
+			NextDeliveryTime:     tPast,
+		},
+	}
+
+	assert.True(t, rm.CanProcessMessage())
+	assert.False(t, rm.HasReachedRetryThreshold())
+	assert.NotNil(t, rm.MessageHeader.LogFields())
 }

@@ -1,7 +1,7 @@
 package worker
 
 import (
-	"github.com/razorpay/metro/internal/stream"
+	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
@@ -11,7 +11,7 @@ type Config struct {
 	Interfaces struct {
 		API NetworkInterfaces
 	}
-	HTTPClientConfig stream.HTTPClientConfig
+	HTTPClientConfig httpclient.Config
 }
 
 // Broker Config (Kafka/Pulsar)

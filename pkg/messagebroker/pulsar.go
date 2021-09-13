@@ -215,7 +215,13 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 		if err != nil {
 			return nil, err
 		}
-		msgs[string(msg.ID().Serialize())] = ReceivedMessage{Data: msg.Payload(), MessageID: string(msg.ID().Serialize()), PublishTime: msg.PublishTime()}
+		msgs[string(msg.ID().Serialize())] = ReceivedMessage{
+			Data: msg.Payload(),
+			MessageHeader: MessageHeader{
+				MessageID:   string(msg.ID().Serialize()),
+				PublishTime: msg.PublishTime(),
+			},
+		}
 	}
 
 	return &GetMessagesFromTopicResponse{

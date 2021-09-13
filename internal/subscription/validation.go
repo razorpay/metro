@@ -46,15 +46,14 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 
 	m.ExtractedTopicName = t
 	m.ExtractedTopicProjectID = p
-	m.AckDeadlineSeconds = req.GetAckDeadlineSeconds()
-
-	m.AckDeadlineSeconds = req.AckDeadlineSeconds
 
 	// get validated pushconfig details
 	urlEndpoint, err := validatePushConfig(ctx, req.GetPushConfig())
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] push config: (url=%s)", urlEndpoint)
 	}
+
+	m.AckDeadlineSeconds = req.AckDeadlineSeconds
 
 	m.PushConfig = &PushConfig{
 		PushEndpoint: urlEndpoint,
@@ -64,6 +63,17 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	m.DeadLetterPolicy = &DeadLetterPolicy{
 		DeadLetterTopic:     topic.GetTopicName(p, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix),
 		MaxDeliveryAttempts: req.DeadLetterPolicy.GetMaxDeliveryAttempts(),
+	}
+
+	if req.RetryPolicy != nil {
+		m.RetryPolicy = &RetryPolicy{
+			MinimumBackoff: uint(req.RetryPolicy.GetMinimumBackoff().Seconds),
+			MaximumBackoff: uint(req.RetryPolicy.GetMaximumBackoff().Seconds),
+		}
+	}
+
+	if err = validateDelayConfig(m); err != nil {
+		return nil, err
 	}
 
 	// set push auth
@@ -143,7 +153,7 @@ func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, 
 	return m, nil
 }
 
-func validateTopicName(ctx context.Context, name string) (string, error) {
+func validateTopicName(_ context.Context, name string) (string, error) {
 	if strings.HasSuffix(name, topic.RetryTopicSuffix) {
 		err := fmt.Errorf("subscription topic name cannot end with " + topic.RetryTopicSuffix)
 		return "", err
@@ -152,7 +162,7 @@ func validateTopicName(ctx context.Context, name string) (string, error) {
 	return name, nil
 }
 
-func validatePushConfig(ctx context.Context, config *metrov1.PushConfig) (string, error) {
+func validatePushConfig(_ context.Context, config *metrov1.PushConfig) (string, error) {
 	if config != nil {
 		urlEndpoint := config.PushEndpoint
 		_, err := url.ParseRequestURI(urlEndpoint)
@@ -165,7 +175,7 @@ func validatePushConfig(ctx context.Context, config *metrov1.PushConfig) (string
 	return "", nil
 }
 
-func extractSubscriptionMetaAndValidate(ctx context.Context, name string) (projectID string, subscriptionName string, err error) {
+func extractSubscriptionMetaAndValidate(_ context.Context, name string) (projectID string, subscriptionName string, err error) {
 	match := subscriptionNameRegex.FindStringSubmatch(name)
 	if len(match) != 3 {
 		err = fmt.Errorf("invalid subscription name")

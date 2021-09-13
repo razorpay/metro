@@ -64,7 +64,7 @@ type IBrokerStore interface {
 	GetConsumer(ctx context.Context, op messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error)
 
 	// RemoveConsumer deletes the consumer from the store
-	RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) bool
+	RemoveConsumer(ctx context.Context, op messagebroker.ConsumerClientOptions) bool
 
 	// GetProducer returns for an existing producer instance, if available returns that else creates as new instance
 	GetProducer(ctx context.Context, op messagebroker.ProducerClientOptions) (messagebroker.Producer, error)
@@ -135,8 +135,8 @@ func (b *BrokerStore) GetConsumer(ctx context.Context, op messagebroker.Consumer
 }
 
 // RemoveConsumer deletes the consumer from the store
-func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messagebroker.ConsumerClientOptions) bool {
-	logger.Ctx(ctx).Infow("brokerstore: request to close consumer", "id", id, "groupID", op.GroupID)
+func (b *BrokerStore) RemoveConsumer(ctx context.Context, op messagebroker.ConsumerClientOptions) bool {
+	logger.Ctx(ctx).Infow("brokerstore: request to close consumer", "id", op.GroupInstanceID, "groupID", op.GroupID)
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "BrokerStore.RemoveConsumer")
 	defer span.Finish()
@@ -150,7 +150,7 @@ func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messageb
 
 	wasConsumerFound := false
 
-	key := NewKey(op.GroupID, id)
+	key := NewKey(op.GroupID, op.GroupInstanceID)
 	b.partitionLock.Lock(key.String())         // lock
 	defer b.partitionLock.Unlock(key.String()) // unlock
 
@@ -162,7 +162,7 @@ func (b *BrokerStore) RemoveConsumer(ctx context.Context, id string, op messageb
 	}
 
 	if wasConsumerFound {
-		logger.Ctx(ctx).Infow("brokerstore: consumer removal completed", "id", id, "group_id", op.GroupID)
+		logger.Ctx(ctx).Infow("brokerstore: consumer removal completed", "id", op.GroupInstanceID, "group_id", op.GroupID)
 	}
 
 	return wasConsumerFound

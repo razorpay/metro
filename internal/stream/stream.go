@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/opentracing/opentracing-go"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
@@ -287,7 +287,7 @@ func (ps *PushStream) getLogFields() map[string]interface{} {
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *HTTPClientConfig) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
 
 	// get subscription Model details
@@ -302,7 +302,8 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		// make sure to convert sec to milli-sec
 		config.ConnectTimeoutMS = int(subModel.AckDeadlineSeconds) * 1e3
 	}
-	httpclient := NewHTTPClientWithConfig(config)
+
+	httpclient := httpclient.NewClient(config)
 
 	return &PushStream{
 		ctx:              pushCtx,
@@ -316,28 +317,11 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	}
 }
 
-// NewHTTPClientWithConfig return a http client
-func NewHTTPClientWithConfig(config *HTTPClientConfig) *http.Client {
-	tr := &http.Transport{
-		ResponseHeaderTimeout: time.Duration(config.ResponseHeaderTimeoutMS) * time.Millisecond,
-		DialContext: (&net.Dialer{
-			KeepAlive: time.Duration(config.ConnKeepAliveMS) * time.Millisecond,
-			Timeout:   time.Duration(config.ConnectTimeoutMS) * time.Millisecond,
-		}).DialContext,
-		MaxIdleConns:          config.MaxAllIdleConns,
-		IdleConnTimeout:       time.Duration(config.IdleConnTimeoutMS) * time.Millisecond,
-		TLSHandshakeTimeout:   time.Duration(config.TLSHandshakeTimeoutMS) * time.Millisecond,
-		MaxIdleConnsPerHost:   config.MaxHostIdleConns,
-		ExpectContinueTimeout: time.Duration(config.ExpectContinueTimeoutMS) * time.Millisecond,
-	}
-
-	return &http.Client{Transport: tr}
-}
-
 func newPushEndpointRequest(message *metrov1.ReceivedMessage, subscription string) *metrov1.PushEndpointRequest {
 	return &metrov1.PushEndpointRequest{
-		Message:      message.Message,
-		Subscription: subscription,
+		Message:         message.Message,
+		Subscription:    subscription,
+		DeliveryAttempt: uint32(message.DeliveryAttempt),
 	}
 }
 

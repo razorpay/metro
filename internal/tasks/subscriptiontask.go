@@ -14,6 +14,7 @@ import (
 	"github.com/razorpay/metro/internal/stream"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
 )
@@ -30,7 +31,7 @@ type SubscriptionTask struct {
 	nodebindingCache []*nodebinding.Model
 	watchCh          chan []registry.Pair
 	pushHandlers     sync.Map
-	httpConfig       *stream.HTTPClientConfig
+	httpConfig       *httpclient.Config
 	doneCh           chan struct{}
 }
 
@@ -63,7 +64,7 @@ func NewSubscriptionTask(
 }
 
 // WithHTTPConfig defines the httpClient config for wehbooks http client
-func WithHTTPConfig(config *stream.HTTPClientConfig) Option {
+func WithHTTPConfig(config *httpclient.Config) Option {
 	return func(task ITask) {
 		subscriptionTask := task.(*SubscriptionTask)
 		subscriptionTask.httpConfig = config

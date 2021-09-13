@@ -43,7 +43,7 @@ Below is a sample subscription with retry and dead letter policy
 {
     "topic": "projects/project001/topics/topic001",
     "pushConfig": {
-        "pushEndpoint": "https://webhook.site/ab19242a-7797-4560-9069-76bcbee23e6"
+        "pushEndpoint": "<endpoint>"
     },
     "ackDeadlineSeconds": 3,
     "deadLetterPolicy":{

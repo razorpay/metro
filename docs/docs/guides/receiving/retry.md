@@ -36,3 +36,27 @@ If you set a dead-letter topic, you can also set the following subscription prop
 * Project with the dead-letter topic: If the dead-letter topic is in a different project from the subscription, you must specify the project with the dead-letter topic.
 
 You can't enable message ordering and use a dead-letter topic. Metro forwards messages to dead-letter topics on a best-effort basis, which might prevent Metro from redelivering messages in order.
+
+#### Sample Code
+Below is a sample subscription with retry and dead letter policy
+```javascript
+{
+    "topic": "projects/project001/topics/topic001",
+    "pushConfig": {
+        "pushEndpoint": "<endpoint>"
+    },
+    "ackDeadlineSeconds": 3,
+    "deadLetterPolicy":{
+        "maxDeliveryAttempts": 5
+    },
+    "retryPolicy": {
+        "minimumBackoff": "5s",
+        "maximumBackoff": "30s"
+    }
+}
+```
+In case a `deadLetterTopic` is not provided in the payload, messages would be delivered to a default dead letter topic created by metro whose name would be `<subscription-name>-dlq`.
+
+The default for `maxDeliveryAttempts` is 5. It's value can range from 1 to 100.
+The default for `minimumBackoff` is 10s. It's value can range from 0s to 600s.
+The default for `maximumBackoff` is 600s. It's value can range from 0s to 3600s.

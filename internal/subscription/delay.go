@@ -1,11 +1,5 @@
 package subscription
 
-import (
-	"fmt"
-
-	"github.com/pkg/errors"
-)
-
 // subs-delay-30-seconds, subs-delay-60-seconds ... subs-delay-600-seconds
 const delayTopicNameFormat = "%v.delay.%v.seconds"
 
@@ -17,31 +11,6 @@ const delayConsumerGroupIDFormat = "%v-cg"
 
 // subs.delay.30.seconds-cgi
 const delayConsumerGroupInstanceIDFormat = "%v-cgi"
-
-const (
-	defaultMinimumBackoffInSeconds    uint = 10
-	lowerBoundMinimumBackoffInSeconds uint = 0
-	upperBoundMinimumBackoffInSeconds uint = 600
-
-	defaultMaximumBackoffInSeconds    uint = 600
-	lowerBoundMaximumBackoffInSeconds uint = 0
-	upperBoundMaximumBackoffInSeconds uint = 3600
-
-	defaultMaxDeliveryAttempts    int32 = 5
-	lowerBoundMaxDeliveryAttempts int32 = 1
-	upperBoundMaxDeliveryAttempts int32 = 100
-)
-
-var (
-	// ErrInvalidMinBackoff ...
-	ErrInvalidMinBackoff = errors.New(fmt.Sprintf("min backoff should be between %v and %v seconds", lowerBoundMinimumBackoffInSeconds, upperBoundMinimumBackoffInSeconds))
-	// ErrInvalidMaxBackoff ...
-	ErrInvalidMaxBackoff = errors.New(fmt.Sprintf("max backoff should be between %v and %v seconds", lowerBoundMaximumBackoffInSeconds, upperBoundMaximumBackoffInSeconds))
-	// ErrInvalidMinAndMaxBackoff ...
-	ErrInvalidMinAndMaxBackoff = errors.New("min backoff should be less or equal to max backoff")
-	// ErrInvalidMaxDeliveryAttempt ...
-	ErrInvalidMaxDeliveryAttempt = errors.New(fmt.Sprintf("max delivery attempt should be between %v and %v", lowerBoundMaxDeliveryAttempts, upperBoundMaxDeliveryAttempts))
-)
 
 // Interval is internal delay type per allowed interval
 type Interval uint

@@ -82,7 +82,8 @@ func (s subscriberserver) UpdateSubscription(ctx context.Context, req *metrov1.U
 	if err = s.subscriptionCore.UpdateSubscription(ctx, patchedModel); err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
-	return existingSubscription, nil
+	patchedProto := subscription.ModelToSubscriptionProtoV1(patchedModel)
+	return patchedProto, nil
 }
 
 // Acknowledge a message

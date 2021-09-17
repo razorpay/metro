@@ -121,7 +121,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	}
 
 	// validate AckDeadline and update model
-	err = getValidatedAckDeadline(ctx, m, req)
+	err = validateAckDeadline(ctx, m, req)
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
@@ -131,7 +131,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
 
-	err = validatedDeadLetterPolicy(ctx, m, req)
+	err = validateDeadLetterPolicy(ctx, m, req)
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
@@ -261,7 +261,7 @@ func validatePushConfig(_ context.Context, m *Model, req *metrov1.Subscription) 
 	return nil
 }
 
-func getValidatedAckDeadline(_ context.Context, m *Model, req *metrov1.Subscription) error {
+func validateAckDeadline(_ context.Context, m *Model, req *metrov1.Subscription) error {
 	ackDeadlineSeconds := req.AckDeadlineSeconds
 
 	if ackDeadlineSeconds == 0 {
@@ -315,7 +315,7 @@ func validateRetryPolicy(_ context.Context, m *Model, req *metrov1.Subscription)
 	return nil
 }
 
-func validatedDeadLetterPolicy(_ context.Context, m *Model, req *metrov1.Subscription) error {
+func validateDeadLetterPolicy(_ context.Context, m *Model, req *metrov1.Subscription) error {
 	defaultDeadLetterTopic := topic.GetTopicName(m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix)
 
 	dlpolicy := req.GetDeadLetterPolicy()
@@ -347,12 +347,13 @@ func validatedDeadLetterPolicy(_ context.Context, m *Model, req *metrov1.Subscri
 }
 
 func extractSubscriptionMetaAndValidate(_ context.Context, name string) (projectID string, subscriptionName string, err error) {
-	match := subscriptionNameRegex.FindStringSubmatch(name)
-	if len(match) != 3 {
+	tokens := subscriptionNameRegex.FindStringSubmatch(name)
+	if len(tokens) != 3 {
 		return "", "", errors.New(fmt.Sprintf("Invalid [subscriptions] name: (name=%s)", name))
 	}
-	projectID = subscriptionNameRegex.FindStringSubmatch(name)[1]
-	subscriptionName = subscriptionNameRegex.FindStringSubmatch(name)[2]
+
+	projectID = tokens[1]
+	subscriptionName = tokens[2]
 	if strings.HasPrefix(subscriptionName, "goog") {
 		return "", "", ErrInvalidSubscriptionName
 	}

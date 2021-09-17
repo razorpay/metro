@@ -376,7 +376,7 @@ func Test_validateDeadletterConfig(t *testing.T) {
 			ExtractedSubscriptionName:      s,
 		}
 
-		err := validatedDeadLetterPolicy(ctx, m, &metrov1.Subscription{DeadLetterPolicy: test.inputPolicy})
+		err := validateDeadLetterPolicy(ctx, m, &metrov1.Subscription{DeadLetterPolicy: test.inputPolicy})
 		assert.Equal(t, test.err, err)
 		assert.Equal(t, test.outputPolicy, m.DeadLetterPolicy)
 	}

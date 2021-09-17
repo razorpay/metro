@@ -8,6 +8,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	mocks5 "github.com/razorpay/metro/internal/credentials/mocks/core"
 	mocks4 "github.com/razorpay/metro/internal/project/mocks/core"
@@ -16,9 +21,6 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/razorpay/metro/service/web/stream"
 	mocks3 "github.com/razorpay/metro/service/web/stream/mocks/manager"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 func TestSubscriberServer_UpdateSubscription(t *testing.T) {
@@ -49,13 +51,13 @@ func TestSubscriberServer_UpdateSubscription(t *testing.T) {
 		PushConfig: &subscription.PushConfig{
 			PushEndpoint: "https://www.razorpay.com/api",
 		},
-		AckDeadlineSeconds: 0,
+		AckDeadlineSeconds: 10,
 	}
 
 	expected := &metrov1.Subscription{
 		Name:               "projects/project123/subscriptions/testsub",
 		Topic:              "projects/project123/topics/test-topic",
-		AckDeadlineSeconds: 0,
+		AckDeadlineSeconds: 10,
 	}
 
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
@@ -104,7 +106,7 @@ func TestSubscriberServer_UpdateSubscriptionTestEmptyInRequest(t *testing.T) {
 	expected := &metrov1.Subscription{
 		Name:               "projects/project123/subscriptions/testsub",
 		Topic:              "projects/project123/topics/test-topic",
-		AckDeadlineSeconds: 0,
+		AckDeadlineSeconds: 10,
 	}
 
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
@@ -147,7 +149,7 @@ func TestSubscriberServer_UpdateSubscriptionTestEmptyInCurrent(t *testing.T) {
 		PushConfig: &subscription.PushConfig{
 			PushEndpoint: "https://www.razorpay.com/api",
 		},
-		AckDeadlineSeconds: 0,
+		AckDeadlineSeconds: 10,
 	}
 
 	expected := &metrov1.Subscription{
@@ -192,6 +194,125 @@ func TestSubscriberServer_UpdateSubscriptionTestValidationFailure(t *testing.T) 
 
 	_, err := server.UpdateSubscription(ctx, req)
 	assert.NotNil(t, err)
+}
+
+func TestSubscriberServer_UpdateSubscriptionRetryConfig(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:               "projects/project123/subscriptions/testsub",
+			Topic:              "projects/project123/topics/test-topic",
+			AckDeadlineSeconds: 30,
+			RetryPolicy: &metrov1.RetryPolicy{
+				MinimumBackoff: &durationpb.Duration{Seconds: 30},
+				MaximumBackoff: &durationpb.Duration{Seconds: 300},
+			},
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"retry_policy"},
+		},
+	}
+
+	current := &subscription.Model{
+		Name:  req.Subscription.Name,
+		Topic: req.Subscription.Topic,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 10,
+	}
+
+	expected := &metrov1.Subscription{
+		Name:  "projects/project123/subscriptions/testsub",
+		Topic: "projects/project123/topics/test-topic",
+		PushConfig: &metrov1.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 10,
+		RetryPolicy: &metrov1.RetryPolicy{
+			MinimumBackoff: &durationpb.Duration{Seconds: 30},
+			MaximumBackoff: &durationpb.Duration{Seconds: 300},
+		},
+	}
+
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
+	subscriptionCore.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
+	updated, err := server.UpdateSubscription(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, expected.Name, updated.Name)
+	assert.Equal(t, expected.Topic, updated.Topic)
+	assert.Equal(t, expected.PushConfig.PushEndpoint, updated.PushConfig.PushEndpoint)
+	assert.Equal(t, expected.AckDeadlineSeconds, updated.AckDeadlineSeconds)
+	assert.Equal(t, expected.RetryPolicy.MinimumBackoff.String(), updated.RetryPolicy.MinimumBackoff.String())
+	assert.Equal(t, expected.RetryPolicy.MaximumBackoff.String(), updated.RetryPolicy.MaximumBackoff.String())
+}
+
+func TestSubscriberServer_UpdateSubscriptionDeadletterPolicy(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+	req := &metrov1.UpdateSubscriptionRequest{
+		Subscription: &metrov1.Subscription{
+			Name:               "projects/project123/subscriptions/testsub",
+			Topic:              "projects/project123/topics/test-topic",
+			AckDeadlineSeconds: 30,
+			DeadLetterPolicy: &metrov1.DeadLetterPolicy{
+				MaxDeliveryAttempts: 10,
+			},
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"dead_letter_policy"},
+		},
+	}
+
+	current := &subscription.Model{
+		Name:  req.Subscription.Name,
+		Topic: req.Subscription.Topic,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 10,
+	}
+
+	expected := &metrov1.Subscription{
+		Name:  "projects/project123/subscriptions/testsub",
+		Topic: "projects/project123/topics/test-topic",
+		PushConfig: &metrov1.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds: 10,
+		DeadLetterPolicy: &metrov1.DeadLetterPolicy{
+			MaxDeliveryAttempts: 10,
+			DeadLetterTopic:     "projects/project123/topics/testsub-dlq",
+		},
+	}
+
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
+	subscriptionCore.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
+	updated, err := server.UpdateSubscription(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, expected.Name, updated.Name)
+	assert.Equal(t, expected.Topic, updated.Topic)
+	assert.Equal(t, expected.PushConfig.PushEndpoint, updated.PushConfig.PushEndpoint)
+	assert.Equal(t, expected.AckDeadlineSeconds, updated.AckDeadlineSeconds)
+	assert.Equal(t, expected.DeadLetterPolicy.MaxDeliveryAttempts, updated.DeadLetterPolicy.MaxDeliveryAttempts)
+	assert.Equal(t, expected.DeadLetterPolicy.DeadLetterTopic, updated.DeadLetterPolicy.DeadLetterTopic)
 }
 
 func TestSubscriberServer_CreateSubscription(t *testing.T) {

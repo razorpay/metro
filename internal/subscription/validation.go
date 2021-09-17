@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
@@ -23,8 +25,68 @@ const (
 
 const (
 	// List of patchable attributes(proto)
-	pushConfigPath     = "push_config"
-	ackDeadlineSecPath = "ack_deadline_seconds"
+	pushConfigPath       = "push_config"
+	ackDeadlineSecPath   = "ack_deadline_seconds"
+	retryConfigPath      = "retry_policy"
+	deadLetterConfigPath = "dead_letter_policy"
+)
+
+// Config validations related values
+const (
+	// MinAckDeadlineSeconds minimum value for ack deadline in seconds
+	MinAckDeadlineSeconds = 10
+	// MaxAckDeadlineSeconds maximum value for ack deadline in seconds
+	MaxAckDeadlineSeconds = 600
+	// DefaultAckDeadlineSeconds default value for ack deadline in seconds if not specified or 0
+	DefaultAckDeadlineSeconds = 10
+
+	// MinBackOffSeconds minimum supported backoff for retry
+	MinBackOffSeconds = 0
+	// MaxBackOffSeconds maximum supported backoff for retry
+	MaxBackOffSeconds = 3600
+	// DefaultMinBackOffSeconds default minimum backoff for retry
+	DefaultMinBackOffSeconds = 10
+	// DefaultMaxBackoffSeconds default maximums backoff for retry
+	DefaultMaxBackoffSeconds = 600
+
+	// MinDeliveryAttempts minimum delivery attempts before deadlettering
+	MinDeliveryAttempts = 1
+	// MaxDeliveryAttempts maximum delivery attempts before deadlettering
+	MaxDeliveryAttempts = 100
+	// DefaultDeliveryAttempts sDefault delivery attempts before deadlettering
+	DefaultDeliveryAttempts = 5
+)
+
+var (
+	// ErrInvalidSubscriptionName ...
+	ErrInvalidSubscriptionName = errors.New("subscription name cannot start with goog")
+
+	// ErrInvalidTopicName ...
+	ErrInvalidTopicName = errors.New("subscription topic name cannot ends with " + topic.RetryTopicSuffix)
+
+	// ErrInvalidMinBackoff ...
+	ErrInvalidMinBackoff = errors.New(fmt.Sprintf("min backoff should be greater than %v seconds", MinBackOffSeconds))
+
+	// ErrInvalidMaxBackoff ...
+	ErrInvalidMaxBackoff = errors.New(fmt.Sprintf("max backoff should be less than %v seconds", MaxBackOffSeconds))
+
+	// ErrInvalidMinAndMaxBackoff ...
+	ErrInvalidMinAndMaxBackoff = errors.New("min backoff should be less or equal to max backoff")
+
+	// ErrInvalidMaxDeliveryAttempt ...
+	ErrInvalidMaxDeliveryAttempt = errors.New(fmt.Sprintf("max delivery attempt should be between %v and %v", MinDeliveryAttempts, MaxDeliveryAttempts))
+
+	// ErrInvalidAckDeadline ...
+	ErrInvalidAckDeadline = errors.New(fmt.Sprintf("ack deadline should be between %v and %v", MinAckDeadlineSeconds, MaxAckDeadlineSeconds))
+
+	// ErrInvalidPushEndpointURL ...
+	ErrInvalidPushEndpointURL = errors.New("invalid push_endpoint url")
+
+	// ErrInvalidPushEndpointUsername ...
+	ErrInvalidPushEndpointUsername = errors.New("invalid push_endpoint username attribute")
+
+	// ErrInvalidPushEndpointPassword ...
+	ErrInvalidPushEndpointPassword = errors.New("invalid push_endpoint password attribute")
 )
 
 func init() {
@@ -35,77 +97,56 @@ func init() {
 
 // GetValidatedModelForCreate validates an incoming proto request and returns the model for create requests
 func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
-	m, err := getValidatedModel(ctx, req)
+	m := &Model{}
+
+	err := validateSubscriptionName(ctx, m, req)
 	if err != nil {
-		return nil, err
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
-	p, t, err := topic.ExtractTopicMetaAndValidate(ctx, req.Topic)
+
+	err = validateTopicName(ctx, m, req)
 	if err != nil {
-		return nil, merror.Newf(merror.InvalidArgument, "Invalid [topic] name: (name=%s)", req.Topic)
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
 
-	m.ExtractedTopicName = t
-	m.ExtractedTopicProjectID = p
-
-	// get validated pushconfig details
-	urlEndpoint, err := validatePushConfig(ctx, req.GetPushConfig())
+	// validate Labels
+	err = validateLabels(ctx, m, req)
 	if err != nil {
-		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] push config: (url=%s)", urlEndpoint)
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
+	}
+	// get validated pushConfig details
+	err = validatePushConfig(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
 
-	m.AckDeadlineSeconds = req.AckDeadlineSeconds
-
-	m.PushConfig = &PushConfig{
-		PushEndpoint: urlEndpoint,
-		Attributes:   req.PushConfig.GetAttributes(),
+	// validate AckDeadline and update model
+	err = validateAckDeadline(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
 
-	m.DeadLetterPolicy = &DeadLetterPolicy{
-		DeadLetterTopic:     topic.GetTopicName(p, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix),
-		MaxDeliveryAttempts: req.DeadLetterPolicy.GetMaxDeliveryAttempts(),
+	err = validateRetryPolicy(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
 
-	if req.RetryPolicy != nil {
-		m.RetryPolicy = &RetryPolicy{
-			MinimumBackoff: uint(req.RetryPolicy.GetMinimumBackoff().Seconds),
-			MaximumBackoff: uint(req.RetryPolicy.GetMaximumBackoff().Seconds),
-		}
+	err = validateDeadLetterPolicy(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
 
-	if err = validateDelayConfig(m); err != nil {
-		return nil, err
-	}
-
-	// set push auth
-	if req.GetPushConfig() != nil && req.GetPushConfig().GetAttributes() != nil {
-		pushAttr := req.GetPushConfig().GetAttributes()
-
-		var username, password string
-		if u, ok := pushAttr[attributeUsername]; ok {
-			if strings.Trim(u, " ") == "" {
-				return nil, merror.New(merror.InvalidArgument, "Invalid [Username] for push endpoint")
-			}
-			username = u
-		}
-
-		if p, ok := pushAttr[attributePassword]; ok {
-			if strings.Trim(p, " ") == "" {
-				return nil, merror.New(merror.InvalidArgument, "Invalid [Password] for push endpoint")
-			}
-			password = p
-		}
-
-		// set credentials only if both needed values were sent
-		if username != "" && password != "" {
-			m.PushConfig.Credentials = credentials.NewCredential(username, password)
-		}
-	}
 	return m, nil
 }
 
 // GetValidatedModelForDelete validates an incoming proto request and returns the model for delete requests
 func GetValidatedModelForDelete(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
-	return getValidatedModel(ctx, req)
+	m := &Model{}
+	err := validateSubscriptionName(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
+	}
+	return m, nil
 }
 
 // GetValidatedModelForUpdate - validates the subscription model for update operation and returns the parsed model
@@ -114,78 +155,207 @@ func GetValidatedModelForUpdate(ctx context.Context, req *metrov1.Subscription) 
 }
 
 // ValidateUpdateSubscriptionRequest - Validates the update subscription request
-func ValidateUpdateSubscriptionRequest(ctx context.Context, req *metrov1.UpdateSubscriptionRequest) error {
+func ValidateUpdateSubscriptionRequest(_ context.Context, req *metrov1.UpdateSubscriptionRequest) error {
 	req.UpdateMask.Normalize()
-	if !req.UpdateMask.IsValid(req.Subscription) {
-		err := merror.Newf(merror.InvalidArgument, "invalid update mask provided. Valid values are: %s, %s", pushConfigPath, ackDeadlineSecPath)
-		return err
-	}
+
 	for _, path := range req.UpdateMask.Paths {
-		if path != pushConfigPath && path != ackDeadlineSecPath {
-			err := merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)
-			return err
+		switch path {
+		// valid paths
+		case pushConfigPath, ackDeadlineSecPath, retryConfigPath, deadLetterConfigPath:
+			continue
+		default:
+			return merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)
 		}
 	}
+
 	return nil
 }
 
-func getValidatedModel(ctx context.Context, req *metrov1.Subscription) (*Model, error) {
+func validateSubscriptionName(ctx context.Context, m *Model, req *metrov1.Subscription) error {
 	// validate and extract the subscription fields from the name
 	p, s, err := extractSubscriptionMetaAndValidate(ctx, req.GetName())
 	if err != nil {
-		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] name: (name=%s)", req.Name)
+		return err
 	}
 
-	// get validated topic details
-	topicName, err := validateTopicName(ctx, req.GetTopic())
-	if err != nil {
-		return nil, merror.Newf(merror.InvalidArgument, "Invalid [subscriptions] topic: (topic=%s)", req.GetTopic())
-	}
+	m.Name = req.GetName()
+	m.ExtractedSubscriptionProjectID = p
+	m.ExtractedSubscriptionName = s
 
-	m := &Model{
-		Name:                           req.GetName(),
-		Topic:                          topicName,
-		Labels:                         req.GetLabels(),
-		ExtractedSubscriptionName:      s,
-		ExtractedSubscriptionProjectID: p,
-	}
-
-	return m, nil
+	return nil
 }
 
-func validateTopicName(_ context.Context, name string) (string, error) {
+func validateTopicName(ctx context.Context, m *Model, req *metrov1.Subscription) error {
+	name := req.Topic
 	if strings.HasSuffix(name, topic.RetryTopicSuffix) {
-		err := fmt.Errorf("subscription topic name cannot end with " + topic.RetryTopicSuffix)
-		return "", err
+		return ErrInvalidTopicName
 	}
 
-	return name, nil
+	p, t, err := topic.ExtractTopicMetaAndValidate(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	m.Topic = name
+	m.ExtractedTopicProjectID = p
+	m.ExtractedTopicName = t
+
+	return nil
 }
 
-func validatePushConfig(_ context.Context, config *metrov1.PushConfig) (string, error) {
+func validateLabels(_ context.Context, m *Model, req *metrov1.Subscription) error {
+	// TODO: add validations on labels
+	labels := req.GetLabels()
+
+	m.Labels = labels
+	return nil
+}
+
+func validatePushConfig(_ context.Context, m *Model, req *metrov1.Subscription) error {
+	config := req.GetPushConfig()
+
 	if config != nil {
+		// validate the endpoint
 		urlEndpoint := config.PushEndpoint
 		_, err := url.ParseRequestURI(urlEndpoint)
 		if err != nil {
-			return "", err
+			return ErrInvalidPushEndpointURL
 		}
 
-		return urlEndpoint, nil
+		pushAttr := config.GetAttributes()
+		var creds *credentials.Model
+
+		// check creds and encrypt if present
+		if pushAttr != nil {
+			var username, password string
+			if u, ok := pushAttr[attributeUsername]; ok {
+				if strings.Trim(u, " ") == "" {
+					return ErrInvalidPushEndpointUsername
+				}
+				username = u
+			}
+
+			if p, ok := pushAttr[attributePassword]; ok {
+				if strings.Trim(p, " ") == "" {
+					return ErrInvalidPushEndpointPassword
+				}
+				password = p
+			}
+
+			delete(pushAttr, attributeUsername)
+			delete(pushAttr, attributePassword)
+
+			// set credentials only if both needed values were sent
+			if username != "" && password != "" {
+				creds = credentials.NewCredential(username, password)
+			}
+		}
+
+		m.PushConfig = &PushConfig{
+			PushEndpoint: urlEndpoint,
+			Attributes:   pushAttr,
+			Credentials:  creds,
+		}
 	}
-	return "", nil
+
+	return nil
+}
+
+func validateAckDeadline(_ context.Context, m *Model, req *metrov1.Subscription) error {
+	ackDeadlineSeconds := req.AckDeadlineSeconds
+
+	if ackDeadlineSeconds == 0 {
+		m.AckDeadlineSeconds = DefaultAckDeadlineSeconds
+		return nil
+	}
+
+	if ackDeadlineSeconds < MinAckDeadlineSeconds {
+		return ErrInvalidAckDeadline
+	}
+
+	if ackDeadlineSeconds > MaxAckDeadlineSeconds {
+		return ErrInvalidAckDeadline
+	}
+
+	m.AckDeadlineSeconds = ackDeadlineSeconds
+	return nil
+}
+
+func validateRetryPolicy(_ context.Context, m *Model, req *metrov1.Subscription) error {
+	retryPolicy := req.GetRetryPolicy()
+
+	if retryPolicy == nil {
+		m.RetryPolicy = &RetryPolicy{
+			MinimumBackoff: DefaultMinBackOffSeconds,
+			MaximumBackoff: DefaultMaxBackoffSeconds,
+		}
+		return nil
+	}
+
+	// Note that input backoff is of type durationpb.Duration. below we are using only seconds part
+	// of the struct, for now we are ignoring the nanoseconds part since metro supports only integer
+	// values for backoff
+	if retryPolicy.MinimumBackoff.Seconds > retryPolicy.MaximumBackoff.Seconds {
+		return ErrInvalidMinAndMaxBackoff
+	}
+
+	if retryPolicy.MinimumBackoff.Seconds < MinBackOffSeconds {
+		return ErrInvalidMinBackoff
+	}
+
+	if retryPolicy.MaximumBackoff.Seconds > MaxBackOffSeconds {
+		return ErrInvalidMaxBackoff
+	}
+
+	m.RetryPolicy = &RetryPolicy{
+		MinimumBackoff: uint(retryPolicy.MinimumBackoff.Seconds),
+		MaximumBackoff: uint(retryPolicy.MaximumBackoff.Seconds),
+	}
+
+	return nil
+}
+
+func validateDeadLetterPolicy(_ context.Context, m *Model, req *metrov1.Subscription) error {
+	defaultDeadLetterTopic := topic.GetTopicName(m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName+topic.DeadLetterTopicSuffix)
+
+	dlpolicy := req.GetDeadLetterPolicy()
+	if dlpolicy == nil {
+		m.DeadLetterPolicy = &DeadLetterPolicy{
+			MaxDeliveryAttempts: DefaultDeliveryAttempts,
+			DeadLetterTopic:     defaultDeadLetterTopic,
+		}
+
+		return nil
+	}
+
+	if dlpolicy.MaxDeliveryAttempts < MinDeliveryAttempts {
+		return ErrInvalidMaxDeliveryAttempt
+	}
+
+	if dlpolicy.MaxDeliveryAttempts > MaxDeliveryAttempts {
+		return ErrInvalidMaxDeliveryAttempt
+	}
+
+	// TODO: check and validate if dltopic is present in input, validate topic is valid topic
+	// and use topic from input instead
+	m.DeadLetterPolicy = &DeadLetterPolicy{
+		MaxDeliveryAttempts: dlpolicy.MaxDeliveryAttempts,
+		DeadLetterTopic:     defaultDeadLetterTopic,
+	}
+
+	return nil
 }
 
 func extractSubscriptionMetaAndValidate(_ context.Context, name string) (projectID string, subscriptionName string, err error) {
-	match := subscriptionNameRegex.FindStringSubmatch(name)
-	if len(match) != 3 {
-		err = fmt.Errorf("invalid subscription name")
-		return "", "", err
+	tokens := subscriptionNameRegex.FindStringSubmatch(name)
+	if len(tokens) != 3 {
+		return "", "", errors.New(fmt.Sprintf("Invalid [subscriptions] name: (name=%s)", name))
 	}
-	projectID = subscriptionNameRegex.FindStringSubmatch(name)[1]
-	subscriptionName = subscriptionNameRegex.FindStringSubmatch(name)[2]
+
+	projectID = tokens[1]
+	subscriptionName = tokens[2]
 	if strings.HasPrefix(subscriptionName, "goog") {
-		err = fmt.Errorf("subscription name cannot start with goog")
-		return "", "", err
+		return "", "", ErrInvalidSubscriptionName
 	}
 
 	return projectID, subscriptionName, nil

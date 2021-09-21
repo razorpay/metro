@@ -44,7 +44,7 @@ $(BIN)/%: | $(BIN) ; $(info $(M) building package: $(PACKAGE)…)
 		|| ret=$$?; \
 	   rm -rf $$tmp ; exit $$ret
 
-$(BIN)/goimports: PACKAGE=golang.org/x/tools/cmd/goimports
+$(BIN)/goimports: PACKAGE=golang.org/x/tools/cmd/goimports@v0.1.5
 
 GOIMPORTS = $(BIN)/goimports
 

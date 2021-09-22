@@ -47,10 +47,7 @@ func TestModel_ParseAckID_InvalidInput(t *testing.T) {
 	ackID := inValidAckID
 	ackMessage, err := ParseAckID(ackID)
 	expectedErr := merror.Newf(merror.InvalidArgument, "AckID received is not in expected format")
-	if err == nil {
-		t.Errorf("Expected error but received %v", ackMessage)
-	}
-
+	assert.Nil(t, ackMessage)
 	assert.Equal(t, expectedErr, err)
 }
 
@@ -63,24 +60,18 @@ func TestModel_NewAckMessage_ValidInput(t *testing.T) {
 
 func TestModel_NewAckMessage_InvalidPartition(t *testing.T) {
 	ackMessage, err := NewAckMessage("test-sub", "test-topic", -1, 0, 100, "test-message-id")
-	if err == nil {
-		t.Errorf("Expected error but received %v", ackMessage)
-	}
-	assert.Equal(t, errIllegalPartitionValue, err)
+	assert.Equal(t, ErrIllegalPartitionValue, err)
+	assert.Nil(t, ackMessage)
 }
 
 func TestModel_NewAckMessage_InvalidOffset(t *testing.T) {
 	ackMessage, err := NewAckMessage("test-sub", "test-topic", 0, -5, 100, "test-message-id")
-	if err == nil {
-		t.Errorf("Expected error but received %v", ackMessage)
-	}
-	assert.Equal(t, errIllegalOffsetValue, err)
+	assert.Nil(t, ackMessage)
+	assert.Equal(t, ErrIllegalOffsetValue, err)
 }
 
 func TestModel_NewAckMessage_InvalidDeadline(t *testing.T) {
 	ackMessage, err := NewAckMessage("test-sub", "test-topic", 0, 0, -100, "test-message-id")
-	if err == nil {
-		t.Errorf("Expected error but received %v", ackMessage)
-	}
-	assert.Equal(t, errIllegalDeadlineValue, err)
+	assert.Nil(t, ackMessage)
+	assert.Equal(t, ErrIllegalDeadlineValue, err)
 }

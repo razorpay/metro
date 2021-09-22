@@ -80,10 +80,17 @@ type AckMessage struct {
 }
 
 var (
-	errIllegalPartitionValue = errors.New("partition value cannot be less than 0")
-	errIllegalOffsetValue    = errors.New("offset value cannot be less than 0")
-	errIllegalDeadlineValue  = errors.New("deadline value cannot be less than 0")
-	errInvalidAckID          = merror.Newf(merror.InvalidArgument, "AckID received is not in expected format")
+	// ErrIllegalPartitionValue is thrown when partition value of AckID is not in expected state
+	ErrIllegalPartitionValue = errors.New("partition value cannot be less than 0")
+
+	// ErrIllegalOffsetValue is thrown when offset value of AckID is not in expected state
+	ErrIllegalOffsetValue = errors.New("offset value cannot be less than 0")
+
+	// ErrIllegalDeadlineValue is thrown when deadline value of AckID is not in expected state
+	ErrIllegalDeadlineValue = errors.New("deadline value cannot be less than 0")
+
+	// ErrInvalidAckID is thrown when ackID is not in the expected format
+	ErrInvalidAckID = merror.Newf(merror.InvalidArgument, "AckID received is not in expected format")
 )
 
 const ackIDSeparator = "_"
@@ -93,15 +100,15 @@ func NewAckMessage(subscriberID, topic string, partition, offset, deadline int32
 
 	// Validating parameters for illegal values
 	if partition < 0 {
-		return nil, errIllegalPartitionValue
+		return nil, ErrIllegalPartitionValue
 	}
 
 	if offset < 0 {
-		return nil, errIllegalOffsetValue
+		return nil, ErrIllegalOffsetValue
 	}
 
 	if deadline < 0 {
-		return nil, errIllegalDeadlineValue
+		return nil, ErrIllegalDeadlineValue
 	}
 
 	return &AckMessage{
@@ -175,10 +182,10 @@ func (a *AckMessage) HasHitDeadline() bool {
 func ParseAckID(ackID string) (*AckMessage, error) {
 	// split the message and parse tokens
 	parts := strings.Split(ackID, ackIDSeparator)
-	decodedParts := decode(parts)
+	decodedParts := utils.DecodeSlice(parts)
 
 	if !isValidAckID(decodedParts) {
-		return nil, errInvalidAckID
+		return nil, ErrInvalidAckID
 	}
 
 	partition, err := strconv.ParseInt(decodedParts[3], 10, 0)
@@ -209,15 +216,6 @@ func ParseAckID(ackID string) (*AckMessage, error) {
 		MessageID:     decodedParts[6],
 		AckID:         ackID,
 	}, nil
-}
-
-// Decode the ackId parts
-func decode(parts []string) []string {
-	decodedParts := make([]string, 0)
-	for _, s := range parts {
-		decodedParts = append(decodedParts, utils.Decode(s))
-	}
-	return decodedParts
 }
 
 func isValidAckID(parts []string) bool {

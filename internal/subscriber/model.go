@@ -190,20 +190,17 @@ func ParseAckID(ackID string) (*AckMessage, error) {
 
 	partition, err := strconv.ParseInt(decodedParts[3], 10, 0)
 	if err != nil {
-		err = errors.WithMessage(err, fmt.Sprintf("error in parsing partition value %v to int", decodedParts[3]))
-		return nil, err
+		return nil, errors.WithMessage(err, fmt.Sprintf("error in parsing partition value %v to int", decodedParts[3]))
 	}
 
 	offset, err := strconv.ParseInt(decodedParts[4], 10, 0)
 	if err != nil {
-		err = errors.WithMessage(err, fmt.Sprintf("error in parsing offset value %v to int", decodedParts[4]))
-		return nil, err
+		return nil, errors.WithMessage(err, fmt.Sprintf("error in parsing offset value %v to int", decodedParts[4]))
 	}
 
 	deadline, err := strconv.ParseInt(decodedParts[5], 10, 0)
 	if err != nil {
-		err = errors.WithMessage(err, fmt.Sprintf("error in parsing deadline value %v to int", decodedParts[5]))
-		return nil, err
+		return nil, errors.WithMessage(err, fmt.Sprintf("error in parsing deadline value %v to int", decodedParts[5]))
 	}
 
 	return &AckMessage{

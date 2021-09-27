@@ -23,6 +23,8 @@ import (
 	mocks3 "github.com/razorpay/metro/service/web/stream/mocks/manager"
 )
 
+var validAckId = "MS4yLjMuNA==_dGVzdC1zdWI=_dGVzdC10b3BpYw==_MA==_MA==_MTAw_dGVzdC1tZXNzYWdlLWlk"
+
 func TestSubscriberServer_UpdateSubscription(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockProjectCore := mocks4.NewMockICore(ctrl)
@@ -375,7 +377,7 @@ func TestSubscriberServer_Acknowledge(t *testing.T) {
 	ctx := context.Background()
 	req := &metrov1.AcknowledgeRequest{
 		Subscription: "projects/project321/subscriptions/testsub",
-		AckIds:       []string{"a_a_a_0_0_1_1"},
+		AckIds:       []string{validAckId},
 	}
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	assert.Nil(t, parseErr)
@@ -399,7 +401,7 @@ func TestSubscriberServer_AcknowledgeFailure(t *testing.T) {
 	ctx := context.Background()
 	req := &metrov1.AcknowledgeRequest{
 		Subscription: "projects/project321/subscriptions/testsub",
-		AckIds:       []string{"a_a_a_0_0_1_1"},
+		AckIds:       []string{validAckId},
 	}
 	parsedReq, parseErr := stream.NewParsedAcknowledgeRequest(req)
 	assert.Nil(t, parseErr)
@@ -490,7 +492,7 @@ func TestSubscriberServer_ModifyAckDeadline(t *testing.T) {
 	ctx := context.Background()
 	req := &metrov1.ModifyAckDeadlineRequest{
 		Subscription:       "projects/project123/subscriptions/testsub",
-		AckIds:             []string{"a_a_a_1_1_1_1"},
+		AckIds:             []string{validAckId},
 		AckDeadlineSeconds: 1,
 	}
 
@@ -515,7 +517,7 @@ func TestSubscriberServer_ModifyAckDeadlineFailure(t *testing.T) {
 	ctx := context.Background()
 	req := &metrov1.ModifyAckDeadlineRequest{
 		Subscription:       "projects/project123/subscriptions/testsub",
-		AckIds:             []string{"a_a_a_1_1_1_1"},
+		AckIds:             []string{validAckId},
 		AckDeadlineSeconds: 1,
 	}
 

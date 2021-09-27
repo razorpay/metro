@@ -538,7 +538,13 @@ func (s *Subscriber) pull(req *PullRequest) {
 			ackDeadline := time.Now().Add(minAckDeadline).Unix()
 			s.consumedMessageStats[tp].Store(msg, ackDeadline)
 
-			ackID := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID).BuildAckID()
+			ackMessage, err := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriber: error in creating AckMessage", "logFields", s.getLogFields(), "error", err.Error())
+				s.errChan <- err
+				continue
+			}
+			ackID := ackMessage.BuildAckID()
 			sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
 
 			subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription.Name, s.subscriberID).Inc()

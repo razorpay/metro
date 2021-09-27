@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/razorpay/metro/pkg/utils"
-
+	"github.com/pkg/errors"
+	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 	"github.com/razorpay/metro/pkg/messagebroker"
+	"github.com/razorpay/metro/pkg/utils"
 )
 
 // PullRequest ...
@@ -78,11 +79,38 @@ type AckMessage struct {
 	AckID         string
 }
 
+var (
+	// ErrIllegalPartitionValue is thrown when partition value of AckID is not in expected state
+	ErrIllegalPartitionValue = errors.New("partition value cannot be less than 0")
+
+	// ErrIllegalOffsetValue is thrown when offset value of AckID is not in expected state
+	ErrIllegalOffsetValue = errors.New("offset value cannot be less than 0")
+
+	// ErrIllegalDeadlineValue is thrown when deadline value of AckID is not in expected state
+	ErrIllegalDeadlineValue = errors.New("deadline value cannot be less than 0")
+
+	// ErrInvalidAckID is thrown when ackID is not in the expected format
+	ErrInvalidAckID = merror.Newf(merror.InvalidArgument, "AckID received is not in expected format")
+)
+
 const ackIDSeparator = "_"
 
 // NewAckMessage ...
-func NewAckMessage(subscriberID, topic string, partition, offset, deadline int32, messageID string) IAckMessage {
-	// TODO: add needed validations on all fields
+func NewAckMessage(subscriberID, topic string, partition, offset, deadline int32, messageID string) (IAckMessage, error) {
+
+	// Validating parameters for illegal values
+	if partition < 0 {
+		return nil, ErrIllegalPartitionValue
+	}
+
+	if offset < 0 {
+		return nil, ErrIllegalOffsetValue
+	}
+
+	if deadline < 0 {
+		return nil, ErrIllegalDeadlineValue
+	}
+
 	return &AckMessage{
 		SubscriberID: subscriberID,
 		Topic:        topic,
@@ -90,7 +118,7 @@ func NewAckMessage(subscriberID, topic string, partition, offset, deadline int32
 		MessageID:    messageID,
 		Deadline:     deadline,
 		Offset:       offset,
-	}
+	}, nil
 }
 
 // WithContext can be used to set the current context to the request
@@ -151,25 +179,51 @@ func (a *AckMessage) HasHitDeadline() bool {
 }
 
 // ParseAckID ...
-func ParseAckID(ackID string) *AckMessage {
+func ParseAckID(ackID string) (*AckMessage, error) {
 	// split the message and parse tokens
 	parts := strings.Split(ackID, ackIDSeparator)
+	decodedParts := utils.DecodeSlice(parts)
 
-	// TODO : add validations
-	partition, _ := strconv.ParseInt(utils.Decode(parts[3]), 10, 0)
-	offset, _ := strconv.ParseInt(utils.Decode(parts[4]), 10, 0)
-	deadline, _ := strconv.ParseInt(utils.Decode(parts[5]), 10, 0)
+	if !isValidAckID(decodedParts) {
+		return nil, ErrInvalidAckID
+	}
+
+	partition, err := strconv.ParseInt(decodedParts[3], 10, 0)
+	if err != nil {
+		return nil, errors.WithMessage(err, fmt.Sprintf("error in parsing partition value %v to int", decodedParts[3]))
+	}
+
+	offset, err := strconv.ParseInt(decodedParts[4], 10, 0)
+	if err != nil {
+		return nil, errors.WithMessage(err, fmt.Sprintf("error in parsing offset value %v to int", decodedParts[4]))
+	}
+
+	deadline, err := strconv.ParseInt(decodedParts[5], 10, 0)
+	if err != nil {
+		return nil, errors.WithMessage(err, fmt.Sprintf("error in parsing deadline value %v to int", decodedParts[5]))
+	}
 
 	return &AckMessage{
-		ServerAddress: utils.Decode(parts[0]),
-		SubscriberID:  utils.Decode(parts[1]),
-		Topic:         utils.Decode(parts[2]),
+		ServerAddress: decodedParts[0],
+		SubscriberID:  decodedParts[1],
+		Topic:         decodedParts[2],
 		Partition:     int32(partition),
 		Offset:        int32(offset),
 		Deadline:      int32(deadline),
-		MessageID:     utils.Decode(parts[6]),
+		MessageID:     decodedParts[6],
 		AckID:         ackID,
+	}, nil
+}
+
+func isValidAckID(parts []string) bool {
+	// We can add more validations in future as required
+
+	// Validating the len of parts of AckMessage.
+	if len(parts) != 7 {
+		return false
 	}
+
+	return true
 }
 
 var currentHostIP string

@@ -21,11 +21,12 @@ func ModelToSubscriptionProtoV1(m *Model) *metrov1.Subscription {
 			Attributes:   m.PushConfig.Attributes,
 		}
 		if m.PushConfig.Credentials != nil {
-			if proto.PushConfig.Attributes == nil {
-				proto.PushConfig.Attributes = map[string]string{}
+			proto.PushConfig.AuthenticationMethod = &metrov1.PushConfig_BasicAuth_{
+				BasicAuth: &metrov1.PushConfig_BasicAuth{
+					Username: m.PushConfig.Credentials.GetUsername(),
+					Password: m.PushConfig.Credentials.GetPassword(),
+				},
 			}
-			proto.PushConfig.Attributes[attributeUsername] = m.PushConfig.Credentials.GetUsername()
-			proto.PushConfig.Attributes[attributePassword] = m.PushConfig.Credentials.GetPassword()
 		}
 	}
 

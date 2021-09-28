@@ -28,9 +28,11 @@ func Test_ModelToSubscriptionProtoV1(t *testing.T) {
 		Name:  "projects/project123/subscriptions/subscription123",
 		Topic: "projects/project123/topics/topic123",
 		PushConfig: &metrov1.PushConfig{
-			Attributes: map[string]string{
-				"username": "user",
-				"password": pwd,
+			AuthenticationMethod: &metrov1.PushConfig_BasicAuth_{
+				BasicAuth: &metrov1.PushConfig_BasicAuth{
+					Username: "user",
+					Password: pwd,
+				},
 			},
 			PushEndpoint: "https://www.razorpay.com/api",
 		},

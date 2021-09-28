@@ -222,38 +222,36 @@ func validatePushConfig(_ context.Context, m *Model, req *metrov1.Subscription) 
 			return ErrInvalidPushEndpointURL
 		}
 
-		pushAttr := config.GetAttributes()
 		var creds *credentials.Model
 
 		// check creds and encrypt if present
-		if pushAttr != nil {
-			var username, password string
-			if u, ok := pushAttr[attributeUsername]; ok {
+		if config.GetAuthenticationMethod() != nil {
+			// check if basic auth creds are present
+			if basicAuthCreds := config.GetBasicAuth(); basicAuthCreds != nil {
+				var username, password string
+
+				u := basicAuthCreds.GetUsername()
 				if strings.Trim(u, " ") == "" {
 					return ErrInvalidPushEndpointUsername
 				}
 				username = u
-			}
 
-			if p, ok := pushAttr[attributePassword]; ok {
+				p := basicAuthCreds.GetPassword()
 				if strings.Trim(p, " ") == "" {
 					return ErrInvalidPushEndpointPassword
 				}
 				password = p
-			}
 
-			delete(pushAttr, attributeUsername)
-			delete(pushAttr, attributePassword)
-
-			// set credentials only if both needed values were sent
-			if username != "" && password != "" {
-				creds = credentials.NewCredential(username, password)
+				// set credentials only if both needed values were sent
+				if username != "" && password != "" {
+					creds = credentials.NewCredential(username, password)
+				}
 			}
 		}
 
 		m.PushConfig = &PushConfig{
 			PushEndpoint: urlEndpoint,
-			Attributes:   pushAttr,
+			Attributes:   config.GetAttributes(),
 			Credentials:  creds,
 		}
 	}

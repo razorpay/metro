@@ -4,16 +4,15 @@ package subscription
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/pkg/errors"
+	"github.com/razorpay/metro/internal/credentials"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/durationpb"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
-
-	"github.com/razorpay/metro/internal/credentials"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 func Test_extractSubscriptionMetaAndValidate(t *testing.T) {
@@ -167,8 +166,10 @@ func Test_validatePushConfig(t *testing.T) {
 		{
 			&metrov1.PushConfig{
 				PushEndpoint: "https://www.razorpay.com",
-				Attributes: map[string]string{
-					"username": "",
+				AuthenticationMethod: &metrov1.PushConfig_BasicAuth_{
+					BasicAuth: &metrov1.PushConfig_BasicAuth{
+						Username: "",
+					},
 				},
 			},
 			ErrInvalidPushEndpointUsername,
@@ -177,9 +178,11 @@ func Test_validatePushConfig(t *testing.T) {
 		{
 			&metrov1.PushConfig{
 				PushEndpoint: "https://www.razorpay.com",
-				Attributes: map[string]string{
-					"username": "username",
-					"password": "",
+				AuthenticationMethod: &metrov1.PushConfig_BasicAuth_{
+					BasicAuth: &metrov1.PushConfig_BasicAuth{
+						Username: "abcd",
+						Password: "",
+					},
 				},
 			},
 			ErrInvalidPushEndpointPassword,
@@ -188,15 +191,16 @@ func Test_validatePushConfig(t *testing.T) {
 		{
 			&metrov1.PushConfig{
 				PushEndpoint: "https://www.razorpay.com",
-				Attributes: map[string]string{
-					"username": "username",
-					"password": "password",
+				AuthenticationMethod: &metrov1.PushConfig_BasicAuth_{
+					BasicAuth: &metrov1.PushConfig_BasicAuth{
+						Username: "username",
+						Password: "password",
+					},
 				},
 			},
 			nil,
 			&PushConfig{
 				PushEndpoint: "https://www.razorpay.com",
-				Attributes:   map[string]string{},
 				Credentials:  credentials.NewCredential("username", "password"),
 			},
 		},

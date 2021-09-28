@@ -528,6 +528,17 @@ message PushConfig {
         string audience = 2;
     }
 
+    // Implementation of authentication_method based on Basic Auth 
+    // which uses username and password for authentication
+    message BasicAuth {
+
+        // Username that will be used in Basic Authentication method while calling the push endpoint
+        string username = 1;
+
+        // Password that will be used in Basic Authentication method while calling the push endpoint
+        string password = 2;
+    }
+
     // A URL locating the endpoint to which messages should be pushed.
     // For example, a Webhook endpoint might use `https://example.com/push`.
     string push_endpoint = 1;
@@ -564,6 +575,10 @@ message PushConfig {
         // If specified, Pub/Sub will generate and attach an OIDC JWT token as an
         // `Authorization` header in the HTTP request for every pushed message.
         OidcToken oidc_token = 3;
+
+        // If provided, this basic auth credentials(username and password) will be used as an 
+        // `Authorization` header in the HTTP request for every pushed message
+        BasicAuth basic_auth = 4;
     }
 }
 

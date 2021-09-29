@@ -154,10 +154,10 @@ func (b *BrokerStore) RemoveConsumer(ctx context.Context, op messagebroker.Consu
 	b.partitionLock.Lock(key.String())         // lock
 	defer b.partitionLock.Unlock(key.String()) // unlock
 
-	consumer, ok := b.consumerMap.Load(key.String())
+	_, ok := b.consumerMap.Load(key.String())
 	if ok {
 		wasConsumerFound = true
-		b.consumerMap.Delete(consumer)
+		b.consumerMap.Delete(key.String())
 		brokerStoreActiveConsumersCount.WithLabelValues(env, key.String()).Dec()
 	}
 
@@ -241,7 +241,7 @@ func (b *BrokerStore) RemoveProducer(ctx context.Context, op messagebroker.Produ
 	producer, ok := b.producerMap.Load(key.String())
 	if ok && producer != nil {
 		wasProducerFound = true
-		b.producerMap.Delete(producer)
+		b.producerMap.Delete(key.String())
 		producer.(messagebroker.Producer).Shutdown(ctx)
 		// init a new producer after removal so that a non-nil producer is available on subsequent calls
 		b.GetProducer(ctx, op)

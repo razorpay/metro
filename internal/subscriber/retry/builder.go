@@ -14,6 +14,7 @@ type Builder interface {
 	WithBrokerStore(store brokerstore.IBrokerStore) Builder
 	WithSubscription(subs *subscription.Model) Builder
 	WithMessageHandler(handler MessageHandler) Builder
+	WithSubscriberID(subscriberID string) Builder
 	Build() IRetrier
 }
 
@@ -54,5 +55,11 @@ func (retrier *Retrier) WithSubscription(subs *subscription.Model) Builder {
 // WithMessageHandler ...
 func (retrier *Retrier) WithMessageHandler(handler MessageHandler) Builder {
 	retrier.handler = handler
+	return retrier
+}
+
+// WithSubscriberID ...
+func (retrier *Retrier) WithSubscriberID(subscriberID string) Builder {
+	retrier.subscriberID = subscriberID
 	return retrier
 }

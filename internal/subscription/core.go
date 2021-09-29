@@ -344,37 +344,34 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 	updatedSubCount := 0
 	for _, sub := range subscriptionsToUpdate {
-		if sub.PushConfig == nil {
+		needsUpdate := false
+		if sub.PushConfig == nil || sub.PushConfig.Attributes == nil {
 			continue
 		}
 		pushAttr := sub.PushConfig.Attributes
-		if pushAttr != nil {
-			needsUpdate := false
-			if _, ok := pushAttr[attributeUsername]; ok {
-				logger.Ctx(ctx).Infow("migration: deleting username", "username", pushAttr[attributeUsername], "subscription", sub.Name)
-				delete(pushAttr, attributeUsername)
-				needsUpdate = true
-			}
+		if _, ok := pushAttr[attributeUsername]; ok {
+			logger.Ctx(ctx).Infow("migration: deleting username", "username", pushAttr[attributeUsername], "subscription", sub.Name)
+			delete(pushAttr, attributeUsername)
+			needsUpdate = true
+		}
 
-			if _, ok := pushAttr[attributePassword]; ok {
-				logger.Ctx(ctx).Infow("migration: deleting password", "password", pushAttr[attributePassword], "subscription", sub.Name)
-				delete(pushAttr, attributePassword)
-				needsUpdate = true
-			}
+		if _, ok := pushAttr[attributePassword]; ok {
+			logger.Ctx(ctx).Infow("migration: deleting password for username", "username", pushAttr[attributeUsername], "subscription", sub.Name)
+			delete(pushAttr, attributePassword)
+			needsUpdate = true
+		}
 
-			if needsUpdate {
-				updatedSubCount++
-				logger.Ctx(ctx).Infow("migration: updating subscription", "subscription", sub.Name)
-				sub.PushConfig.Attributes = pushAttr
-				err := c.UpdateSubscription(ctx, sub)
-				if err != nil {
-					logger.Ctx(ctx).Errorw("migration: error in updating subscription", "subscription", sub.Name, "error", err.Error())
-					return err
-				}
+		if needsUpdate {
+			updatedSubCount++
+			logger.Ctx(ctx).Infow("migration: updating subscription", "subscription", sub.Name)
+			err := c.UpdateSubscription(ctx, sub)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("migration: error in updating subscription", "subscription", sub.Name, "error", err.Error())
+				return err
 			}
 		}
 	}
 
-	logger.Ctx(ctx).Infow("migration: request completed.", "Subscriptions Updated", updatedSubCount)
+	logger.Ctx(ctx).Infow("migration: request completed.", "subscriptionsUpdated", updatedSubCount)
 	return nil
 }

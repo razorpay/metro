@@ -318,9 +318,8 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) err
 }
 
 // Migrate takes care of migrating the old subscription model to new
-// As of now it specifically takes care of two things:
-// 1. Updating the missing retry and dead-letter policies with default values.
-// 2. Create the needed delay topics for a subscription retry to work.
+// As of now it specifically takes care of:
+// 1. Removes the unencrypted push config credentials stored in attributes field in old subscription model
 // In future, modify this function as needed to support additional migration use-cases.
 func (c *Core) Migrate(ctx context.Context, names []string) error {
 
@@ -343,54 +342,39 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 	logger.Ctx(ctx).Infow("migration: found subscriptions to migrate", "count", len(subscriptionsToUpdate))
 
-	topicNames := make([]string, 0)
-	for _, model := range subscriptionsToUpdate {
-		needsUpdate := false
-
-		// update retry policy if not set
-		if model.RetryPolicy == nil {
-			model.setDefaultRetryPolicy()
-			// update dead letter policy every time as previously we were saving only dead-letter topic names
-			// this takes care of updating max_delivery_attempts
-			model.setDefaultDeadLetterPolicy()
-			needsUpdate = true
+	updatedSubCount := 0
+	for _, sub := range subscriptionsToUpdate {
+		if sub.PushConfig == nil {
+			continue
 		}
+		pushAttr := sub.PushConfig.Attributes
+		if pushAttr != nil {
+			needsUpdate := false
+			if _, ok := pushAttr[attributeUsername]; ok {
+				logger.Ctx(ctx).Infow("migration: deleting username", "username", pushAttr[attributeUsername], "subscription", sub.Name)
+				delete(pushAttr, attributeUsername)
+				needsUpdate = true
+			}
 
-		if needsUpdate {
-			// collect all the delay topic names to be created
-			topicNames = append(topicNames, model.GetDelayTopics()...)
+			if _, ok := pushAttr[attributePassword]; ok {
+				logger.Ctx(ctx).Infow("migration: deleting password", "password", pushAttr[attributePassword], "subscription", sub.Name)
+				delete(pushAttr, attributePassword)
+				needsUpdate = true
+			}
 
-			logger.Ctx(ctx).Infow("migration: updating subscription", "model", model.Name)
-			// update the subscription model
-			err := c.UpdateSubscription(ctx, model)
-			if err != nil {
-				return err
+			if needsUpdate {
+				updatedSubCount++
+				logger.Ctx(ctx).Infow("migration: updating subscription", "subscription", sub.Name)
+				sub.PushConfig.Attributes = pushAttr
+				err := c.UpdateSubscription(ctx, sub)
+				if err != nil {
+					logger.Ctx(ctx).Errorw("migration: error in updating subscription", "subscription", sub.Name, "error", err.Error())
+					return err
+				}
 			}
 		}
 	}
 
-	logger.Ctx(ctx).Infow("migration: delay topics to create", "count", len(topicNames), "topicNames", topicNames)
-	// collect the success and failed topic names so that they can be retried if needed
-	successTopicNames, failedTopicNames := make([]string, 0), make([]string, 0)
-	for _, tName := range topicNames {
-		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
-			Name: tName,
-		})
-		if terr != nil {
-			logger.Ctx(ctx).Errorw("migration: failed to create validated topic model", "tName", tName, "error", terr.Error())
-			failedTopicNames = append(failedTopicNames, tName)
-			continue
-		}
-
-		err := c.topicCore.CreateTopic(ctx, tModel)
-		if err != nil {
-			logger.Ctx(ctx).Errorw("migration: failed to create delay topic", "tName", tName, "error", err.Error())
-			failedTopicNames = append(failedTopicNames, tName)
-			continue
-		}
-		successTopicNames = append(successTopicNames, tName)
-	}
-
-	logger.Ctx(ctx).Infow("migration: request completed", "successTopicNames", successTopicNames, "failedTopicNames", failedTopicNames)
+	logger.Ctx(ctx).Infow("migration: request completed.", "Subscriptions Updated", updatedSubCount)
 	return nil
 }

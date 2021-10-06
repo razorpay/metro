@@ -31,7 +31,11 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
-	consumerOps := messagebroker.ConsumerClientOptions{Topics: []string{topic}, GroupID: subs.GetDelayConsumerGroupID(topic), GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topic)}
+	consumerOps := messagebroker.ConsumerClientOptions{
+		Topics:          []string{topic},
+		GroupID:         subs.GetDelayConsumerGroupID(topic),
+		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topic),
+	}
 	consumer, err := bs.GetConsumer(ctx, consumerOps)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("delay-consumer: failed to create consumer", "error", err.Error())

@@ -60,6 +60,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 			WithBackoff(retry.NewExponentialWindowBackoff()).
 			WithIntervalFinder(retry.NewClosestIntervalWithCeil()).
 			WithMessageHandler(retry.NewPushToPrimaryRetryTopicHandler(c.bs)).
+			WithSubscriberID(subscriberID).
 			Build()
 
 		err = retrier.Start(subsCtx)

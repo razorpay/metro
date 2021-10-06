@@ -196,6 +196,6 @@ func (m *Model) GetDelayConsumerGroupID(delayTopic string) string {
 }
 
 // GetDelayConsumerGroupInstanceID returns the consumer group ID to be used by the specific delay consumer
-func (m *Model) GetDelayConsumerGroupInstanceID(delayTopic string) string {
-	return fmt.Sprintf(delayConsumerGroupInstanceIDFormat, delayTopic)
+func (m *Model) GetDelayConsumerGroupInstanceID(subscriberID, delayTopic string) string {
+	return fmt.Sprintf(delayConsumerGroupInstanceIDFormat, delayTopic, subscriberID)
 }

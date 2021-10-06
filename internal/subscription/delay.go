@@ -9,8 +9,8 @@ const delayTopicWithProjectNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
 // subs.delay.30.seconds-cg
 const delayConsumerGroupIDFormat = "%v-cg"
 
-// subs.delay.30.seconds-cgi
-const delayConsumerGroupInstanceIDFormat = "%v-cgi"
+// delayTopicName-subscriberID
+const delayConsumerGroupInstanceIDFormat = "%v-%v"
 
 // Interval is internal delay type per allowed interval
 type Interval uint

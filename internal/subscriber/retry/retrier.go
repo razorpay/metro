@@ -24,6 +24,7 @@ type IRetrier interface {
 
 // Retrier implements all business logic for IRetrier
 type Retrier struct {
+	subscriberID   string
 	subs           *subscription.Model
 	bs             brokerstore.IBrokerStore
 	backoff        Backoff
@@ -36,7 +37,7 @@ type Retrier struct {
 func (r *Retrier) Start(ctx context.Context) error {
 	// TODO : validate retrier params for nils and substitute with defaults
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
-		dc, err := NewDelayConsumer(ctx, topic, r.subs, r.bs, r.handler)
+		dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler)
 		if err != nil {
 			return err
 		}

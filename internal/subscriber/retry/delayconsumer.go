@@ -11,26 +11,31 @@ import (
 
 // DelayConsumer ...
 type DelayConsumer struct {
-	ctx        context.Context
-	cancelFunc func()
-	doneCh     chan struct{}
-	subs       *subscription.Model
-	topic      string
-	isPaused   bool
-	consumer   messagebroker.Consumer
-	bs         brokerstore.IBrokerStore
-	handler    MessageHandler
+	subscriberID string
+	ctx          context.Context
+	cancelFunc   func()
+	doneCh       chan struct{}
+	subs         *subscription.Model
+	topic        string
+	isPaused     bool
+	consumer     messagebroker.Consumer
+	bs           brokerstore.IBrokerStore
+	handler      MessageHandler
 	// a paused consumer will not return new messages, so this cachedMsg will be used for lookups
 	// till the needed time elapses
 	cachedMsg *messagebroker.ReceivedMessage
 }
 
 // NewDelayConsumer inits a new delay-consumer with the pre-defined message handler
-func NewDelayConsumer(ctx context.Context, topic string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler) (*DelayConsumer, error) {
+func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler) (*DelayConsumer, error) {
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
-	consumerOps := messagebroker.ConsumerClientOptions{Topics: []string{topic}, GroupID: subs.GetDelayConsumerGroupID(topic), GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(topic)}
+	consumerOps := messagebroker.ConsumerClientOptions{
+		Topics:          []string{topic},
+		GroupID:         subs.GetDelayConsumerGroupID(topic),
+		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topic),
+	}
 	consumer, err := bs.GetConsumer(ctx, consumerOps)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("delay-consumer: failed to create consumer", "error", err.Error())
@@ -41,14 +46,15 @@ func NewDelayConsumer(ctx context.Context, topic string, subs *subscription.Mode
 	consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: topic})
 
 	return &DelayConsumer{
-		ctx:        delayCtx,
-		cancelFunc: cancel,
-		topic:      topic,
-		consumer:   consumer,
-		subs:       subs,
-		bs:         bs,
-		handler:    handler,
-		doneCh:     make(chan struct{}),
+		subscriberID: subscriberID,
+		ctx:          delayCtx,
+		cancelFunc:   cancel,
+		topic:        topic,
+		consumer:     consumer,
+		subs:         subs,
+		bs:           bs,
+		handler:      handler,
+		doneCh:       make(chan struct{}),
 	}, nil
 }
 
@@ -61,7 +67,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 		select {
 		case <-dc.ctx.Done():
 			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.LogFields()...)
-			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.topic)})
+			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
 			dc.consumer.Close(dc.ctx)
 			return
 		default:
@@ -177,7 +183,7 @@ func (dc *DelayConsumer) LogFields(kv ...interface{}) []interface{} {
 		"delayConsumerConfig", map[string]interface{}{
 			"topic":           dc.topic,
 			"groupID":         dc.subs.GetDelayConsumerGroupID(dc.topic),
-			"groupInstanceID": dc.subs.GetDelayConsumerGroupInstanceID(dc.topic),
+			"groupInstanceID": dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic),
 		},
 	}
 

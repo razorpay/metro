@@ -178,6 +178,13 @@ func (ps *PushStream) pushMessage(ctx context.Context, subModel *subscription.Mo
 		req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
 	}
 
+	if span != nil {
+		opentracing.GlobalTracer().Inject(
+			span.Context(),
+			opentracing.HTTPHeaders,
+			opentracing.HTTPHeadersCarrier(req.Header))
+	}
+
 	logFields["endpoint"] = subModel.PushConfig.PushEndpoint
 	logger.Ctx(ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
 	resp, err := ps.httpClient.Do(req)

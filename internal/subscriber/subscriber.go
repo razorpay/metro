@@ -494,13 +494,13 @@ func (s *Subscriber) pull(req *PullRequest) {
 			return
 		}
 
-		if len(resp.PartitionOffsetWithMessages) > 0 {
+		if len(resp.Messages) > 0 {
 			logFields := s.getLogFields()
-			logFields["messageCount"] = len(resp.PartitionOffsetWithMessages)
+			logFields["messageCount"] = len(resp.Messages)
 			logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "logFields", logFields)
 		}
 
-		for _, msg := range resp.PartitionOffsetWithMessages {
+		for _, msg := range resp.Messages {
 			protoMsg := &metrov1.PubsubMessage{}
 			err = proto.Unmarshal(msg.Data, protoMsg)
 			if err != nil {

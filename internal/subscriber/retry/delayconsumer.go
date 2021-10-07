@@ -83,7 +83,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 				}
 			}
 
-			for _, msg := range resp.PartitionOffsetWithMessages {
+			for _, msg := range resp.Messages {
 				dc.processMsg(msg)
 			}
 		}

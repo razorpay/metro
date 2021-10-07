@@ -147,12 +147,12 @@ func NewPartitionOffset(partition, offset int32) PartitionOffset {
 
 // GetMessagesFromTopicResponse ...
 type GetMessagesFromTopicResponse struct {
-	PartitionOffsetWithMessages map[string]ReceivedMessage
+	Messages []ReceivedMessage
 }
 
 // HasNonZeroMessages ...
 func (g *GetMessagesFromTopicResponse) HasNonZeroMessages() bool {
-	return len(g.PartitionOffsetWithMessages) > 0
+	return len(g.Messages) > 0
 }
 
 // ReceivedMessage ...

@@ -19,6 +19,9 @@ const (
 
 	// perf10__656f81 : sample username format
 	usernameFormat = "%v%v%v"
+
+	// AsteriskString used to return a masked password
+	AsteriskString = "********"
 )
 
 var (
@@ -79,6 +82,14 @@ func (m *Model) GetPassword() string {
 	// decrypt before reading Password
 	pwd, _ := encryption.DecryptFromHexString(m.Password)
 	return string(pwd)
+}
+
+// GetHiddenPassword returns the Password after
+// masking all but last 4 characters with *
+func (m *Model) GetHiddenPassword() string {
+	// Returns a hidden password which contains a string of asterisk
+	// followed by last 4 characters of the original password
+	return AsteriskString + m.GetPassword()[len(m.GetPassword())-4:len(m.GetPassword())]
 }
 
 // GetProjectID returns the credential projectID

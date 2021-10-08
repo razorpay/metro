@@ -66,3 +66,19 @@ func TestCore_Get(t *testing.T) {
 	_, err := c.Get(ctx, project, username)
 	assert.NoError(t, err)
 }
+
+func TestCore_List(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks1.NewMockIRepo(ctrl)
+	mockCore := mocks2.NewMockICore(ctrl)
+	c := NewCore(mockRepo, mockCore)
+	ctx := context.Background()
+
+	project := "project123"
+	prefix := common.GetBasePrefix() + Prefix + project
+
+	mockRepo.EXPECT().List(ctx, prefix).Return(nil, nil)
+
+	_, err := c.List(ctx, project)
+	assert.NoError(t, err)
+}

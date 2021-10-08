@@ -16,6 +16,7 @@ type ICore interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	Delete(ctx context.Context, m *Model) error
 	Get(ctx context.Context, projectID, username string) (*Model, error)
+	List(ctx context.Context, projectID string) ([]*Model, error)
 }
 
 // Core implements all business logic for a credential
@@ -108,4 +109,28 @@ func (c *Core) Get(ctx context.Context, projectID, username string) (*Model, err
 		return nil, err
 	}
 	return model, nil
+}
+
+// List returns a slice of credentials for the given projectID
+func (c *Core) List(ctx context.Context, projectID string) ([]*Model, error) {
+	credentialOperationCount.WithLabelValues(env, "List").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		credentialOperationTimeTaken.WithLabelValues(env, "List").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	prefix := common.GetBasePrefix() + Prefix + projectID
+
+	var out []*Model
+	ret, err := c.repo.List(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, obj := range ret {
+		out = append(out, obj.(*Model))
+	}
+
+	return out, nil
 }

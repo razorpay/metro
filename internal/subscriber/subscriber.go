@@ -51,7 +51,7 @@ type Subscriber struct {
 	errChan                chan error
 	closeChan              chan struct{}
 	timeoutInMs            int
-	consumer               iConsumer // consume messages from primary topic and retry topic
+	consumer               IConsumer // consume messages from primary topic and retry topic
 	cancelFunc             func()
 	maxOutstandingMessages int64
 	maxOutstandingBytes    int64

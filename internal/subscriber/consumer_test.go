@@ -33,9 +33,9 @@ func TestConsumerManager_ResumeWithoutPause(t *testing.T) {
 	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
 
 	e := consumer.ResumeConsumer(ctx)
-	assert.Equal(t, e, cannotResume)
+	assert.Equal(t, e, errCannotResume)
 	e = consumer.ResumePrimaryConsumer(ctx)
-	assert.Equal(t, e, cannotResume)
+	assert.Equal(t, e, errCannotResume)
 }
 
 func TestConsumerManager_PauseConsumer(t *testing.T) {

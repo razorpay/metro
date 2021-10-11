@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	cannotResume = fmt.Errorf("consumer was not paused")
+	errCannotResume = fmt.Errorf("consumer was not paused")
 )
 
-type iConsumer interface {
+// IConsumer a wrapper over consumer
+type IConsumer interface {
 	PauseConsumer(ctx context.Context) error
 	IsPaused(ctx context.Context) bool
 	ResumeConsumer(ctx context.Context) error
@@ -42,8 +43,9 @@ type consumerManager struct {
 	brokerStore       brokerstore.IBrokerStore
 }
 
+// NewConsumerManager ...
 func NewConsumerManager(ctx context.Context, bs brokerstore.IBrokerStore, subscriberID string, subscriptionName,
-	topicName, retryTopicName string) (iConsumer, error) {
+	topicName, retryTopicName string) (IConsumer, error) {
 	consumer, err := bs.GetConsumer(
 		ctx,
 		messagebroker.ConsumerClientOptions{
@@ -144,7 +146,7 @@ func (c *consumerManager) IsPaused(ctx context.Context) bool {
 // If primary topic is explicitly paused, only retry topic consumption is resumed.
 func (c *consumerManager) ResumeConsumer(ctx context.Context) error {
 	if !c.consumerPaused {
-		return cannotResume
+		return errCannotResume
 	}
 
 	err := c.resumeRetryConsumer(ctx)
@@ -197,7 +199,7 @@ func (c *consumerManager) IsPrimaryPaused(ctx context.Context) bool {
 // ResumePrimaryConsumer - Resumes primary consumer that was explicitly paused.
 func (c *consumerManager) ResumePrimaryConsumer(ctx context.Context) error {
 	if !c.pausePrimaryTopic {
-		return cannotResume
+		return errCannotResume
 	}
 
 	if c.consumerPaused {

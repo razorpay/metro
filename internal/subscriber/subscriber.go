@@ -51,12 +51,11 @@ type Subscriber struct {
 	errChan                chan error
 	closeChan              chan struct{}
 	timeoutInMs            int
-	consumer               messagebroker.Consumer // consume messages from primary topic
+	consumer               iConsumer // consume messages from primary topic and retry topic
 	cancelFunc             func()
 	maxOutstandingMessages int64
 	maxOutstandingBytes    int64
 	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
-	isPaused               bool
 	ctx                    context.Context
 	bs                     brokerstore.IBrokerStore
 	retrier                retry.IRetrier
@@ -416,14 +415,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			close(s.responseChan)
 			close(s.errChan)
 
-			wasConsumerFound := s.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: s.subscription.Name, GroupInstanceID: s.subscriberID})
-			if wasConsumerFound {
-				// close consumer only if we are able to successfully find and delete consumer from the brokerStore.
-				// if the entry is already deleted from brokerStore, that means some other goroutine has already closed the consumer.
-				// in such cases do not attempt to close the consumer again else it will panic
-				s.consumer.Close(ctx)
-			}
-
+			s.consumer.Close(ctx)
 			close(s.closeChan)
 			return
 		}
@@ -452,30 +444,13 @@ func (s *Subscriber) pull(req *PullRequest) {
 		if s.canConsumeMore() == false {
 			logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "logFields", s.getLogFields())
 			// check if consumer is paused once maxOutstanding messages limit is hit
-			if s.isPaused == false {
-				// if not, pause all topic-partitions for consumer
-				for tp := range s.consumedMessageStats {
-					s.consumer.Pause(ctx, messagebroker.PauseOnTopicRequest{
-						Topic:     tp.topic,
-						Partition: tp.partition,
-					})
-					logger.Ctx(ctx).Infow("subscriber: pausing consumer", "logFields", s.getLogFields())
-					subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
-					s.isPaused = true
-				}
+			if s.consumer.IsPaused(ctx) == false {
+				s.consumer.PauseConsumer(ctx)
 			}
 		} else {
 			// resume consumer if paused and is allowed to consume more messages
-			if s.isPaused {
-				s.isPaused = false
-				for tp := range s.consumedMessageStats {
-					s.consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{
-						Topic:     tp.topic,
-						Partition: tp.partition,
-					})
-					logger.Ctx(ctx).Infow("subscriber: resuming consumer", "logFields", s.getLogFields())
-					subscriberPausedConsumersTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Dec()
-				}
+			if s.consumer.IsPaused(ctx) {
+				s.consumer.ResumeConsumer(ctx)
 			}
 		}
 

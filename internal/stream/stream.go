@@ -33,6 +33,12 @@ type PushStream struct {
 	doneCh           chan struct{}
 }
 
+const (
+	defaultTimeoutMs          int   = 100
+	defaultMaxOutstandingMsgs int64 = 2
+	defaultMaxOuttandingBytes int64 = 0
+)
+
 // Start reads the messages from the broker and publish them to the subscription endpoint
 func (ps *PushStream) Start() error {
 	defer close(ps.doneCh)
@@ -50,8 +56,8 @@ func (ps *PushStream) Start() error {
 	// is a race condition that subscriber exits before the stream is stopped. this causes issues as there are no
 	// subscribers listening to the requests send by stream
 	subscriberCtx := context.Background()
-	ps.subs, err = ps.subscriberCore.NewSubscriber(subscriberCtx, ps.nodeID, ps.subscription, 100, 50, 0,
-		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
+	ps.subs, err = ps.subscriberCore.NewSubscriber(subscriberCtx, ps.nodeID, ps.subscription, defaultTimeoutMs,
+		defaultMaxOutstandingMsgs, defaultMaxOuttandingBytes, subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscription.Name, "error", err.Error())
 		return err

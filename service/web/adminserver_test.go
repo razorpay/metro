@@ -181,7 +181,7 @@ func TestAdminServer_FetchProjectCredentials(t *testing.T) {
 		Password:  pwd,
 	}
 
-	exectedCredProto := &metrov1.ProjectCredentials{
+	expectedCredProto := &metrov1.ProjectCredentials{
 		ProjectId: "test-project",
 		Username:  "test-project__00f790",
 		Password:  "password",
@@ -195,7 +195,7 @@ func TestAdminServer_FetchProjectCredentials(t *testing.T) {
 		Return(credential, nil)
 	p, err := adminServer.FetchProjectCredentials(ctx, projectCredProto)
 	assert.Nil(t, err)
-	assert.Equal(t, exectedCredProto, p)
+	assert.Equal(t, expectedCredProto, p)
 }
 
 func TestAdminServer_ListProjectCredentials(t *testing.T) {
@@ -224,7 +224,7 @@ func TestAdminServer_ListProjectCredentials(t *testing.T) {
 		Password:  pwd,
 	}}
 
-	exectedCredProto := &metrov1.ProjectCredentialsList{
+	expectedCredProto := &metrov1.ProjectCredentialsList{
 		ProjectCredentials: []*metrov1.ProjectCredentials{{
 			ProjectId: "test-project",
 			Username:  "test-project__00f790",
@@ -240,5 +240,5 @@ func TestAdminServer_ListProjectCredentials(t *testing.T) {
 		Return(credential, nil)
 	p, err := adminServer.ListProjectCredentials(ctx, projectCredProto)
 	assert.Nil(t, err)
-	assert.Equal(t, exectedCredProto, p)
+	assert.Equal(t, expectedCredProto, p)
 }

@@ -89,7 +89,8 @@ func (m *Model) GetPassword() string {
 func (m *Model) GetHiddenPassword() string {
 	// Returns a hidden password which contains a string of asterisk
 	// followed by last 4 characters of the original password
-	return AsteriskString + m.GetPassword()[len(m.GetPassword())-4:len(m.GetPassword())]
+	password := m.GetPassword()
+	return AsteriskString + password[len(password)-4:]
 }
 
 // GetProjectID returns the credential projectID

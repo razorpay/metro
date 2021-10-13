@@ -172,9 +172,9 @@ func (s adminServer) DeleteProjectCredentials(ctx context.Context, req *metrov1.
 	return &emptypb.Empty{}, nil
 }
 
-// fetch and return the ProjectCredentials for the given projectId and username
-func (s adminServer) FetchProjectCredentials(ctx context.Context, req *metrov1.ProjectCredentials) (*metrov1.ProjectCredentials, error) {
-	logger.Ctx(ctx).Infow("received request to fetch project credentials", "projectID", req.ProjectId, "username", req.Username)
+// get the ProjectCredentials for the given projectId and username
+func (s adminServer) GetProjectCredentials(ctx context.Context, req *metrov1.ProjectCredentials) (*metrov1.ProjectCredentials, error) {
+	logger.Ctx(ctx).Infow("received request to get project credentials", "projectID", req.ProjectId, "username", req.Username)
 
 	credential, err := s.credentialCore.Get(ctx, req.ProjectId, req.Username)
 
@@ -182,7 +182,7 @@ func (s adminServer) FetchProjectCredentials(ctx context.Context, req *metrov1.P
 		return nil, merror.ToGRPCError(err)
 	}
 
-	logger.Ctx(ctx).Infow("request to fetch credentials completed", "projectID", req.ProjectId, "username", req.Username)
+	logger.Ctx(ctx).Infow("request to get credentials completed", "projectID", req.ProjectId, "username", req.Username)
 
 	return &metrov1.ProjectCredentials{
 		ProjectId: credential.ProjectID,

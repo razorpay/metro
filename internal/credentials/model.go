@@ -38,7 +38,8 @@ func (c contextKey) String() string {
 // Model for a credential
 type Model struct {
 	common.BaseModel
-	Username  string `json:"username"`
+	Username string `json:"username"`
+	// warning: Password must be of length >= 4
 	Password  string `json:"password"`
 	ProjectID string `json:"project_id"`
 	// in future, this model can contain some ACL as well
@@ -86,6 +87,7 @@ func (m *Model) GetPassword() string {
 
 // GetHiddenPassword returns the Password after
 // masking all but last 4 characters with *
+// warning: make sure length of password is >= 4
 func (m *Model) GetHiddenPassword() string {
 	// Returns a hidden password which contains a string of asterisk
 	// followed by last 4 characters of the original password

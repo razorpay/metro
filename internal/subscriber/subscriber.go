@@ -127,7 +127,7 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Ack", opentracing.Tags{
 		"subscriber":   req.SubscriberID,
 		"topic":        req.Topic,
-		"subscription": s.subscription,
+		"subscription": s.subscription.Name,
 		"message_id":   req.MessageID,
 		"partition":    req.Partition,
 	})
@@ -267,7 +267,7 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:ModifyAck", opentracing.Tags{
 		"subscriber":   req.AckMessage.SubscriberID,
 		"topic":        req.AckMessage.Topic,
-		"subscription": s.subscription,
+		"subscription": s.subscription.Name,
 		"message_id":   req.AckMessage.MessageID,
 		"partition":    req.AckMessage.Partition,
 	})
@@ -433,7 +433,8 @@ func (s *Subscriber) Run(ctx context.Context) {
 func (s *Subscriber) pull(req *PullRequest) {
 	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Pull", opentracing.Tags{
 		"subscriber":   s.subscriberID,
-		"subscription": s.subscription,
+		"subscription": s.subscription.Name,
+		"topic":        s.subscription.Topic,
 	})
 	defer span.Finish()
 

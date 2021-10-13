@@ -155,7 +155,7 @@ func TestAdminServer_DeleteProjectValidationFailure(t *testing.T) {
 	assert.Nil(t, p)
 }
 
-func TestAdminServer_FetchProjectCredentials(t *testing.T) {
+func TestAdminServer_GetProjectCredentials(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockProjectCore := mocks.NewMockICore(ctrl)
 	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
@@ -193,7 +193,7 @@ func TestAdminServer_FetchProjectCredentials(t *testing.T) {
 	mockCredentialsCore.EXPECT().
 		Get(ctx, projectCredProto.ProjectId, projectCredProto.Username).Times(1).
 		Return(credential, nil)
-	p, err := adminServer.FetchProjectCredentials(ctx, projectCredProto)
+	p, err := adminServer.GetProjectCredentials(ctx, projectCredProto)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedCredProto, p)
 }

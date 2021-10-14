@@ -123,6 +123,28 @@ service AdminService {
         };
     }
 
+    rpc GetProjectCredentials(ProjectCredentials) returns (ProjectCredentials){
+        option (google.api.http) = {
+            get: "/v1/projects/{project_id}/credentials/{username}"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Get Project Credentials for the given username"
+            description: "Get the project credentials from username"
+            tags: "Project"
+        };
+    }
+
+    rpc ListProjectCredentials(ProjectCredentials) returns (ProjectCredentialsList){
+        option (google.api.http) = {
+            get: "/v1/projects/{project_id}/credentials"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "List Project Credentials"
+            description: "List all the project credentials for the given projectId"
+            tags: "Project"
+        };
+    }
+
     rpc MigrateSubscriptions(Subscriptions) returns (google.protobuf.Empty){
         option (google.api.http) = {
             post: "/v1/admin/subscriptions/migrate"
@@ -146,6 +168,10 @@ message ProjectCredentials {
   string project_id = 1 [(google.api.field_behavior) = REQUIRED];
   string username = 2;
   string password = 3;
+}
+
+message ProjectCredentialsList {
+    repeated ProjectCredentials project_credentials = 1;
 }
 
 message Subscriptions {

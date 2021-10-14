@@ -33,5 +33,15 @@ func getDummyCredentials() *Model {
 func TestModel_HiddenPassword(t *testing.T) {
 	credentials := getDummyCredentials()
 	expectedHiddenPassword := AsteriskString + "word"
-	assert.Equal(t, expectedHiddenPassword, credentials.GetHiddenPassword())
+	hiddenPwd, err := credentials.GetHiddenPassword()
+	assert.Nil(t, err)
+	assert.Equal(t, expectedHiddenPassword, hiddenPwd)
+}
+
+func TestModel_HiddenPassword_Failure(t *testing.T) {
+	credentials := getDummyCredentials()
+	credentials.Password = "SHo5MThKVTQ2NjVYMGg5dllvRjk="
+	hiddenPwd, err := credentials.GetHiddenPassword()
+	assert.Empty(t, hiddenPwd)
+	assert.Equal(t, err, ErrPasswordNotInExpectedFormat)
 }

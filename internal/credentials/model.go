@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/sethvargo/go-password/password"
@@ -27,6 +28,9 @@ const (
 var (
 	// CtxKey identified credentials will be populated in ctx with this key
 	CtxKey = contextKey("CredentialsCtxKey")
+
+	// ErrPasswordNotInExpectedFormat ...
+	ErrPasswordNotInExpectedFormat = errors.New("Password not in expected format")
 )
 
 type contextKey string
@@ -88,11 +92,15 @@ func (m *Model) GetPassword() string {
 // GetHiddenPassword returns the Password after
 // masking all but last 4 characters with *
 // warning: make sure length of password is >= 4
-func (m *Model) GetHiddenPassword() string {
+func (m *Model) GetHiddenPassword() (string, error) {
 	// Returns a hidden password which contains a string of asterisk
 	// followed by last 4 characters of the original password
 	password := m.GetPassword()
-	return AsteriskString + password[len(password)-4:]
+
+	if len(password) < 4 {
+		return "", ErrPasswordNotInExpectedFormat
+	}
+	return AsteriskString + password[len(password)-4:], nil
 }
 
 // GetProjectID returns the credential projectID

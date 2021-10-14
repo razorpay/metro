@@ -76,7 +76,7 @@ func TestCore_List_Success(t *testing.T) {
 	ctx := context.Background()
 
 	project := "project123"
-	prefix := common.GetBasePrefix() + Prefix + project
+	prefix := common.GetBasePrefix() + Prefix + project + "/"
 
 	var model common.IModel = &Model{
 		Username:  "user1",
@@ -106,7 +106,7 @@ func TestCore_List_Failure(t *testing.T) {
 	ctx := context.Background()
 
 	project := "project123"
-	prefix := common.GetBasePrefix() + Prefix + project
+	prefix := common.GetBasePrefix() + Prefix + project + "/"
 
 	mockRepo.EXPECT().List(ctx, prefix).Return(nil, errors.New("Error getting credentials"))
 

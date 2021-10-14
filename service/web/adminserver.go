@@ -203,14 +203,19 @@ func (s adminServer) ListProjectCredentials(ctx context.Context, req *metrov1.Pr
 		return nil, merror.ToGRPCError(err)
 	}
 
-	logger.Ctx(ctx).Infow("request to fetch credentials completed", "projectID", req.ProjectId, "username", req.Username)
+	logger.Ctx(ctx).Infow("request to list credentials completed", "projectID", req.ProjectId)
 
 	var credentials []*metrov1.ProjectCredentials
 	for _, m := range models {
+		hiddenPwd, err := m.GetHiddenPassword()
+		if err != nil {
+			logger.Ctx(ctx).Errorw("error occurred in masking credentials", "errMsg", err.Error(), "projectID", m.ProjectID, "username", m.Username)
+			continue
+		}
 		credentials = append(credentials, &metrov1.ProjectCredentials{
 			ProjectId: m.ProjectID,
 			Username:  m.GetUsername(),
-			Password:  m.GetHiddenPassword(),
+			Password:  hiddenPwd,
 		})
 	}
 	return &metrov1.ProjectCredentialsList{

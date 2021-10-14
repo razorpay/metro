@@ -120,7 +120,7 @@ func (c *Core) List(ctx context.Context, projectID string) ([]*Model, error) {
 		credentialOperationTimeTaken.WithLabelValues(env, "List").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	prefix := common.GetBasePrefix() + Prefix + projectID
+	prefix := common.GetBasePrefix() + Prefix + projectID + "/"
 
 	var out []*Model
 	ret, err := c.repo.List(ctx, prefix)

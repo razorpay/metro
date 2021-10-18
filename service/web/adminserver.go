@@ -172,6 +172,57 @@ func (s adminServer) DeleteProjectCredentials(ctx context.Context, req *metrov1.
 	return &emptypb.Empty{}, nil
 }
 
+// get the ProjectCredentials for the given projectId and username
+func (s adminServer) GetProjectCredentials(ctx context.Context, req *metrov1.ProjectCredentials) (*metrov1.ProjectCredentials, error) {
+	logger.Ctx(ctx).Infow("received request to get project credentials", "projectID", req.ProjectId, "username", req.Username)
+
+	credential, err := s.credentialCore.Get(ctx, req.ProjectId, req.Username)
+
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	logger.Ctx(ctx).Infow("request to get credentials completed", "projectID", req.ProjectId, "username", req.Username)
+
+	return &metrov1.ProjectCredentials{
+		ProjectId: credential.ProjectID,
+		Username:  credential.GetUsername(),
+		Password:  credential.GetPassword(),
+	}, nil
+}
+
+// returns list of all the project credentials for the given projectId
+func (s adminServer) ListProjectCredentials(ctx context.Context, req *metrov1.ProjectCredentials) (*metrov1.ProjectCredentialsList, error) {
+	logger.Ctx(ctx).Infow("received request to list project credentials", "projectID", req.ProjectId)
+
+	projectID := req.ProjectId
+
+	models, err := s.credentialCore.List(ctx, projectID)
+
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	logger.Ctx(ctx).Infow("request to list credentials completed", "projectID", req.ProjectId)
+
+	var credentials []*metrov1.ProjectCredentials
+	for _, m := range models {
+		hiddenPwd, err := m.GetHiddenPassword()
+		if err != nil {
+			logger.Ctx(ctx).Errorw("error occurred in masking credentials", "errMsg", err.Error(), "projectID", m.ProjectID, "username", m.Username)
+			continue
+		}
+		credentials = append(credentials, &metrov1.ProjectCredentials{
+			ProjectId: m.ProjectID,
+			Username:  m.GetUsername(),
+			Password:  hiddenPwd,
+		})
+	}
+	return &metrov1.ProjectCredentialsList{
+		ProjectCredentials: credentials,
+	}, nil
+}
+
 func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *metrov1.Subscriptions) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("received request to migrate subscriptions", "subscriptions", subscriptions.GetNames())
 

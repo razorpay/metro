@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/razorpay/metro/internal/credentials"
+	"github.com/razorpay/metro/pkg/encryption"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -152,4 +153,92 @@ func TestAdminServer_DeleteProjectValidationFailure(t *testing.T) {
 	p, err := adminServer.DeleteProject(ctx, projectProto)
 	assert.NotNil(t, err)
 	assert.Nil(t, p)
+}
+
+func TestAdminServer_GetProjectCredentials(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks.NewMockICore(ctrl)
+	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
+	mockTopicCore := mocks3.NewMockICore(ctrl)
+	mockCredentialsCore := mocks4.NewMockICore(ctrl)
+
+	projectCredProto := &metrov1.ProjectCredentials{
+		ProjectId: "test-project",
+		Username:  "test-project__00f790",
+	}
+
+	encryption.RegisterEncryptionKey("key")
+	pwd, _ := encryption.EncryptAsHexString([]byte("password"))
+
+	admin := &credentials.Model{
+		Username: "u",
+		Password: "p",
+	}
+
+	credential := &credentials.Model{
+		ProjectID: "test-project",
+		Username:  "test-project__00f790",
+		Password:  pwd,
+	}
+
+	expectedCredProto := &metrov1.ProjectCredentials{
+		ProjectId: "test-project",
+		Username:  "test-project__00f790",
+		Password:  "password",
+	}
+
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, nil)
+	ctx := context.Background()
+
+	mockCredentialsCore.EXPECT().
+		Get(ctx, projectCredProto.ProjectId, projectCredProto.Username).Times(1).
+		Return(credential, nil)
+	p, err := adminServer.GetProjectCredentials(ctx, projectCredProto)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedCredProto, p)
+}
+
+func TestAdminServer_ListProjectCredentials(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks.NewMockICore(ctrl)
+	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
+	mockTopicCore := mocks3.NewMockICore(ctrl)
+	mockCredentialsCore := mocks4.NewMockICore(ctrl)
+
+	projectCredProto := &metrov1.ProjectCredentials{
+		ProjectId: "test-project",
+		Username:  "test-project__00f790",
+	}
+
+	encryption.RegisterEncryptionKey("key")
+	pwd, _ := encryption.EncryptAsHexString([]byte("password"))
+
+	admin := &credentials.Model{
+		Username: "u",
+		Password: "p",
+	}
+
+	credential := []*credentials.Model{{
+		ProjectID: "test-project",
+		Username:  "test-project__00f790",
+		Password:  pwd,
+	}}
+
+	expectedCredProto := &metrov1.ProjectCredentialsList{
+		ProjectCredentials: []*metrov1.ProjectCredentials{{
+			ProjectId: "test-project",
+			Username:  "test-project__00f790",
+			Password:  credentials.AsteriskString + "word",
+		}},
+	}
+
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, nil)
+	ctx := context.Background()
+
+	mockCredentialsCore.EXPECT().
+		List(ctx, projectCredProto.ProjectId).Times(1).
+		Return(credential, nil)
+	p, err := adminServer.ListProjectCredentials(ctx, projectCredProto)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedCredProto, p)
 }

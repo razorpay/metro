@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/sethvargo/go-password/password"
@@ -19,11 +20,17 @@ const (
 
 	// perf10__656f81 : sample username format
 	usernameFormat = "%v%v%v"
+
+	// AsteriskString used to return a masked password
+	AsteriskString = "********"
 )
 
 var (
 	// CtxKey identified credentials will be populated in ctx with this key
 	CtxKey = contextKey("CredentialsCtxKey")
+
+	// ErrPasswordNotInExpectedFormat ...
+	ErrPasswordNotInExpectedFormat = errors.New("Password not in expected format")
 )
 
 type contextKey string
@@ -35,7 +42,8 @@ func (c contextKey) String() string {
 // Model for a credential
 type Model struct {
 	common.BaseModel
-	Username  string `json:"username"`
+	Username string `json:"username"`
+	// warning: Password must be of length >= 4
 	Password  string `json:"password"`
 	ProjectID string `json:"project_id"`
 	// in future, this model can contain some ACL as well
@@ -79,6 +87,20 @@ func (m *Model) GetPassword() string {
 	// decrypt before reading Password
 	pwd, _ := encryption.DecryptFromHexString(m.Password)
 	return string(pwd)
+}
+
+// GetHiddenPassword returns the Password after
+// masking all but last 4 characters with *
+// warning: make sure length of password is >= 4
+func (m *Model) GetHiddenPassword() (string, error) {
+	// Returns a hidden password which contains a string of asterisk
+	// followed by last 4 characters of the original password
+	password := m.GetPassword()
+
+	if len(password) < 4 {
+		return "", ErrPasswordNotInExpectedFormat
+	}
+	return AsteriskString + password[len(password)-4:], nil
 }
 
 // GetProjectID returns the credential projectID

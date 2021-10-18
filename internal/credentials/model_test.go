@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,9 +21,27 @@ func TestModel_Key(t *testing.T) {
 }
 
 func getDummyCredentials() *Model {
+	encryption.RegisterEncryptionKey("key")
+	pwd, _ := encryption.EncryptAsHexString([]byte("password"))
 	return &Model{
 		Username:  "project123__c525c7",
-		Password:  "l0laNoI360l4uvD96682",
+		Password:  pwd,
 		ProjectID: "project123",
 	}
+}
+
+func TestModel_HiddenPassword(t *testing.T) {
+	credentials := getDummyCredentials()
+	expectedHiddenPassword := AsteriskString + "word"
+	hiddenPwd, err := credentials.GetHiddenPassword()
+	assert.Nil(t, err)
+	assert.Equal(t, expectedHiddenPassword, hiddenPwd)
+}
+
+func TestModel_HiddenPassword_Failure(t *testing.T) {
+	credentials := getDummyCredentials()
+	credentials.Password = "SHo5MThKVTQ2NjVYMGg5dllvRjk="
+	hiddenPwd, err := credentials.GetHiddenPassword()
+	assert.Empty(t, hiddenPwd)
+	assert.Equal(t, err, ErrPasswordNotInExpectedFormat)
 }

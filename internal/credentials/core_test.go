@@ -4,6 +4,7 @@ package credentials
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/razorpay/metro/internal/common"
@@ -65,4 +66,51 @@ func TestCore_Get(t *testing.T) {
 	mockRepo.EXPECT().Get(ctx, prefix, m).Return(nil)
 	_, err := c.Get(ctx, project, username)
 	assert.NoError(t, err)
+}
+
+func TestCore_List_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks1.NewMockIRepo(ctrl)
+	mockCore := mocks2.NewMockICore(ctrl)
+	c := NewCore(mockRepo, mockCore)
+	ctx := context.Background()
+
+	project := "project123"
+	prefix := common.GetBasePrefix() + Prefix + project + "/"
+
+	var model common.IModel = &Model{
+		Username:  "user1",
+		Password:  "pass1",
+		ProjectID: "project123",
+	}
+
+	expectedOut := []*Model{{
+		Username:  "user1",
+		Password:  "pass1",
+		ProjectID: "project123",
+	}}
+
+	models := []common.IModel{model}
+	mockRepo.EXPECT().List(ctx, prefix).Return(models, nil)
+
+	out, err := c.List(ctx, project)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedOut, out)
+}
+
+func TestCore_List_Failure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks1.NewMockIRepo(ctrl)
+	mockCore := mocks2.NewMockICore(ctrl)
+	c := NewCore(mockRepo, mockCore)
+	ctx := context.Background()
+
+	project := "project123"
+	prefix := common.GetBasePrefix() + Prefix + project + "/"
+
+	mockRepo.EXPECT().List(ctx, prefix).Return(nil, errors.New("Error getting credentials"))
+
+	out, err := c.List(ctx, project)
+	assert.Error(t, err, "Error getting credentials")
+	assert.Nil(t, out)
 }

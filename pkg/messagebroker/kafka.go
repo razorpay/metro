@@ -435,6 +435,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 		if err == nil {
 			// extract the message headers and set in the response struct
 			receivedMessage := convertKafkaHeadersToResponse(msg.Headers)
+			receivedMessage.OrderingKey = string(msg.Key)
 
 			// Get span context from headers
 			carrier := kafkaHeadersCarrier(msg.Headers)

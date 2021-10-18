@@ -123,6 +123,7 @@ func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) er
 	_, err = dlProducer.SendMessage(dc.ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:         msg.DeadLetterTopic,
 		Message:       msg.Data,
+		OrderingKey:   msg.OrderingKey,
 		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
 		MessageHeader: msg.MessageHeader,
 	})

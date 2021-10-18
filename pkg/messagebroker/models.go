@@ -157,11 +157,12 @@ func (g *GetMessagesFromTopicResponse) HasNonZeroMessages() bool {
 
 // ReceivedMessage ...
 type ReceivedMessage struct {
-	Data       []byte
-	Topic      string
-	Partition  int32
-	Offset     int32
-	Attributes []map[string][]byte
+	Data        []byte
+	Topic       string
+	Partition   int32
+	Offset      int32
+	OrderingKey string
+	Attributes  []map[string][]byte
 	MessageHeader
 }
 

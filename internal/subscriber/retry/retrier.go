@@ -111,6 +111,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 	newMessage := messagebroker.SendMessageToTopicRequest{
 		Topic:         dc.topic,
 		Message:       msg.Data,
+		OrderingKey:   msg.OrderingKey,
 		MessageHeader: newMessageHeaders,
 	}
 

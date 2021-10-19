@@ -209,23 +209,23 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	}()
 
 	var i int32
-	msgs := make(map[string]ReceivedMessage, request.NumOfMessages)
+	msgs := make([]ReceivedMessage, 0)
 	for i = 0; i < request.NumOfMessages; i++ {
 		msg, err := p.Consumer.Receive(ctx)
 		if err != nil {
 			return nil, err
 		}
-		msgs[string(msg.ID().Serialize())] = ReceivedMessage{
+		msgs = append(msgs, ReceivedMessage{
 			Data: msg.Payload(),
 			MessageHeader: MessageHeader{
 				MessageID:   string(msg.ID().Serialize()),
 				PublishTime: msg.PublishTime(),
 			},
-		}
+		})
 	}
 
 	return &GetMessagesFromTopicResponse{
-		PartitionOffsetWithMessages: msgs,
+		Messages: msgs,
 	}, nil
 }
 

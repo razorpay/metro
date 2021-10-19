@@ -35,6 +35,7 @@ func (s *PushToPrimaryRetryTopic) Do(ctx context.Context, msg messagebroker.Rece
 	_, err = producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:         msg.RetryTopic,
 		Message:       msg.Data,
+		OrderingKey:   msg.OrderingKey,
 		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
 		MessageHeader: msg.MessageHeader,
 	})

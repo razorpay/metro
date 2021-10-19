@@ -23,9 +23,9 @@ func Test_pulsarAckMessage(t *testing.T) {
 }
 
 func Test_GetMessagesFromTopicResponse(t *testing.T) {
-	msgs := make(map[string]ReceivedMessage)
-	msgs["10-99"] = ReceivedMessage{}
-	resp := GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}
+	msgs := make([]ReceivedMessage, 0)
+	msgs = append(msgs, ReceivedMessage{})
+	resp := GetMessagesFromTopicResponse{Messages: msgs}
 	assert.True(t, resp.HasNonZeroMessages())
 }
 

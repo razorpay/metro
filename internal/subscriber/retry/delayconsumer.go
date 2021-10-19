@@ -83,7 +83,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 				}
 			}
 
-			for _, msg := range resp.PartitionOffsetWithMessages {
+			for _, msg := range resp.Messages {
 				dc.processMsg(msg)
 			}
 		}
@@ -123,6 +123,7 @@ func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) er
 	_, err = dlProducer.SendMessage(dc.ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:         msg.DeadLetterTopic,
 		Message:       msg.Data,
+		OrderingKey:   msg.OrderingKey,
 		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
 		MessageHeader: msg.MessageHeader,
 	})

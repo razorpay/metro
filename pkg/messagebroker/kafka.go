@@ -429,12 +429,13 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "ReceiveMessages").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	msgs := make(map[string]ReceivedMessage, 0)
+	msgs := make([]ReceivedMessage, 0)
 	for {
 		msg, err := k.Consumer.ReadMessage(time.Duration(request.TimeoutMs) * time.Millisecond)
 		if err == nil {
 			// extract the message headers and set in the response struct
 			receivedMessage := convertKafkaHeadersToResponse(msg.Headers)
+			receivedMessage.OrderingKey = string(msg.Key)
 
 			// Get span context from headers
 			carrier := kafkaHeadersCarrier(msg.Headers)
@@ -455,21 +456,18 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				})
 			messageSpan.Finish()
 
-			offset, _ := strconv.ParseInt(fmt.Sprintf("%v", int32(msg.TopicPartition.Offset)), 10, 0)
-			po := NewPartitionOffset(msg.TopicPartition.Partition, int32(offset))
-
 			receivedMessage.Data = msg.Value
 			receivedMessage.Topic = *msg.TopicPartition.Topic
 			receivedMessage.Partition = msg.TopicPartition.Partition
 			receivedMessage.Offset = int32(msg.TopicPartition.Offset)
-			msgs[po.String()] = receivedMessage
 
+			msgs = append(msgs, receivedMessage)
 			if int32(len(msgs)) == request.NumOfMessages {
-				return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
+				return &GetMessagesFromTopicResponse{Messages: msgs}, nil
 			}
 		} else if err.(kafkapkg.Error).Code() == kafkapkg.ErrTimedOut {
 			messageBrokerOperationError.WithLabelValues(env, Kafka, "ReceiveMessages", err.Error()).Inc()
-			return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
+			return &GetMessagesFromTopicResponse{Messages: msgs}, nil
 		} else {
 			// The client will automatically try to recover from all errors.
 			logger.Ctx(ctx).Errorw("kafka: error in receiving messages", "msg", err.Error())
@@ -477,8 +475,6 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			return nil, err
 		}
 	}
-
-	return &GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}, nil
 }
 
 // CommitByPartitionAndOffset Commits messages if any

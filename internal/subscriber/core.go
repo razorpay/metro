@@ -8,7 +8,6 @@ import (
 	"github.com/razorpay/metro/internal/subscriber/retry"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
-	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -40,9 +39,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	ackCh chan *AckMessage,
 	modAckCh chan *ModAckMessage) (ISubscriber, error) {
 
-	groupID := subscription.Name
-
-	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []string{subscription.Topic, subscription.GetRetryTopic()}, GroupID: groupID, GroupInstanceID: subscriberID})
+	consumer, err := NewConsumerManager(ctx, c.bs, subscriberID, subscription.Name, subscription.Topic, subscription.GetRetryTopic())
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: failed to create consumer", "error", err.Error())
 		return nil, err

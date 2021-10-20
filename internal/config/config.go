@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/razorpay/metro/internal/credentials"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/razorpay/metro/pkg/monitoring/sentry"
 	"github.com/razorpay/metro/pkg/registry"
@@ -19,6 +20,7 @@ type Config struct {
 	Web           web.Config
 	Worker        worker.Config
 	Registry      registry.Config
+	Cache         cache.Config
 	OpenAPIServer openapiserver.Config
 	Admin         credentials.Model
 	Encryption    encryption.Config

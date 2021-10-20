@@ -8,6 +8,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 )
 
+// ConsulConfig ...
 type ConsulConfig struct {
 	api.Config
 }

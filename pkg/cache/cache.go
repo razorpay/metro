@@ -2,6 +2,7 @@ package cache
 
 import "context"
 
+// ICache is an interface for implementing cache.
 type ICache interface {
 	// Get a key from cache.
 	Get(ctx context.Context, key string) ([]byte, error)

@@ -20,6 +20,7 @@ import (
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
@@ -34,15 +35,21 @@ type Service struct {
 	subscriptionTask tasks.ITask
 	doneCh           chan struct{}
 	registry         registry.IRegistry
+	cache            cache.ICache
 	brokerStore      brokerstore.IBrokerStore
 }
 
 // NewService creates an instance of new worker
-func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service, error) {
+func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConfig *cache.Config) (*Service, error) {
 	workerID := uuid.New().String()
 
 	// Init registry
 	reg, err := registry.NewRegistry(registryConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	cache, err := cache.NewCache(cacheConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +122,7 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service
 		doneCh:           make(chan struct{}),
 		workerConfig:     workerConfig,
 		registry:         reg,
+		cache:            cache,
 		brokerStore:      brokerStore,
 		leaderTask:       leaderTask,
 		subscriptionTask: subscriptionTask,
@@ -131,12 +139,15 @@ func (svc *Service) Start(ctx context.Context) error {
 	// init registry health checker
 	registryHealthChecker := health.NewRegistryHealthChecker(svc.registry)
 
+	// init cache health checker
+	cacheHealthChecker := health.NewCacheHealthChecker(svc.cache)
+
 	// init broker health checker
 	admin, _ := svc.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	brokerHealthChecker := health.NewBrokerHealthChecker(admin)
 
 	// register broker and registry health checkers on the health server
-	healthCore, err := health.NewCore(registryHealthChecker, brokerHealthChecker)
+	healthCore, err := health.NewCore(registryHealthChecker, cacheHealthChecker, brokerHealthChecker)
 	if err != nil {
 		return err
 	}

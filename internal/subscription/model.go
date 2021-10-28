@@ -6,6 +6,7 @@ import (
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/topic"
+	filter "github.com/razorpay/metro/pkg/filtering"
 )
 
 const (
@@ -25,7 +26,8 @@ type Model struct {
 	Labels                         map[string]string `json:"labels,omitempty"`
 	EnableMessageOrdering          bool              `json:"enable_message_ordering,omitempty"`
 	ExpirationPolicy               *ExpirationPolicy `json:"expiration_policy,omitempty"`
-	Filter                         string            `json:"filter,omitempty"`
+	FilterExpression               string            `json:"filter,omitempty"`
+	FilterStruct                   *Filter           `json:"filter_struct,omitempty"`
 	RetryPolicy                    *RetryPolicy      `json:"retry_policy,omitempty"`
 	DeadLetterPolicy               *DeadLetterPolicy `json:"dead_letter_policy,omitempty"`
 	Detached                       bool              `json:"detached,omitempty"`
@@ -34,6 +36,9 @@ type Model struct {
 	ExtractedTopicName             string            `json:"extracted_topic_name"`
 	ExtractedSubscriptionName      string            `json:"extracted_subscription_name"`
 }
+
+// Filter defines the Filter criteria for messages
+type Filter = filter.Condition
 
 // PushConfig defines the push endpoint
 type PushConfig struct {

@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.84.0 // indirect
 	cloud.google.com/go/pubsub v1.11.0
 	github.com/HdrHistogram/hdrhistogram-go v1.1.0 // indirect
+	github.com/alecthomas/participle/v2 v2.0.0-alpha7
 	github.com/apache/pulsar-client-go v0.5.0
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20210615012709-cb72395fb53f // indirect
 	github.com/armon/go-metrics v0.3.6 // indirect

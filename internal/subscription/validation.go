@@ -12,6 +12,7 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
+	filter "github.com/razorpay/metro/pkg/filtering"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -136,6 +137,12 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
 
+	// validate Filter Expression
+	err = validateFilterExpression(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
+	}
+
 	return m, nil
 }
 
@@ -182,6 +189,22 @@ func validateSubscriptionName(ctx context.Context, m *Model, req *metrov1.Subscr
 	m.ExtractedSubscriptionProjectID = p
 	m.ExtractedSubscriptionName = s
 
+	return nil
+}
+
+func validateFilterExpression(ctx context.Context, m *Model, req *metrov1.Subscription) error {
+	if req.Filter != "" {
+		// validate that the filter expression is in the expected format.
+		// Also convert the expression into a GO Struct
+		f := &Filter{}
+		err := filter.Parser.ParseString(m.Name, req.Filter, f)
+		if err != nil {
+			return err
+		}
+
+		m.FilterExpression = req.Filter
+		m.FilterStruct = f
+	}
 	return nil
 }
 

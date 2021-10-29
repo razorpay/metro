@@ -23,7 +23,7 @@ type DelayConsumer struct {
 	handler      MessageHandler
 	// a paused consumer will not return new messages, so this cachedMsg will be used for lookups
 	// till the needed time elapses
-	cachedMsg *messagebroker.ReceivedMessage
+	cachedMsgs []messagebroker.ReceivedMessage
 }
 
 // NewDelayConsumer inits a new delay-consumer with the pre-defined message handler
@@ -55,6 +55,7 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 		bs:           bs,
 		handler:      handler,
 		doneCh:       make(chan struct{}),
+		cachedMsgs:   make([]messagebroker.ReceivedMessage, 0),
 	}, nil
 }
 
@@ -71,11 +72,10 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			dc.consumer.Close(dc.ctx)
 			return
 		default:
-			if dc.cachedMsg != nil && dc.cachedMsg.CanProcessMessage() {
-				dc.resume()
-			}
-
 			resp, err := dc.consumer.ReceiveMessages(dc.ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
+			if len(resp.PartitionOffsetWithMessages) > 0 {
+				logger.Ctx(ctx).Infow("delay-consumer: non zero messages received", dc.LogFields("len", len(resp.PartitionOffsetWithMessages))...)
+			}
 			if err != nil {
 				if !messagebroker.IsErrorRecoverable(err) {
 					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in receiving messages", dc.LogFields("error", err.Error())...)
@@ -84,8 +84,10 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			}
 
 			for _, msg := range resp.PartitionOffsetWithMessages {
-				dc.processMsg(msg)
+				dc.cachedMsgs = append(dc.cachedMsgs, msg)
 			}
+
+			dc.processMsgs()
 		}
 	}
 }
@@ -95,18 +97,13 @@ func (dc *DelayConsumer) resume() {
 	logger.Ctx(dc.ctx).Infow("delay-consumer: resuming", dc.LogFields("error", nil)...)
 	dc.consumer.Resume(dc.ctx, messagebroker.ResumeOnTopicRequest{Topic: dc.topic})
 	dc.isPaused = false
-
-	// process the cached message as well
-	dc.processMsg(*dc.cachedMsg)
-	dc.cachedMsg = nil
 }
 
 // paused an active delay-consumer. Additionally caches the last seen message locally.
-func (dc *DelayConsumer) pause(msg *messagebroker.ReceivedMessage) {
+func (dc *DelayConsumer) pause() {
 	logger.Ctx(dc.ctx).Infow("delay-consumer: pausing", dc.LogFields()...)
 	dc.consumer.Pause(dc.ctx, messagebroker.PauseOnTopicRequest{Topic: dc.topic})
 	dc.isPaused = true
-	dc.cachedMsg = msg
 }
 
 // push a message onto the configured dead letter topic
@@ -135,46 +132,61 @@ func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) er
 
 // processes a given message of the delay-topic. takes care of orchestrating the checks to determine pause,resume of the consumer,
 // push to dead-letter topic in case the number of retries breaches allowed threshold.
-func (dc *DelayConsumer) processMsg(msg messagebroker.ReceivedMessage) {
-	if msg.CanProcessMessage() {
-		if dc.isPaused {
-			dc.resume()
-		}
+func (dc *DelayConsumer) processMsgs() {
+	for len(dc.cachedMsgs) > 0 {
+		msg := dc.cachedMsgs[0]
 
-		if msg.HasReachedRetryThreshold() {
-			// push to dead-letter topic directly in such cases
-			err := dc.pushToDeadLetter(&msg)
+		if msg.CanProcessMessage() {
+			if msg.HasReachedRetryThreshold() {
+				// push to dead-letter topic directly in such cases
+				logger.Ctx(dc.ctx).Infow("delay-consumer: publishing to DLQ topic", dc.LogFields("messageID", msg.MessageID)...)
+				err := dc.pushToDeadLetter(&msg)
+				if err != nil {
+					logger.Ctx(dc.ctx).Errorw("delay-consumer: failed to push to dead-letter topic",
+						dc.LogFields("messageID", msg.MessageID, "topic", msg.DeadLetterTopic, "error", err.Error())...,
+					)
+					return
+				}
+			} else {
+				// submit to
+				logger.Ctx(dc.ctx).Infow("delay-consumer: processing message", dc.LogFields("messageID", msg.MessageID)...)
+				err := dc.handler.Do(dc.ctx, msg)
+				if err != nil {
+					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in msg handler",
+						dc.LogFields("messageID", msg.MessageID, "error", err.Error())...)
+					return
+				}
+			}
+
+			// commit the message
+			_, err := dc.consumer.CommitByPartitionAndOffset(dc.ctx, messagebroker.CommitOnTopicRequest{
+				Topic:     msg.Topic,
+				Partition: msg.Partition,
+				Offset:    msg.Offset + 1,
+			})
+
 			if err != nil {
-				logger.Ctx(dc.ctx).Errorw("delay-consumer: failed to push to dead-letter topic", "topic", msg.DeadLetterTopic, "error", err.Error())
+				logger.Ctx(dc.ctx).Errorw("delay-consumer: error on commit", dc.LogFields("error", err.Error())...)
 				return
 			}
+
+			// evict the processed message from cached messages
+			dc.cachedMsgs = dc.cachedMsgs[1:]
 		} else {
-			// submit to handler
-			err := dc.handler.Do(dc.ctx, msg)
-			if err != nil {
-				logger.Ctx(dc.ctx).Errorw("delay-consumer: error in msg handler", dc.LogFields("error", err.Error())...)
-				return
+			// pause the consumer, if not already paused
+			if !dc.isPaused {
+				logger.Ctx(dc.ctx).Infow("delay-consumer: pausing consumer for message",
+					dc.LogFields("messageID", msg.MessageID)...)
+				dc.pause()
 			}
-		}
-
-		// commit the message
-		_, err := dc.consumer.CommitByPartitionAndOffset(dc.ctx, messagebroker.CommitOnTopicRequest{
-			Topic:     msg.Topic,
-			Partition: msg.Partition,
-			Offset:    msg.Offset + 1,
-		})
-
-		if err != nil {
-			logger.Ctx(dc.ctx).Errorw("delay-consumer: error on commit", dc.LogFields("error", err.Error())...)
-			return
-		}
-
-	} else {
-		// pause the consumer, if not already paused
-		if !dc.isPaused {
-			dc.pause(&msg)
+			break
 		}
 	}
+	if len(dc.cachedMsgs) == 0 && dc.isPaused {
+		// pull messages from the broker to process the next batch of messages
+		dc.resume()
+	}
+
 }
 
 // LogFields ...

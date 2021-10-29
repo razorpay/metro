@@ -11,6 +11,7 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -30,6 +31,7 @@ type Manager struct {
 	// in case of graceful shutdown nack all messages held in these streams
 	pullStreams       map[string]IStream
 	subscriptionCore  subscription.ICore
+	offsetCore        offset.ICore
 	bs                brokerstore.IBrokerStore
 	activeStreamCount map[string]uint32   // TODO: will remove. maintain a distributed counter for active streams per subscription
 	cleanupCh         chan cleanupMessage // listens for closed subscribers
@@ -39,10 +41,11 @@ type Manager struct {
 }
 
 // NewStreamManager ...
-func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, bs brokerstore.IBrokerStore, grpcServerAddr string) IManager {
+func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, offsetCore offset.ICore, bs brokerstore.IBrokerStore, grpcServerAddr string) IManager {
 	mgr := &Manager{
 		pullStreams:       make(map[string]IStream),
 		subscriptionCore:  subscriptionCore,
+		offsetCore:        offsetCore,
 		activeStreamCount: make(map[string]uint32),
 		bs:                bs,
 		cleanupCh:         make(chan cleanupMessage),
@@ -100,7 +103,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 	pullStream, err := newPullStream(server,
 		req.ClientID,
 		subModel,
-		subscriber.NewCore(s.bs, s.subscriptionCore),
+		subscriber.NewCore(s.bs, s.subscriptionCore, s.offsetCore),
 		errGroup,
 		s.cleanupCh,
 	)

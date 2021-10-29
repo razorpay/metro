@@ -44,11 +44,11 @@ func (c *Core) SetOffset(ctx context.Context, m *Model) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.CreateOffset")
 	defer span.Finish()
 
-	OffsetOperationCount.WithLabelValues(env, "SetOffset").Inc()
+	offsetOperationCount.WithLabelValues(env, "SetOffset").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		OffsetOperationTimeTaken.WithLabelValues(env, "SetOffset").Observe(time.Now().Sub(startTime).Seconds())
+		offsetOperationTimeTaken.WithLabelValues(env, "SetOffset").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 	if m.LatestOffset == "" {
 		return merror.Newf(merror.NotFound, "No offset provided for key %s", m.Key())
@@ -82,11 +82,11 @@ func (c *Core) Exists(ctx context.Context, m *Model) (bool, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.Exists")
 	defer span.Finish()
 
-	OffsetOperationCount.WithLabelValues(env, "Exists").Inc()
+	offsetOperationCount.WithLabelValues(env, "Exists").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		OffsetOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
+		offsetOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
 	logger.Ctx(ctx).Infow("exists query on offset", "key", m.Key())
@@ -103,11 +103,11 @@ func (c *Core) GetOffset(ctx context.Context, m *Model) (*Model, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.Get")
 	defer span.Finish()
 
-	OffsetOperationCount.WithLabelValues(env, "Get").Inc()
+	offsetOperationCount.WithLabelValues(env, "Get").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		OffsetOperationTimeTaken.WithLabelValues(env, "Get").Observe(time.Now().Sub(startTime).Seconds())
+		offsetOperationTimeTaken.WithLabelValues(env, "Get").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
 	prefix := m.Key()
@@ -132,11 +132,11 @@ func (c *Core) RollBackOffset(ctx context.Context, m *Model) error {
 		logger.Ctx(ctx).Errorw("rollback offset key unavailable", "key", m.Key(), "offset", verifyOffset)
 		return nil
 	}
-	OffsetOperationCount.WithLabelValues(env, "RollbackOffset").Inc()
+	offsetOperationCount.WithLabelValues(env, "RollbackOffset").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		OffsetOperationTimeTaken.WithLabelValues(env, "RollbackOffset").Observe(time.Now().Sub(startTime).Seconds())
+		offsetOperationTimeTaken.WithLabelValues(env, "RollbackOffset").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
 	if ok, err := c.Exists(ctx, m); !ok {

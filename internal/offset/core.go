@@ -38,7 +38,7 @@ func NewCore(repo IRepo) ICore {
 	return &Core{repo}
 }
 
-// CreateProject creates a new offset
+// SetOffset sets/updates aa offset
 func (c *Core) SetOffset(ctx context.Context, m *Model) error {
 	debug.PrintStack()
 	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.CreateOffset")
@@ -98,7 +98,7 @@ func (c *Core) Exists(ctx context.Context, m *Model) (bool, error) {
 	return ok, nil
 }
 
-// Get returns offset with the given key
+// GetOffset returns offset with the given key
 func (c *Core) GetOffset(ctx context.Context, m *Model) (*Model, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.Get")
 	defer span.Finish()

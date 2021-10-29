@@ -7,13 +7,13 @@ import (
 )
 
 const (
-	// Prefix for all project keys in the registry
-	OffsetPrefix       = "/offsets"
-	SubscriptionPrefix = "/subscripitons/"
-	PartitionPrefix    = "/partitions/"
+	// Prefix for all offset keys in the registry
+	offsetPrefix       = "/offsets"
+	subscriptionPrefix = "/subscripitons/"
+	partitionPrefix    = "/partitions/"
 )
 
-// Model for a project
+// Model for an offset
 type Model struct {
 	common.BaseModel
 	Topic          string `json:"topic_id"`
@@ -25,10 +25,10 @@ type Model struct {
 
 // Key returns the key for storing in the registry
 func (m *Model) Key() string {
-	return m.Prefix() + m.Topic + SubscriptionPrefix + m.Subscription + PartitionPrefix + strconv.Itoa(int(m.Partition))
+	return m.Prefix() + m.Topic + subscriptionPrefix + m.Subscription + partitionPrefix + strconv.Itoa(int(m.Partition))
 }
 
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
-	return common.GetBasePrefix() + OffsetPrefix
+	return common.GetBasePrefix() + offsetPrefix
 }

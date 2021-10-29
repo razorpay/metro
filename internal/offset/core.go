@@ -121,7 +121,7 @@ func (c *Core) GetOffset(ctx context.Context, m *Model) (*Model, error) {
 	return m, nil
 }
 
-// RollbackOffset rolls back to the previous offset in-memory
+// RollBackOffset rolls back to the previous offset in-memory
 func (c *Core) RollBackOffset(ctx context.Context, m *Model) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.RollbackOffset")
 	defer span.Finish()

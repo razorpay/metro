@@ -73,16 +73,15 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			return
 		default:
 			resp, err := dc.consumer.ReceiveMessages(dc.ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
-			if len(resp.PartitionOffsetWithMessages) > 0 {
-				logger.Ctx(ctx).Infow("delay-consumer: non zero messages received", dc.LogFields("len", len(resp.PartitionOffsetWithMessages))...)
-			}
 			if err != nil {
 				if !messagebroker.IsErrorRecoverable(err) {
 					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in receiving messages", dc.LogFields("error", err.Error())...)
 					return
 				}
 			}
-
+			if len(resp.PartitionOffsetWithMessages) > 0 {
+				logger.Ctx(ctx).Infow("delay-consumer: non zero messages received", dc.LogFields("len", len(resp.PartitionOffsetWithMessages))...)
+			}
 			for _, msg := range resp.PartitionOffsetWithMessages {
 				dc.cachedMsgs = append(dc.cachedMsgs, msg)
 			}

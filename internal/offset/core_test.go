@@ -46,8 +46,8 @@ func TestCore_GetOffset(t *testing.T) {
 	core := NewCore(mockRepo)
 	offset := getDummyOffsetModel()
 	ctx := context.Background()
-	mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), offset.Key()).Return(offset, nil)
-	off, err := core.GetOffset(ctx, offset)
+	mockRepo.EXPECT().Get(gomock.Any(), offset.Key(), gomock.Any()).Return(nil)
+	_, err := core.GetOffset(ctx, offset)
 	assert.NoError(t, err)
-	assert.NotNil(t, off)
+	assert.NotNil(t, offset)
 }

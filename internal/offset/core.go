@@ -12,7 +12,6 @@ package offset
 //////////////////////////////////////////////////////////////////////////////////////
 import (
 	"context"
-	"runtime/debug"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -40,7 +39,7 @@ func NewCore(repo IRepo) ICore {
 
 // SetOffset sets/updates aa offset
 func (c *Core) SetOffset(ctx context.Context, m *Model) error {
-	debug.PrintStack()
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.CreateOffset")
 	defer span.Finish()
 
@@ -148,10 +147,10 @@ func (c *Core) RollBackOffset(ctx context.Context, m *Model) error {
 
 	m, err := c.GetOffset(ctx, m)
 	if err != nil {
-		return merror.Newf(merror.NotFound, "failed to rollback offset for key %s", m.Key(), "offset", verifyOffset)
+		return merror.Newf(merror.NotFound, "failed to rollback offset for key %s", m.Key())
 	}
 	if m.LatestOffset != verifyOffset {
-		return merror.Newf(merror.FailedPrecondition, "Offset no longer valid for key %s", m.Key(), "offset", verifyOffset)
+		return merror.Newf(merror.FailedPrecondition, "Offset no longer valid for key %s", m.Key())
 	}
 
 	m.LatestOffset = m.rollbackOffset

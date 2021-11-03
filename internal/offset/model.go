@@ -10,7 +10,7 @@ const (
 	// Prefix for all offset keys in the registry
 	offsetPrefix       = "offsets/"
 	subscriptionPrefix = "/subscripitons/"
-	partitionPrefix    = "/partitions/"
+	partitionPrefix    = "-"
 )
 
 // Model for an offset
@@ -19,7 +19,7 @@ type Model struct {
 	Topic          string `json:"topic_id"`
 	Subscription   string `json:"subscription_id"`
 	Partition      int32  `json:"partition_id"`
-	LatestOffset   string
+	LatestOffset   string `json:"latest_offset"`
 	rollbackOffset string
 }
 

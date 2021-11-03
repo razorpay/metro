@@ -168,6 +168,8 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/mocks/mock_subscriber.go -package=mocks github.com/razorpay/metro/internal/subscriber ISubscriber
 	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/project ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/project IRepo
+	@mockgen --build_flags='--tags=musl' -destination=internal/offset/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/offset ICore
+	@mockgen --build_flags='--tags=musl' -destination=internal/offset/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/offset IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/node ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/node IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/nodebinding ICore

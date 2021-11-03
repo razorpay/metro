@@ -237,7 +237,10 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 			s.errChan <- err
 			// Rollback will move latest commit to the last known successful commit.
 			if offsetUpdated {
-				s.offsetCore.RollBackOffset(ctx, &offsetModel)
+				err = s.offsetCore.RollBackOffset(ctx, &offsetModel)
+				if err != nil {
+					logger.Ctx(ctx).Errorw("subscriber: Failed to rollback offset", "logFields", logFields, "msg", err.Error())
+				}
 			}
 			return
 		}

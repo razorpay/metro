@@ -8,7 +8,7 @@ import (
 
 const (
 	// Prefix for all offset keys in the registry
-	offsetPrefix       = "/offsets"
+	offsetPrefix       = "offsets/"
 	subscriptionPrefix = "/subscripitons/"
 	partitionPrefix    = "/partitions/"
 )

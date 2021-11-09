@@ -37,7 +37,7 @@ func NewCore(repo IRepo) ICore {
 	return &Core{repo}
 }
 
-// SetOffset sets/updates aa offset
+// SetOffset sets/updates an offset
 func (c *Core) SetOffset(ctx context.Context, m *Model) error {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.CreateOffset")
@@ -63,6 +63,7 @@ func (c *Core) SetOffset(ctx context.Context, m *Model) error {
 	if err != nil {
 		return merror.Newf(merror.NotFound, "failed to update offset")
 	}
+	// rollbackOffset is private to the OffsetModel and is used to hold the previous offset in memory.
 	rollbackOffset := m.rollbackOffset
 	if m.LatestOffset != "" {
 		m.LatestOffset = newOffsetToSet

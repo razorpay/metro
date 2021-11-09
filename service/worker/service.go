@@ -101,7 +101,8 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service
 		subscriptionCore,
 		nodeBindingCore,
 		subscriberCore,
-		tasks.WithHTTPConfig(&workerConfig.HTTPClientConfig))
+		tasks.WithHTTPConfig(&workerConfig.HTTPClientConfig),
+		tasks.WithFetchConfig(workerConfig.Fetch.FetchTopic, workerConfig.Fetch.ReadOffsetFromRegistry)),
 
 	if err != nil {
 		return nil, err

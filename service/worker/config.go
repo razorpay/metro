@@ -7,6 +7,7 @@ import (
 
 // Config for pushconsumer
 type Config struct {
+	Fetch      Fetch
 	Broker     Broker
 	Interfaces struct {
 		API NetworkInterfaces
@@ -25,4 +26,10 @@ type NetworkInterfaces struct {
 	GrpcServerAddress         string
 	HTTPServerAddress         string
 	InternalHTTPServerAddress string
+}
+
+// Fetch contains config required for migrating to ingestion topics
+type Fetch struct {
+	FetchTopic             string
+	ReadOffsetFromRegistry bool
 }

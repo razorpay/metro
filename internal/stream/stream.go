@@ -22,15 +22,17 @@ import (
 
 // PushStream provides reads from broker and publishes messages for the push subscription
 type PushStream struct {
-	ctx              context.Context
-	cancelFunc       func()
-	nodeID           string
-	subscription     *subscription.Model
-	subscriptionCore subscription.ICore
-	subscriberCore   subscriber.ICore
-	subs             subscriber.ISubscriber
-	httpClient       *http.Client
-	doneCh           chan struct{}
+	ctx                    context.Context
+	cancelFunc             func()
+	nodeID                 string
+	subscription           *subscription.Model
+	subscriptionCore       subscription.ICore
+	subscriberCore         subscriber.ICore
+	subs                   subscriber.ISubscriber
+	httpClient             *http.Client
+	doneCh                 chan struct{}
+	fetchFromPrimary       bool
+	readOffsetFromRegistry bool
 }
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
@@ -46,6 +48,12 @@ func (ps *PushStream) Start() error {
 		subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
 	)
 
+	if !ps.fetchFromPrimary {
+		// TODO: Implement subscription topic consumption here...
+	} else if ps.fetchFromPrimary && ps.readOffsetFromRegistry {
+		// fetch offset for the subscription consumer using the last successful offset persisted in the registry.
+
+	}
 	// we pass a new context to subscriber because if the subscriber gets a child context of the stream context. there
 	// is a race condition that subscriber exits before the stream is stopped. this causes issues as there are no
 	// subscribers listening to the requests send by stream
@@ -304,7 +312,7 @@ func (ps *PushStream) getLogFields() map[string]interface{} {
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config, fetchFromPrimary, readOffsetFromRegistry bool) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
 
 	// get subscription Model details
@@ -323,14 +331,16 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	httpclient := httpclient.NewClient(config)
 
 	return &PushStream{
-		ctx:              pushCtx,
-		cancelFunc:       cancelFunc,
-		nodeID:           nodeID,
-		subscription:     subModel,
-		subscriptionCore: subscriptionCore,
-		subscriberCore:   subscriberCore,
-		doneCh:           make(chan struct{}),
-		httpClient:       httpclient,
+		ctx:                    pushCtx,
+		cancelFunc:             cancelFunc,
+		nodeID:                 nodeID,
+		subscription:           subModel,
+		subscriptionCore:       subscriptionCore,
+		subscriberCore:         subscriberCore,
+		doneCh:                 make(chan struct{}),
+		httpClient:             httpclient,
+		fetchFromPrimary:       fetchFromPrimary,
+		readOffsetFromRegistry: readOffsetFromRegistry,
 	}
 }
 

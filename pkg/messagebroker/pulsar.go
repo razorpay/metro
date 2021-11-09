@@ -309,6 +309,12 @@ func (p *PulsarBroker) AddTopicPartitions(_ context.Context, _ AddTopicPartition
 	return nil, nil
 }
 
+// Assign commits offsets to an assigned partition
+func (p *PulsarBroker) Assign(ctx context.Context, request AssignTopicOffsetRequest) error {
+	// Need to be implemented
+	return nil
+}
+
 // IsHealthy checks the health of pulsar
 func (p *PulsarBroker) IsHealthy(_ context.Context) (bool, error) {
 	err := p.Admin.Brokers().HealthCheck()

@@ -201,6 +201,12 @@ type ResumeOnTopicRequest struct {
 	Partition int32
 }
 
+// AssignTopicOffsetRequest ...
+type AssignTopicOffsetRequest struct {
+	Topic     string
+	Partition int32
+	Offset    int32
+}
 type pulsarAckMessage struct {
 	ID string
 }

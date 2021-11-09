@@ -62,4 +62,7 @@ type Consumer interface {
 
 	// Close closes the consumer
 	Close(context.Context) error
+
+	// Assign an atomic set of partitions to consume
+	Assign(context.Context, AssignTopicOffsetRequest) error
 }

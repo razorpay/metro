@@ -542,6 +542,31 @@ func (k *KafkaBroker) CommitByMsgID(_ context.Context, _ CommitOnTopicRequest) (
 	return CommitOnTopicResponse{}, nil
 }
 
+// Assign commits offsets to an assigned partition
+func (k *KafkaBroker) Assign(ctx context.Context, request AssignTopicOffsetRequest) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.Assign")
+	defer span.Finish()
+
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "Assign").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "Assign").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	topicN := normalizeTopicName(request.Topic)
+	tp := kafkapkg.TopicPartition{
+		Topic:     &topicN,
+		Partition: request.Partition,
+		Offset:    kafkapkg.Offset(request.Offset),
+	}
+
+	tps := make([]kafkapkg.TopicPartition, 0)
+	tps = append(tps, tp)
+
+	return k.Consumer.Assign(tps)
+}
+
 // Pause pause the consumer
 func (k *KafkaBroker) Pause(ctx context.Context, request PauseOnTopicRequest) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.Pause")

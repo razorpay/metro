@@ -19,20 +19,29 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
+const (
+	// Primary denotes fetching messages from ingest topic
+	Primary = "primary"
+	// Secondary denotes fetching messages from subscriber topic
+	Secondary = "secondary"
+)
+
 // SubscriptionTask runs the assigned subscriptions to the node
 type SubscriptionTask struct {
-	id               string
-	registry         registry.IRegistry
-	brokerStore      brokerstore.IBrokerStore
-	subscriptionCore subscription.ICore
-	nodeBindingCore  nodebinding.ICore
-	subscriber       subscriber.ICore
-	watcher          registry.IWatcher
-	nodebindingCache []*nodebinding.Model
-	watchCh          chan []registry.Pair
-	pushHandlers     sync.Map
-	httpConfig       *httpclient.Config
-	doneCh           chan struct{}
+	id                     string
+	registry               registry.IRegistry
+	brokerStore            brokerstore.IBrokerStore
+	subscriptionCore       subscription.ICore
+	nodeBindingCore        nodebinding.ICore
+	subscriber             subscriber.ICore
+	watcher                registry.IWatcher
+	nodebindingCache       []*nodebinding.Model
+	watchCh                chan []registry.Pair
+	pushHandlers           sync.Map
+	httpConfig             *httpclient.Config
+	doneCh                 chan struct{}
+	fetchPrimaryTopic      bool
+	readOffsetFromRegistry bool
 }
 
 // NewSubscriptionTask creates SubscriptionTask instance
@@ -68,6 +77,29 @@ func WithHTTPConfig(config *httpclient.Config) Option {
 	return func(task ITask) {
 		subscriptionTask := task.(*SubscriptionTask)
 		subscriptionTask.httpConfig = config
+	}
+}
+
+// WithFetchConfig defines the fethcConfig for the subscriptionTask
+func WithFetchConfig(fetchTopic string, readOffsetFromRegistry bool) Option {
+	return func(task ITask) {
+		subscriptionTask := task.(*SubscriptionTask)
+
+		switch fetchTopic {
+		case Primary:
+			subscriptionTask.fetchPrimaryTopic = true
+		case Secondary:
+			subscriptionTask.fetchPrimaryTopic = false
+		default:
+			subscriptionTask.fetchPrimaryTopic = true
+		}
+		subscriptionTask.readOffsetFromRegistry = readOffsetFromRegistry
+
+		// If we do not consume from the primarytopic then offset value
+		// should not be fetched from the registry
+		if !subscriptionTask.fetchPrimaryTopic {
+			subscriptionTask.readOffsetFromRegistry = false
+		}
 	}
 }
 
@@ -210,7 +242,7 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 
 		if !found {
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
-			handler := stream.NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, sm.subscriptionCore, sm.subscriber, sm.httpConfig)
+			handler := stream.NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, sm.subscriptionCore, sm.subscriber, sm.httpConfig, sm.fetchPrimaryTopic, sm.readOffsetFromRegistry)
 
 			// run the stream in a separate go routine, this go routine is not part of the worker error group
 			// as the worker should continue to run if a single subscription stream exists with error

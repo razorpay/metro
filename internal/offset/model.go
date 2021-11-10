@@ -11,6 +11,7 @@ const (
 	offsetPrefix       = "offsets/"
 	subscriptionPrefix = "/subscriptions/"
 	partitionPrefix    = "-"
+	orderingPrefix     = "/ordering/"
 )
 
 // Model for an offset
@@ -20,12 +21,17 @@ type Model struct {
 	Subscription   string `json:"subscription_id"`
 	Partition      int32  `json:"partition_id"`
 	LatestOffset   string `json:"latest_offset"`
+	OrderingKey    string `json:"ordering_key"`
 	rollbackOffset string
 }
 
 // Key returns the key for storing in the registry
 func (m *Model) Key() string {
-	return m.Prefix() + m.Topic + subscriptionPrefix + m.Subscription + partitionPrefix + strconv.Itoa(int(m.Partition))
+	key := m.Prefix() + m.Topic + subscriptionPrefix + m.Subscription + partitionPrefix + strconv.Itoa(int(m.Partition))
+	if len(m.OrderingKey) > 0 {
+		key = key + orderingPrefix + m.OrderingKey
+	}
+	return key
 }
 
 // Prefix returns the key prefix

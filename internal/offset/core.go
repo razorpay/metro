@@ -24,6 +24,7 @@ type ICore interface {
 	SetOffset(ctx context.Context, m *Model) error
 	RollBackOffset(ctx context.Context, m *Model) error
 	GetOffset(ctx context.Context, m *Model) (*Model, error)
+	DeleteOffset(ctx context.Context, m *Model) error
 	Exists(ctx context.Context, m *Model) (bool, error)
 }
 
@@ -157,4 +158,26 @@ func (c *Core) RollBackOffset(ctx context.Context, m *Model) error {
 	m.LatestOffset = m.rollbackOffset
 	m.rollbackOffset = ""
 	return c.repo.Save(ctx, m)
+}
+
+// DeleteOffset deletes an offset
+func (c *Core) DeleteOffset(ctx context.Context, m *Model) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ProjectCore.DeleteOffset")
+	defer span.Finish()
+
+	offsetOperationCount.WithLabelValues(env, "DeleteOffset").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		offsetOperationTimeTaken.WithLabelValues(env, "DeleteOffset").Observe(time.Since(startTime).Seconds())
+	}()
+
+	if ok, err := c.Exists(ctx, m); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.Newf(merror.NotFound, "offset not found %s", m.Key())
+	}
+
+	return c.repo.Delete(ctx, m)
 }

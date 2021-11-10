@@ -51,3 +51,15 @@ func TestCore_GetOffset(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, offset)
 }
+
+func TestCore_DeleteOffset(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo)
+	offset := getDummyOffsetModel()
+	ctx := context.Background()
+	mockRepo.EXPECT().Delete(gomock.Any(), offset).Return(nil)
+	err := core.DeleteOffset(ctx, offset)
+	assert.NoError(t, err)
+	assert.NotNil(t, offset)
+}

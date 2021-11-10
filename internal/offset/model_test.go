@@ -15,6 +15,9 @@ func TestModel_Prefix(t *testing.T) {
 
 func TestModel_Key(t *testing.T) {
 	offset := getDummyOffsetModel()
+	assert.Equal(t, offset.Key(), offset.Prefix()+offset.Topic+subscriptionPrefix+offset.Subscription+partitionPrefix+strconv.Itoa(int(offset.Partition))+orderingPrefix+offset.OrderingKey)
+
+	offset.OrderingKey = ""
 	assert.Equal(t, offset.Key(), offset.Prefix()+offset.Topic+subscriptionPrefix+offset.Subscription+partitionPrefix+strconv.Itoa(int(offset.Partition)))
 }
 
@@ -24,5 +27,6 @@ func getDummyOffsetModel() *Model {
 		Partition:    0,
 		Subscription: "sub123",
 		LatestOffset: "2",
+		OrderingKey:  "abcdef",
 	}
 }

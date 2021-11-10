@@ -20,11 +20,11 @@ func TestCore_SetOffset(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)
 	core := NewCore(mockRepo)
-	project := getDummyOffsetModel()
+	offset := getDummyOffsetModel()
 	ctx := context.Background()
-	mockRepo.EXPECT().Exists(gomock.Any(), project.Key())
-	mockRepo.EXPECT().Save(gomock.Any(), project)
-	err := core.SetOffset(ctx, project)
+	mockRepo.EXPECT().Exists(gomock.Any(), offset.Key())
+	mockRepo.EXPECT().Save(gomock.Any(), offset)
+	err := core.SetOffset(ctx, offset)
 	assert.NoError(t, err)
 }
 
@@ -58,6 +58,7 @@ func TestCore_DeleteOffset(t *testing.T) {
 	core := NewCore(mockRepo)
 	offset := getDummyOffsetModel()
 	ctx := context.Background()
+	mockRepo.EXPECT().Exists(gomock.Any(), offset.Key()).Return(true, nil)
 	mockRepo.EXPECT().Delete(gomock.Any(), offset).Return(nil)
 	err := core.DeleteOffset(ctx, offset)
 	assert.NoError(t, err)

@@ -24,6 +24,19 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
     }
     schemes: HTTP
     schemes: HTTPS
+    security_definitions: {
+        security: {
+            key: "basicAuth"
+            value: {
+                type: TYPE_BASIC
+            }
+        }
+    }
+    security: {
+        security_requirement: {
+            key: "basicAuth",
+        }
+    }
 };
 
 message StatusCheckResponse {
@@ -48,6 +61,7 @@ service StatusCheckAPI {
             summary: "Do a readiness check"
             description: "Checks responsiveness of all the dependant resources that the service is using"
             tags: "StatusCheck"
+            security: {}
         };
     }
 
@@ -60,6 +74,7 @@ service StatusCheckAPI {
             summary: "Do a liveness check"
             description: "Checks only for the responsiveness of the service"
             tags: "StatusCheck"
+            security: {}
         };
     }
 }

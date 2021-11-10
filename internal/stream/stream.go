@@ -317,7 +317,20 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	// set http connection timeout from the subscription
 	if subModel.AckDeadlineSeconds != 0 {
 		// make sure to convert sec to milli-sec
-		config.ConnectTimeoutMS = int(subModel.AckDeadlineSeconds) * 1e3
+		// set the timeout value only if greater than the default
+		ackDeadlineMs := int(subModel.AckDeadlineSeconds) * 1000
+		if ackDeadlineMs > config.ConnectTimeoutMS {
+			config.ConnectTimeoutMS = ackDeadlineMs
+		}
+		if ackDeadlineMs > config.ResponseHeaderTimeoutMS {
+			config.ResponseHeaderTimeoutMS = ackDeadlineMs
+		}
+		logger.Ctx(ctx).Infow("worker: http timeouts set", "logFields", map[string]interface{}{
+			"subscription":          subModel.Name,
+			"topic":                 subModel.Topic,
+			"connectTimeout":        config.ConnectTimeoutMS,
+			"responseHeaderTimeout": config.ResponseHeaderTimeoutMS,
+		})
 	}
 
 	httpclient := httpclient.NewClient(config)

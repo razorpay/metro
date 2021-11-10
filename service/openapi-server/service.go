@@ -50,7 +50,7 @@ func (svc *Service) runOpenAPIHandler(ctx context.Context) error {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.RequestURI, metroAPIPrefix) {
 			httputil.NewSingleHostReverseProxy(&url.URL{
-				Scheme: "http",
+				Scheme: svc.config.Scheme,
 				Host:   svc.config.GRPCGatewayAddress,
 			}).ServeHTTP(w, r)
 		} else {

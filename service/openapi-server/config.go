@@ -4,4 +4,5 @@ package openapiserver
 type Config struct {
 	HTTPServerAddress  string
 	GRPCGatewayAddress string
+	Scheme             string
 }

@@ -3,6 +3,7 @@ package subscriber
 import (
 	"container/heap"
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/razorpay/metro/internal/subscriber/retry"
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
@@ -43,6 +45,7 @@ type Subscriber struct {
 	topic                  string
 	subscriberID           string
 	subscriptionCore       subscription.ICore
+	offsetCore             offset.ICore
 	requestChan            chan *PullRequest
 	responseChan           chan *metrov1.PullResponse
 	ackChan                chan *AckMessage
@@ -207,7 +210,21 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 	}
 
 	if shouldCommit {
-		_, err := s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
+		offsetUpdated := true
+		registryOffset := strconv.Itoa(int(offsetToCommit) + 1)
+		offsetModel := offset.Model{
+			Topic:        s.subscription.Topic,
+			Subscription: s.subscription.ExtractedSubscriptionName,
+			Partition:    req.Partition,
+			LatestOffset: registryOffset,
+		}
+		err := s.offsetCore.SetOffset(ctx, &offsetModel)
+		if err != nil {
+			// DO NOT terminate here since registry update failures should not affect message broker commits
+			logger.Ctx(ctx).Errorw("subscriber: failed to store offset in registry", "logFields", logFields)
+			offsetUpdated = false
+		}
+		_, err = s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
 			Topic:     req.Topic,
 			Partition: req.Partition,
 			// add 1 to current offset
@@ -218,6 +235,13 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 			logFields["error"] = err.Error()
 			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "logFields", logFields)
 			s.errChan <- err
+			// Rollback will move latest commit to the last known successful commit.
+			if offsetUpdated {
+				err = s.offsetCore.RollBackOffset(ctx, &offsetModel)
+				if err != nil {
+					logger.Ctx(ctx).Errorw("subscriber: Failed to rollback offset", "logFields", logFields, "msg", err.Error())
+				}
+			}
 			return
 		}
 		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber

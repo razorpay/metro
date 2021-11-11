@@ -390,6 +390,7 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 
 // Run loop
 func (s *Subscriber) Run(ctx context.Context) {
+	logger.Ctx(ctx).Infow("subscriber: started running subscriber", "logFields", s.getLogFields())
 	for {
 		select {
 		case req := <-s.requestChan:

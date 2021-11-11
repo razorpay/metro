@@ -103,12 +103,17 @@ func (ps *PushStream) processMessages() {
 	})
 	defer span.Finish()
 
+	pullBatchSize := 10
+	if ps.subscription.EnableMessageOrdering {
+		pullBatchSize = 1
+	}
+
 	// Send message pull request to subsriber request channel
-	logger.Ctx(ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
-	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: 10}).WithContext(ctx)
+	// logger.Ctx(ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
+	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: int32(pullBatchSize)}).WithContext(ctx)
 
 	// wait for response data from subscriber response channel
-	logger.Ctx(ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
+	// logger.Ctx(ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
 	data := <-ps.subs.GetResponseChannel()
 	if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 		logger.Ctx(ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())

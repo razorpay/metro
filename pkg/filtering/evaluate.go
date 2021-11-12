@@ -25,6 +25,14 @@ import (
 	"strings"
 )
 
+var (
+	// ErrUnpopulatedBasicExpression ...
+	ErrUnpopulatedBasicExpression = errors.New("filter: unpopulated BasicExpression")
+
+	// ErrUnpopulatedTerm ...
+	ErrUnpopulatedTerm = errors.New("filter: unpopulated Term")
+)
+
 // Evaluator interface which all grammar components should implement
 type Evaluator interface {
 	Evaluate(attrs map[string]string) (bool, error)
@@ -40,7 +48,7 @@ func (e *basicExpression) Evaluate(attrs map[string]string) (bool, error) {
 	case e.Predicate != nil:
 		return e.Predicate.Evaluate(attrs)
 	default:
-		return false, errors.New("unpopulated BasicExpression")
+		return false, ErrUnpopulatedBasicExpression
 	}
 }
 
@@ -53,11 +61,11 @@ func (e *Condition) Evaluate(attrs map[string]string) (result bool, err error) {
 	switch {
 	case e.And != nil:
 		if result {
-			result, err = andTerms(attrs, e.And)
+			result, err = e.andTerms(attrs)
 		}
 	case e.Or != nil:
 		if !result {
-			result, err = orTerms(attrs, e.Or)
+			result, err = e.orTerms(attrs)
 		}
 	}
 	return
@@ -71,7 +79,7 @@ func (e *term) Evaluate(attrs map[string]string) (result bool, err error) {
 	case e.Sub != nil:
 		result, err = e.Sub.Evaluate(attrs)
 	default:
-		return false, errors.New("unpopulated Term")
+		return false, ErrUnpopulatedTerm
 	}
 	result = result != e.Not // XOR
 	return result, err
@@ -95,7 +103,7 @@ func (e *hasAttributeValue) Evaluate(attrs map[string]string) (bool, error) {
 	case opNotEqual:
 		return v != e.Value, nil
 	default:
-		return false, fmt.Errorf("invalid Op '%s'", e.Op)
+		return false, fmt.Errorf("filter: invalid Operand '%s'", e.Op)
 	}
 }
 
@@ -109,15 +117,16 @@ func (e *hasAttributePredicate) Evaluate(attrs map[string]string) (bool, error) 
 	case predicateHasPrefix:
 		return strings.HasPrefix(v, e.Value), nil
 	default:
-		return false, fmt.Errorf("invalid predicate '%s'", e.Predicate)
+		return false, fmt.Errorf("filter: invalid predicate '%s'", e.Predicate)
 	}
 }
 
-func andTerms(attrs map[string]string, terms []*term) (result bool, err error) {
-	if len(terms) == 0 {
-		return false, errors.New("AND requires a non-empty term list")
+func (e *Condition) andTerms(attrs map[string]string) (result bool, err error) {
+	if len(e.And) == 0 {
+		expression := e.AsFilter(&strings.Builder{})
+		return false, fmt.Errorf("filter: AND requires a non-empty term list. Empty term list found in : %s", expression)
 	}
-	for _, t := range terms {
+	for _, t := range e.And {
 		if result, err = t.Evaluate(attrs); err != nil || !result {
 			return
 		}
@@ -125,11 +134,12 @@ func andTerms(attrs map[string]string, terms []*term) (result bool, err error) {
 	return
 }
 
-func orTerms(attrs map[string]string, terms []*term) (result bool, err error) {
-	if len(terms) == 0 {
-		return false, errors.New("OR requires a non-empty term list")
+func (e *Condition) orTerms(attrs map[string]string) (result bool, err error) {
+	if len(e.Or) == 0 {
+		expression := e.AsFilter(&strings.Builder{})
+		return false, fmt.Errorf("filter: OR requires a non-empty term list. Empty term list found in : %s", expression)
 	}
-	for _, t := range terms {
+	for _, t := range e.Or {
 		if result, err = t.Evaluate(attrs); err != nil || result {
 			return
 		}

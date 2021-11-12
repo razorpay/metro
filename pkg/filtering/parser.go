@@ -24,7 +24,6 @@ import (
 )
 
 var defaultParserOptions = []participle.Option{
-	participle.UseLookahead(50),
 	// attribute values (or prefixes) need to be unquoted
 	participle.Unquote("String"),
 }

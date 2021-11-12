@@ -19,6 +19,12 @@
 
 package filter
 
+// Filter Expressions will be mapped to the below defined
+// Condition struct according to the logic provided using GO Struct Tags
+// Example:
+// "attributes:'language_tag' AND (attributes.domain = 'net' OR attributes.domain = 'org')"
+// "attributes:'language_tag' AND NOT attributes.size = 'XL' AND hasPrefix(attributes.domain, 'co')"
+
 // Condition contains term or multiple terms with 'AND' or 'OR' logical operator
 type Condition struct {
 	Term *term   `parser:"@@" json:"term,omitempty"`
@@ -72,4 +78,11 @@ type attributePredicate string
 
 const (
 	predicateHasPrefix attributePredicate = "hasPrefix"
+)
+
+type BooleanOperator string
+
+const (
+	OpAND BooleanOperator = "AND"
+	OpOR  BooleanOperator = "OR"
 )

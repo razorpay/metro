@@ -31,25 +31,28 @@ type Writer interface {
 	WriteRune(rune) (int, error)
 }
 
+// AsFilter interface that will be implemented by filter
+// structs with logic of stringifying them to filter expression
 type AsFilter interface {
 	AsFilter(Writer) error
 }
 
+// AsFilter implementation for Condition
 func (e *Condition) AsFilter(w Writer) (err error) {
 	if err = e.Term.AsFilter(w); err != nil {
 		return
 	}
 	switch {
 	case e.And != nil:
-		return appendTerms(w, OpAND, e.And)
+		return appendTerms(w, opAND, e.And)
 	case e.Or != nil:
-		return appendTerms(w, OpOR, e.Or)
+		return appendTerms(w, opOR, e.Or)
 	default:
 		return
 	}
 }
 
-func appendTerms(w Writer, op BooleanOperator, terms []*term) error {
+func appendTerms(w Writer, op booleanOperator, terms []*term) error {
 	if len(terms) == 0 {
 		return fmt.Errorf("filter: unpopulated %s sequence", op)
 	}
@@ -70,6 +73,7 @@ func appendTerms(w Writer, op BooleanOperator, terms []*term) error {
 	return nil
 }
 
+// AsFilter implementation for Term
 func (e *term) AsFilter(w Writer) error {
 	if e.Not {
 		if _, err := w.WriteString("NOT "); err != nil {
@@ -97,6 +101,7 @@ func (e *term) AsFilter(w Writer) error {
 	return nil
 }
 
+// AsFilter implementation for BasicExpression
 func (e *basicExpression) AsFilter(w Writer) error {
 	switch {
 	case e.Has != nil:
@@ -110,6 +115,7 @@ func (e *basicExpression) AsFilter(w Writer) error {
 	}
 }
 
+// AsFilter implementation for HasAttribute
 func (e *hasAttribute) AsFilter(w Writer) error {
 	if _, err := w.WriteString("attributes:"); err != nil {
 		return err
@@ -120,6 +126,7 @@ func (e *hasAttribute) AsFilter(w Writer) error {
 	return nil
 }
 
+// AsFilter implementation for HasAttributeValue
 func (e *hasAttributeValue) AsFilter(w Writer) error {
 	if _, err := w.WriteString("attributes."); err != nil {
 		return err
@@ -136,6 +143,7 @@ func (e *hasAttributeValue) AsFilter(w Writer) error {
 	return nil
 }
 
+// AsFilter implementation for HasAttributePredicate
 func (e *hasAttributePredicate) AsFilter(w Writer) error {
 	if _, err := w.WriteString(string(e.Predicate)); err != nil {
 		return err
@@ -169,7 +177,6 @@ func formatAttrName(name string) string {
 	}
 	if isIdent {
 		return name
-	} else {
-		return strconv.Quote(name)
 	}
+	return strconv.Quote(name)
 }

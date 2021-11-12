@@ -80,9 +80,9 @@ const (
 	predicateHasPrefix attributePredicate = "hasPrefix"
 )
 
-type BooleanOperator string
+type booleanOperator string
 
 const (
-	OpAND BooleanOperator = "AND"
-	OpOR  BooleanOperator = "OR"
+	opAND booleanOperator = "AND"
+	opOR  booleanOperator = "OR"
 )

@@ -22,6 +22,7 @@ type ICore interface {
 	DeleteTopic(ctx context.Context, m *Model) error
 	DeleteProjectTopics(ctx context.Context, projectID string) error
 	Get(ctx context.Context, key string) (*Model, error)
+	CreateSubscriptionTopic(ctx context.Context, model *Model) error
 	CreateRetryTopic(ctx context.Context, model *Model) error
 	CreateDeadLetterTopic(ctx context.Context, model *Model) error
 }
@@ -76,6 +77,12 @@ func (c *Core) CreateTopic(ctx context.Context, m *Model) error {
 
 	// create registry entry
 	return c.repo.Save(ctx, m)
+}
+
+// CreateSubscriptionTopic creates a subscription topic for the given primary topic and name
+func (c *Core) CreateSubscriptionTopic(ctx context.Context, model *Model) error {
+	// create topic for fanout
+	return c.createBrokerTopic(ctx, model)
 }
 
 // CreateRetryTopic creates a retry topic for the given primary topic and name

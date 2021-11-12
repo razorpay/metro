@@ -2,6 +2,7 @@ package publisher
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
@@ -43,6 +44,15 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 
 	msgIDs := make([]string, 0)
 
+	orderingKey := ""
+	if len(req.Messages) > 0 {
+		orderingKey = req.Messages[0].OrderingKey
+	}
+	if orderingKey != "" {
+		// Encode the ordering key so that it contains only alphanumeric characters
+		orderingKey = base64.URLEncoding.EncodeToString([]byte(orderingKey))
+	}
+
 	for _, msg := range req.Messages {
 		// unset message id and publishtime if set
 		// TODO: check how pubsub
@@ -57,7 +67,7 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 		msgResp, err := producer.SendMessage(ctx, messagebroker.SendMessageToTopicRequest{
 			Topic:       req.Topic,
 			Message:     dataWithMeta,
-			OrderingKey: msg.OrderingKey,
+			OrderingKey: orderingKey, // All messages in request will have the same ordering key
 		})
 		if err != nil {
 			// TODO : handle gracefully

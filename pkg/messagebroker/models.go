@@ -64,6 +64,10 @@ type MessageHeader struct {
 	DeadLetterTopic string
 	// the time interval after which this message can be read by the delay-consumer on a retry cycle
 	NextDeliveryTime time.Time
+	// Sequence number for ordered message delivery
+	CurrentSequence int32
+	// sequence number of the previous message in ordered message delivery
+	PrevSequence int32
 }
 
 // LogFields ...
@@ -83,6 +87,8 @@ func (mh MessageHeader) LogFields() []interface{} {
 			"closestDelayInterval": mh.ClosestDelayInterval,
 			"deadLetterTopic":      mh.DeadLetterTopic,
 			"nextDeliveryTime":     mh.NextDeliveryTime.Unix(),
+			"currentSequence":      mh.CurrentSequence,
+			"prevSequence":         mh.PrevSequence,
 		},
 	}
 }

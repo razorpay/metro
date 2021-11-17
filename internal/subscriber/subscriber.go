@@ -3,7 +3,6 @@ package subscriber
 import (
 	"container/heap"
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/razorpay/metro/internal/subscriber/retry"
@@ -211,12 +210,11 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 
 	if shouldCommit {
 		offsetUpdated := true
-		registryOffset := strconv.Itoa(int(offsetToCommit) + 1)
 		offsetModel := offset.Model{
 			Topic:        s.subscription.Topic,
 			Subscription: s.subscription.ExtractedSubscriptionName,
 			Partition:    req.Partition,
-			LatestOffset: registryOffset,
+			LatestOffset: offsetToCommit + 1,
 		}
 		err := s.offsetCore.SetOffset(ctx, &offsetModel)
 		if err != nil {

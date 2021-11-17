@@ -80,8 +80,20 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		return err
 	}
 
-	// for subscription over deadletter topics, skip the retry and deadletter topic creation
-	if topicModel.IsDeadLetterTopic() == false {
+	// for subscription over deadletter topics, skip the subscription, retry and deadletter topic creation
+	if !topicModel.IsDeadLetterTopic() {
+
+		err = c.topicCore.CreateSubscriptionTopic(ctx, &topic.Model{
+			Name:               m.GetSubscriptionTopic(),
+			ExtractedTopicName: m.ExtractedSubscriptionName,
+			ExtractedProjectID: m.ExtractedTopicProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		})
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to create subscription topic for subscription", "name", m.GetSubscriptionTopic(), "error", err.Error())
+			return err
+		}
 
 		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
 			Name:               m.GetRetryTopic(),
@@ -317,14 +329,13 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) err
 	return nil
 }
 
-// Migrate takes care of migrating the old subscription model to new
-// As of now it specifically takes care of:
-// 1. Removes the unencrypted push config credentials stored in attributes field in old subscription model
-// In future, modify this function as needed to support additional migration use-cases.
+// Migrate takes care of backfilling subscription topics for existing subscriptions.
+// This is an idempotent operation that creates topics for each subscription.
+// Migrate can be modified in the future for other use-cases as well.
 func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 	subscriptionsToUpdate := make([]*Model, 0)
-	if names == nil || len(names) == 0 {
+	if len(names) == 0 {
 		models, err := c.List(ctx, Prefix)
 		if err != nil {
 			return err
@@ -344,31 +355,23 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 	updatedSubCount := 0
 	for _, sub := range subscriptionsToUpdate {
-		needsUpdate := false
-		if sub.PushConfig == nil || sub.PushConfig.Attributes == nil {
+		topicModel, err := c.topicCore.Get(ctx, sub.GetTopic())
+		if err != nil {
+			logger.Ctx(ctx).Errorw("migration: failed to fetch topic for subscription", "subscription", sub.Name, "topic", sub.GetTopic())
 			continue
 		}
-		pushAttr := sub.PushConfig.Attributes
-		if _, ok := pushAttr[attributeUsername]; ok {
-			logger.Ctx(ctx).Infow("migration: deleting username", "username", pushAttr[attributeUsername], "subscription", sub.Name)
-			delete(pushAttr, attributeUsername)
-			needsUpdate = true
-		}
 
-		if _, ok := pushAttr[attributePassword]; ok {
-			logger.Ctx(ctx).Infow("migration: deleting password for username", "username", pushAttr[attributeUsername], "subscription", sub.Name)
-			delete(pushAttr, attributePassword)
-			needsUpdate = true
-		}
-
-		if needsUpdate {
+		// Currently we do not have a way to check if a kafka topic exists except for a topic metadata call.
+		// But topic create returns an error if topic already exists.
+		err = c.topicCore.CreateSubscriptionTopic(ctx, &topic.Model{
+			Name:               sub.GetSubscriptionTopic(),
+			ExtractedTopicName: sub.ExtractedSubscriptionName,
+			ExtractedProjectID: sub.ExtractedTopicProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		})
+		if err != nil {
 			updatedSubCount++
 			logger.Ctx(ctx).Infow("migration: updating subscription", "subscription", sub.Name)
-			err := c.UpdateSubscription(ctx, sub)
-			if err != nil {
-				logger.Ctx(ctx).Errorw("migration: error in updating subscription", "subscription", sub.Name, "error", err.Error())
-				return err
-			}
 		}
 	}
 

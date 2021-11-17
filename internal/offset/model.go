@@ -20,9 +20,10 @@ type Model struct {
 	Topic          string `json:"topic_id"`
 	Subscription   string `json:"subscription_id"`
 	Partition      int32  `json:"partition_id"`
-	LatestOffset   string `json:"latest_offset"`
+	LatestOffset   int64  `json:"latest_offset"`
 	OrderingKey    string `json:"ordering_key"`
-	rollbackOffset string
+	Status         string
+	rollbackOffset int64
 }
 
 // Key returns the key for storing in the registry

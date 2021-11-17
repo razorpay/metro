@@ -61,6 +61,8 @@ type Subscriber struct {
 	ctx                    context.Context
 	bs                     brokerstore.IBrokerStore
 	retrier                retry.IRetrier
+	pausedMessages         []messagebroker.ReceivedMessage
+	sequenceManager        orderingSequenceManager
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
@@ -435,6 +437,63 @@ func (s *Subscriber) Run(ctx context.Context) {
 	}
 }
 
+func (s *Subscriber) notifyPullMessageError(ctx context.Context, err error) {
+	logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "logFields", s.getLogFields(), "error", err.Error())
+
+	// Write empty data on the response channel in case of error, this is needed because sender blocks
+	// on the response channel in a goroutine after sending request, error channel is not read until
+	// response channel blocking call returns
+	s.responseChan <- &metrov1.PullResponse{ReceivedMessages: make([]*metrov1.ReceivedMessage, 0)}
+
+	// send error details via error channel
+	s.errChan <- err
+	return
+}
+
+func (s *Subscriber) receiveMessages(ctx context.Context, req *PullRequest) ([]messagebroker.ReceivedMessage, error) {
+	// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
+	if s.canConsumeMore() == false {
+		logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "logFields", s.getLogFields())
+		// check if consumer is paused once maxOutstanding messages limit is hit
+		if s.consumer.IsPaused(ctx) == false {
+			s.consumer.PauseConsumer(ctx)
+		}
+	} else {
+		// resume consumer if paused and is allowed to consume more messages
+		if s.consumer.IsPaused(ctx) {
+			s.consumer.ResumeConsumer(ctx)
+		}
+	}
+	messages := make([]messagebroker.ReceivedMessage, 0)
+	resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInMs})
+	if err != nil {
+		return messages, err
+	}
+	messages = resp.Messages
+
+	if s.isOrderedSubscriber() {
+		// set message order seq number if ordered subscription
+		for _, message := range messages {
+			if message.Topic == s.topic && message.RequiresOrdering() { // only for messages from primary topic that have an ordering key
+				seq, err := s.sequenceManager.GetOrderedSequenceNum(ctx, s.subscription, message)
+				if err != nil {
+					return messages, err
+				}
+				message.CurrentSequence, message.PrevSequence = seq.CurrentSequenceNum, seq.PrevSequenceNum
+			}
+		}
+	}
+
+	if !(s.consumer.IsPaused(ctx) && s.consumer.IsPrimaryPaused(ctx)) && len(s.pausedMessages) > 0 {
+		// if consumer is not paused, pop the paused messages and append it to the begining of the message list
+		// clear the paused message list
+		messages = append(s.pausedMessages, messages...)
+		s.pausedMessages = make([]messagebroker.ReceivedMessage, 0)
+	}
+
+	return messages, nil
+}
+
 func (s *Subscriber) pull(req *PullRequest) {
 	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Pull", opentracing.Tags{
 		"subscriber":   s.subscriberID,
@@ -451,45 +510,37 @@ func (s *Subscriber) pull(req *PullRequest) {
 		}()
 
 		if s.consumer == nil {
+			logger.Ctx(ctx).Errorw("subscriber: consumer is nil", "logFields", s.getLogFields())
 			return
 		}
 
-		// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
-		if s.canConsumeMore() == false {
-			logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "logFields", s.getLogFields())
-			// check if consumer is paused once maxOutstanding messages limit is hit
-			if s.consumer.IsPaused(ctx) == false {
-				s.consumer.PauseConsumer(ctx)
+		messages, err := s.receiveMessages(ctx, req)
+		if err != nil {
+			s.notifyPullMessageError(ctx, err)
+			return
+		}
+
+		if len(messages) > 0 {
+			logFields := s.getLogFields()
+			logFields["messageCount"] = len(messages)
+			logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "logFields", logFields)
+		}
+
+		if s.isOrderedSubscriber() {
+			if messages, err = s.filterMessagesForOrdering(ctx, messages); err != nil {
+				s.notifyPullMessageError(ctx, err)
+				return
 			}
-		} else {
-			// resume consumer if paused and is allowed to consume more messages
-			if s.consumer.IsPaused(ctx) {
-				s.consumer.ResumeConsumer(ctx)
+
+			if len(messages) > 0 {
+				logFields := s.getLogFields()
+				logFields["messageCount"] = len(messages)
+				logger.Ctx(ctx).Infow("subscriber: non-zero messages after filtering for order", "logFields", logFields)
 			}
 		}
 
 		sm := make([]*metrov1.ReceivedMessage, 0)
-		resp, err := s.consumer.ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: req.MaxNumOfMessages, TimeoutMs: s.timeoutInMs})
-		if err != nil {
-			logger.Ctx(ctx).Errorw("subscriber: error in receiving messages", "logFields", s.getLogFields(), "error", err.Error())
-
-			// Write empty data on the response channel in case of error, this is needed because sender blocks
-			// on the response channel in a goroutine after sending request, error channel is not read until
-			// response channel blocking call returns
-			s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
-
-			// send error details via error channel
-			s.errChan <- err
-			return
-		}
-
-		if len(resp.Messages) > 0 {
-			logFields := s.getLogFields()
-			logFields["messageCount"] = len(resp.Messages)
-			logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "logFields", logFields)
-		}
-
-		for _, msg := range resp.Messages {
+		for _, msg := range messages {
 			protoMsg := &metrov1.PubsubMessage{}
 			err = proto.Unmarshal(msg.Data, protoMsg)
 			if err != nil {

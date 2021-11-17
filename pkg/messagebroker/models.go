@@ -184,6 +184,10 @@ func (rm ReceivedMessage) CanProcessMessage() bool {
 	return time.Now().Unix() >= rm.NextDeliveryTime.Unix() || rm.HasReachedRetryThreshold()
 }
 
+func (rm ReceivedMessage) RequiresOrdering() bool {
+	return rm.OrderingKey != ""
+}
+
 // CommitOnTopicResponse ...
 type CommitOnTopicResponse struct {
 	Response interface{}

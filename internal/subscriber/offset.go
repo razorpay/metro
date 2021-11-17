@@ -27,7 +27,8 @@ type lastSequenceStatus struct {
 	Status      sequenceStatus
 }
 
-type orderingSequenceManager interface {
+// OrderingSequenceManager is an interface for managing ordering sequences
+type OrderingSequenceManager interface {
 	GetOrderedSequenceNum(ctx context.Context, sub *subscription.Model, message messagebroker.ReceivedMessage) (*sequencePair, error)
 	GetLastSequenceStatus(ctx context.Context, sub *subscription.Model, partition int32, orderingKey string) (*lastSequenceStatus, error)
 }
@@ -37,14 +38,17 @@ type offsetSequenceManager struct {
 	offsetMap  map[string]int32 // map of ordering-key -> last read offset
 }
 
-func NewOffsetSequenceManager(ctx context.Context, offsetCore offset.ICore) orderingSequenceManager {
+// NewOffsetSequenceManager returns an offset based sequence manager
+func NewOffsetSequenceManager(ctx context.Context, offsetCore offset.ICore) OrderingSequenceManager {
 	return &offsetSequenceManager{offsetCore: offsetCore, offsetMap: make(map[string]int32)}
 }
 
+// GetLastSequenceStatus returns the last recorded status of a ordering key
 func (o *offsetSequenceManager) GetLastSequenceStatus(ctx context.Context, sub *subscription.Model, partition int32, orderingKey string) (*lastSequenceStatus, error) {
 	return nil, nil
 }
 
+// GetOrderedSequenceNum returns sequence number for a message
 func (o *offsetSequenceManager) GetOrderedSequenceNum(ctx context.Context, sub *subscription.Model, message messagebroker.ReceivedMessage) (*sequencePair, error) {
 	// Check in the local map first
 	if offset, ok := o.offsetMap[message.OrderingKey]; ok {

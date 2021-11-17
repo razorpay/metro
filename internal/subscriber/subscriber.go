@@ -62,7 +62,7 @@ type Subscriber struct {
 	bs                     brokerstore.IBrokerStore
 	retrier                retry.IRetrier
 	pausedMessages         []messagebroker.ReceivedMessage
-	sequenceManager        orderingSequenceManager
+	sequenceManager        OrderingSequenceManager
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold

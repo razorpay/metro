@@ -184,6 +184,7 @@ func (rm ReceivedMessage) CanProcessMessage() bool {
 	return time.Now().Unix() >= rm.NextDeliveryTime.Unix() || rm.HasReachedRetryThreshold()
 }
 
+// RequiresOrdering checks if the message contains an ordering key
 func (rm ReceivedMessage) RequiresOrdering() bool {
 	return rm.OrderingKey != ""
 }

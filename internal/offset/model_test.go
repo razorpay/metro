@@ -26,7 +26,7 @@ func getDummyOffsetModel() *Model {
 		Topic:        "topic123",
 		Partition:    0,
 		Subscription: "sub123",
-		LatestOffset: "2",
+		LatestOffset: 2,
 		OrderingKey:  "abcdef",
 	}
 }

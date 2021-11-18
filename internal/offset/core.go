@@ -48,11 +48,8 @@ func (c *Core) SetOffset(ctx context.Context, m *Model) error {
 
 	startTime := time.Now()
 	defer func() {
-		offsetOperationTimeTaken.WithLabelValues(env, "SetOffset").Observe(time.Now().Sub(startTime).Seconds())
+		offsetOperationTimeTaken.WithLabelValues(env, "SetOffset").Observe(time.Since(startTime).Seconds())
 	}()
-	if m.LatestOffset == "" {
-		return merror.Newf(merror.NotFound, "No offset provided for key %s", m.Key())
-	}
 
 	ok, err := c.Exists(ctx, m)
 	if !ok {
@@ -66,9 +63,9 @@ func (c *Core) SetOffset(ctx context.Context, m *Model) error {
 	}
 	// rollbackOffset is private to the OffsetModel and is used to hold the previous offset in memory.
 	rollbackOffset := m.rollbackOffset
-	if m.LatestOffset != "" {
+	if m.LatestOffset != 0 {
 		m.LatestOffset = newOffsetToSet
-		m.rollbackOffset = ""
+		m.rollbackOffset = 0
 	}
 	err = c.repo.Save(ctx, m)
 	if err != nil {
@@ -108,7 +105,7 @@ func (c *Core) GetOffset(ctx context.Context, m *Model) (*Model, error) {
 
 	startTime := time.Now()
 	defer func() {
-		offsetOperationTimeTaken.WithLabelValues(env, "Get").Observe(time.Now().Sub(startTime).Seconds())
+		offsetOperationTimeTaken.WithLabelValues(env, "Get").Observe(time.Since(startTime).Seconds())
 	}()
 
 	prefix := m.Key()
@@ -129,15 +126,15 @@ func (c *Core) RollBackOffset(ctx context.Context, m *Model) error {
 	// Extract offset to avoid being overriden
 	verifyOffset := m.LatestOffset
 	// This can occur when the offset is set for the first time
-	if m.rollbackOffset == "" {
-		logger.Ctx(ctx).Errorw("rollback offset key unavailable", "key", m.Key(), "offset", verifyOffset)
+	if m.rollbackOffset == m.LatestOffset {
+		logger.Ctx(ctx).Debugw("rollback offset same as latest offset", "key", m.Key(), "offset", verifyOffset)
 		return nil
 	}
 	offsetOperationCount.WithLabelValues(env, "RollbackOffset").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		offsetOperationTimeTaken.WithLabelValues(env, "RollbackOffset").Observe(time.Now().Sub(startTime).Seconds())
+		offsetOperationTimeTaken.WithLabelValues(env, "RollbackOffset").Observe(time.Since(startTime).Seconds())
 	}()
 
 	if ok, err := c.Exists(ctx, m); !ok {
@@ -156,7 +153,7 @@ func (c *Core) RollBackOffset(ctx context.Context, m *Model) error {
 	}
 
 	m.LatestOffset = m.rollbackOffset
-	m.rollbackOffset = ""
+	m.rollbackOffset = 0
 	return c.repo.Save(ctx, m)
 }
 

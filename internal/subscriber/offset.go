@@ -2,7 +2,6 @@ package subscriber
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/subscription"
@@ -88,14 +87,9 @@ func (o *offsetSequenceManager) GetOrderedSequenceNum(ctx context.Context, sub *
 		return nil, err
 	}
 
-	lastOffset, err := strconv.Atoi(off.LatestOffset)
-	if err != nil {
-		return nil, err
-	}
-
 	s := &sequencePair{
 		CurrentSequenceNum: message.Offset,
-		PrevSequenceNum:    int32(lastOffset),
+		PrevSequenceNum:    int32(off.LatestOffset),
 	}
 	o.offsetMap[m.OrderingKey] = s.CurrentSequenceNum
 	return s, nil

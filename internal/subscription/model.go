@@ -81,6 +81,11 @@ func (m *Model) GetTopic() string {
 	return m.Topic
 }
 
+// GetSubscriptionTopic returns the topic used for subscription fanout topic
+func (m *Model) GetSubscriptionTopic() string {
+	return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.SubscriptionSuffix)
+}
+
 // GetRetryTopic returns the topic used for subscription retries
 func (m *Model) GetRetryTopic() string {
 	return topic.GetTopicName(m.ExtractedTopicProjectID, m.ExtractedSubscriptionName+topic.RetryTopicSuffix)

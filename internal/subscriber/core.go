@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/subscriber/retry"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
@@ -22,11 +23,12 @@ type ICore interface {
 type Core struct {
 	bs               brokerstore.IBrokerStore
 	subscriptionCore subscription.ICore
+	offsetCore       offset.ICore
 }
 
 // NewCore returns a new subscriber core
-func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore) ICore {
-	return &Core{bs: bs, subscriptionCore: subscriptionCore}
+func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore, offsetCore offset.ICore) ICore {
+	return &Core{bs: bs, subscriptionCore: subscriptionCore, offsetCore: offsetCore}
 }
 
 // NewSubscriber initiates a new subscriber for a given topic
@@ -74,6 +76,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 		topic:                  subscription.Topic,
 		subscriberID:           subscriberID,
 		subscriptionCore:       c.subscriptionCore,
+		offsetCore:             c.offsetCore,
 		requestChan:            requestCh,
 		responseChan:           make(chan *metrov1.PullResponse),
 		errChan:                make(chan error, 1000),

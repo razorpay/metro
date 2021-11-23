@@ -352,7 +352,7 @@ func extractSubscriptionMetaAndValidate(_ context.Context, name string) (project
 
 	projectID = tokens[1]
 	subscriptionName = tokens[2]
-	if strings.HasPrefix(subscriptionName, "goog") {
+	if strings.HasPrefix(subscriptionName, "goog") || strings.HasSuffix(subscriptionName, topic.SubscriptionSuffix) {
 		return "", "", ErrInvalidSubscriptionName
 	}
 

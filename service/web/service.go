@@ -11,6 +11,7 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/interceptors"
+	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/server"
@@ -76,7 +77,9 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	publisherCore := publisher.NewCore(brokerStore)
 
-	streamManager := stream.NewStreamManager(ctx, subscriptionCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
+	offsetCore := offset.NewCore(offset.NewRepo(r))
+
+	streamManager := stream.NewStreamManager(ctx, subscriptionCore, offsetCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
 
 	// initiates a error group
 	grp, gctx := errgroup.WithContext(ctx)

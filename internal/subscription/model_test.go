@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package subscription
@@ -51,6 +52,7 @@ func Test_Model(t *testing.T) {
 
 	assert.True(t, dSubscription.IsPush())
 	assert.Equal(t, "projects/test-project/topics/test-topic", dSubscription.GetTopic())
+	assert.Equal(t, "projects/test-project/topics/test-subscription-subscription-internal", dSubscription.GetSubscriptionTopic())
 	assert.Equal(t, "projects/test-project/topics/test-subscription-retry", dSubscription.GetRetryTopic())
 	assert.Equal(t, "projects/test-project/topics/test-subscription-dlq", dSubscription.GetDeadLetterTopic())
 

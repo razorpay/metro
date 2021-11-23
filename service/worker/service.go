@@ -12,6 +12,7 @@ import (
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
+	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/scheduler"
 	"github.com/razorpay/metro/internal/server"
@@ -65,12 +66,14 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service
 
 	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(reg))
 
+	offsetCore := offset.NewCore(offset.NewRepo(reg))
+
 	scheduler, err := scheduler.New(scheduler.LoadBalance)
 	if err != nil {
 		return nil, err
 	}
 
-	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore)
+	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore, offsetCore)
 
 	// Init scheduler task, this schedules the subscriptions on nodes
 	// Leader Task runs this task internally if node is elected as leader

@@ -95,8 +95,12 @@ buf-deps:
 proto-generate:
 	@echo "\n + Generating pb language bindings\n"
 	@buf generate --path ./metro-proto/metro/proto
+	# Substitute {param=...} path params into {param} to solve swagger substitution problem
+	@sed -E "s/\{([a-zA-Z0-9\.]+)=[^\}]+\}/{\1}/g" third_party/OpenAPI/proto/v1/spec.swagger.json > third_party/OpenAPI/proto/v1/spec.swagger.json.tmp
+	@rm third_party/OpenAPI/proto/v1/spec.swagger.json
+	@mv third_party/OpenAPI/proto/v1/spec.swagger.json.tmp third_party/OpenAPI/proto/v1/spec.swagger.json
 	# Generate static assets for OpenAPI UI
-	@statik -m -f -src third_party/OpenAPI/
+	@statik -m -f -src third_party/OpenAPI/proto/v1
 
 .PHONY: proto-clean ## Clean generated proto files
 proto-clean:
@@ -168,6 +172,8 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/mocks/mock_subscriber.go -package=mocks github.com/razorpay/metro/internal/subscriber ISubscriber
 	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/project ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/project IRepo
+	@mockgen --build_flags='--tags=musl' -destination=internal/offset/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/offset ICore
+	@mockgen --build_flags='--tags=musl' -destination=internal/offset/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/offset IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/node ICore
 	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/node IRepo
 	@mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/nodebinding ICore

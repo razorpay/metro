@@ -16,6 +16,9 @@ const (
 	// DeadLetterTopicSuffix every primary topic subscription will have a dlq topic with this suffix as well
 	DeadLetterTopicSuffix = "-dlq"
 
+	// SubscriptionSuffix is the suffix to be appended to the subscription specific topic
+	SubscriptionSuffix = "-subscription-internal"
+
 	// DefaultNumPartitions default no of partitions for a topic
 	DefaultNumPartitions = 1
 )

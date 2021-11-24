@@ -242,7 +242,7 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 
 		if !found {
 			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
-			handler := stream.NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, sm.subscriptionCore, sm.subscriber, sm.httpConfig, sm.fetchPrimaryTopic, sm.readOffsetFromRegistry)
+			handler := stream.NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, newBinding.Partition, sm.subscriptionCore, sm.subscriber, sm.httpConfig, sm.fetchPrimaryTopic, sm.readOffsetFromRegistry)
 
 			// run the stream in a separate go routine, this go routine is not part of the worker error group
 			// as the worker should continue to run if a single subscription stream exists with error

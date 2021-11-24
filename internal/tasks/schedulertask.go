@@ -267,7 +267,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 			return serr
 		}
 
-		serr = sm.scheduleSubscription(ctx, sub, &nodeBindings)
+		serr = sm.scheduleSubscription(ctx, sub, nb.Partition, &nodeBindings)
 		if serr != nil {
 			return serr
 		}
@@ -294,7 +294,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 			}
 
 			for i := 0; i < topicM.NumPartitions; i++ {
-				serr := sm.scheduleSubscription(ctx, sub, &nodeBindings)
+				serr := sm.scheduleSubscription(ctx, sub, i, &nodeBindings)
 				if serr != nil {
 					return serr
 				}
@@ -304,8 +304,8 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	return nil
 }
 
-func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model) error {
-	nb, serr := sm.scheduler.Schedule(sub, *nodeBindings, sm.nodeCache)
+func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, partition int, nodeBindings *[]*nodebinding.Model) error {
+	nb, serr := sm.scheduler.Schedule(sub, *nodeBindings, sm.nodeCache, partition)
 	if serr != nil {
 		return serr
 	}

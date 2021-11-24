@@ -18,6 +18,7 @@ type Model struct {
 	NodeID              string `json:"node_id"`
 	SubscriptionID      string `json:"subscription_id"`
 	SubscriptionVersion string `json:"subscription_version"`
+	Partition           int    `json:"partition"`
 }
 
 // Key returns the key for storing in the registry

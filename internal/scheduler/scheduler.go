@@ -10,7 +10,7 @@ import (
 // IScheduler is the interface implemented by Schedulers
 type IScheduler interface {
 	// Schedule implemented by Scheduler based on current subscription and current load on nodes
-	Schedule(*subscription.Model, []*nodebinding.Model, []*node.Model) (*nodebinding.Model, error)
+	Schedule(*subscription.Model, []*nodebinding.Model, []*node.Model, partition int) (*nodebinding.Model, error)
 }
 
 // Scheduler struct for subsciption scheduling on worker nodes
@@ -34,7 +34,7 @@ func New(algo Algorithm) (IScheduler, error) {
 }
 
 // Schedule schedules a subsciption on a node and returns a nodebinding model
-func (s *Scheduler) Schedule(subscription *subscription.Model, nbs []*nodebinding.Model, nodes []*node.Model) (*nodebinding.Model, error) {
+func (s *Scheduler) Schedule(subscription *subscription.Model, nbs []*nodebinding.Model, nodes []*node.Model, partition int) (*nodebinding.Model, error) {
 	node, err := s.algoImpl.GetNode(nbs, nodes)
 	if err != nil {
 		return nil, err
@@ -44,6 +44,7 @@ func (s *Scheduler) Schedule(subscription *subscription.Model, nbs []*nodebindin
 	nb := nodebinding.Model{
 		ID:                  uuid.New().String(),
 		NodeID:              node.ID,
+		Partition: 			 partition,
 		SubscriptionID:      subscription.Name,
 		SubscriptionVersion: subVersion,
 	}

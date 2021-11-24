@@ -59,7 +59,7 @@ func TestScheduler_Schedule(t *testing.T) {
 			},
 		}
 
-		nb, err := sch.Schedule(sub, nbs, nodes)
+		nb, err := sch.Schedule(sub, nbs, nodes, 0)
 		assert.Nil(t, err)
 		assert.NotNil(t, nb)
 		assert.Equal(t, nb.SubscriptionID, "sub2")

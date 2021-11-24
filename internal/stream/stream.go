@@ -25,6 +25,7 @@ type PushStream struct {
 	ctx                    context.Context
 	cancelFunc             func()
 	nodeID                 string
+	partition              int
 	subscription           *subscription.Model
 	subscriptionCore       subscription.ICore
 	subscriberCore         subscriber.ICore
@@ -312,7 +313,7 @@ func (ps *PushStream) getLogFields() map[string]interface{} {
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config, fetchFromPrimary, readOffsetFromRegistry bool) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, partition int, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config, fetchFromPrimary, readOffsetFromRegistry bool) *PushStream {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
 
 	// get subscription Model details

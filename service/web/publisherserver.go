@@ -41,6 +41,10 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 		return nil, merror.New(merror.NotFound, "topic not found").ToGRPCError()
 	}
 
+	if err := publisher.ValidatePublishRequest(ctx, req); err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
 	msgIDs, err := s.publisher.Publish(ctx, req)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)

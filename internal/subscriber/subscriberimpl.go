@@ -16,8 +16,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// OrderedImplementation implements a subscriber that delivers messages in order
-type OrderedImplementation struct {
+// BasicImplementation provides implementation of subscriber functionalities
+type BasicImplementation struct {
 	maxOutstandingMessages int64
 	maxOutstandingBytes    int64
 	topic                  string
@@ -28,13 +28,10 @@ type OrderedImplementation struct {
 	ctx                    context.Context
 	subscription           *subscription.Model
 	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
-	pausedMessages         []messagebroker.ReceivedMessage
-	sequenceManager        OrderingSequenceManager
-	impl                   Implementation
 }
 
 // CanConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
-func (s *OrderedImplementation) CanConsumeMore() bool {
+func (s *BasicImplementation) CanConsumeMore() bool {
 	totalConsumedMsgsForTopic := 0
 	for _, cm := range s.consumedMessageStats {
 		totalConsumedMsgsForTopic += len(cm.consumedMessages)
@@ -43,7 +40,7 @@ func (s *OrderedImplementation) CanConsumeMore() bool {
 }
 
 // cleans up all occurrences for a given msgId from the internal data-structures
-func (s *OrderedImplementation) removeMessageFromMemory(ctx context.Context, stats *ConsumptionMetadata, msgID string) {
+func (s *BasicImplementation) removeMessageFromMemory(ctx context.Context, stats *ConsumptionMetadata, msgID string) {
 	if stats == nil || msgID == "" {
 		return
 	}
@@ -68,7 +65,7 @@ func (s *OrderedImplementation) removeMessageFromMemory(ctx context.Context, sta
 	subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
 }
 
-func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
+func (s *BasicImplementation) logInMemoryStats(ctx context.Context) {
 	st := make(map[string]interface{})
 
 	for tp, stats := range s.consumedMessageStats {
@@ -84,8 +81,8 @@ func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
 	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
 }
 
-// EvictUnackedMessagesPastDeadline evicts messages past acknowledgement deadline
-func (s *OrderedImplementation) EvictUnackedMessagesPastDeadline(ctx context.Context, errChan chan error) {
+// EvictUnackedMessagesPastDeadline evicts messages past ack deadline
+func (s *BasicImplementation) EvictUnackedMessagesPastDeadline(ctx context.Context, errChan chan error) {
 	logFields := getLogFields(s)
 	// do a deadline based eviction for all active topic-partition heaps
 	for _, metadata := range s.consumedMessageStats {
@@ -122,8 +119,8 @@ func (s *OrderedImplementation) EvictUnackedMessagesPastDeadline(ctx context.Con
 	}
 }
 
-// ModAckDeadline modifies the acknowledgement deadline of message
-func (s *OrderedImplementation) ModAckDeadline(ctx context.Context, req *ModAckMessage, errChan chan error) {
+// ModAckDeadline modifies ack deadline
+func (s *BasicImplementation) ModAckDeadline(ctx context.Context, req *ModAckMessage, errChan chan error) {
 	if req == nil {
 		return
 	}
@@ -177,8 +174,8 @@ func (s *OrderedImplementation) ModAckDeadline(ctx context.Context, req *ModAckM
 	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 }
 
-// Acknowledge acknowleges a pulled message
-func (s *OrderedImplementation) Acknowledge(ctx context.Context, req *AckMessage, errChan chan error) {
+// Acknowledge acknowledges a message pulled for delivery
+func (s *BasicImplementation) Acknowledge(ctx context.Context, req *AckMessage, errChan chan error) {
 	if req == nil {
 		return
 	}
@@ -303,17 +300,17 @@ func (s *OrderedImplementation) Acknowledge(ctx context.Context, req *AckMessage
 }
 
 // GetSubscriberID ...
-func (s *OrderedImplementation) GetSubscriberID() string {
+func (s *BasicImplementation) GetSubscriberID() string {
 	return s.subscriberID
 }
 
 // GetSubscription ...
-func (s *OrderedImplementation) GetSubscription() *subscription.Model {
+func (s *BasicImplementation) GetSubscription() *subscription.Model {
 	return s.subscription
 }
 
-// Pull pulls a message from broker and publishes onto the response channel
-func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, responseChan chan *metrov1.PullResponse, errChan chan error) {
+// Pull pulls message from the broker and publishes it into the response channel
+func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, responseChan chan *metrov1.PullResponse, errChan chan error) {
 	caseStartTime := time.Now()
 	defer func() {
 		subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
@@ -334,37 +331,6 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 		logFields := getLogFields(s)
 		logFields["messageCount"] = len(messages)
 		logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "logFields", logFields)
-	}
-
-	// Assign sequence numbers to messages
-	for _, message := range messages {
-		if message.Topic == s.topic && message.RequiresOrdering() { // only for messages from primary topic that have an ordering key
-			seq, err := s.sequenceManager.GetOrderedSequenceNum(ctx, s.subscription, message)
-			if err != nil {
-				notifyPullMessageError(ctx, s, err, responseChan, errChan)
-				return
-			}
-			message.CurrentSequence, message.PrevSequence = seq.CurrentSequenceNum, seq.PrevSequenceNum
-		}
-	}
-
-	if !(s.consumer.IsPaused(ctx) && s.consumer.IsPrimaryPaused(ctx)) && len(s.pausedMessages) > 0 {
-		// if consumer is not paused, pop the paused messages and append it to the begining of the message list
-		// clear the paused message list
-		logger.Ctx(ctx).Infow("subscriber: resuming messages that were paused", "logFields", getLogFields(s), "count", len(s.pausedMessages))
-		messages = append(s.pausedMessages, messages...)
-		s.pausedMessages = make([]messagebroker.ReceivedMessage, 0)
-	}
-
-	if messages, err = s.filterMessagesForOrdering(ctx, messages); err != nil {
-		notifyPullMessageError(ctx, s, err, responseChan, errChan)
-		return
-	}
-
-	if len(messages) > 0 {
-		logFields := getLogFields(s)
-		logFields["messageCount"] = len(messages)
-		logger.Ctx(ctx).Infow("subscriber: non-zero messages after filtering for order", "logFields", logFields)
 	}
 
 	sm := make([]*metrov1.ReceivedMessage, 0)
@@ -424,59 +390,4 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 		s.logInMemoryStats(ctx)
 	}
 	responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
-}
-
-func (s *OrderedImplementation) filterMessagesForOrdering(ctx context.Context, messages []messagebroker.ReceivedMessage) ([]messagebroker.ReceivedMessage, error) {
-	primaryTopicMessages := make([]messagebroker.ReceivedMessage, 0)
-	retryTopicMessages := make([]messagebroker.ReceivedMessage, 0)
-	orderingKeyPartitionMap := make(map[string]int32)
-	orderingKeyStatus := make(map[string]*lastSequenceStatus)
-
-	filteredMessages := make([]messagebroker.ReceivedMessage, 0)
-
-	for _, message := range messages {
-		if message.Topic == s.topic {
-			primaryTopicMessages = append(primaryTopicMessages, message)
-			if _, exists := orderingKeyPartitionMap[message.OrderingKey]; !exists && message.RequiresOrdering() {
-				orderingKeyPartitionMap[message.OrderingKey] = message.Partition
-			}
-
-		} else {
-			retryTopicMessages = append(retryTopicMessages, message)
-		}
-	}
-
-	for key := range orderingKeyPartitionMap {
-		status, err := s.sequenceManager.GetLastSequenceStatus(ctx, s.subscription, orderingKeyPartitionMap[key], key)
-		if err != nil {
-			return nil, err
-		}
-		orderingKeyStatus[key] = status
-	}
-
-	for i, message := range primaryTopicMessages {
-		status := orderingKeyStatus[message.OrderingKey]
-		// if status exists, and there is a failure in the previous message of the sequence
-		// pause the subscriber. other messages before the current message can be delvered.
-		if status != nil && status.SequenceNum <= message.PrevSequence && status.Status == sequenceFailure {
-			logger.Ctx(ctx).Infow(
-				"subscriber: previous message pending",
-				"orderingKey", message.OrderingKey,
-				"messageSequence", message.CurrentSequence,
-				"prevSequence", message.PrevSequence,
-				"waitingFor", status.SequenceNum,
-				"status", status.Status,
-			)
-			s.pausedMessages = primaryTopicMessages[i:]
-			if err := s.consumer.PausePrimaryConsumer(ctx); err != nil {
-				return nil, err
-			}
-			break
-		} else {
-			filteredMessages = primaryTopicMessages[:i+1]
-		}
-	}
-
-	filteredMessages = append(retryTopicMessages, filteredMessages...)
-	return filteredMessages, nil
 }

@@ -23,7 +23,7 @@ type IConsumer interface {
 	IsPrimaryPaused(ctx context.Context) bool
 	ResumePrimaryConsumer(ctx context.Context) error
 
-	ReceiveMessages(ctx context.Context, req messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error)
+	ReceiveMessages(ctx context.Context, maxMessages int32) (*messagebroker.GetMessagesFromTopicResponse, error)
 	GetTopicMetadata(ctx context.Context, req messagebroker.GetTopicMetadataRequest) (messagebroker.GetTopicMetadataResponse, error)
 	CommitByPartitionAndOffset(ctx context.Context, req messagebroker.CommitOnTopicRequest) (messagebroker.CommitOnTopicResponse, error)
 
@@ -40,11 +40,12 @@ type consumerManager struct {
 	primaryTopic      string
 	retryTopic        string
 	consumer          messagebroker.Consumer
+	brokerTimeout     int
 	brokerStore       brokerstore.IBrokerStore
 }
 
 // NewConsumerManager ...
-func NewConsumerManager(ctx context.Context, bs brokerstore.IBrokerStore, subscriberID string, subscriptionName,
+func NewConsumerManager(ctx context.Context, bs brokerstore.IBrokerStore, brokerTimeout int, subscriberID string, subscriptionName,
 	topicName, retryTopicName string) (IConsumer, error) {
 	consumer, err := bs.GetConsumer(
 		ctx,
@@ -67,6 +68,7 @@ func NewConsumerManager(ctx context.Context, bs brokerstore.IBrokerStore, subscr
 		retryTopic:        retryTopicName,
 		brokerStore:       bs,
 		consumer:          consumer,
+		brokerTimeout:     brokerTimeout,
 	}, nil
 }
 
@@ -225,7 +227,8 @@ func (c *consumerManager) CommitByPartitionAndOffset(ctx context.Context,
 
 // ReceiveMessages - Read messages from the subscribed topic.
 func (c *consumerManager) ReceiveMessages(ctx context.Context,
-	req messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
+	maxMessages int32) (*messagebroker.GetMessagesFromTopicResponse, error) {
+	req := messagebroker.GetMessagesFromTopicRequest{NumOfMessages: maxMessages, TimeoutMs: c.brokerTimeout}
 	return c.consumer.ReceiveMessages(ctx, req)
 }
 

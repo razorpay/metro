@@ -30,7 +30,7 @@ func TestConsumerManager_ResumeWithoutPause(t *testing.T) {
 			GroupInstanceID: subID,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
 	e := consumer.ResumeConsumer(ctx)
 	assert.Equal(t, e, errCannotResume)
@@ -57,7 +57,7 @@ func TestConsumerManager_PauseConsumer(t *testing.T) {
 			GroupInstanceID: subID,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
 	cs.EXPECT().Pause(ctx, gomock.Any()).Times(2).Return(nil)
 	cs.EXPECT().Resume(ctx, gomock.Any()).Times(2).Return(nil)
@@ -92,7 +92,7 @@ func TestConsumerManager_PausePrimaryConsumer(t *testing.T) {
 			GroupInstanceID: subID,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
 	cs.EXPECT().Pause(ctx, gomock.Any()).Times(1).Return(nil)
 	cs.EXPECT().Resume(ctx, gomock.Any()).Times(1).Return(nil)
@@ -127,7 +127,7 @@ func TestConsumerManager_PausePrimaryAfterConsumer(t *testing.T) {
 			GroupInstanceID: subID,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
 	cs.EXPECT().Pause(ctx, gomock.Any()).Times(2).Return(nil)
 	cs.EXPECT().Resume(ctx, gomock.Any()).Times(2).Return(nil)
@@ -166,7 +166,7 @@ func TestConsumerManager_PauseConsumerAfterPrimary(t *testing.T) {
 			GroupInstanceID: subID,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
 	cs.EXPECT().Pause(ctx, gomock.Any()).Times(2).Return(nil)
 	cs.EXPECT().Resume(ctx, gomock.Any()).Times(2).Return(nil)
@@ -205,7 +205,7 @@ func TestConsumerManager_Commit(t *testing.T) {
 			GroupInstanceID: subID,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
 	req := messagebroker.CommitOnTopicRequest{Topic: topic}
 	resp := messagebroker.CommitOnTopicResponse{}
@@ -235,13 +235,12 @@ func TestConsumerManager_Receive(t *testing.T) {
 			GroupInstanceID: subID,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
-	req := messagebroker.GetMessagesFromTopicRequest{}
 	resp := &messagebroker.GetMessagesFromTopicResponse{}
-	cs.EXPECT().ReceiveMessages(ctx, req).Times(1).Return(resp, nil)
+	cs.EXPECT().ReceiveMessages(ctx, 10).Times(1).Return(resp, nil)
 
-	r, e := consumer.ReceiveMessages(ctx, req)
+	r, e := consumer.ReceiveMessages(ctx, 10)
 	assert.Nil(t, e)
 	assert.Equal(t, resp, r)
 }
@@ -265,7 +264,7 @@ func TestConsumerManager_Metadata(t *testing.T) {
 			GroupInstanceID: subID,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
 	req := messagebroker.GetTopicMetadataRequest{}
 	resp := messagebroker.GetTopicMetadataResponse{}
@@ -306,7 +305,7 @@ func TestConsumerManager_Close(t *testing.T) {
 
 	cs.EXPECT().Close(ctx).Times(1).Return(nil)
 
-	consumer, _ := NewConsumerManager(ctx, bs, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 	e := consumer.Close(ctx)
 	assert.Nil(t, e)
 

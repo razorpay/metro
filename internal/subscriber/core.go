@@ -9,7 +9,6 @@ import (
 	"github.com/razorpay/metro/internal/subscriber/retry"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
-	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -42,7 +41,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	ackCh chan *AckMessage,
 	modAckCh chan *ModAckMessage) (ISubscriber, error) {
 
-	consumer, err := NewConsumerManager(ctx, c.bs, subscriberID, subscription.Name, subscription.Topic, subscription.GetRetryTopic())
+	consumer, err := NewConsumerManager(ctx, c.bs, timeoutInMs, subscriberID, subscription.Name, subscription.Topic, subscription.GetRetryTopic())
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: failed to create consumer", "error", err.Error())
 		return nil, err
@@ -69,30 +68,47 @@ func (c *Core) NewSubscriber(ctx context.Context,
 		}
 	}
 
+	var subImpl Implementation
+	if subscription.EnableMessageOrdering {
+
+	} else {
+		subImpl = &BasicImplementation{
+			maxOutstandingMessages: maxOutstandingMessages,
+			maxOutstandingBytes:    maxOutstandingBytes,
+			topic:                  subscription.Topic,
+			subscriberID:           subscriberID,
+			consumer:               consumer,
+			offsetCore:             c.offsetCore,
+			retrier:                retrier,
+			ctx:                    subsCtx,
+			subscription:           subscription,
+			consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
+		}
+	}
+
 	s := &Subscriber{
-		subscription:           subscription,
-		topic:                  subscription.Topic,
-		subscriberID:           subscriberID,
-		subscriptionCore:       c.subscriptionCore,
-		offsetCore:             c.offsetCore,
-		requestChan:            requestCh,
-		responseChan:           make(chan *metrov1.PullResponse),
-		errChan:                make(chan error, 1000),
-		closeChan:              make(chan struct{}),
-		ackChan:                ackCh,
-		modAckChan:             modAckCh,
-		deadlineTicker:         time.NewTicker(deadlineTickerInterval),
-		timeoutInMs:            timeoutInMs,
-		consumer:               consumer,
-		cancelFunc:             cancelFunc,
-		maxOutstandingMessages: maxOutstandingMessages,
-		maxOutstandingBytes:    maxOutstandingBytes,
-		consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
-		ctx:                    subsCtx,
-		bs:                     c.bs,
-		retrier:                retrier,
-		pausedMessages:         make([]messagebroker.ReceivedMessage, 0),
-		sequenceManager:        NewOffsetSequenceManager(ctx, c.offsetCore),
+		subscription: subscription,
+		topic:        subscription.Topic,
+		subscriberID: subscriberID,
+		// offsetCore:             c.offsetCore,
+		requestChan:    requestCh,
+		responseChan:   make(chan *metrov1.PullResponse),
+		errChan:        make(chan error, 1000),
+		closeChan:      make(chan struct{}),
+		ackChan:        ackCh,
+		modAckChan:     modAckCh,
+		deadlineTicker: time.NewTicker(deadlineTickerInterval),
+		consumer:       consumer,
+		cancelFunc:     cancelFunc,
+		// maxOutstandingMessages: maxOutstandingMessages,
+		// maxOutstandingBytes:    maxOutstandingBytes,
+		// consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
+		ctx: subsCtx,
+		// bs:                     c.bs,
+		retrier: retrier,
+		// pausedMessages:         make([]messagebroker.ReceivedMessage, 0),
+		// sequenceManager:        NewOffsetSequenceManager(ctx, c.offsetCore),
+		subscriberImpl: subImpl,
 	}
 
 	go s.Run(subsCtx)

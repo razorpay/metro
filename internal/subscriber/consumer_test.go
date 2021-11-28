@@ -238,7 +238,7 @@ func TestConsumerManager_Receive(t *testing.T) {
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
 
 	resp := &messagebroker.GetMessagesFromTopicResponse{}
-	cs.EXPECT().ReceiveMessages(ctx, 10).Times(1).Return(resp, nil)
+	cs.EXPECT().ReceiveMessages(ctx, gomock.Any()).Times(1).Return(resp, nil)
 
 	r, e := consumer.ReceiveMessages(ctx, 10)
 	assert.Nil(t, e)

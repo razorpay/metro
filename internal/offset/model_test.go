@@ -21,6 +21,19 @@ func TestModel_Key(t *testing.T) {
 	assert.Equal(t, offset.Key(), offset.Prefix()+offset.Topic+subscriptionPrefix+offset.Subscription+partitionPrefix+strconv.Itoa(int(offset.Partition)))
 }
 
+func TestModel_OffsetStatusPrefix(t *testing.T) {
+	offset := getDummyOffsetModel()
+	assert.Equal(t, offset.Prefix(), common.GetBasePrefix()+"offsets/")
+}
+
+func TestModel_OffsetStatusKey(t *testing.T) {
+	offset := getDummyOffsetModel()
+	assert.Equal(t, offset.Key(), offset.Prefix()+offset.Topic+subscriptionPrefix+offset.Subscription+partitionPrefix+strconv.Itoa(int(offset.Partition))+orderingPrefix+offset.OrderingKey)
+
+	offset.OrderingKey = ""
+	assert.Equal(t, offset.Key(), offset.Prefix()+offset.Topic+subscriptionPrefix+offset.Subscription+partitionPrefix+strconv.Itoa(int(offset.Partition)))
+}
+
 func getDummyOffsetModel() *Model {
 	return &Model{
 		Topic:        "topic123",
@@ -28,5 +41,18 @@ func getDummyOffsetModel() *Model {
 		Subscription: "sub123",
 		LatestOffset: 2,
 		OrderingKey:  "abcdef",
+	}
+}
+
+func getDummyOffsetStatusModel() *Status {
+	return &Status{
+		Model: Model{
+			Topic:        "topic123",
+			Partition:    0,
+			Subscription: "sub123",
+			LatestOffset: 2,
+			OrderingKey:  "abcdef",
+		},
+		OffsetStatus: "success",
 	}
 }

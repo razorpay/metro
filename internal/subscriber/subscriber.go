@@ -166,12 +166,11 @@ func (s *Subscriber) Stop() {
 	<-s.closeChan
 }
 
-func retryMessage(ctx context.Context, s Implementation, consumer IConsumer, retrier retry.IRetrier, msg messagebroker.ReceivedMessage, errChan chan error) {
-
+func retryMessage(ctx context.Context, s Implementation, consumer IConsumer, retrier retry.IRetrier, msg messagebroker.ReceivedMessage) error {
 	// for older subscriptions, delayConfig will not get auto-created
 	if retrier == nil {
 		logger.Ctx(ctx).Infow("subscriber: skipping retry as retrier not configured", "logFields", getLogFields(s))
-		return
+		return nil
 	}
 
 	subscription := s.GetSubscription()
@@ -188,6 +187,16 @@ func retryMessage(ctx context.Context, s Implementation, consumer IConsumer, ret
 	err := retrier.Handle(ctx, msg)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: push to retrier failed", "logFields", getLogFields(s), "error", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func retryAndCommitMessage(ctx context.Context, s Implementation, consumer IConsumer, retrier retry.IRetrier, msg messagebroker.ReceivedMessage, errChan chan error) {
+
+	err := retryMessage(ctx, s, consumer, retrier, msg)
+	if err != nil {
 		errChan <- err
 		return
 	}

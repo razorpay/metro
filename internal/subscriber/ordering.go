@@ -27,279 +27,9 @@ type OrderedImplementation struct {
 	retrier                retry.IRetrier
 	ctx                    context.Context
 	subscription           *subscription.Model
-	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
+	consumedMessageStats   map[TopicPartition]*OrderedConsumptionMetadata
 	pausedMessages         []messagebroker.ReceivedMessage
 	sequenceManager        OrderingSequenceManager
-	impl                   Implementation
-}
-
-// CanConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
-func (s *OrderedImplementation) CanConsumeMore() bool {
-	totalConsumedMsgsForTopic := 0
-	for _, cm := range s.consumedMessageStats {
-		totalConsumedMsgsForTopic += len(cm.consumedMessages)
-	}
-	return totalConsumedMsgsForTopic <= int(s.maxOutstandingMessages)
-}
-
-// cleans up all occurrences for a given msgId from the internal data-structures
-func (s *OrderedImplementation) removeMessageFromMemory(ctx context.Context, stats *ConsumptionMetadata, msgID string) {
-	if stats == nil || msgID == "" {
-		return
-	}
-
-	start := time.Now()
-
-	delete(stats.consumedMessages, msgID)
-
-	// remove message from offsetBasedMinHeap
-	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[msgID]
-	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
-	delete(stats.offsetBasedMinHeap.MsgIDToIndexMapping, msgID)
-
-	// remove same message from deadlineBasedMinHeap
-	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
-	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
-	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
-
-	s.logInMemoryStats(ctx)
-
-	subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Dec()
-	subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
-}
-
-func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
-	st := make(map[string]interface{})
-
-	for tp, stats := range s.consumedMessageStats {
-		total := map[string]interface{}{
-			"offsetBasedMinHeap_size":            stats.offsetBasedMinHeap.Len(),
-			"deadlineBasedMinHeap_size":          stats.deadlineBasedMinHeap.Len(),
-			"consumedMessages_size":              len(stats.consumedMessages),
-			"evictedButNotCommittedOffsets_size": len(stats.evictedButNotCommittedOffsets),
-			"maxCommittedOffset":                 stats.maxCommittedOffset,
-		}
-		st[tp.String()] = total
-	}
-	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
-}
-
-// EvictUnackedMessagesPastDeadline evicts messages past acknowledgement deadline
-func (s *OrderedImplementation) EvictUnackedMessagesPastDeadline(ctx context.Context, errChan chan error) {
-	logFields := getLogFields(s)
-	// do a deadline based eviction for all active topic-partition heaps
-	for _, metadata := range s.consumedMessageStats {
-
-		deadlineBasedHeap := metadata.deadlineBasedMinHeap
-		if deadlineBasedHeap.IsEmpty() {
-			continue
-		}
-
-		// peek deadline heap
-		peek := deadlineBasedHeap.Indices[0]
-
-		// check eligibility for eviction
-		if peek.HasHitDeadline() {
-
-			msgID := peek.MsgID
-			if _, ok := metadata.consumedMessages[msgID]; !ok {
-				// check if message is present in-memory or not
-				continue
-			}
-			msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
-
-			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
-			// this way the message is eligible to be retried
-			retryMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
-
-			// cleanup message from memory only after a successful push to retry topic
-			s.removeMessageFromMemory(ctx, metadata, peek.MsgID)
-
-			logFields["messageId"] = peek.MsgID
-			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "logFields", logFields)
-			subscriberMessagesDeadlineEvicted.WithLabelValues(env, s.topic, s.subscription.Name).Inc()
-		}
-	}
-}
-
-// ModAckDeadline modifies the acknowledgement deadline of message
-func (s *OrderedImplementation) ModAckDeadline(ctx context.Context, req *ModAckMessage, errChan chan error) {
-	if req == nil {
-		return
-	}
-
-	logFields := getLogFields(s)
-	logFields["messageId"] = req.AckMessage.MessageID
-
-	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "logFields", logFields)
-
-	tp := req.AckMessage.ToTopicPartition()
-	stats := s.consumedMessageStats[tp]
-
-	deadlineBasedHeap := stats.deadlineBasedMinHeap
-	if deadlineBasedHeap.IsEmpty() {
-		return
-	}
-
-	msgID := req.AckMessage.MessageID
-	// check if message is present in-memory or not
-	if _, ok := stats.consumedMessages[msgID]; !ok {
-		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "logFields", logFields)
-		return
-	}
-
-	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
-
-	if req.ackDeadline == 0 {
-		// modAck with deadline = 0 means nack
-		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
-
-		// push to retry queue
-		retryMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
-
-		// cleanup message from memory
-		s.removeMessageFromMemory(ctx, stats, msgID)
-
-		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
-		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
-
-		return
-	}
-
-	// NOTE: currently we are not supporting non-zero mod ack. below code implementation is to handle that in future
-	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.AckMessage.MessageID]
-
-	// update the deadline of the identified message
-	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
-	heap.Init(&deadlineBasedHeap)
-
-	subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
-	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
-}
-
-// Acknowledge acknowleges a pulled message
-func (s *OrderedImplementation) Acknowledge(ctx context.Context, req *AckMessage, errChan chan error) {
-	if req == nil {
-		return
-	}
-
-	logFields := getLogFields(s)
-	logFields["messageId"] = req.MessageID
-
-	ackStartTime := time.Now()
-	defer func() {
-		logFields["ackTimeTaken"] = time.Now().Sub(ackStartTime).Seconds()
-		logger.Ctx(ctx).Infow("subscriber: ack request end", "logFields", logFields)
-	}()
-
-	logger.Ctx(ctx).Infow("subscriber: got ack request", "logFields", logFields)
-
-	tp := req.ToTopicPartition()
-	stats := s.consumedMessageStats[tp]
-
-	if stats.offsetBasedMinHeap.IsEmpty() {
-		return
-	}
-
-	msgID := req.MessageID
-	// check if message is present in-memory or not
-	if _, ok := stats.consumedMessages[msgID]; !ok {
-		logger.Ctx(ctx).Infow("subscriber: skipping ack as message not found in-memory", "logFields", logFields)
-		return
-	}
-
-	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
-
-	// if somehow an ack request comes for a message that has met deadline eviction threshold
-	if req.HasHitDeadline() {
-
-		logger.Ctx(ctx).Infow("subscriber: msg hit deadline", "logFields", logFields)
-
-		// push for retry
-		retryMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
-		s.removeMessageFromMemory(ctx, stats, req.MessageID)
-
-		return
-	}
-
-	offsetToCommit := req.Offset
-	shouldCommit := false
-	peek := stats.offsetBasedMinHeap.Indices[0]
-
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "logFields", logFields, "req offset", req.Offset, "peek offset", peek.Offset)
-	if offsetToCommit == peek.Offset {
-		start := time.Now()
-		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
-		shouldCommit = true
-
-		logger.Ctx(ctx).Infow("subscriber: evicted offsets", "logFields", logFields, "stats.evictedButNotCommittedOffsets", stats.evictedButNotCommittedOffsets)
-		// find if any previously evicted offsets can be committed as well
-		// eg. if we get an commit for 5, check for 6,7,8...etc have previously been evicted.
-		// in such cases we can commit the max contiguous offset available directly instead of 5.
-		newOffset := offsetToCommit
-		for {
-			if stats.evictedButNotCommittedOffsets[newOffset+1] {
-				delete(stats.evictedButNotCommittedOffsets, newOffset+1)
-				newOffset++
-				continue
-			}
-			if offsetToCommit != newOffset {
-				logger.Ctx(ctx).Infow("subscriber: updating offset to commit", "logFields", logFields, "old", offsetToCommit, "new", newOffset)
-				offsetToCommit = newOffset
-			}
-			break
-		}
-		subscriberTimeTakenToIdentifyNextOffset.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
-	}
-
-	if shouldCommit {
-		offsetUpdated := true
-		offsetModel := offset.Model{
-			Topic:        s.subscription.Topic,
-			Subscription: s.subscription.ExtractedSubscriptionName,
-			Partition:    req.Partition,
-			LatestOffset: offsetToCommit + 1,
-		}
-		err := s.offsetCore.SetOffset(ctx, &offsetModel)
-		if err != nil {
-			// DO NOT terminate here since registry update failures should not affect message broker commits
-			logger.Ctx(ctx).Errorw("subscriber: failed to store offset in registry", "logFields", logFields)
-			offsetUpdated = false
-		}
-		_, err = s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
-			Topic:     req.Topic,
-			Partition: req.Partition,
-			// add 1 to current offset
-			// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
-			Offset: offsetToCommit + 1,
-		})
-		if err != nil {
-			logFields["error"] = err.Error()
-			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "logFields", logFields)
-			errChan <- err
-			// Rollback will move latest commit to the last known successful commit.
-			if offsetUpdated {
-				err = s.offsetCore.RollBackOffset(ctx, &offsetModel)
-				if err != nil {
-					logger.Ctx(ctx).Errorw("subscriber: Failed to rollback offset", "logFields", logFields, "msg", err.Error())
-				}
-			}
-			return
-		}
-		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
-		stats.maxCommittedOffset = offsetToCommit
-		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "logFields", logFields, "offsetToCommit", offsetToCommit, "topic-partition", tp)
-	}
-
-	s.removeMessageFromMemory(ctx, stats, req.MessageID)
-
-	// add to eviction map only in case of any out of order eviction
-	if offsetToCommit > stats.maxCommittedOffset {
-		stats.evictedButNotCommittedOffsets[offsetToCommit] = true
-	}
-
-	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
-	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 }
 
 // GetSubscriberID ...
@@ -310,6 +40,15 @@ func (s *OrderedImplementation) GetSubscriberID() string {
 // GetSubscription ...
 func (s *OrderedImplementation) GetSubscription() *subscription.Model {
 	return s.subscription
+}
+
+// CanConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
+func (s *OrderedImplementation) CanConsumeMore() bool {
+	totalConsumedMsgsForTopic := 0
+	for _, cm := range s.consumedMessageStats {
+		totalConsumedMsgsForTopic += len(cm.consumedMessages)
+	}
+	return totalConsumedMsgsForTopic <= int(s.maxOutstandingMessages)
 }
 
 // Pull pulls a message from broker and publishes onto the response channel
@@ -387,7 +126,7 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 		tp := NewTopicPartition(msg.Topic, msg.Partition)
 		if _, ok := s.consumedMessageStats[tp]; !ok {
 			// init the stats data store before updating
-			s.consumedMessageStats[tp] = NewConsumptionMetadata()
+			s.consumedMessageStats[tp] = NewOrderedConsumptionMetadata()
 
 			// query and set the max committed offset for each topic partition
 			resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
@@ -426,6 +165,150 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 	responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 }
 
+// Acknowledge acknowleges a pulled message
+func (s *OrderedImplementation) Acknowledge(ctx context.Context, req *AckMessage, errChan chan error) {
+	if req == nil {
+		return
+	}
+
+	logFields := getLogFields(s)
+	logFields["messageId"] = req.MessageID
+
+	ackStartTime := time.Now()
+	defer func() {
+		logFields["ackTimeTaken"] = time.Now().Sub(ackStartTime).Seconds()
+		logger.Ctx(ctx).Infow("subscriber: ack request end", "logFields", logFields)
+	}()
+
+	logger.Ctx(ctx).Infow("subscriber: got ack request", "logFields", logFields)
+
+	tp := req.ToTopicPartition()
+	stats := s.consumedMessageStats[tp]
+
+	if stats.offsetBasedMinHeap.IsEmpty() {
+		return
+	}
+
+	msgID := req.MessageID
+	// check if message is present in-memory or not
+	if _, ok := stats.consumedMessages[msgID]; !ok {
+		logger.Ctx(ctx).Infow("subscriber: skipping ack as message not found in-memory", "logFields", logFields)
+		return
+	}
+
+	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+
+	// if somehow an ack request comes for a message that has met deadline eviction threshold
+	if req.HasHitDeadline() {
+		logger.Ctx(ctx).Infow("subscriber: msg hit deadline", "logFields", logFields)
+
+		stats.offsetStatusMap[req.Offset] = offsetStatusRetry
+		err := s.evictMessages(ctx, tp)
+		if err != nil {
+			errChan <- err
+		}
+		return
+	}
+
+	stats.offsetStatusMap[req.Offset] = offsetStatusAcknowledge
+
+	err := s.evictMessages(ctx, tp)
+
+	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
+	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+
+	if err != nil {
+		errChan <- err
+	}
+	return
+}
+
+// ModAckDeadline modifies the acknowledgement deadline of message
+func (s *OrderedImplementation) ModAckDeadline(ctx context.Context, req *ModAckMessage, errChan chan error) {
+	if req == nil {
+		return
+	}
+
+	logFields := getLogFields(s)
+	logFields["messageId"] = req.AckMessage.MessageID
+
+	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "logFields", logFields)
+
+	tp := req.AckMessage.ToTopicPartition()
+	stats := s.consumedMessageStats[tp]
+
+	deadlineBasedHeap := stats.deadlineBasedMinHeap
+	if deadlineBasedHeap.IsEmpty() {
+		return
+	}
+
+	msgID := req.AckMessage.MessageID
+	// check if message is present in-memory or not
+	if _, ok := stats.consumedMessages[msgID]; !ok {
+		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "logFields", logFields)
+		return
+	}
+
+	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+
+	if req.ackDeadline == 0 {
+		// modAck with deadline = 0 means nack
+		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
+
+		// push to retry queue
+		stats.offsetStatusMap[msg.Offset] = offsetStatusRetry
+
+		err := s.evictMessages(ctx, tp)
+
+		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
+		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+
+		if err != nil {
+			errChan <- err
+		}
+
+		return
+	}
+
+	// NOTE: currently we are not supporting non-zero mod ack. below code implementation is to handle that in future
+	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.AckMessage.MessageID]
+
+	// update the deadline of the identified message
+	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
+	heap.Init(&deadlineBasedHeap)
+
+	subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
+	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+}
+
+// EvictUnackedMessagesPastDeadline evicts messages past acknowledgement deadline
+func (s *OrderedImplementation) EvictUnackedMessagesPastDeadline(ctx context.Context, errChan chan error) {
+	logFields := getLogFields(s)
+	// do a deadline based eviction for all active topic-partition heaps
+	for tp, metadata := range s.consumedMessageStats {
+		deadlineBasedHeap := metadata.deadlineBasedMinHeap
+		for i := 0; i < deadlineBasedHeap.Len(); i++ {
+			peek := deadlineBasedHeap.Indices[0]
+			if peek.HasHitDeadline() {
+				msgID := peek.MsgID
+				if _, ok := metadata.consumedMessages[msgID]; !ok {
+					// check if message is present in-memory or not
+					continue
+				}
+				msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+				if _, ok := metadata.offsetStatusMap[msg.Offset]; !ok {
+					metadata.offsetStatusMap[msg.Offset] = offsetStatusRetry
+
+					logFields["messageId"] = peek.MsgID
+					logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "logFields", logFields)
+					subscriberMessagesDeadlineEvicted.WithLabelValues(env, s.topic, s.subscription.Name).Inc()
+				}
+			}
+		}
+		s.evictMessages(ctx, tp)
+	}
+}
+
 func (s *OrderedImplementation) filterMessagesForOrdering(ctx context.Context, messages []messagebroker.ReceivedMessage) ([]messagebroker.ReceivedMessage, error) {
 	primaryTopicMessages := make([]messagebroker.ReceivedMessage, 0)
 	retryTopicMessages := make([]messagebroker.ReceivedMessage, 0)
@@ -457,7 +340,7 @@ func (s *OrderedImplementation) filterMessagesForOrdering(ctx context.Context, m
 	for i, message := range primaryTopicMessages {
 		status := orderingKeyStatus[message.OrderingKey]
 		// if status exists, and there is a failure in the previous message of the sequence
-		// pause the subscriber. other messages before the current message can be delvered.
+		// pause the subscriber on primary topic. other messages before the current message can be delvered.
 		if status != nil && status.SequenceNum <= message.PrevSequence && status.Status == sequenceFailure {
 			logger.Ctx(ctx).Infow(
 				"subscriber: previous message pending",
@@ -479,4 +362,263 @@ func (s *OrderedImplementation) filterMessagesForOrdering(ctx context.Context, m
 
 	filteredMessages = append(retryTopicMessages, filteredMessages...)
 	return filteredMessages, nil
+}
+
+func (s *OrderedImplementation) fetchOrderingKeyStatus(ctx context.Context, partition int32, orderingKeySet map[string]interface{}) (map[string]*lastSequenceStatus, error) {
+	statusMap := make(map[string]*lastSequenceStatus)
+	for orderingKey := range orderingKeySet {
+		status, err := s.sequenceManager.GetLastSequenceStatus(ctx, s.subscription, partition, orderingKey)
+		if err != nil {
+			return nil, err
+		}
+		statusMap[orderingKey] = status
+	}
+	return statusMap, nil
+}
+
+func (s *OrderedImplementation) updateOrderingKeyStatus(ctx context.Context, partition int32, keyStatusMap map[string]*lastSequenceStatus) error {
+	for orderingKey, status := range keyStatusMap {
+		if err := s.sequenceManager.SetLastSequenceStatus(ctx, s.subscription, partition, orderingKey, status); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *OrderedImplementation) updateOrderingKeySequence(ctx context.Context, partition int32, keySeqMap map[string]int32) error {
+	for orderingKey, sequenceNum := range keySeqMap {
+		if err := s.sequenceManager.SetOrderedSequenceNum(ctx, s.subscription, partition, orderingKey, sequenceNum); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *OrderedImplementation) deleteOrderingKey(ctx context.Context, partition int32, keyStatusMap map[string]*lastSequenceStatus) error {
+	for key, status := range keyStatusMap {
+		if (status != nil) && (status.Status == sequenceSuccess) || (status.Status == sequenceDLQ) {
+			lastSeq, err := s.sequenceManager.GetLastMessageSequenceNum(ctx, s.subscription, partition, key)
+			if err != nil {
+				return err
+			}
+			if lastSeq == status.SequenceNum {
+				if err = s.sequenceManager.DeleteSequence(ctx, s.subscription, partition, key); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicPartition) error {
+	logFields := getLogFields(s)
+	logFields["topic-parition"] = tp
+
+	logger.Ctx(ctx).Infow("subscriber: evicting messages from memory", "logFields", logFields)
+
+	cm := s.consumedMessageStats[tp]
+	if cm == nil {
+		logger.Ctx(ctx).Infow("subscriber: consumption metadata not found for topic-partition", "logFields", logFields)
+		return nil
+	}
+
+	orderingKeySet := map[string]interface{}{}
+	offsetsToCommit := make([]*customheap.AckMessageWithOffset, 0)
+	messageIDs := make([]string, 0)
+	for i := 0; i < cm.offsetBasedMinHeap.Len(); i++ { // find all offsets in ascending order that can be committed
+		peek := cm.offsetBasedMinHeap.Indices[i]
+		_, ok := cm.offsetStatusMap[peek.Offset]
+		if !ok {
+			logger.Ctx(ctx).Infow("subscriber: waiting for ack/nack of previous offset", "logFields", logFields, "peekOffset", peek.Offset)
+			break
+		}
+		logger.Ctx(ctx).Infow("subscriber: ack/nack for offset received", "logFields", logFields, "offset", peek.Offset)
+
+		if _, ok = cm.consumedMessages[peek.MsgID]; !ok {
+			logger.Ctx(ctx).Error("subscriber: message not found in consumed messages map", "logFields", logFields, "messageID", peek.MsgID)
+			break
+		}
+		msg := cm.consumedMessages[peek.MsgID].(messagebroker.ReceivedMessage)
+
+		if msg.RequiresOrdering() {
+			orderingKeySet[msg.OrderingKey] = nil
+		}
+		offsetsToCommit = append(offsetsToCommit, peek)
+		messageIDs = append(messageIDs, msg.MessageID)
+	}
+
+	if len(offsetsToCommit) == 0 {
+		return nil
+	}
+
+	keyStatusMap, err := s.fetchOrderingKeyStatus(ctx, tp.partition, orderingKeySet)
+	if err != nil {
+		logger.Ctx(ctx).Error("subscriber: could not fetch ordering key status", "logFields", getLogFields(s), "error", err)
+		return err
+	}
+
+	maxSequenceNums := map[string]int32{}
+	msgStatuses := make([]offsetStatus, 0)
+	for i := 0; i < len(offsetsToCommit); i++ {
+		offset := offsetsToCommit[i]
+		msgStatus := cm.offsetStatusMap[offset.Offset]
+		msg := cm.consumedMessages[offset.MsgID].(messagebroker.ReceivedMessage)
+
+		if msg.RequiresOrdering() {
+			if keyStatus, ok := keyStatusMap[msg.OrderingKey]; !ok { // status not recorded. consider this the first message in order
+				status := sequenceSuccess
+				if msgStatus == offsetStatusRetry {
+					status = sequenceFailure
+					if msg.CurrentRetryCount+1 >= msg.MaxRetryCount {
+						status = sequenceDLQ
+					}
+				}
+				keyStatusMap[msg.OrderingKey] = &lastSequenceStatus{
+					SequenceNum: msg.CurrentSequence,
+					Status:      status,
+				}
+			} else {
+				if keyStatus.Status == sequenceFailure && keyStatus.SequenceNum <= msg.PrevSequence {
+					// previous message in the ordering key is pending
+					// push the current message to retry queue
+					msgStatus = offsetStatusRetry
+					logger.Ctx(ctx).Infow(
+						"subscriber: previous message in order pending to be delivered",
+						"logFields", getLogFields(s),
+						"messageID", msg.MessageID,
+						"currentSequence", msg.CurrentSequence,
+						"prevSequence", msg.PrevSequence,
+						"orderStatus", keyStatus,
+					)
+				} else {
+					// update the ordering status with current message status
+					status := sequenceSuccess
+					if msgStatus == offsetStatusRetry {
+						status = sequenceFailure
+						if msg.CurrentRetryCount+1 >= msg.MaxRetryCount {
+							status = sequenceDLQ
+						}
+					}
+					keyStatus.SequenceNum = msg.CurrentSequence
+					keyStatus.Status = status
+				}
+			}
+
+			maxSeqNum := maxSequenceNums[msg.OrderingKey]
+			if msg.CurrentSequence > maxSeqNum {
+				maxSequenceNums[msg.OrderingKey] = maxSeqNum
+			}
+		}
+		msgStatuses = append(msgStatuses, msgStatus)
+	}
+
+	for i := 0; i < len(offsetsToCommit); i++ {
+		status := msgStatuses[i]
+		msg := cm.consumedMessages[offsetsToCommit[i].MsgID].(messagebroker.ReceivedMessage)
+		if status == offsetStatusRetry {
+			if err := retryMessage(ctx, s, s.consumer, s.retrier, msg); err != nil {
+				return err
+			}
+		} else if len(s.pausedMessages) > 0 &&
+			s.pausedMessages[0].OrderingKey == msg.OrderingKey &&
+			msg.CurrentSequence >= s.pausedMessages[0].PrevSequence {
+			logger.Ctx(ctx).Infow(
+				"subscriber: resuming primary consumer",
+				"logFields", getLogFields(s),
+				"orderingKey", msg.OrderingKey,
+				"unpausedSequence", s.pausedMessages[0].CurrentSequence,
+				"unpausedPrevSequence", s.pausedMessages[0].PrevSequence,
+				"messageSequence", msg.CurrentSequence,
+				"messagePrevSequence", msg.PrevSequence,
+			)
+			if err := s.consumer.ResumePrimaryConsumer(ctx); err != nil {
+				logger.Ctx(ctx).Error("Could not unpause the primary consumer", "logFields", getLogFields(s))
+				return err
+			}
+		}
+
+	}
+
+	if tp.topic == s.topic {
+		if err = s.updateOrderingKeySequence(ctx, tp.partition, maxSequenceNums); err != nil {
+			logger.Ctx(ctx).Errorw(
+				"subscriber: could not update sequence offset",
+				"logFields", getLogFields(s),
+				"error", err,
+			)
+			return err
+		}
+	}
+
+	if err = s.updateOrderingKeyStatus(ctx, tp.partition, keyStatusMap); err != nil {
+		logger.Ctx(ctx).Errorw(
+			"subscriber: could not update sequence status",
+			"logFields", getLogFields(s),
+			"error", err,
+		)
+		return err
+	}
+
+	maxCommittedOffset := offsetsToCommit[len(offsetsToCommit)-1].Offset
+	_, err = s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
+		Topic:     tp.topic,
+		Partition: tp.partition,
+		// add 1 to current offset
+		// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
+		Offset: maxCommittedOffset + 1,
+	})
+	if err != nil {
+		return err
+	}
+
+	s.removeMessagesFromMemory(ctx, cm, messageIDs...)
+	cm.maxCommittedOffset = maxCommittedOffset
+
+	s.deleteOrderingKey(ctx, tp.partition, keyStatusMap)
+
+	return nil
+}
+
+// cleans up all occurrences for a given msgIds from the internal data-structures
+func (s *OrderedImplementation) removeMessagesFromMemory(ctx context.Context, stats *OrderedConsumptionMetadata, msgIDs ...string) {
+	if stats == nil {
+		return
+	}
+	for _, msgID := range msgIDs {
+		start := time.Now()
+		delete(stats.consumedMessages, msgID)
+
+		// remove message from offsetBasedMinHeap
+		indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[msgID]
+		msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
+		delete(stats.offsetBasedMinHeap.MsgIDToIndexMapping, msgID)
+		delete(stats.offsetStatusMap, msg.Offset)
+
+		// remove same message from deadlineBasedMinHeap
+		indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
+		heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
+		delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
+
+		subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Dec()
+		subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
+	}
+	s.logInMemoryStats(ctx)
+}
+
+func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
+	st := make(map[string]interface{})
+
+	for tp, stats := range s.consumedMessageStats {
+		total := map[string]interface{}{
+			"offsetBasedMinHeap_size":            stats.offsetBasedMinHeap.Len(),
+			"deadlineBasedMinHeap_size":          stats.deadlineBasedMinHeap.Len(),
+			"consumedMessages_size":              len(stats.consumedMessages),
+			"evictedButNotCommittedOffsets_size": len(stats.evictedButNotCommittedOffsets),
+			"maxCommittedOffset":                 stats.maxCommittedOffset,
+			"offsetStatus":                       stats.offsetStatusMap,
+		}
+		st[tp.String()] = total
+	}
+	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
 }

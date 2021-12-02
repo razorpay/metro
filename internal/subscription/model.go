@@ -27,7 +27,7 @@ type Model struct {
 	EnableMessageOrdering          bool              `json:"enable_message_ordering,omitempty"`
 	ExpirationPolicy               *ExpirationPolicy `json:"expiration_policy,omitempty"`
 	FilterExpression               string            `json:"filter,omitempty"`
-	FilterStruct                   *Filter           `json:"filter_struct,omitempty"`
+	filterStruct                   *Filter
 	RetryPolicy                    *RetryPolicy      `json:"retry_policy,omitempty"`
 	DeadLetterPolicy               *DeadLetterPolicy `json:"dead_letter_policy,omitempty"`
 	Detached                       bool              `json:"detached,omitempty"`
@@ -203,4 +203,18 @@ func (m *Model) GetDelayConsumerGroupID(delayTopic string) string {
 // GetDelayConsumerGroupInstanceID returns the consumer group ID to be used by the specific delay consumer
 func (m *Model) GetDelayConsumerGroupInstanceID(subscriberID, delayTopic string) string {
 	return fmt.Sprintf(delayConsumerGroupInstanceIDFormat, delayTopic, subscriberID)
+}
+
+// GetFilterExpressionAsStruct parses and returns the filter expression into GO Struct
+func (m *Model) GetFilterExpressionAsStruct() (*Filter, error) {
+	if m.filterStruct != nil {
+		return m.filterStruct, nil
+	}
+	f := &Filter{}
+	err := filter.Parser.ParseString("", m.FilterExpression, f)
+	if err != nil {
+		return nil, err
+	}
+	m.filterStruct = f
+	return f, nil
 }

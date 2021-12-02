@@ -30,6 +30,16 @@ type BasicImplementation struct {
 	consumedMessageStats   map[TopicPartition]*ConsumptionMetadata
 }
 
+// GetSubscriberID ...
+func (s *BasicImplementation) GetSubscriberID() string {
+	return s.subscriberID
+}
+
+// GetSubscription ...
+func (s *BasicImplementation) GetSubscription() *subscription.Model {
+	return s.subscription
+}
+
 // CanConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
 func (s *BasicImplementation) CanConsumeMore() bool {
 	totalConsumedMsgsForTopic := 0
@@ -39,139 +49,87 @@ func (s *BasicImplementation) CanConsumeMore() bool {
 	return totalConsumedMsgsForTopic <= int(s.maxOutstandingMessages)
 }
 
-// cleans up all occurrences for a given msgId from the internal data-structures
-func (s *BasicImplementation) removeMessageFromMemory(ctx context.Context, stats *ConsumptionMetadata, msgID string) {
-	if stats == nil || msgID == "" {
+// Pull pulls message from the broker and publishes it into the response channel
+func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, responseChan chan *metrov1.PullResponse, errChan chan error) {
+	caseStartTime := time.Now()
+	defer func() {
+		subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
+	}()
+
+	if s.consumer == nil {
+		logger.Ctx(ctx).Errorw("subscriber: consumer is nil", "logFields", getLogFields(s))
 		return
 	}
 
-	start := time.Now()
-
-	delete(stats.consumedMessages, msgID)
-
-	// remove message from offsetBasedMinHeap
-	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[msgID]
-	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
-	delete(stats.offsetBasedMinHeap.MsgIDToIndexMapping, msgID)
-
-	// remove same message from deadlineBasedMinHeap
-	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
-	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
-	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
-
-	s.logInMemoryStats(ctx)
-
-	subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Dec()
-	subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
-}
-
-func (s *BasicImplementation) logInMemoryStats(ctx context.Context) {
-	st := make(map[string]interface{})
-
-	for tp, stats := range s.consumedMessageStats {
-		total := map[string]interface{}{
-			"offsetBasedMinHeap_size":            stats.offsetBasedMinHeap.Len(),
-			"deadlineBasedMinHeap_size":          stats.deadlineBasedMinHeap.Len(),
-			"consumedMessages_size":              len(stats.consumedMessages),
-			"evictedButNotCommittedOffsets_size": len(stats.evictedButNotCommittedOffsets),
-			"maxCommittedOffset":                 stats.maxCommittedOffset,
-		}
-		st[tp.String()] = total
+	messages, err := receiveMessages(ctx, s, s.consumer, req)
+	if err != nil {
+		notifyPullMessageError(ctx, s, err, responseChan, errChan)
+		return
 	}
-	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
-}
 
-// EvictUnackedMessagesPastDeadline evicts messages past ack deadline
-func (s *BasicImplementation) EvictUnackedMessagesPastDeadline(ctx context.Context, errChan chan error) {
-	logFields := getLogFields(s)
-	// do a deadline based eviction for all active topic-partition heaps
-	for _, metadata := range s.consumedMessageStats {
+	if len(messages) > 0 {
+		logFields := getLogFields(s)
+		logFields["messageCount"] = len(messages)
+		logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "logFields", logFields)
+	}
 
-		deadlineBasedHeap := metadata.deadlineBasedMinHeap
-		if deadlineBasedHeap.IsEmpty() {
+	sm := make([]*metrov1.ReceivedMessage, 0)
+	for _, msg := range messages {
+		protoMsg := &metrov1.PubsubMessage{}
+		err = proto.Unmarshal(msg.Data, protoMsg)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("subscriber: error in proto unmarshal", "logFields", getLogFields(s), "error", err.Error())
+			errChan <- err
 			continue
 		}
 
-		// peek deadline heap
-		peek := deadlineBasedHeap.Indices[0]
+		// set messageID and publish time
+		protoMsg.MessageId = msg.MessageID
+		ts := &timestamppb.Timestamp{}
+		ts.Seconds = msg.PublishTime.Unix()
+		protoMsg.PublishTime = ts
 
-		// check eligibility for eviction
-		if peek.HasHitDeadline() {
+		// store the processed r1 in a map for limit checks
+		tp := NewTopicPartition(msg.Topic, msg.Partition)
+		if _, ok := s.consumedMessageStats[tp]; !ok {
+			// init the stats data store before updating
+			s.consumedMessageStats[tp] = NewConsumptionMetadata()
 
-			msgID := peek.MsgID
-			if _, ok := metadata.consumedMessages[msgID]; !ok {
-				// check if message is present in-memory or not
+			// query and set the max committed offset for each topic partition
+			resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
+				Topic:     s.topic,
+				Partition: msg.Partition,
+			})
+
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriber: error in reading topic metadata", "logFields", getLogFields(s), "error", err.Error())
+				errChan <- err
 				continue
 			}
-			msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
-
-			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
-			// this way the message is eligible to be retried
-			retryMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
-
-			// cleanup message from memory only after a successful push to retry topic
-			s.removeMessageFromMemory(ctx, metadata, peek.MsgID)
-
-			logFields["messageId"] = peek.MsgID
-			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "logFields", logFields)
-			subscriberMessagesDeadlineEvicted.WithLabelValues(env, s.topic, s.subscription.Name).Inc()
+			s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
 		}
-	}
-}
 
-// ModAckDeadline modifies ack deadline
-func (s *BasicImplementation) ModAckDeadline(ctx context.Context, req *ModAckMessage, errChan chan error) {
-	if req == nil {
-		return
-	}
+		ackDeadline := time.Now().Add(minAckDeadline).Unix()
+		s.consumedMessageStats[tp].Store(msg, ackDeadline)
 
-	logFields := getLogFields(s)
-	logFields["messageId"] = req.AckMessage.MessageID
+		ackMessage, err := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("subscriber: error in creating AckMessage", "logFields", getLogFields(s), "error", err.Error())
+			errChan <- err
+			continue
+		}
+		ackID := ackMessage.BuildAckID()
+		sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
 
-	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "logFields", logFields)
-
-	tp := req.AckMessage.ToTopicPartition()
-	stats := s.consumedMessageStats[tp]
-
-	deadlineBasedHeap := stats.deadlineBasedMinHeap
-	if deadlineBasedHeap.IsEmpty() {
-		return
+		subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription.Name, s.subscriberID).Inc()
+		subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
+		subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 	}
 
-	msgID := req.AckMessage.MessageID
-	// check if message is present in-memory or not
-	if _, ok := stats.consumedMessages[msgID]; !ok {
-		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "logFields", logFields)
-		return
+	if len(sm) > 0 {
+		s.logInMemoryStats(ctx)
 	}
-
-	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
-
-	if req.ackDeadline == 0 {
-		// modAck with deadline = 0 means nack
-		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
-
-		// push to retry queue
-		retryMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
-
-		// cleanup message from memory
-		s.removeMessageFromMemory(ctx, stats, msgID)
-
-		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
-		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
-
-		return
-	}
-
-	// NOTE: currently we are not supporting non-zero mod ack. below code implementation is to handle that in future
-	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.AckMessage.MessageID]
-
-	// update the deadline of the identified message
-	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
-	heap.Init(&deadlineBasedHeap)
-
-	subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
-	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+	responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 }
 
 // Acknowledge acknowledges a message pulled for delivery
@@ -213,7 +171,7 @@ func (s *BasicImplementation) Acknowledge(ctx context.Context, req *AckMessage, 
 		logger.Ctx(ctx).Infow("subscriber: msg hit deadline", "logFields", logFields)
 
 		// push for retry
-		retryMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
+		retryAndCommitMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
 		s.removeMessageFromMemory(ctx, stats, req.MessageID)
 
 		return
@@ -299,107 +257,137 @@ func (s *BasicImplementation) Acknowledge(ctx context.Context, req *AckMessage, 
 	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 }
 
-// GetSubscriberID ...
-func (s *BasicImplementation) GetSubscriberID() string {
-	return s.subscriberID
-}
-
-// GetSubscription ...
-func (s *BasicImplementation) GetSubscription() *subscription.Model {
-	return s.subscription
-}
-
-// Pull pulls message from the broker and publishes it into the response channel
-func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, responseChan chan *metrov1.PullResponse, errChan chan error) {
-	caseStartTime := time.Now()
-	defer func() {
-		subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
-	}()
-
-	if s.consumer == nil {
-		logger.Ctx(ctx).Errorw("subscriber: consumer is nil", "logFields", getLogFields(s))
+// ModAckDeadline modifies ack deadline
+func (s *BasicImplementation) ModAckDeadline(ctx context.Context, req *ModAckMessage, errChan chan error) {
+	if req == nil {
 		return
 	}
 
-	messages, err := receiveMessages(ctx, s, s.consumer, req)
-	if err != nil {
-		notifyPullMessageError(ctx, s, err, responseChan, errChan)
+	logFields := getLogFields(s)
+	logFields["messageId"] = req.AckMessage.MessageID
+
+	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "logFields", logFields)
+
+	tp := req.AckMessage.ToTopicPartition()
+	stats := s.consumedMessageStats[tp]
+
+	deadlineBasedHeap := stats.deadlineBasedMinHeap
+	if deadlineBasedHeap.IsEmpty() {
 		return
 	}
 
-	if len(messages) > 0 {
-		logFields := getLogFields(s)
-		logFields["messageCount"] = len(messages)
-		logger.Ctx(ctx).Infow("subscriber: non-zero messages from topics", "logFields", logFields)
+	msgID := req.AckMessage.MessageID
+	// check if message is present in-memory or not
+	if _, ok := stats.consumedMessages[msgID]; !ok {
+		logger.Ctx(ctx).Infow("subscriber: skipping mod ack as message not found in-memory", "logFields", logFields)
+		return
 	}
 
-	sm := make([]*metrov1.ReceivedMessage, 0)
-	for _, msg := range messages {
-		protoMsg := &metrov1.PubsubMessage{}
-		err = proto.Unmarshal(msg.Data, protoMsg)
-		if err != nil {
-			logger.Ctx(ctx).Errorw("subscriber: error in proto unmarshal", "logFields", getLogFields(s), "error", err.Error())
-			errChan <- err
+	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+
+	if req.ackDeadline == 0 {
+		// modAck with deadline = 0 means nack
+		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
+
+		// push to retry queue
+		retryAndCommitMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
+
+		// cleanup message from memory
+		s.removeMessageFromMemory(ctx, stats, msgID)
+
+		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
+		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+
+		return
+	}
+
+	// NOTE: currently we are not supporting non-zero mod ack. below code implementation is to handle that in future
+	indexOfMsgInDeadlineBasedMinHeap := deadlineBasedHeap.MsgIDToIndexMapping[req.AckMessage.MessageID]
+
+	// update the deadline of the identified message
+	deadlineBasedHeap.Indices[indexOfMsgInDeadlineBasedMinHeap].AckDeadline = req.ackDeadline
+	heap.Init(&deadlineBasedHeap)
+
+	subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
+	subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+}
+
+// EvictUnackedMessagesPastDeadline evicts messages past ack deadline
+func (s *BasicImplementation) EvictUnackedMessagesPastDeadline(ctx context.Context, errChan chan error) {
+	logFields := getLogFields(s)
+	// do a deadline based eviction for all active topic-partition heaps
+	for _, metadata := range s.consumedMessageStats {
+
+		deadlineBasedHeap := metadata.deadlineBasedMinHeap
+		if deadlineBasedHeap.IsEmpty() {
 			continue
 		}
 
-		// set messageID and publish time
-		protoMsg.MessageId = msg.MessageID
-		ts := &timestamppb.Timestamp{}
-		ts.Seconds = msg.PublishTime.Unix()
-		protoMsg.PublishTime = ts
+		// peek deadline heap
+		peek := deadlineBasedHeap.Indices[0]
 
-		// store the processed r1 in a map for limit checks
-		tp := NewTopicPartition(msg.Topic, msg.Partition)
-		if _, ok := s.consumedMessageStats[tp]; !ok {
-			// init the stats data store before updating
-			s.consumedMessageStats[tp] = NewConsumptionMetadata()
+		// check eligibility for eviction
+		if peek.HasHitDeadline() {
 
-			// query and set the max committed offset for each topic partition
-			resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
-				Topic:     s.topic,
-				Partition: msg.Partition,
-			})
-
-			if err != nil {
-				logger.Ctx(ctx).Errorw("subscriber: error in reading topic metadata", "logFields", getLogFields(s), "error", err.Error())
-				errChan <- err
+			msgID := peek.MsgID
+			if _, ok := metadata.consumedMessages[msgID]; !ok {
+				// check if message is present in-memory or not
 				continue
 			}
-			s.consumedMessageStats[tp].maxCommittedOffset = resp.Offset
-		}
+			msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
-		ackDeadline := time.Now().Add(minAckDeadline).Unix()
-		s.consumedMessageStats[tp].Store(msg, ackDeadline)
+			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
+			// this way the message is eligible to be retried
+			retryAndCommitMessage(ctx, s, s.consumer, s.retrier, msg, errChan)
 
-		ackMessage, err := NewAckMessage(s.subscriberID, msg.Topic, msg.Partition, msg.Offset, int32(ackDeadline), msg.MessageID)
-		if err != nil {
-			logger.Ctx(ctx).Errorw("subscriber: error in creating AckMessage", "logFields", getLogFields(s), "error", err.Error())
-			errChan <- err
-			continue
-		}
-		ackID := ackMessage.BuildAckID()
-		// check if the subscription has any filter applied and check if the message satisfies it if any
-		if checkFilterCriteria(ctx, s, protoMsg) {
-			sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
-		} else {
-			// self acknowledging the message as it does not need to be delivered for this subscription
-			//
-			// Using subscriber's Acknowledge func instead of directly acking to consumer because of the following reason:
-			// Let there be 3 messages - Msg-1, Msg-2 and Msg-3. Msg-1 and Msg-3 satisfies the filter criteria while Msg-3 doesn't.
-			// If we directly ack Msg-2 using brokerStore consumer, in Kafka, new committed offset will be set to 2.
-			// Now if for some reason, delivery of Msg-1 fails, we will not be able to retry it as the broker's committed offset is already set to 2.
-			// To avoid this, subscriber Acknowledge is used which will wait for Msg-1 status before committing the offsets.
-			s.Acknowledge(ctx, ackMessage.(*AckMessage).WithContext(ctx), errChan)
-		}
+			// cleanup message from memory only after a successful push to retry topic
+			s.removeMessageFromMemory(ctx, metadata, peek.MsgID)
 
-		subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription.Name, s.subscriberID).Inc()
-		subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
-		subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+			logFields["messageId"] = peek.MsgID
+			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "logFields", logFields)
+			subscriberMessagesDeadlineEvicted.WithLabelValues(env, s.topic, s.subscription.Name).Inc()
+		}
+	}
+}
+
+// cleans up all occurrences for a given msgId from the internal data-structures
+func (s *BasicImplementation) removeMessageFromMemory(ctx context.Context, stats *ConsumptionMetadata, msgID string) {
+	if stats == nil || msgID == "" {
+		return
 	}
 
-	if len(sm) > 0 {
-		s.logInMemoryStats(ctx)
+	start := time.Now()
+
+	delete(stats.consumedMessages, msgID)
+
+	// remove message from offsetBasedMinHeap
+	indexOfMsgInOffsetBasedMinHeap := stats.offsetBasedMinHeap.MsgIDToIndexMapping[msgID]
+	msg := heap.Remove(&stats.offsetBasedMinHeap, indexOfMsgInOffsetBasedMinHeap).(*customheap.AckMessageWithOffset)
+	delete(stats.offsetBasedMinHeap.MsgIDToIndexMapping, msgID)
+
+	// remove same message from deadlineBasedMinHeap
+	indexOfMsgInDeadlineBasedMinHeap := stats.deadlineBasedMinHeap.MsgIDToIndexMapping[msg.MsgID]
+	heap.Remove(&stats.deadlineBasedMinHeap, indexOfMsgInDeadlineBasedMinHeap)
+	delete(stats.deadlineBasedMinHeap.MsgIDToIndexMapping, msgID)
+
+	s.logInMemoryStats(ctx)
+
+	subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Dec()
+	subscriberTimeTakenToRemoveMsgFromMemory.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
+}
+
+func (s *BasicImplementation) logInMemoryStats(ctx context.Context) {
+	st := make(map[string]interface{})
+
+	for tp, stats := range s.consumedMessageStats {
+		total := map[string]interface{}{
+			"offsetBasedMinHeap_size":            stats.offsetBasedMinHeap.Len(),
+			"deadlineBasedMinHeap_size":          stats.deadlineBasedMinHeap.Len(),
+			"consumedMessages_size":              len(stats.consumedMessages),
+			"evictedButNotCommittedOffsets_size": len(stats.evictedButNotCommittedOffsets),
+			"maxCommittedOffset":                 stats.maxCommittedOffset,
+		}
+		st[tp.String()] = total
 	}
-	responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
 }

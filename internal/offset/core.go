@@ -26,6 +26,11 @@ type ICore interface {
 	GetOffset(ctx context.Context, m *Model) (*Model, error)
 	DeleteOffset(ctx context.Context, m *Model) error
 	Exists(ctx context.Context, m *Model) (bool, error)
+
+	SetOffsetStatus(ctx context.Context, m *Status) error
+	OffsetStatusExists(ctx context.Context, m *Status) (bool, error)
+	GetOffsetStatus(ctx context.Context, m *Status) (*Status, error)
+	DeleteOffsetStatus(ctx context.Context, m *Status) error
 }
 
 // Core implements all business logic for offset
@@ -174,6 +179,88 @@ func (c *Core) DeleteOffset(ctx context.Context, m *Model) error {
 			return err
 		}
 		return merror.Newf(merror.NotFound, "offset not found %s", m.Key())
+	}
+
+	return c.repo.Delete(ctx, m)
+}
+
+// SetOffsetStatus sets an offset status
+func (c *Core) SetOffsetStatus(ctx context.Context, m *Status) error {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.SetOffsetStatus")
+	defer span.Finish()
+
+	offsetOperationCount.WithLabelValues(env, "SetOffsetStatus").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		offsetOperationTimeTaken.WithLabelValues(env, "SetOffsetStatus").Observe(time.Since(startTime).Seconds())
+	}()
+
+	return c.repo.Save(ctx, m)
+}
+
+// OffsetStatusExists to check if the offset status exists with fully qualified consul key
+func (c *Core) OffsetStatusExists(ctx context.Context, m *Status) (bool, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.OffsetStatusExists")
+	defer span.Finish()
+
+	offsetOperationCount.WithLabelValues(env, "OffsetStatusExists").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		offsetOperationTimeTaken.WithLabelValues(env, "OffsetStatusExists").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	logger.Ctx(ctx).Infow("exists query on offset status", "key", m.Key())
+	ok, err := c.repo.Exists(ctx, m.Key())
+	if err != nil {
+		logger.Ctx(ctx).Errorw("error in executing exists", "msg", err.Error())
+		return false, err
+	}
+	return ok, nil
+}
+
+// GetOffsetStatus returns offset with the given key
+func (c *Core) GetOffsetStatus(ctx context.Context, m *Status) (*Status, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "OffsetCore.GetOffsetStatus")
+	defer span.Finish()
+
+	offsetOperationCount.WithLabelValues(env, "GetOffsetStatus").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		offsetOperationTimeTaken.WithLabelValues(env, "GetOffsetStatus").Observe(time.Since(startTime).Seconds())
+	}()
+
+	prefix := m.Key()
+	logger.Ctx(ctx).Infow("fetching offset status", "key", prefix)
+	err := c.repo.Get(ctx, prefix, m)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("error fetching offset status", "key", m.Key(), "msg", err.Error())
+		return nil, err
+	}
+
+	return m, nil
+}
+
+// DeleteOffsetStatus deletes an offset status
+func (c *Core) DeleteOffsetStatus(ctx context.Context, m *Status) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ProjectCore.DeleteOffsetStatus")
+	defer span.Finish()
+
+	offsetOperationCount.WithLabelValues(env, "DeleteOffsetStatus").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		offsetOperationTimeTaken.WithLabelValues(env, "DeleteOffsetStatus").Observe(time.Since(startTime).Seconds())
+	}()
+
+	if ok, err := c.OffsetStatusExists(ctx, m); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.Newf(merror.NotFound, "offset status not found %s", m.Key())
 	}
 
 	return c.repo.Delete(ctx, m)

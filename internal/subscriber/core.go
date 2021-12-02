@@ -9,6 +9,7 @@ import (
 	"github.com/razorpay/metro/internal/subscriber/retry"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -70,6 +71,20 @@ func (c *Core) NewSubscriber(ctx context.Context,
 
 	var subImpl Implementation
 	if subscription.EnableMessageOrdering {
+		subImpl = &OrderedImplementation{
+			maxOutstandingMessages: maxOutstandingMessages,
+			maxOutstandingBytes:    maxOutstandingBytes,
+			topic:                  subscription.Topic,
+			subscriberID:           subscriberID,
+			consumer:               consumer,
+			offsetCore:             c.offsetCore,
+			retrier:                retrier,
+			ctx:                    subsCtx,
+			subscription:           subscription,
+			consumedMessageStats:   make(map[TopicPartition]*OrderedConsumptionMetadata),
+			pausedMessages:         make([]messagebroker.ReceivedMessage, 0),
+			sequenceManager:        NewOffsetSequenceManager(ctx, c.offsetCore),
+		}
 
 	} else {
 		subImpl = &BasicImplementation{

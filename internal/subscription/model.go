@@ -6,6 +6,7 @@ import (
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/topic"
+	filter "github.com/razorpay/metro/pkg/filtering"
 )
 
 const (
@@ -25,7 +26,8 @@ type Model struct {
 	Labels                         map[string]string `json:"labels,omitempty"`
 	EnableMessageOrdering          bool              `json:"enable_message_ordering,omitempty"`
 	ExpirationPolicy               *ExpirationPolicy `json:"expiration_policy,omitempty"`
-	Filter                         string            `json:"filter,omitempty"`
+	FilterExpression               string            `json:"filter,omitempty"`
+	filterStruct                   *Filter
 	RetryPolicy                    *RetryPolicy      `json:"retry_policy,omitempty"`
 	DeadLetterPolicy               *DeadLetterPolicy `json:"dead_letter_policy,omitempty"`
 	Detached                       bool              `json:"detached,omitempty"`
@@ -34,6 +36,9 @@ type Model struct {
 	ExtractedTopicName             string            `json:"extracted_topic_name"`
 	ExtractedSubscriptionName      string            `json:"extracted_subscription_name"`
 }
+
+// Filter defines the Filter criteria for messages
+type Filter = filter.Condition
 
 // PushConfig defines the push endpoint
 type PushConfig struct {
@@ -203,4 +208,18 @@ func (m *Model) GetDelayConsumerGroupID(delayTopic string) string {
 // GetDelayConsumerGroupInstanceID returns the consumer group ID to be used by the specific delay consumer
 func (m *Model) GetDelayConsumerGroupInstanceID(subscriberID, delayTopic string) string {
 	return fmt.Sprintf(delayConsumerGroupInstanceIDFormat, delayTopic, subscriberID)
+}
+
+// GetFilterExpressionAsStruct parses and returns the filter expression into GO Struct
+func (m *Model) GetFilterExpressionAsStruct() (*Filter, error) {
+	if m.filterStruct != nil {
+		return m.filterStruct, nil
+	}
+	f := &Filter{}
+	err := filter.Parser.ParseString("", m.FilterExpression, f)
+	if err != nil {
+		return nil, err
+	}
+	m.filterStruct = f
+	return f, nil
 }

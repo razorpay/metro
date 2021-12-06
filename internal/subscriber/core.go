@@ -85,7 +85,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 			pausedMessages:         make([]messagebroker.ReceivedMessage, 0),
 			sequenceManager:        NewOffsetSequenceManager(ctx, c.offsetCore),
 		}
-
+		logger.Ctx(ctx).Infow("subscriber: subscriber impl is ordered", "logFields", getLogFields(subImpl))
 	} else {
 		subImpl = &BasicImplementation{
 			maxOutstandingMessages: maxOutstandingMessages,
@@ -99,6 +99,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 			subscription:           subscription,
 			consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
 		}
+		logger.Ctx(ctx).Infow("subscriber: subscriber impl is basic", "logFields", getLogFields(subImpl))
 	}
 
 	s := &Subscriber{

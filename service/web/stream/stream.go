@@ -101,7 +101,7 @@ func (s *pullStream) run() error {
 
 			if parsedReq.HasModifyAcknowledgement() {
 				// request to mod ack messages
-				for _, modAckMsg := range parsedReq.AckMessages {
+				for _, modAckMsg := range parsedReq.ModAckMessages {
 					modAckReq := subscriber.NewModAckMessage(modAckMsg, parsedReq.ModifyDeadlineMsgIdsWithSecs[modAckMsg.MessageID])
 					modAckReq = modAckReq.WithContext(s.ctx)
 					s.subscriptionSubscriber.GetModAckChannel() <- modAckReq
@@ -130,7 +130,7 @@ func (s *pullStream) pull() {
 	defer span.Finish()
 	req := &subscriber.PullRequest{MaxNumOfMessages: DefaultNumMessagesToReadOffStream}
 	s.subscriptionSubscriber.GetRequestChannel() <- req.WithContext(ctx)
-	logger.Ctx(ctx).Debugw("stream: sending default pull request over stream", "req", req)
+	// logger.Ctx(ctx).Debugw("stream: sending default pull request over stream", "req", req)
 	select {
 	case res := <-s.subscriptionSubscriber.GetResponseChannel():
 		if len(res.ReceivedMessages) > 0 {

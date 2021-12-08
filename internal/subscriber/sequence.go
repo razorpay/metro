@@ -185,7 +185,7 @@ func (o *offsetSequenceManager) GetOrderedSequenceNum(ctx context.Context, sub *
 		// If first message in order group
 		s := &sequencePair{
 			CurrentSequenceNum: message.Offset,
-			PrevSequenceNum:    message.Offset,
+			PrevSequenceNum:    -1,
 		}
 		o.offsetMap[m.OrderingKey] = s.CurrentSequenceNum
 		return s, nil
@@ -204,7 +204,7 @@ func (o *offsetSequenceManager) GetOrderedSequenceNum(ctx context.Context, sub *
 		// for cases where offset was recorded but not committed to topic
 		s = &sequencePair{
 			CurrentSequenceNum: message.Offset,
-			PrevSequenceNum:    message.Offset,
+			PrevSequenceNum:    -1,
 		}
 		logger.Ctx(ctx).Warn(
 			"sequenceManager: message with offset lower than recorded offset has appeared",

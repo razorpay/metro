@@ -105,6 +105,8 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		InitialDelayInterval: msg.InitialDelayInterval,
 		CurrentDelayInterval: uint(nextDelayInterval),
 		ClosestDelayInterval: uint(dInterval),
+		CurrentSequence:      msg.CurrentSequence,
+		PrevSequence:         msg.PrevSequence,
 	}
 
 	// new broker message

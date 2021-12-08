@@ -3,6 +3,7 @@ package subscriber
 import (
 	"container/heap"
 	"context"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -76,18 +77,19 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 	}
 
 	// Assign sequence numbers to messages
-	for _, message := range messages {
-		if message.Topic == s.topic && message.RequiresOrdering() { // only for messages from primary topic that have an ordering key
+	for i := range messages {
+		message := messages[i]
+		if s.isPrimaryTopic(message.Topic) && message.RequiresOrdering() { // only for messages from primary topic that have an ordering key
 			seq, err := s.sequenceManager.GetOrderedSequenceNum(ctx, s.subscription, message)
 			if err != nil {
 				notifyPullMessageError(ctx, s, err, responseChan, errChan)
 				return
 			}
-			message.CurrentSequence, message.PrevSequence = seq.CurrentSequenceNum, seq.PrevSequenceNum
+			messages[i].CurrentSequence, messages[i].PrevSequence = seq.CurrentSequenceNum, seq.PrevSequenceNum
 		}
 	}
 
-	if !(s.consumer.IsPaused(ctx) && s.consumer.IsPrimaryPaused(ctx)) && len(s.pausedMessages) > 0 {
+	if !(s.consumer.IsPaused(ctx) || s.consumer.IsPrimaryPaused(ctx)) && len(s.pausedMessages) > 0 {
 		// if consumer is not paused, pop the paused messages and append it to the begining of the message list
 		// clear the paused message list
 		logger.Ctx(ctx).Infow("subscriber: resuming messages that were paused", "logFields", getLogFields(s), "count", len(s.pausedMessages))
@@ -318,7 +320,7 @@ func (s *OrderedImplementation) filterMessagesForOrdering(ctx context.Context, m
 	filteredMessages := make([]messagebroker.ReceivedMessage, 0)
 
 	for _, message := range messages {
-		if message.Topic == s.topic {
+		if s.isPrimaryTopic(message.Topic) {
 			primaryTopicMessages = append(primaryTopicMessages, message)
 			if _, exists := orderingKeyPartitionMap[message.OrderingKey]; !exists && message.RequiresOrdering() {
 				orderingKeyPartitionMap[message.OrderingKey] = message.Partition
@@ -415,8 +417,6 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 	logFields := getLogFields(s)
 	logFields["topic-parition"] = tp
 
-	logger.Ctx(ctx).Infow("subscriber: evicting messages from memory", "logFields", logFields)
-
 	cm := s.consumedMessageStats[tp]
 	if cm == nil {
 		logger.Ctx(ctx).Infow("subscriber: consumption metadata not found for topic-partition", "logFields", logFields)
@@ -430,7 +430,6 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 		peek := cm.offsetBasedMinHeap.Indices[i]
 		_, ok := cm.offsetStatusMap[peek.Offset]
 		if !ok {
-			logger.Ctx(ctx).Infow("subscriber: waiting for ack/nack of previous offset", "logFields", logFields, "peekOffset", peek.Offset)
 			break
 		}
 		logger.Ctx(ctx).Infow("subscriber: ack/nack for offset received", "logFields", logFields, "offset", peek.Offset)
@@ -466,17 +465,10 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 		msg := cm.consumedMessages[offset.MsgID].(messagebroker.ReceivedMessage)
 
 		if msg.RequiresOrdering() {
-			if keyStatus, ok := keyStatusMap[msg.OrderingKey]; !ok { // status not recorded. consider this the first message in order
-				status := sequenceSuccess
-				if msgStatus == offsetStatusRetry {
-					status = sequenceFailure
-					if msg.CurrentRetryCount+1 >= msg.MaxRetryCount {
-						status = sequenceDLQ
-					}
-				}
+			if keyStatus := keyStatusMap[msg.OrderingKey]; keyStatus == nil { // status not recorded. consider this the first message in order
 				keyStatusMap[msg.OrderingKey] = &lastSequenceStatus{
 					SequenceNum: msg.CurrentSequence,
-					Status:      status,
+					Status:      s.offsetStatusToSequenceStatus(msgStatus, msg.CurrentRetryCount),
 				}
 			} else {
 				if keyStatus.Status == sequenceFailure && keyStatus.SequenceNum <= msg.PrevSequence {
@@ -493,15 +485,8 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 					)
 				} else {
 					// update the ordering status with current message status
-					status := sequenceSuccess
-					if msgStatus == offsetStatusRetry {
-						status = sequenceFailure
-						if msg.CurrentRetryCount+1 >= msg.MaxRetryCount {
-							status = sequenceDLQ
-						}
-					}
 					keyStatus.SequenceNum = msg.CurrentSequence
-					keyStatus.Status = status
+					keyStatus.Status = s.offsetStatusToSequenceStatus(msgStatus, msg.CurrentRetryCount)
 				}
 			}
 
@@ -516,13 +501,18 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 	for i := 0; i < len(offsetsToCommit); i++ {
 		status := msgStatuses[i]
 		msg := cm.consumedMessages[offsetsToCommit[i].MsgID].(messagebroker.ReceivedMessage)
+		seqStatus := s.offsetStatusToSequenceStatus(status, msg.CurrentRetryCount)
 		if status == offsetStatusRetry {
 			if err := retryMessage(ctx, s, s.consumer, s.retrier, msg); err != nil {
 				return err
 			}
-		} else if len(s.pausedMessages) > 0 &&
+		}
+		if (seqStatus == sequenceSuccess || seqStatus == sequenceDLQ) &&
+			len(s.pausedMessages) > 0 &&
 			s.pausedMessages[0].OrderingKey == msg.OrderingKey &&
 			msg.CurrentSequence >= s.pausedMessages[0].PrevSequence {
+			// if current messages is successful or pushed to DLQ, and there is a paused message
+			// that is next in sequence of the current message, unpause primary consumer.
 			logger.Ctx(ctx).Infow(
 				"subscriber: resuming primary consumer",
 				"logFields", getLogFields(s),
@@ -540,7 +530,7 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 
 	}
 
-	if tp.topic == s.topic {
+	if s.isPrimaryTopic(tp.topic) {
 		if err = s.updateOrderingKeySequence(ctx, tp.partition, maxSequenceNums); err != nil {
 			logger.Ctx(ctx).Errorw(
 				"subscriber: could not update sequence offset",
@@ -621,4 +611,20 @@ func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
 		st[tp.String()] = total
 	}
 	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
+}
+
+func (s *OrderedImplementation) isPrimaryTopic(topic string) bool {
+	brokerTopic := strings.ReplaceAll(s.topic, "/", "_")
+	return brokerTopic == topic
+}
+
+func (s *OrderedImplementation) offsetStatusToSequenceStatus(os offsetStatus, retryCount int32) sequenceStatus {
+	status := sequenceSuccess
+	if os == offsetStatusRetry {
+		status = sequenceFailure
+		if retryCount+1 >= s.subscription.DeadLetterPolicy.MaxDeliveryAttempts {
+			status = sequenceDLQ
+		}
+	}
+	return status
 }

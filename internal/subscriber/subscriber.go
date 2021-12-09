@@ -571,8 +571,8 @@ func (s *Subscriber) pull(req *PullRequest) {
 				continue
 			}
 			ackID := ackMessage.BuildAckID()
-			// check if the subscription has any filter applied and check if the message satisfies it if any
 
+			// check if the subscription has any filter applied and check if the message satisfies it if any
 			if s.checkFilterCriteria(ctx, protoMsg) {
 				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
 			} else {
@@ -592,6 +592,7 @@ func (s *Subscriber) pull(req *PullRequest) {
 	}()
 }
 
+// checks if the message satisfies filter criteria(if any) for the subscription
 func (s *Subscriber) checkFilterCriteria(ctx context.Context, protoMsg *metrov1.PubsubMessage) bool {
 	if s.subscription.FilterExpression != "" {
 		subFilter, err := s.subscription.GetFilterExpressionAsStruct()

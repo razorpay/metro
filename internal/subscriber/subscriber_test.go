@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -164,7 +163,7 @@ func TestSubscriber_Pull_Filtering(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		respChan := make(chan *metrov1.PullResponse)
+		respChan := make(chan *metrov1.PullResponse, 1)
 		mockConsumer := messageBrokerMocks.NewMockConsumer(ctrl)
 		mockOffsetCore := offsetMocks.NewMockICore(ctrl)
 		mockConsumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).Return(brokerResp, nil)
@@ -192,12 +191,11 @@ func TestSubscriber_Pull_Filtering(t *testing.T) {
 			ctx:              ctx,
 			MaxNumOfMessages: 10,
 		}
-		go s.pull(request)
-		select {
-		case data := <-respChan:
-			assert.Equal(t, len(data.ReceivedMessages), test.expectedNumOfMsgs)
-		case <-time.After(2 * time.Second):
-			fmt.Println("Timeout")
-		}
+		s.pull(request)
+
+		assert.Equal(t, len(respChan), 1)
+
+		data := <-respChan
+		assert.Equal(t, len(data.ReceivedMessages), test.expectedNumOfMsgs)
 	}
 }

@@ -573,30 +573,7 @@ func (s *Subscriber) pull(req *PullRequest) {
 			ackID := ackMessage.BuildAckID()
 			// check if the subscription has any filter applied and check if the message satisfies it if any
 
-			isElligible := true
-
-			if s.subscription.FilterExpression != "" {
-				subFilter, err := s.subscription.GetFilterExpressionAsStruct()
-
-				if err != nil {
-					logger.Ctx(ctx).Errorw("subscriber: error in getting filter expression as a struct", "filter expression", s.subscription.FilterExpression,
-						"logfields", s.getLogFields(), "error", err.Error())
-				} else {
-					res, err := subFilter.Evaluate(protoMsg.Attributes)
-					if err != nil {
-						logger.Ctx(ctx).Errorw("subscriber: error occurred during filter evaluation", "filter expression", s.subscription.FilterExpression,
-							"logfields", s.getLogFields(), "error", err.Error())
-					} else {
-						if !res {
-							logger.Ctx(ctx).Infow("subscriber: Message didn't satisfy the filter criteria", "messageID", protoMsg.MessageId, "filter expression", s.subscription.FilterExpression,
-								"logfields", s.getLogFields())
-							isElligible = false
-						}
-					}
-				}
-			}
-
-			if isElligible {
+			if s.checkFilterCriteria(ctx, protoMsg) {
 				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
 			} else {
 				// self acknowledging the message as it does not need to be delivered for this subscription
@@ -613,6 +590,30 @@ func (s *Subscriber) pull(req *PullRequest) {
 		}
 		s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 	}()
+}
+
+func (s *Subscriber) checkFilterCriteria(ctx context.Context, protoMsg *metrov1.PubsubMessage) bool {
+	if s.subscription.FilterExpression != "" {
+		subFilter, err := s.subscription.GetFilterExpressionAsStruct()
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("subscriber: error in getting filter expression as a struct", "filter expression", s.subscription.FilterExpression,
+				"logfields", s.getLogFields(), "error", err.Error())
+		} else {
+			res, err := subFilter.Evaluate(protoMsg.Attributes)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriber: error occurred during filter evaluation", "filter expression", s.subscription.FilterExpression,
+					"logfields", s.getLogFields(), "error", err.Error())
+			} else {
+				if !res {
+					logger.Ctx(ctx).Infow("subscriber: Message didn't satisfy the filter criteria", "messageID", protoMsg.MessageId, "filter expression", s.subscription.FilterExpression,
+						"logfields", s.getLogFields())
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func (s *Subscriber) logInMemoryStats(ctx context.Context) {

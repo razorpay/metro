@@ -10,7 +10,7 @@ initialize()
       return
     fi
 
-    export METRO_CONSUMEPLANE_ORDINAL_ID=${HOSTNAME##*-}
+    export METRO_CONSUMEPLANE_ORDINALID=${HOSTNAME##*-}
 
     mkdir -p /app/configs
     touch /app/configs/ca-cert.pem

@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package messagebroker
@@ -35,7 +36,7 @@ func Test_CreateValidTopic(t *testing.T) {
 		Topics:  []string{topic},
 		GroupID: "dummy-group-2",
 	})
-	metadata, merr := consumer1.GetTopicMetadata(context.Background(), messagebroker.GetTopicMetadataRequest{Topic: topic})
+	metadata, merr := consumer1.GetTopicPartitionMetadata(context.Background(), messagebroker.GetTopicPartitionMetadataRequest{Topic: topic})
 
 	assert.Nil(t, merr)
 	assert.NotNil(t, metadata)

@@ -15,12 +15,14 @@ import (
 	"github.com/razorpay/metro/internal/subscriber/customheap"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/utils"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 // PullRequest ...
 type PullRequest struct {
 	ctx              context.Context
 	MaxNumOfMessages int32
+	RespChan         chan *metrov1.PullResponse
 }
 
 // WithContext can be used to set the current context to the request

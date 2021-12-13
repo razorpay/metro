@@ -45,10 +45,15 @@ type ConsumerConfig struct {
 // AdminConfig holds configuration for admin APIs
 type AdminConfig struct{}
 
+type TopicPartition struct {
+	Topic     string
+	Partition int
+}
+
 // ConsumerClientOptions holds client specific configuration for consumer
 type ConsumerClientOptions struct {
 	// Specify a list of topics to consume messages from
-	Topics []string
+	Topics []TopicPartition
 	// Specify the subscription name for this consumer. Only used for pulsar
 	Subscription string
 	// A unique string that identifies the consumer group this consumer belongs to.

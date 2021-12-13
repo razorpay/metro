@@ -44,6 +44,7 @@ type Subscriber struct {
 	subscription           *subscription.Model
 	topic                  string
 	subscriberID           string
+	partition              int
 	subscriptionCore       subscription.ICore
 	offsetCore             offset.ICore
 	requestChan            chan *PullRequest
@@ -63,6 +64,12 @@ type Subscriber struct {
 	ctx                    context.Context
 	bs                     brokerstore.IBrokerStore
 	retrier                retry.IRetrier
+}
+
+type OpinionatedSubscriber struct {
+	Subscriber
+	partition    int
+	computedHash int
 }
 
 // canConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
@@ -513,7 +520,11 @@ func (s *Subscriber) pull(req *PullRequest) {
 			// Write empty data on the response channel in case of error, this is needed because sender blocks
 			// on the response channel in a goroutine after sending request, error channel is not read until
 			// response channel blocking call returns
-			s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+			if req.RespChan != nil {
+				req.RespChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+			} else {
+				s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+			}
 
 			// send error details via error channel
 			s.errChan <- err
@@ -548,7 +559,7 @@ func (s *Subscriber) pull(req *PullRequest) {
 				s.consumedMessageStats[tp] = NewConsumptionMetadata()
 
 				// query and set the max committed offset for each topic partition
-				resp, err := s.consumer.GetTopicMetadata(ctx, messagebroker.GetTopicMetadataRequest{
+				resp, err := s.consumer.GetTopicPartitionMetadata(ctx, messagebroker.GetTopicPartitionMetadataRequest{
 					Topic:     s.topic,
 					Partition: msg.Partition,
 				})
@@ -581,7 +592,12 @@ func (s *Subscriber) pull(req *PullRequest) {
 		if len(sm) > 0 {
 			s.logInMemoryStats(ctx)
 		}
-		s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+		if req.RespChan != nil {
+			req.RespChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+		} else {
+			s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+		}
+
 	}()
 }
 

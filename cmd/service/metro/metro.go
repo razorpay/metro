@@ -21,9 +21,11 @@ const (
 	Worker = "worker"
 	// OpenAPIServer to server swagger docs
 	OpenAPIServer = "openapi-server"
+	// ConsumePlane component serves as a broker interface
+	ConsumePlane = "consume-plane"
 )
 
-var validComponents = []string{Web, Worker, OpenAPIServer}
+var validComponents = []string{Web, Worker, OpenAPIServer, ConsumePlane}
 var component *Component
 
 // isValidComponent validates if the input component is a valid metro component

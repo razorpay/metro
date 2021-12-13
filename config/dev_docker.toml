@@ -28,6 +28,21 @@
             HttpServerAddress               = "0.0.0.0:8082"
             InternalHttpServerAddress       = "0.0.0.0:9000"
 
+[consumePlane]
+    replicaCount          = 1
+    ordinalId             = 0
+    [consumePlane.broker]
+        variant               = "kafka"
+        [consumePlane.broker.brokerconfig]
+            brokers       = ["localhost:9092"]
+            enableTLS     = false
+            [consumePlane.broker.brokerconfig.consumePlane]
+    [consumePlane.interfaces]
+        [consumePlane.interfaces.api]
+            GrpcServerAddress               = "0.0.0.0:8085"
+            HttpServerAddress               = "0.0.0.0:8086"
+            InternalHttpServerAddress       = "0.0.0.0:9003"
+            
 [worker]
     [worker.broker]
         variant               = "kafka"

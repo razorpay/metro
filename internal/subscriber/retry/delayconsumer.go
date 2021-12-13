@@ -15,6 +15,7 @@ type DelayConsumer struct {
 	ctx          context.Context
 	cancelFunc   func()
 	doneCh       chan struct{}
+	cleanupCh    chan struct{}
 	subs         *subscription.Model
 	topic        string
 	isPaused     bool
@@ -32,7 +33,11 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
 	consumerOps := messagebroker.ConsumerClientOptions{
-		Topics:          []string{topic},
+		Topics: []messagebroker.TopicPartition{
+			{
+				Topic: topic,
+			},
+		},
 		GroupID:         subs.GetDelayConsumerGroupID(topic),
 		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topic),
 	}
@@ -71,7 +76,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
 			dc.consumer.Close(dc.ctx)
 			return
-		default:
+		case <-dc.doneCh:
 			resp, err := dc.consumer.ReceiveMessages(dc.ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
 			if err != nil {
 				if !messagebroker.IsErrorRecoverable(err) {
@@ -87,6 +92,27 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			}
 
 			dc.processMsgs()
+		}
+	}
+}
+
+// Run spawns the delay-consumer
+func (dc *DelayConsumer) SetupWatch(ctx context.Context) {
+	defer close(dc.doneCh)
+
+	logger.Ctx(ctx).Infow("delay-consumer: running", dc.LogFields()...)
+	for {
+		select {
+		case <-dc.ctx.Done():
+			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.LogFields()...)
+			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
+			dc.consumer.Close(dc.ctx)
+			return
+		case <-dc.cleanupCh:
+			logger.Ctx(dc.ctx).Infow("delay-consumer: cleanup task on subscription", dc.LogFields()...)
+			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
+			dc.consumer.Close(dc.ctx)
+			return
 		}
 	}
 }

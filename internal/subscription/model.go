@@ -19,6 +19,7 @@ type Model struct {
 	Name                           string            `json:"name,omitempty"`
 	Topic                          string            `json:"topic,omitempty"`
 	PushConfig                     *PushConfig       `json:"push_config,omitempty"`
+	Partition                      int               `json:partition`
 	AckDeadlineSeconds             int32             `json:"ack_deadline_seconds,omitempty"`
 	RetainAckedMessages            bool              `json:"retain_acked_messages,omitempty"`
 	MessageRetentionDuration       uint              `json:"message_retention_duration,omitempty"`

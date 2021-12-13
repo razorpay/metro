@@ -50,8 +50,13 @@ func newPulsarConsumerClient(_ context.Context, bConfig *BrokerConfig, options *
 		return nil, err
 	}
 
+	topics := make([]string, 0)
+
+	for _, tp := range options.Topics {
+		topics = append(topics, tp.Topic)
+	}
 	c, err := client.Subscribe(pulsar.ConsumerOptions{
-		Topics:           options.Topics,
+		Topics:           topics,
 		SubscriptionName: options.Subscription,
 		Type:             pulsar.SubscriptionType(bConfig.Consumer.SubscriptionType),
 		Name:             options.GroupInstanceID,
@@ -253,26 +258,32 @@ func (p *PulsarBroker) CommitByMsgID(ctx context.Context, request CommitOnTopicR
 	return CommitOnTopicResponse{}, nil
 }
 
-// GetTopicMetadata ...
-func (p *PulsarBroker) GetTopicMetadata(ctx context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
-	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "GetTopicMetadata").Inc()
+// ListTopics ...
+func (p *PulsarBroker) ListTopics(ctx context.Context) (ListTopicsResponse, error) {
+	// TODO: Implement ListTopics
+	return ListTopicsResponse{}, nil
+}
+
+// GetTopicPartitionMetadata ...
+func (p *PulsarBroker) GetTopicPartitionMetadata(ctx context.Context, request GetTopicPartitionMetadataRequest) (GetTopicPartitionMetadataResponse, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "GetTopicPartitionMetadata").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "GetTopicMetadata").Observe(time.Now().Sub(startTime).Seconds())
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Pulsar, "GetTopicPartitionMetadata").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
 	pulsarTopic, terr := utils.GetTopicName(request.Topic)
 	if terr != nil {
-		return GetTopicMetadataResponse{}, terr
+		return GetTopicPartitionMetadataResponse{}, terr
 	}
 
 	stats, err := p.Admin.Topics().GetInternalStats(*pulsarTopic)
 	if err != nil {
-		return GetTopicMetadataResponse{}, err
+		return GetTopicPartitionMetadataResponse{}, err
 	}
 
-	return GetTopicMetadataResponse{
+	return GetTopicPartitionMetadataResponse{
 		Topic:  request.Topic,
 		Offset: int32(stats.Cursors[request.Topic].MessagesConsumedCounter),
 	}, nil

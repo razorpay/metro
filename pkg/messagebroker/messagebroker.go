@@ -51,8 +51,11 @@ type Consumer interface {
 	// CommitByMsgID Commits a message by ID
 	CommitByMsgID(context.Context, CommitOnTopicRequest) (CommitOnTopicResponse, error)
 
-	// GetTopicMetadata gets the topic metadata
-	GetTopicMetadata(context.Context, GetTopicMetadataRequest) (GetTopicMetadataResponse, error)
+	// GetTopicPartitionMetadata gets the topic metadata
+	GetTopicPartitionMetadata(context.Context, GetTopicPartitionMetadataRequest) (GetTopicPartitionMetadataResponse, error)
+
+	// ListTopics fetches metadata for all topics
+	ListTopics(context.Context) (ListTopicsResponse, error)
 
 	// Pause pause the consumer
 	Pause(context.Context, PauseOnTopicRequest) error

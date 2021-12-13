@@ -895,3 +895,74 @@ message PushEndpointRequest {
     // Optional. The number of attempts made to deliver this message.
     uint32 delivery_attempt = 3 [(google.api.field_behavior) = OPTIONAL];
 }
+
+// Request for the `Fetch` method.
+message FetchRequest {
+    // Required. The subscription from which messages should be pulled.
+    // Format is `projects/{project}/subscriptions/{sub}`.
+    string subscription = 1 [(google.api.field_behavior) = REQUIRED];
+
+    // Required. The partition number from where the messages need to be fetched for this request. Must
+    // be a positive integer.
+    int32 partition = 2 [(google.api.field_behavior) = REQUIRED];
+
+    // Required. The maximum number of messages to return for this request. Must
+    // be a positive integer. The Pub/Sub system may return fewer than the number
+    // specified.
+    int32 max_messages = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+service ConsumePlane {
+
+    // Fetch messages from the broker. The server may return `UNAVAILABLE` if
+    // there are too many concurrent pull requests pending for the given
+    // subscription.
+    rpc Fetch(FetchRequest) returns (PullResponse) {
+        option (google.api.http) = {
+            post: "/v1/{subscription=projects/*/subscriptions/*}:fetch"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Pull messages"
+            description: "Pull messages for a subscription"
+            tags: "Subscriptions"
+        };
+    }
+
+    // Acknowledges the messages associated with the `ack_ids` in the
+    // `AcknowledgeRequest`. The Pub/Sub system can remove the relevant messages
+    // from the subscription.
+    //
+    // Acknowledging a message whose ack deadline has expired may succeed,
+    // but such a message may be redelivered later. Acknowledging a message more
+    // than once will not result in an error.
+    rpc Acknowledge(AcknowledgeRequest) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            post: "/v1/{subscription=projects/*/subscriptions/*}:acknowledge"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Acknowledge messages"
+            description: "Acknowledge messages associated with ack_ids"
+            tags: "Subscriptions"
+        };
+    }
+
+    // Modifies the ack deadline for a specific message. This method is useful
+    // to indicate that more time is needed to process a message by the
+    // subscriber, or to make the message available for redelivery if the
+    // processing was interrupted. Note that this does not modify the
+    // subscription-level `ackDeadlineSeconds` used for subsequent messages.
+    rpc ModifyAckDeadline(ModifyAckDeadlineRequest) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            post: "/v1/{subscription=projects/*/subscriptions/*}:modifyAckDeadline"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Modify Ack Deadline"
+            description: "Modify Ack Deadline"
+            tags: "Subscriptions"
+        };
+    }
+
+}

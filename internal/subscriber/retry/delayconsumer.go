@@ -18,6 +18,7 @@ type DelayConsumer struct {
 	cleanupCh    chan struct{}
 	subs         *subscription.Model
 	topic        string
+	partition    int
 	isPaused     bool
 	consumer     messagebroker.Consumer
 	bs           brokerstore.IBrokerStore
@@ -28,7 +29,7 @@ type DelayConsumer struct {
 }
 
 // NewDelayConsumer inits a new delay-consumer with the pre-defined message handler
-func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler) (*DelayConsumer, error) {
+func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, partition int, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler) (*DelayConsumer, error) {
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
@@ -38,7 +39,7 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 				Topic: topic,
 			},
 		},
-		GroupID:         subs.GetDelayConsumerGroupID(topic),
+		GroupID:         subs.GetDelayConsumerGroupID(topic, partition),
 		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topic),
 	}
 	consumer, err := bs.GetConsumer(ctx, consumerOps)
@@ -55,6 +56,7 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 		ctx:          delayCtx,
 		cancelFunc:   cancel,
 		topic:        topic,
+		partition:    partition,
 		consumer:     consumer,
 		subs:         subs,
 		bs:           bs,
@@ -73,7 +75,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 		select {
 		case <-dc.ctx.Done():
 			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.LogFields()...)
-			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
+			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic, dc.partition), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
 			dc.consumer.Close(dc.ctx)
 			return
 		case <-dc.doneCh:
@@ -105,12 +107,12 @@ func (dc *DelayConsumer) SetupWatch(ctx context.Context) {
 		select {
 		case <-dc.ctx.Done():
 			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.LogFields()...)
-			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
+			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic, dc.partition), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
 			dc.consumer.Close(dc.ctx)
 			return
 		case <-dc.cleanupCh:
 			logger.Ctx(dc.ctx).Infow("delay-consumer: cleanup task on subscription", dc.LogFields()...)
-			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
+			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic, dc.partition), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
 			dc.consumer.Close(dc.ctx)
 			return
 		}
@@ -173,13 +175,19 @@ func (dc *DelayConsumer) processMsgs() {
 					return
 				}
 			} else {
-				// submit to
-				logger.Ctx(dc.ctx).Infow("delay-consumer: processing message", dc.LogFields("messageID", msg.MessageID)...)
-				err := dc.handler.Do(dc.ctx, msg)
-				if err != nil {
-					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in msg handler",
-						dc.LogFields("messageID", msg.MessageID, "error", err.Error())...)
-					return
+				// Only process message if it belongs to the partition that the current subscriber handles
+				// Since the consumer group ID is unique for each subscrption-partition consumer,
+				// messages that do not confirm to the current partition will be handled
+				// by the delay consumer in the corresponding subscription-partition delay consumer
+				if int(msg.Partition) == dc.partition {
+					// submit to delay consumer handler
+					logger.Ctx(dc.ctx).Infow("delay-consumer: processing message", dc.LogFields("messageID", msg.MessageID)...)
+					err := dc.handler.Do(dc.ctx, msg)
+					if err != nil {
+						logger.Ctx(dc.ctx).Errorw("delay-consumer: error in msg handler",
+							dc.LogFields("messageID", msg.MessageID, "error", err.Error())...)
+						return
+					}
 				}
 			}
 
@@ -219,7 +227,7 @@ func (dc *DelayConsumer) LogFields(kv ...interface{}) []interface{} {
 	fields := []interface{}{
 		"delayConsumerConfig", map[string]interface{}{
 			"topic":           dc.topic,
-			"groupID":         dc.subs.GetDelayConsumerGroupID(dc.topic),
+			"groupID":         dc.subs.GetDelayConsumerGroupID(dc.topic, dc.partition),
 			"groupInstanceID": dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic),
 		},
 	}

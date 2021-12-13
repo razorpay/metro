@@ -6,8 +6,8 @@ const delayTopicNameFormat = "%v.delay.%v.seconds"
 // projects/p1/topics/subs.delay.30.seconds
 const delayTopicWithProjectNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
 
-// subs.delay.30.seconds-cg
-const delayConsumerGroupIDFormat = "%v-cg"
+// subs.delay.30.seconds-0-cg
+const delayConsumerGroupIDFormat = "%v-%d-cg"
 
 // delayTopicName-subscriberID
 const delayConsumerGroupInstanceIDFormat = "%v-%v"

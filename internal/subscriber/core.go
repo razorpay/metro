@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -122,7 +123,7 @@ func (c *Core) NewOpinionatedSubscriber(ctx context.Context,
 	ackCh chan *AckMessage,
 	modAckCh chan *ModAckMessage) (ISubscriber, error) {
 
-	groupID := subscription.Name
+	groupID := subscription.Name + "-" + strconv.Itoa(partition)
 
 	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []messagebroker.TopicPartition{
 		{
@@ -152,6 +153,7 @@ func (c *Core) NewOpinionatedSubscriber(ctx context.Context,
 			WithIntervalFinder(retry.NewClosestIntervalWithCeil()).
 			WithMessageHandler(retry.NewPushToPrimaryRetryTopicHandler(c.bs)).
 			WithSubscriberID(subscriberID).
+			WithPartition(partition).
 			Build()
 
 		err = retrier.Start(subsCtx)

@@ -41,8 +41,8 @@
             [consumePlane.broker.brokerconfig.consumePlane]
     [consumePlane.interfaces]
         [consumePlane.interfaces.api]
-            GrpcServerAddress               = "0.0.0.0:8085"
-            HttpServerAddress               = "0.0.0.0:8086"
+            GrpcServerAddress               = "0.0.0.0:8088"
+            HttpServerAddress               = "0.0.0.0:8089"
             InternalHttpServerAddress       = "0.0.0.0:9003"
 
 [worker]

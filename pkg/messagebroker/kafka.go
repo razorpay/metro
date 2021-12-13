@@ -39,9 +39,14 @@ type KafkaBroker struct {
 // newKafkaConsumerClient returns a kafka consumer
 func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 
-	normalizedTopics := make([]string, 0)
-	for _, topic := range options.Topics {
-		normalizedTopics = append(normalizedTopics, normalizeTopicName(topic.Topic))
+	normalizedTopics := make([]kafkapkg.TopicPartition, 0)
+	for i := range options.Topics {
+		brokerTopicName := normalizeTopicName(options.Topics[i].Topic)
+		kfkTp := kafkapkg.TopicPartition{
+			Topic:     &brokerTopicName,
+			Partition: int32(options.Topics[i].Partition),
+		}
+		normalizedTopics = append(normalizedTopics, kfkTp)
 	}
 
 	err := validateKafkaConsumerBrokerConfig(bConfig)
@@ -83,7 +88,10 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
-	c.SubscribeTopics(normalizedTopics, nil)
+	err = c.Assign(normalizedTopics)
+	if err != nil {
+		return nil, err
+	}
 
 	logger.Ctx(ctx).Infow("kafka consumer: initialized", "options", options)
 

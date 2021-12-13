@@ -20,7 +20,6 @@ import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 )
 
 // Service for producer

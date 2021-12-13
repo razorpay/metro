@@ -3,6 +3,7 @@ package subscriber
 import (
 	"container/heap"
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -593,7 +594,11 @@ func (s *Subscriber) pull(req *PullRequest) {
 			s.logInMemoryStats(ctx)
 		}
 		if req.RespChan != nil {
-			req.RespChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+			if req.ctx.Err() != nil && errors.Is(req.ctx.Err(), context.Canceled) {
+				// Request has been terminated, do not respond on the RespChan
+			} else {
+				req.RespChan <- &metrov1.PullResponse{ReceivedMessages: sm}
+			}
 		} else {
 			s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 		}

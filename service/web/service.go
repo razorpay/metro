@@ -30,8 +30,8 @@ import (
 type Service struct {
 	webConfig      *Config
 	registryConfig *registry.Config
-	cacheConfig    *cache.Config
-	admin          *credentials.Model
+	// cacheConfig    *cache.Config
+	admin *credentials.Model
 }
 
 // NewService creates an instance of new producer service
@@ -40,7 +40,7 @@ func NewService(admin *credentials.Model, webConfig *Config, registryConfig *reg
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
 		admin:          admin,
-		cacheConfig:    cacheConfig,
+		// cacheConfig:    cacheConfig,
 	}, nil
 }
 
@@ -52,10 +52,10 @@ func (svc *Service) Start(ctx context.Context) error {
 		return err
 	}
 
-	c, err := cache.NewCache(svc.cacheConfig)
-	if err != nil {
-		return err
-	}
+	// c, err := cache.NewCache(svc.cacheConfig)
+	// if err != nil {
+	// 	return err
+	// }
 
 	brokerStore, err := brokerstore.NewBrokerStore(svc.webConfig.Broker.Variant, &svc.webConfig.Broker.BrokerConfig)
 	if err != nil {
@@ -66,14 +66,14 @@ func (svc *Service) Start(ctx context.Context) error {
 	registryHealthChecker := health.NewRegistryHealthChecker(r)
 
 	// init cache health checker
-	cacheHealthChecker := health.NewCacheHealthChecker(c)
+	// cacheHealthChecker := health.NewCacheHealthChecker(c)
 
 	admin, _ := brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	// init broker health checker
 	brokerHealthChecker := health.NewBrokerHealthChecker(admin)
 
 	// register broker and registry health checkers on the health server
-	healthCore, err := health.NewCore(registryHealthChecker, cacheHealthChecker, brokerHealthChecker)
+	healthCore, err := health.NewCore(registryHealthChecker, brokerHealthChecker)
 	if err != nil {
 		return err
 	}

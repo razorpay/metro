@@ -35,8 +35,8 @@ type Service struct {
 	subscriptionTask tasks.ITask
 	doneCh           chan struct{}
 	registry         registry.IRegistry
-	cache            cache.ICache
-	brokerStore      brokerstore.IBrokerStore
+	// cache            cache.ICache
+	brokerStore brokerstore.IBrokerStore
 }
 
 // NewService creates an instance of new worker
@@ -49,10 +49,10 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 		return nil, err
 	}
 
-	cache, err := cache.NewCache(cacheConfig)
-	if err != nil {
-		return nil, err
-	}
+	// cache, err := cache.NewCache(cacheConfig)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// init broker store
 	brokerStore, err := brokerstore.NewBrokerStore(workerConfig.Broker.Variant, &workerConfig.Broker.BrokerConfig)
@@ -118,11 +118,11 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 	}
 
 	return &Service{
-		id:               workerID,
-		doneCh:           make(chan struct{}),
-		workerConfig:     workerConfig,
-		registry:         reg,
-		cache:            cache,
+		id:           workerID,
+		doneCh:       make(chan struct{}),
+		workerConfig: workerConfig,
+		registry:     reg,
+		// cache:            cache,
 		brokerStore:      brokerStore,
 		leaderTask:       leaderTask,
 		subscriptionTask: subscriptionTask,
@@ -140,14 +140,14 @@ func (svc *Service) Start(ctx context.Context) error {
 	registryHealthChecker := health.NewRegistryHealthChecker(svc.registry)
 
 	// init cache health checker
-	cacheHealthChecker := health.NewCacheHealthChecker(svc.cache)
+	// cacheHealthChecker := health.NewCacheHealthChecker(svc.cache)
 
 	// init broker health checker
 	admin, _ := svc.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	brokerHealthChecker := health.NewBrokerHealthChecker(admin)
 
 	// register broker and registry health checkers on the health server
-	healthCore, err := health.NewCore(registryHealthChecker, cacheHealthChecker, brokerHealthChecker)
+	healthCore, err := health.NewCore(registryHealthChecker, brokerHealthChecker)
 	if err != nil {
 		return err
 	}

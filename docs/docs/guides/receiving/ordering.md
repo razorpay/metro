@@ -51,6 +51,9 @@ Sample Payload:
 ```
 Messages having the same ordering key are delivered in the order Metro receives them. The order of messages delivered across multiple ordering keys can be different from the order in which they are published.
 
+## Publisher Syncronization
+If there are multiple publishers publishing messages to Metro for the same topic with the same ordering keys, then the publishers have to ensure that the messages are published in the correct order. The order in which messages are received by Metro is the order of delivery.
+
 ## At Least Once Delivery
 Metro promises at least once delivery. Hence if a message is redelivered, Metro would redeliver all subsequent messages in the same ordering key to maintain order even if they have been acknowledged.
 

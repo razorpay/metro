@@ -67,6 +67,7 @@ type Subscriber struct {
 	retrier                retry.IRetrier
 }
 
+// OpinionatedSubscriber extends a subscriber entity with the relevant partition and the corresponding hash.
 type OpinionatedSubscriber struct {
 	Subscriber
 	partition    int

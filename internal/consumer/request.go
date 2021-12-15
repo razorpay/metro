@@ -5,18 +5,21 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
+// ParsedFetchRequest ...
 type ParsedFetchRequest struct {
 	Subscription string
 	MessageCount int
 	Partition    int
 }
 
+// ParsedAcknowledgeRequest ...
 type ParsedAcknowledgeRequest struct {
 	Subscription string
 	AckIDs       []string
 	AckMessages  []*subscriber.AckMessage
 }
 
+//ParsedModifyAckDeadlineRequest ...
 type ParsedModifyAckDeadlineRequest struct {
 	Subscription                 string
 	AckIDs                       []string
@@ -24,7 +27,7 @@ type ParsedModifyAckDeadlineRequest struct {
 	ModifyDeadlineMsgIdsWithSecs map[string]int32
 }
 
-//
+// NewParsedFetchRequest ...
 func NewParsedFetchRequest(req *metrov1.FetchRequest) (*ParsedFetchRequest, error) {
 	parsedReq := &ParsedFetchRequest{}
 	parsedReq.Subscription = req.Subscription

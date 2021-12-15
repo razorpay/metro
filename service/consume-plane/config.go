@@ -8,7 +8,7 @@ import (
 type Config struct {
 	Broker       Broker
 	ReplicaCount int
-	OrdinalId    int
+	OrdinalID    int
 	Interfaces   struct {
 		API NetworkInterfaces
 	}

@@ -98,27 +98,6 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 	}
 }
 
-// Run spawns the delay-consumer
-func (dc *DelayConsumer) SetupWatch(ctx context.Context) {
-	defer close(dc.doneCh)
-
-	logger.Ctx(ctx).Infow("delay-consumer: running", dc.LogFields()...)
-	for {
-		select {
-		case <-dc.ctx.Done():
-			logger.Ctx(dc.ctx).Infow("delay-consumer: stopping <-ctx.Done() called", dc.LogFields()...)
-			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic, dc.partition), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
-			dc.consumer.Close(dc.ctx)
-			return
-		case <-dc.cleanupCh:
-			logger.Ctx(dc.ctx).Infow("delay-consumer: cleanup task on subscription", dc.LogFields()...)
-			dc.bs.RemoveConsumer(ctx, messagebroker.ConsumerClientOptions{GroupID: dc.subs.GetDelayConsumerGroupID(dc.topic, dc.partition), GroupInstanceID: dc.subs.GetDelayConsumerGroupInstanceID(dc.subscriberID, dc.topic)})
-			dc.consumer.Close(dc.ctx)
-			return
-		}
-	}
-}
-
 // resumes a paused delay-consumer. Additionally process any previously cached messages in buffer.
 func (dc *DelayConsumer) resume() {
 	logger.Ctx(dc.ctx).Infow("delay-consumer: resuming", dc.LogFields("error", nil)...)

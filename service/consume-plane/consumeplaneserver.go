@@ -33,7 +33,7 @@ func newConsumePlaneServer(brokerStore brokerstore.IBrokerStore, subscriptionCor
 }
 
 // Acknowledge a message
-func (s consumeplaneserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
+func (c consumeplaneserver) Acknowledge(ctx context.Context, req *metrov1.AcknowledgeRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("consumeplaneserver: received request to ack messages", "ack_req", req.String())
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumePlaneServer.Acknowledge", opentracing.Tags{
@@ -53,7 +53,7 @@ func (s consumeplaneserver) Acknowledge(ctx context.Context, req *metrov1.Acknow
 	}
 
 	for partition, ackMsgs := range partitionAckMsgs {
-		consumer, err := s.manager.GetConsumer(ctx, parsedReq.Subscription, partition)
+		consumer, err := c.manager.GetConsumer(ctx, parsedReq.Subscription, partition)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("consumeplaneserver: error is fetching consumer for fetch request", "request", req, "error", parseErr.Error())
 			return nil, err
@@ -65,7 +65,7 @@ func (s consumeplaneserver) Acknowledge(ctx context.Context, req *metrov1.Acknow
 	return new(emptypb.Empty), nil
 }
 
-// Pull messages
+// Fetch messages from the topic-partition
 func (c consumeplaneserver) Fetch(ctx context.Context, req *metrov1.FetchRequest) (*metrov1.PullResponse, error) {
 	logger.Ctx(ctx).Infow("consumeplaneserver: received request to pull messages", "pull_req", req.String())
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumePlaneServer.Pull", opentracing.Tags{
@@ -74,13 +74,13 @@ func (c consumeplaneserver) Fetch(ctx context.Context, req *metrov1.FetchRequest
 
 	parsedReq, parseErr := consumer.NewParsedFetchRequest(req)
 	if parseErr != nil {
-		logger.Ctx(ctx).Errorw("subscriberserver: error is parsing pull request", "request", req, "error", parseErr.Error())
+		logger.Ctx(ctx).Errorw("consumeplaneserver: error is parsing pull request", "request", req, "error", parseErr.Error())
 		return nil, parseErr
 	}
 	defer span.Finish()
 	consumer, err := c.manager.GetConsumer(ctx, parsedReq.Subscription, parsedReq.Partition)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("subscriberserver: error in fetching consumer for fetch request", "request", req, "error", err.Error())
+		logger.Ctx(ctx).Errorw("consumeplaneserver: error in fetching consumer for fetch request", "request", req, "error", err.Error())
 		return &metrov1.PullResponse{}, err
 	}
 	res, err := consumer.Fetch(ctx, int(req.MaxMessages))
@@ -90,7 +90,8 @@ func (c consumeplaneserver) Fetch(ctx context.Context, req *metrov1.FetchRequest
 	return res, nil
 }
 
-func (s consumeplaneserver) ModifyAckDeadline(ctx context.Context, req *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
+// ModifyAckDeadline updates dealine for the given ackMessages
+func (c consumeplaneserver) ModifyAckDeadline(ctx context.Context, req *metrov1.ModifyAckDeadlineRequest) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("consumeplaneserver: received request to modack messages", "mod_ack_req", req.String())
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumePlaneServer.ModifyAckDeadline", opentracing.Tags{
@@ -110,7 +111,7 @@ func (s consumeplaneserver) ModifyAckDeadline(ctx context.Context, req *metrov1.
 	}
 
 	for partition, ackMsgs := range partitionAckMsgs {
-		consumer, err := s.manager.GetConsumer(ctx, parsedReq.Subscription, partition)
+		consumer, err := c.manager.GetConsumer(ctx, parsedReq.Subscription, partition)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("consumeplaneserver: error is fetching consumer for fetch request", "request", req, "error", parseErr.Error())
 			return nil, err

@@ -26,20 +26,20 @@ type Manager struct {
 	subscriptionCore subscription.ICore
 	cleanupCh        chan cleanupMessage
 	replicas         int
-	ordinalId        int
+	ordinalID        int
 	bs               brokerstore.IBrokerStore
 	mutex            *sync.Mutex
 	ctx              context.Context
 }
 
 // NewLifecycleManager ...
-func NewLifecycleManager(ctx context.Context, replicas int, ordinalId int, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, bs brokerstore.IBrokerStore) (ILifecycle, error) {
+func NewLifecycleManager(ctx context.Context, replicas int, ordinalID int, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, bs brokerstore.IBrokerStore) (ILifecycle, error) {
 	mgr := &Manager{
 		consumers:        make(map[int]*Consumer),
 		subscriptionCore: subscriptionCore,
 		bs:               bs,
 		replicas:         replicas,
-		ordinalId:        ordinalId,
+		ordinalID:        ordinalID,
 		mutex:            &sync.Mutex{},
 		ctx:              ctx,
 	}
@@ -59,7 +59,7 @@ func NewLifecycleManager(ctx context.Context, replicas int, ordinalId int, subsc
 	}
 
 	for _, sub := range pullSubs {
-		subPartitions, err := subscriptionCore.FetchPartitionsForHash(ctx, sub, ordinalId)
+		subPartitions, err := subscriptionCore.FetchPartitionsForHash(ctx, sub, ordinalID)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("Error resolving partitions for subscription", "subscription", sub.Name)
 		}
@@ -93,6 +93,8 @@ func NewLifecycleManager(ctx context.Context, replicas int, ordinalId int, subsc
 
 	}
 
+	// TODO: Implement watch on subscripitons to update active consumers based on watch updates.
+
 	// swh := registry.WatchConfig{
 	// 	WatchType: "keyprefix",
 	// 	WatchPath: common.GetBasePrefix() + subscription.Prefix,
@@ -110,24 +112,26 @@ func NewLifecycleManager(ctx context.Context, replicas int, ordinalId int, subsc
 	return mgr, nil
 }
 
-func (s *Manager) Run() {
+// Run instantiates the listeners for a lifecycle manager
+func (m *Manager) Run() {
 
 	for {
 		select {
-		case <-s.ctx.Done():
-			for _, con := range s.consumers {
+		case <-m.ctx.Done():
+			for _, con := range m.consumers {
 				con.stop()
 			}
 			return
-		case cleanupMessage := <-s.cleanupCh:
-			logger.Ctx(s.ctx).Infow("manager: got request to cleanup subscriber", "cleanupMessage", cleanupMessage)
-			s.mutex.Lock()
+		case cleanupMessage := <-m.cleanupCh:
+			logger.Ctx(m.ctx).Infow("manager: got request to cleanup subscriber", "cleanupMessage", cleanupMessage)
+			m.mutex.Lock()
 			//Implement cleanup here
-			s.mutex.Unlock()
+			m.mutex.Unlock()
 		}
 	}
 }
 
+// GetConsumer fetches the relevant consumer from the memory map.
 func (m *Manager) GetConsumer(ctx context.Context, sub string, partition int) (*Consumer, error) {
 	computedHash := m.subscriptionCore.FetchSubscriptionHash(ctx, sub, partition)
 	consumer := m.consumers[computedHash]
@@ -137,6 +141,7 @@ func (m *Manager) GetConsumer(ctx context.Context, sub string, partition int) (*
 	return consumer, nil
 }
 
+// CloseConsumer ensures that the consumer is greacefully exited.
 func (m *Manager) CloseConsumer(ctx context.Context, computedhash int) error {
 	con := m.consumers[computedhash]
 	if con != nil {

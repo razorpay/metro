@@ -13,14 +13,15 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
+// IConsumer defines the set of methods to access a consumer object
 type IConsumer interface {
 	Run() error
-	Stop()
 	Acknowledge(ctx context.Context, req *ParsedAcknowledgeRequest)
 	ModifyAckDeadline(ctx context.Context, req *ParsedModifyAckDeadlineRequest)
 	Fetch(ctx context.Context, messageCount int) (*metrov1.PullResponse, error)
 }
 
+// Consumer entity represents a single subscription-partition specific client
 type Consumer struct {
 	computedHash           int
 	subscriberID           string
@@ -34,6 +35,7 @@ type Consumer struct {
 // DefaultNumMessageCount ...
 var DefaultNumMessageCount int32 = 10
 
+// NewConsumer intializes a consumer entity
 func NewConsumer(ctx context.Context, computedHash int, subscriberID string, subscription *subscription.Model, subCore subscriber.ICore, subs subscriber.ISubscriber) *Consumer {
 	con := &Consumer{
 		ctx:                    ctx,
@@ -46,6 +48,7 @@ func NewConsumer(ctx context.Context, computedHash int, subscriberID string, sub
 	return con
 }
 
+// Fetch retrieves messages for a given consumer, it takes ackDeadline, retry and maxMessages into account.
 func (c *Consumer) Fetch(ctx context.Context, messageCount int) (*metrov1.PullResponse, error) {
 	respChan := make(chan *metrov1.PullResponse)
 	defer close(respChan)
@@ -63,12 +66,15 @@ func (c *Consumer) Fetch(ctx context.Context, messageCount int) (*metrov1.PullRe
 
 }
 
+// Acknowledge send an ACK for a set of messages
 func (c *Consumer) Acknowledge(ctx context.Context, ackMsgs []*subscriber.AckMessage) {
 	for _, ackMsg := range ackMsgs {
 		c.subscriptionSubscriber.GetAckChannel() <- ackMsg.WithContext(ctx)
 	}
 }
 
+// ModifyAckDeadline allows modification of Ack deadline for a messages(s).
+// Deadline of 0 indicates a Nack operation.
 func (c *Consumer) ModifyAckDeadline(ctx context.Context, mackMsgs []*subscriber.AckMessage) {
 	for _, modAckMsg := range mackMsgs {
 		modAckReq := subscriber.NewModAckMessage(modAckMsg, modAckMsg.Deadline)
@@ -77,6 +83,7 @@ func (c *Consumer) ModifyAckDeadline(ctx context.Context, mackMsgs []*subscriber
 	}
 }
 
+// Run ensures that the lifecycle of a consumer is instantiated.
 func (c *Consumer) Run() error {
 	// stream ack timeout
 	streamAckDeadlineSecs := int32(30) // init with some sane value
@@ -128,9 +135,9 @@ func (c *Consumer) stop() {
 
 }
 
-func (s *Consumer) closeSubscriberChannels() {
-	close(s.errChan)
-	close(s.subscriptionSubscriber.GetRequestChannel())
-	close(s.subscriptionSubscriber.GetAckChannel())
-	close(s.subscriptionSubscriber.GetModAckChannel())
+func (c *Consumer) closeSubscriberChannels() {
+	close(c.errChan)
+	close(c.subscriptionSubscriber.GetRequestChannel())
+	close(c.subscriptionSubscriber.GetAckChannel())
+	close(c.subscriptionSubscriber.GetModAckChannel())
 }

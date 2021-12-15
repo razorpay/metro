@@ -30,7 +30,7 @@
 
 [consumePlane]
     replicaCount          = 1
-    ordinalId             = 0
+    ordinalID             = 0
     [consumePlane.broker]
         variant               = "kafka"
         [consumePlane.broker.brokerconfig]

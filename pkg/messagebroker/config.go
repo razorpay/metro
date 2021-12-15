@@ -45,6 +45,7 @@ type ConsumerConfig struct {
 // AdminConfig holds configuration for admin APIs
 type AdminConfig struct{}
 
+// TopicPartition represents a topic and one of it's partitions
 type TopicPartition struct {
 	Topic     string
 	Partition int

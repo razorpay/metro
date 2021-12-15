@@ -111,6 +111,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	return s, nil
 }
 
+// NewOpinionatedSubscriber ...
 func (c *Core) NewOpinionatedSubscriber(ctx context.Context,
 	subscriberID string,
 	subscription *subscription.Model,

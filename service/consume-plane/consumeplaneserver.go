@@ -1,4 +1,4 @@
-package consume_plane
+package consumeplane
 
 import (
 	"context"

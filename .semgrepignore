@@ -29,3 +29,5 @@ coverage/
 *_test.go
 *.pb.go
 *.pb.*.go
+
+.github/workflows

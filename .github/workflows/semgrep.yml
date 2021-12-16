@@ -1,9 +1,12 @@
 name: Semgrep
-on: [push]
+on:
+  pull_request: {}
+  push:
+    branches: ["master"]
 jobs:
   semgrep:
     name: Scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     # Skip any PR created by dependabot to avoid permissioning issues
     if: (github.actor != 'dependabot[bot]')
     steps:

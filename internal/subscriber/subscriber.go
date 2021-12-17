@@ -193,29 +193,6 @@ func retryMessage(ctx context.Context, s Implementation, consumer IConsumer, ret
 	return nil
 }
 
-func retryAndCommitMessage(ctx context.Context, s Implementation, consumer IConsumer, retrier retry.IRetrier, msg messagebroker.ReceivedMessage, errChan chan error) {
-
-	err := retryMessage(ctx, s, consumer, retrier, msg)
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	// commit on the primary topic after message has been submitted for retry
-	_, err = consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
-		Topic:     msg.Topic,
-		Partition: msg.Partition,
-		// add 1 to current offset
-		// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
-		Offset: msg.Offset + 1,
-	})
-	if err != nil {
-		logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "logFields", getLogFields(s), "error", err.Error())
-		errChan <- err
-		return
-	}
-}
-
 func (s *Subscriber) pull(req *PullRequest) {
 	span, ctx := opentracing.StartSpanFromContext(req.ctx, "Subscriber:Pull", opentracing.Tags{
 		"subscriber":   s.subscriberID,

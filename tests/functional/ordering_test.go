@@ -1,3 +1,5 @@
+// +build functional
+
 package functional
 
 import (
@@ -29,3 +31,24 @@ func Test_Ordering_NoPushFailure(t *testing.T) {
 		pushMessage.ResponseChan <- 200
 	}
 }
+
+// func Test_Ordering_OneOrderingFailure(t *testing.T) {
+// 	topic := client.Topic(orderedTopic)
+// 	topic.EnableMessageOrdering = true
+// 	subName := fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedSub)
+// 	pushChan := chanMap[subName]
+
+// 	t.Log("Pushing")
+// 	ctx := context.Background()
+// 	for i := 0; i < 3; i++ {
+// 		_, err := topic.Publish(ctx, &pubsub.Message{Data: []byte("data"), OrderingKey: "o1"}).Get(ctx)
+// 		assert.Nil(t, err)
+// 	}
+
+// 	for i := 0; i < 3; i++ {
+// 		t.Log("Waiting for push")
+// 		pushMessage := <-pushChan
+// 		t.Log("Received Push: ", pushMessage)
+// 		pushMessage.ResponseChan <- 200
+// 	}
+// }

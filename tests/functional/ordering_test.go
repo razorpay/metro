@@ -18,13 +18,14 @@ func Test_Ordering_NoPushFailure(t *testing.T) {
 	t.Log("Pushing")
 	ctx := context.Background()
 	for i := 0; i < 3; i++ {
-		_, err := topic.Publish(ctx, &pubsub.Message{Data: []byte(""), OrderingKey: "o1"}).Get(ctx)
+		_, err := topic.Publish(ctx, &pubsub.Message{Data: []byte("data"), OrderingKey: "o1"}).Get(ctx)
 		assert.Nil(t, err)
 	}
 
 	for i := 0; i < 3; i++ {
 		t.Log("Waiting for push")
 		pushMessage := <-pushChan
+		t.Log("Received Push: ", pushMessage)
 		pushMessage.ResponseChan <- 200
 	}
 }

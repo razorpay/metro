@@ -571,7 +571,20 @@ func (s *Subscriber) pull(req *PullRequest) {
 				continue
 			}
 			ackID := ackMessage.BuildAckID()
-			sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
+
+			// check if the subscription has any filter applied and check if the message satisfies it if any
+			if s.checkFilterCriteria(ctx, protoMsg) {
+				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
+			} else {
+				// self acknowledging the message as it does not need to be delivered for this subscription
+				//
+				// Using subscriber's Acknowledge func instead of directly acking to consumer because of the following reason:
+				// Let there be 3 messages - Msg-1, Msg-2 and Msg-3. Msg-1 and Msg-3 satisfies the filter criteria while Msg-3 doesn't.
+				// If we directly ack Msg-2 using brokerStore consumer, in Kafka, new committed offset will be set to 2.
+				// Now if for some reason, delivery of Msg-1 fails, we will not be able to retry it as the broker's committed offset is already set to 2.
+				// To avoid this, subscriber Acknowledge is used which will wait for Msg-1 status before committing the offsets.
+				s.acknowledge(ackMessage.(*AckMessage).WithContext(ctx))
+			}
 
 			subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription.Name, s.subscriberID).Inc()
 			subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
@@ -583,6 +596,31 @@ func (s *Subscriber) pull(req *PullRequest) {
 		}
 		s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 	}()
+}
+
+// checks if the message satisfies filter criteria(if any) for the subscription
+func (s *Subscriber) checkFilterCriteria(ctx context.Context, protoMsg *metrov1.PubsubMessage) bool {
+	if s.subscription.FilterExpression != "" {
+		subFilter, err := s.subscription.GetFilterExpressionAsStruct()
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("subscriber: error in getting filter expression as a struct", "filter expression", s.subscription.FilterExpression,
+				"logfields", s.getLogFields(), "error", err.Error())
+		} else {
+			res, err := subFilter.Evaluate(protoMsg.Attributes)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriber: error occurred during filter evaluation", "filter expression", s.subscription.FilterExpression,
+					"logfields", s.getLogFields(), "error", err.Error())
+			} else {
+				if !res {
+					logger.Ctx(ctx).Infow("subscriber: Message didn't satisfy the filter criteria", "messageID", protoMsg.MessageId, "filter expression", s.subscription.FilterExpression,
+						"logfields", s.getLogFields())
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func (s *Subscriber) logInMemoryStats(ctx context.Context) {

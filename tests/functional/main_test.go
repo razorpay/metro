@@ -151,6 +151,7 @@ func setupOrdering() {
 			},
 			DeadLetterPolicy: &pubsub.DeadLetterPolicy{
 				MaxDeliveryAttempts: 2,
+				DeadLetterTopic:     "dummy",
 			},
 			RetryPolicy: &pubsub.RetryPolicy{
 				MinimumBackoff: 1 * time.Second,

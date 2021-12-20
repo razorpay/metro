@@ -24,9 +24,10 @@ type PushServer struct {
 
 // PublishedMessage ...
 type PublishedMessage struct {
-	Data       []byte
-	Attributes map[string]string
-	MessageID  string
+	Data        []byte            `json:"data"`
+	Attributes  map[string]string `json:"attributes"`
+	MessageID   string            `json:"messageId`
+	OrderingKey string            `json:"orderingKey"`
 }
 
 // PushBody ...
@@ -98,7 +99,6 @@ func runServer(ctx context.Context, s *http.Server) error {
 func (ps *PushServer) pushHandler(w http.ResponseWriter, req *http.Request) {
 	var pushData PushBody
 	now := time.Now().UnixNano()
-	fmt.Println("Received request")
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&pushData)
 	if err != nil {

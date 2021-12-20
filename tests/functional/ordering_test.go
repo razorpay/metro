@@ -17,7 +17,6 @@ func Test_Ordering_NoPushFailure(t *testing.T) {
 	subName := fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedSub)
 	pushChan := chanMap[subName]
 
-	t.Log("Pushing")
 	ctx := context.Background()
 	for i := 0; i < 3; i++ {
 		_, err := topic.Publish(ctx, &pubsub.Message{Data: []byte("data"), OrderingKey: "o1"}).Get(ctx)
@@ -25,30 +24,141 @@ func Test_Ordering_NoPushFailure(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		t.Log("Waiting for push")
 		pushMessage := <-pushChan
-		t.Log("Received Push: ", pushMessage)
 		pushMessage.ResponseChan <- 200
 	}
 }
 
-// func Test_Ordering_OneOrderingFailure(t *testing.T) {
-// 	topic := client.Topic(orderedTopic)
-// 	topic.EnableMessageOrdering = true
-// 	subName := fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedSub)
-// 	pushChan := chanMap[subName]
+func Test_Ordering_FailDelivery(t *testing.T) {
+	topic := client.Topic(orderedTopic)
+	topic.EnableMessageOrdering = true
+	subName := fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedSub)
+	pushChan := chanMap[subName]
 
-// 	t.Log("Pushing")
-// 	ctx := context.Background()
-// 	for i := 0; i < 3; i++ {
-// 		_, err := topic.Publish(ctx, &pubsub.Message{Data: []byte("data"), OrderingKey: "o1"}).Get(ctx)
-// 		assert.Nil(t, err)
-// 	}
+	ctx := context.Background()
 
-// 	for i := 0; i < 3; i++ {
-// 		t.Log("Waiting for push")
-// 		pushMessage := <-pushChan
-// 		t.Log("Received Push: ", pushMessage)
-// 		pushMessage.ResponseChan <- 200
-// 	}
-// }
+	orderedMessages := map[string][]string{
+		"o1": []string{"m1", "m2", "m3"},
+	}
+
+	expectedDelivery := map[string][]string{
+		"o1": []string{"m1", "m1", "m2", "m2", "m3", "m3"},
+	}
+
+	for orderKey, msgNos := range orderedMessages {
+		for _, msgNo := range msgNos {
+			_, err := topic.Publish(
+				ctx,
+				&pubsub.Message{
+					Data:        []byte(""),
+					OrderingKey: orderKey,
+					Attributes: map[string]string{
+						"order": msgNo,
+					},
+				},
+			).Get(ctx)
+			assert.Nil(t, err)
+		}
+	}
+
+	for i := 0; i < 6; i++ {
+		pushMessage := <-pushChan
+		pushMessage.ResponseChan <- 500
+		msgNos := expectedDelivery[pushMessage.Request.Message.OrderingKey]
+		assert.NotZero(t, msgNos)
+		assert.Equal(t, msgNos[0], pushMessage.Request.Message.Attributes["order"])
+		expectedDelivery[pushMessage.Request.Message.OrderingKey] = msgNos[1:]
+	}
+}
+
+func Test_Ordering_FailDeliveryNoOrderKey(t *testing.T) {
+	topic := client.Topic(orderedTopic)
+	topic.EnableMessageOrdering = true
+	subName := fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedSub)
+	pushChan := chanMap[subName]
+
+	ctx := context.Background()
+
+	type orderingMeta struct {
+		Key   string
+		MsgNo string
+	}
+	orderedMessages := map[string][]string{
+		"o1": []string{"m1", "m2"},
+		"":   []string{"mx"},
+	}
+
+	expectedDelivery := map[string][]string{
+		"o1": []string{"m1", "m1", "m2", "m2"},
+		"":   []string{"mx", "mx"},
+	}
+
+	for orderKey, msgNos := range orderedMessages {
+		for _, msgNo := range msgNos {
+			_, err := topic.Publish(
+				ctx,
+				&pubsub.Message{
+					Data:        []byte(""),
+					OrderingKey: orderKey,
+					Attributes: map[string]string{
+						"order": msgNo,
+					},
+				},
+			).Get(ctx)
+			assert.Nil(t, err)
+		}
+	}
+
+	for i := 0; i < 6; i++ {
+		pushMessage := <-pushChan
+		pushMessage.ResponseChan <- 500
+		msgNos := expectedDelivery[pushMessage.Request.Message.OrderingKey]
+		assert.NotZero(t, msgNos)
+		assert.Equal(t, msgNos[0], pushMessage.Request.Message.Attributes["order"])
+		expectedDelivery[pushMessage.Request.Message.OrderingKey] = msgNos[1:]
+	}
+}
+
+func Test_Ordering_FailDelivery_MultipleKeys(t *testing.T) {
+	topic := client.Topic(orderedTopic)
+	topic.EnableMessageOrdering = true
+	subName := fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedSub)
+	pushChan := chanMap[subName]
+
+	ctx := context.Background()
+
+	orderedMessages := map[string][]string{
+		"o1": []string{"m1", "m2"},
+		"o2": []string{"m1", "m2"},
+	}
+
+	expectedDelivery := map[string][]string{
+		"o1": []string{"m1", "m1", "m2", "m2"},
+		"o2": []string{"m1", "m1", "m2", "m2"},
+	}
+
+	for orderKey, msgNos := range orderedMessages {
+		for _, msgNo := range msgNos {
+			_, err := topic.Publish(
+				ctx,
+				&pubsub.Message{
+					Data:        []byte(""),
+					OrderingKey: orderKey,
+					Attributes: map[string]string{
+						"order": msgNo,
+					},
+				},
+			).Get(ctx)
+			assert.Nil(t, err)
+		}
+	}
+
+	for i := 0; i < 6; i++ {
+		pushMessage := <-pushChan
+		pushMessage.ResponseChan <- 500
+		msgNos := expectedDelivery[pushMessage.Request.Message.OrderingKey]
+		assert.NotZero(t, msgNos)
+		assert.Equal(t, msgNos[0], pushMessage.Request.Message.Attributes["order"])
+		expectedDelivery[pushMessage.Request.Message.OrderingKey] = msgNos[1:]
+	}
+}

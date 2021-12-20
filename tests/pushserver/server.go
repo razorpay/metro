@@ -13,6 +13,7 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
+// PushServer is a mock server that intercepts all push requests from metro worker
 type PushServer struct {
 	server         *http.Server
 	ctx            context.Context
@@ -21,24 +22,28 @@ type PushServer struct {
 	handlerChanMap map[string]chan PushMessage
 }
 
+// PublishedMessage ...
 type PublishedMessage struct {
 	Data       []byte
 	Attributes map[string]string
 	MessageID  string
 }
 
+// PushBody ...
 type PushBody struct {
 	Message         PublishedMessage
 	Subscription    string
 	DeliveryAttempt int
 }
 
+// PushMessage is a struct encapsulating data to be pushed to test
 type PushMessage struct {
 	Request      PushBody
 	RequestTime  int64
 	ResponseChan chan int
 }
 
+// StartServer creates a server and runs it in a different go routine
 func StartServer(ctx context.Context, handlerMap map[string]chan PushMessage) *PushServer {
 	stopChan := make(chan interface{}, 1)
 	errChan := make(chan interface{}, 1)
@@ -122,6 +127,7 @@ func (ps *PushServer) pushHandler(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
+// StopServer stops the running http server and pauses the calling go routine untill shutdown
 func (ps *PushServer) StopServer() {
 	// Send a signal to stop
 	ps.stopChan <- ""

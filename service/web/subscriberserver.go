@@ -26,9 +26,9 @@ import (
 const (
 	consumePlaneAddressFormat string = "https://%s-%d.%s"
 	consumePlaneDeployment    string = "metro-consume-plane"
-	AcknowledgeRequestFormat  string = "%s/v1/%s:acknowledge"
-	FetchRequestFormat        string = "%s/v1/%s:fetch"
-	ModAckRequestFormat       string = "%s/v1/%s:modifyAckDeadline"
+	acknowledgeRequestFormat  string = "%s/v1/%s:acknowledge"
+	fetchRequestFormat        string = "%s/v1/%s:fetch"
+	modAckRequestFormat       string = "%s/v1/%s:modifyAckDeadline"
 )
 
 type subscriberserver struct {
@@ -164,7 +164,7 @@ func (s subscriberserver) Acknowledge(ctx context.Context, req *metrov1.Acknowle
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriberserver: Failed to marshal upstream request", "error", err.Error(), "subscription", parsedReq.Subscription)
 			}
-			cpReq, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf(AcknowledgeRequestFormat, node, parsedReq.Subscription), byteBuffer)
+			cpReq, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf(acknowledgeRequestFormat, node, parsedReq.Subscription), byteBuffer)
 
 			_, err = s.httpClient.Do(cpReq)
 			if err != nil {
@@ -216,14 +216,14 @@ func (s subscriberserver) Pull(ctx context.Context, req *metrov1.PullRequest) (*
 			logger.Ctx(ctx).Errorw("subscriberserver: Failed to marshal upstream request", "error", err.Error(), "subscription", parsedReq.Subscription)
 		}
 
-		cpReq, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf(FetchRequestFormat, node, parsedReq.Subscription), byteBuffer)
+		cpReq, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf(fetchRequestFormat, node, parsedReq.Subscription), byteBuffer)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("subscriberserver: Failed to create request object for consume plane", "error", err.Error(), "url", fmt.Sprintf(FetchRequestFormat, node, parsedReq.Subscription))
+			logger.Ctx(ctx).Errorw("subscriberserver: Failed to create request object for consume plane", "error", err.Error(), "url", fmt.Sprintf(fetchRequestFormat, node, parsedReq.Subscription))
 		}
 
 		cpRes, err := s.httpClient.Do(cpReq)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("subscriberserver: Failed to send request to consume plane", "error", err.Error(), "url", fmt.Sprintf(FetchRequestFormat, node, parsedReq.Subscription))
+			logger.Ctx(ctx).Errorw("subscriberserver: Failed to send request to consume plane", "error", err.Error(), "url", fmt.Sprintf(fetchRequestFormat, node, parsedReq.Subscription))
 		}
 		defer cpRes.Body.Close()
 		if cpRes.StatusCode == http.StatusOK {
@@ -309,7 +309,7 @@ func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.Mo
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriberserver: Failed to marshal upstream request", "error", err.Error(), "subscription", parsedReq.Subscription)
 			}
-			cpReq, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf(ModAckRequestFormat, node, parsedReq.Subscription), byteBuffer)
+			cpReq, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf(modAckRequestFormat, node, parsedReq.Subscription), byteBuffer)
 
 			_, err = s.httpClient.Do(cpReq)
 			if err != nil {

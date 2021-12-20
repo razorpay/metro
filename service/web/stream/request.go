@@ -16,6 +16,7 @@ type ParsedStreamingPullRequest struct {
 	ModifyDeadlineMsgIdsWithSecs map[string]int32
 }
 
+// ParsedPullRequest ...
 type ParsedPullRequest struct {
 	Subscription string
 	MaxMessages  int

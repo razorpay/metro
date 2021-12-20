@@ -74,6 +74,7 @@ func NewLifecycleManager(ctx context.Context, replicas int, ordinalID int, subsc
 				subscriberModAckCh  = make(chan *subscriber.ModAckMessage)
 			)
 			computedHash := subscriptionCore.FetchSubscriptionHash(ctx, sub.Name, partition)
+			logger.Ctx(ctx).Infow("adding consumer for sub-partition", "sub", sub.Name, "part", partition, "hash", computedHash)
 			subscriber, err := subscriberCore.NewOpinionatedSubscriber(ctx, subscriberID, sub, partition, computedHash, 100, 50, 5000,
 				subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 			if err != nil {

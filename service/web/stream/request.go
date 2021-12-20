@@ -16,6 +16,11 @@ type ParsedStreamingPullRequest struct {
 	ModifyDeadlineMsgIdsWithSecs map[string]int32
 }
 
+type ParsedPullRequest struct {
+	Subscription string
+	MaxMessages  int
+}
+
 // HasSubscription ...
 func (r *ParsedStreamingPullRequest) HasSubscription() bool {
 	return len(strings.Trim(r.Subscription, " ")) > 0
@@ -52,6 +57,16 @@ func NewParsedStreamingPullRequest(req *metrov1.StreamingPullRequest) (*ParsedSt
 		parsedReq.AckIDs = req.AckIds
 		parsedReq.AckMessages = ackMessages
 		parsedReq.ModifyDeadlineMsgIdsWithSecs = modifyDeadlineMsgIdsWithSecs
+	}
+
+	return parsedReq, nil
+}
+
+// NewParsedPullRequest ...
+func NewParsedPullRequest(req *metrov1.PullRequest) (*ParsedPullRequest, error) {
+	parsedReq := &ParsedPullRequest{
+		Subscription: req.Subscription,
+		MaxMessages:  int(req.MaxMessages),
 	}
 
 	return parsedReq, nil

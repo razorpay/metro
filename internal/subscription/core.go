@@ -29,7 +29,6 @@ type ICore interface {
 	Migrate(ctx context.Context, names []string) error
 	FetchPartitionsForHash(ctx context.Context, m *Model, node int) ([]int, error)
 	FetchSubscriptionHash(ctx context.Context, subName string, partition int) int
-	GetPartition(ctx context.Context, m *Model) int
 }
 
 const (
@@ -348,6 +347,13 @@ func (c *Core) FetchPartitionsForHash(ctx context.Context, sub *Model, node int)
 		return matchingPartitions, err
 	}
 
+	if c.TotalNodes == 1 {
+		partitions := make([]int, topicModel.NumPartitions)
+		for i := 0; i < topicModel.NumPartitions; i++ {
+			partitions = append(partitions, i)
+		}
+		return partitions, nil
+	}
 	for i := 0; i < topicModel.NumPartitions; i++ {
 		computedHash := c.FetchSubscriptionHash(ctx, sub.Name, i)
 		partitionNode := computedHash % c.TotalNodes
@@ -362,11 +368,6 @@ func (c *Core) FetchPartitionsForHash(ctx context.Context, sub *Model, node int)
 // FetchSubscriptionHash ...
 func (c *Core) FetchSubscriptionHash(ctx context.Context, sub string, partition int) int {
 	return hash.ComputeHash([]byte(sub + strconv.Itoa(partition)))
-}
-
-// GetPartition ...
-func (c *Core) GetPartition(ctx context.Context, m *Model) int {
-	return m.Partition
 }
 
 // Migrate takes care of backfilling subscription topics for existing subscriptions.

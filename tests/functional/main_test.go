@@ -66,7 +66,7 @@ func setup() {
 
 	metroGrpcHost = fmt.Sprintf("%s:8081", os.Getenv("METRO_TEST_HOST"))
 	metroHttpHost = fmt.Sprintf("http://%s:8082", os.Getenv("METRO_TEST_HOST"))
-	mockServerPushEndpoint = fmt.Sprintf("http://localhost:8077/push")
+	mockServerPushEndpoint = fmt.Sprintf("http://host.docker.internal:8077/push")
 	mockServerMetricEndpoint = fmt.Sprintf("http://%s:8099/stats", os.Getenv("MOCK_SERVER_HOST"))
 
 	// create project in metro

@@ -49,9 +49,6 @@ func StartServer(ctx context.Context, handlerMap map[string]chan PushMessage) *P
 	stopChan := make(chan interface{}, 1)
 	errChan := make(chan interface{}, 1)
 	exitChan := make(chan interface{}, 1)
-	// c, _ := pubsub.NewClient(nil, "")
-	// c.Topic("").EnableMessageOrdering=true
-	// pubsub.SubscriptionConfig
 
 	fmt.Println("Started server")
 	ps := &PushServer{
@@ -63,6 +60,7 @@ func StartServer(ctx context.Context, handlerMap map[string]chan PushMessage) *P
 
 	router := http.NewServeMux()
 	router.HandleFunc("/push", ps.pushHandler)
+	router.HandleFunc("/health", ps.health)
 
 	ps.server = &http.Server{
 		Addr:    ":8077",
@@ -94,6 +92,10 @@ func runServer(ctx context.Context, s *http.Server) error {
 		return err
 	}
 	return nil
+}
+
+func (ps *PushServer) health(w http.ResponseWriter, req *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 func (ps *PushServer) pushHandler(w http.ResponseWriter, req *http.Request) {

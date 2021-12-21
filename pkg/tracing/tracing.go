@@ -4,6 +4,7 @@ package tracing
 import (
 	"fmt"
 	"io"
+	"net"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
@@ -32,7 +33,7 @@ type Config struct {
 // Init initialises opentracing tracer. Returns tracer for tracing spans &
 // closer for flushing in-memory spans before app shutdown.
 func Init(env string, cnf Config, zlog *zap.Logger) error {
-	hostPortPath := fmt.Sprintf("%s:%s", cnf.Host, cnf.Port)
+	hostPortPath := net.JoinHostPort(cnf.Host, cnf.Port)
 
 	config := &jaegerconfig.Configuration{
 		ServiceName: fmt.Sprintf("%s-%s", cnf.ServiceName, env),

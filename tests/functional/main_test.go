@@ -52,10 +52,11 @@ func setup() {
 	var err error
 
 	env := os.Getenv("APP_ENV")
-	out, _ := exec.Command("HOSTNAME").Output()
-	fmt.Println("Hostname is: ", string(out))
-	out, _ = exec.Command("env").Output()
+	out, _ := exec.Command("env").Output()
 	fmt.Println("env is: ", string(out))
+
+	hname := os.Getenv("HOSTNAME")
+	fmt.Println("Hostname is: ", hname)
 
 	if env == "" {
 		env = "dev"
@@ -72,7 +73,7 @@ func setup() {
 
 	metroGrpcHost = fmt.Sprintf("%s:8081", os.Getenv("METRO_TEST_HOST"))
 	metroHttpHost = fmt.Sprintf("http://%s:8082", os.Getenv("METRO_TEST_HOST"))
-	mockServerPushEndpoint = fmt.Sprintf("http://172.17.0.1:8077/push")
+	mockServerPushEndpoint = fmt.Sprintf("http://%s:8077/push", hname)
 	mockServerMetricEndpoint = fmt.Sprintf("http://%s:8099/stats", os.Getenv("MOCK_SERVER_HOST"))
 
 	// create project in metro

@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: false
     name: build
-    needs: tests
+    needs: cancel
     steps:
       - name: checkout
         id: checkout

@@ -30,4 +30,4 @@ coverage/
 *.pb.go
 *.pb.*.go
 
-.github/workflows
+.github/workflows/

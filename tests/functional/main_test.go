@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -51,6 +52,11 @@ func setup() {
 	var err error
 
 	env := os.Getenv("APP_ENV")
+	out, _ := exec.Command("HOSTNAME").Output()
+	fmt.Println("Hostname is: ", string(out))
+	out, _ = exec.Command("env").Output()
+	fmt.Println("env is: ", string(out))
+
 	if env == "" {
 		env = "dev"
 	}

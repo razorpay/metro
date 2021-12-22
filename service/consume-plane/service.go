@@ -67,13 +67,17 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore, offset.NewCore(offset.NewRepo(r)))
 
-	mgr, err := consumer.NewLifecycleManager(ctx, svc.consumeConfig.ReplicaCount, svc.consumeConfig.OrdinalID, subscriptionCore, subscriberCore, brokerStore)
+	mgr, err := consumer.NewLifecycleManager(ctx, svc.consumeConfig.ReplicaCount, svc.consumeConfig.OrdinalID, subscriptionCore, subscriberCore, brokerStore, r)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("consumeplaneserver: error setting up lifecycle manager", "error", err.Error())
 	}
 	// initiates a error group
 	grp, gctx := errgroup.WithContext(ctx)
 
+	grp.Go(func() error {
+		mgr.Run()
+		return nil
+	})
 	grp.Go(func() error {
 		err := server.RunGRPCServer(
 			gctx,

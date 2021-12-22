@@ -154,8 +154,8 @@ func (m *Manager) Run() error {
 func (m *Manager) refreshConsumers() {
 
 	logger.Ctx(m.ctx).Infow("lifecyclemanager: Consumer refresh intiated")
-	existingConsumers := make(map[int]SubPartition)
-	consumersToAdd := make(map[int]SubPartition)
+	existingConsumers := make(map[int]subPartition)
+	consumersToAdd := make(map[int]subPartition)
 
 	for _, sub := range m.subCache {
 		subPart, err := m.subscriptionCore.FetchPartitionsForHash(m.ctx, sub, m.ordinalID)
@@ -165,12 +165,12 @@ func (m *Manager) refreshConsumers() {
 		for _, partition := range subPart {
 			computedHash := m.subscriptionCore.FetchSubscriptionHash(m.ctx, sub.Name, partition)
 			if _, ok := m.consumers[computedHash]; ok {
-				existingConsumers[computedHash] = SubPartition{
+				existingConsumers[computedHash] = subPartition{
 					subscription: sub,
 					partition:    partition,
 				}
 			} else {
-				consumersToAdd[computedHash] = SubPartition{
+				consumersToAdd[computedHash] = subPartition{
 					subscription: sub,
 					partition:    partition,
 				}
@@ -202,6 +202,7 @@ func (m *Manager) refreshConsumers() {
 
 }
 
+// CreateConsumer sets up the underlying subscriber and returns the consumer object
 func (m *Manager) CreateConsumer(ctx context.Context, sub *subscription.Model, partition int, hash int) (*Consumer, error) {
 	subscriberID := uuid.New().String()
 
@@ -254,7 +255,7 @@ type cleanupMessage struct {
 	computedHash int
 }
 
-type SubPartition struct {
+type subPartition struct {
 	subscription *subscription.Model
 	partition    int
 }

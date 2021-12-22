@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package messagebroker
@@ -60,7 +61,12 @@ func getValidBrokerConfig() *BrokerConfig {
 
 func getValidConsumerClientOptions() *ConsumerClientOptions {
 	return &ConsumerClientOptions{
-		Topics:          []string{"t1"},
+		Topics: []TopicPartition{
+			{
+				Topic:     "t1",
+				Partition: 0,
+			},
+		},
 		Subscription:    "s1",
 		GroupID:         "sg1",
 		GroupInstanceID: "sg_i1",

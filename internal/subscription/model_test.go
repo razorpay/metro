@@ -79,6 +79,6 @@ func Test_Model(t *testing.T) {
 	assert.Equal(t, 8, len(dSubscription.GetDelayTopicsMap()))
 	assert.Equal(t, []string{"projects/test-project/topics/test-subscription.delay.5.seconds", "projects/test-project/topics/test-subscription.delay.30.seconds", "projects/test-project/topics/test-subscription.delay.60.seconds", "projects/test-project/topics/test-subscription.delay.150.seconds", "projects/test-project/topics/test-subscription.delay.300.seconds", "projects/test-project/topics/test-subscription.delay.600.seconds", "projects/test-project/topics/test-subscription.delay.1800.seconds", "projects/test-project/topics/test-subscription.delay.3600.seconds"}, delayTopics)
 
-	assert.Equal(t, "test-subscription.delay.5.seconds-cg", dSubscription.GetDelayConsumerGroupID("test-subscription.delay.5.seconds"))
+	assert.Equal(t, "test-subscription.delay.5.seconds-0-cg", dSubscription.GetDelayConsumerGroupID("test-subscription.delay.5.seconds", 0))
 	assert.Equal(t, "test-subscription.delay.5.seconds-subscriberID", dSubscription.GetDelayConsumerGroupInstanceID("subscriberID", "test-subscription.delay.5.seconds"))
 }

@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package messagebroker
@@ -10,7 +11,12 @@ import (
 
 func Test_validateKafkaConsumerClientConfig(t *testing.T) {
 	op1 := ConsumerClientOptions{
-		Topics:  []string{"t1"},
+		Topics: []TopicPartition{
+			{
+				Topic:     "t1",
+				Partition: 0,
+			},
+		},
 		GroupID: "g1",
 	}
 
@@ -18,10 +24,15 @@ func Test_validateKafkaConsumerClientConfig(t *testing.T) {
 
 	ops := []ConsumerClientOptions{
 		{
-			Topics:  []string{"t1"},
+			Topics: []TopicPartition{
+				{
+					Topic:     "t1",
+					Partition: 0,
+				},
+			},
 			GroupID: "",
 		}, {
-			Topics:  []string{},
+			Topics:  []TopicPartition{},
 			GroupID: "g3",
 		},
 	}

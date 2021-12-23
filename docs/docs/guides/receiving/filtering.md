@@ -24,7 +24,7 @@ Sample Subscription:
     "deadLetterPolicy": {
         "maxDeliveryAttempts": 5
     },
-	"filter": "<Filter Expression>"
+    "filter": "<Filter Expression>"
 }
 ```
 

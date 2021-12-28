@@ -39,14 +39,24 @@ type KafkaBroker struct {
 // newKafkaConsumerClient returns a kafka consumer
 func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 
-	normalizedTopics := make([]kafkapkg.TopicPartition, 0)
-	for i := range options.Topics {
-		brokerTopicName := normalizeTopicName(options.Topics[i].Topic)
-		kfkTp := kafkapkg.TopicPartition{
-			Topic:     &brokerTopicName,
-			Partition: int32(options.Topics[i].Partition),
-		}
-		normalizedTopics = append(normalizedTopics, kfkTp)
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// ** This section is deferred until ingestion/subscription topics are in place.
+	// ** Explicit Partition Assignment not to be undertaken since consumer groups are no longer honored.
+	//
+	// normalizedTopics := make([]kafkapkg.TopicPartition, 0)
+	// for i := range options.Topics {
+	// 	brokerTopicName := normalizeTopicName(options.Topics[i].Topic)
+	// 	kfkTp := kafkapkg.TopicPartition{
+	// 		Topic:     &brokerTopicName,
+	// 		Partition: int32(options.Topics[i].Partition),
+	// 	}
+	// 	normalizedTopics = append(normalizedTopics, kfkTp)
+	// }
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	normalizedTopics := make([]string, 0)
+	for _, topic := range options.Topics {
+		normalizedTopics = append(normalizedTopics, normalizeTopicName(topic.Topic))
 	}
 
 	err := validateKafkaConsumerBrokerConfig(bConfig)
@@ -88,10 +98,21 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
-	err = c.Assign(normalizedTopics)
-	if err != nil {
-		return nil, err
-	}
+	// With partition specific consumers in place at the consume plane this would still work given
+	// only one partition per topic is currently supported.
+	// This behaviour is not guaranteed with multiple partitions per primary topic.
+	c.SubscribeTopics(normalizedTopics, nil)
+
+	//////////////////////////////////////////////////////
+	// *** Warning *** DO NOT explicitly assign topic partitions to consumers
+	// unless subscriptions have dedicated topics. This will result in consumers being shared across subscribers
+	// and messages being consumed erratically.
+	//
+	// err = c.Assign(normalizedTopics)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//////////////////////////////////////////////////////
 
 	logger.Ctx(ctx).Infow("kafka consumer: initialized", "options", options)
 

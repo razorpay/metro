@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package subscription
@@ -20,7 +21,7 @@ func TestSubscriptionCore_UpdateSubscription(t *testing.T) {
 	mockTopicCore := tCore.NewMockICore(ctrl)
 	mockRepo := repo.NewMockIRepo(ctrl)
 
-	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
+	core := NewCore(1, mockRepo, mockProjectCore, mockTopicCore)
 	sub := Model{
 		Name:                           "projects/project123/subscriptions/subscription123",
 		Topic:                          "projects/project123/subscriptions/subscription123",
@@ -45,7 +46,7 @@ func TestSubscriptionCore_UpdateSubscriptionNotExists(t *testing.T) {
 	mockTopicCore := tCore.NewMockICore(ctrl)
 	mockRepo := repo.NewMockIRepo(ctrl)
 
-	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
+	core := NewCore(1, mockRepo, mockProjectCore, mockTopicCore)
 	sub := Model{
 		Name:                           "projects/project123/subscriptions/subscription123",
 		Topic:                          "projects/project123/subscriptions/subscription123",
@@ -70,7 +71,7 @@ func TestSubscriptionCore_UpdateSubscriptionProjectNotExists(t *testing.T) {
 	mockTopicCore := tCore.NewMockICore(ctrl)
 	mockRepo := repo.NewMockIRepo(ctrl)
 
-	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
+	core := NewCore(1, mockRepo, mockProjectCore, mockTopicCore)
 	sub := Model{
 		Name:                           "projects/project123/subscriptions/subscription123",
 		Topic:                          "projects/project123/subscriptions/subscription123",

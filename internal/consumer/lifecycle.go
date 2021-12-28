@@ -210,8 +210,9 @@ func (m *Manager) CreateConsumer(ctx context.Context, sub *subscription.Model, p
 	subscriberAckCh := make(chan *subscriber.AckMessage)
 	subscriberModAckCh := make(chan *subscriber.ModAckMessage)
 
-	subscriber, err := m.subscriberCore.NewOpinionatedSubscriber(ctx, subscriberID, sub, partition, hash, 100, 50, 5000,
-		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
+	subscriber, err := m.subscriberCore.NewSubscriber(ctx, subscriberID, sub, 100, 50, 5000, subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
+	// subscriber, err := m.subscriberCore.NewOpinionatedSubscriber(ctx, subscriberID, sub, partition, hash, 100, 50, 5000,
+	// 	subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("lifecyclemanager: failed to create subscriber for subscription-partition", "subscription", sub.Name, "partition", partition)
 		return nil, err

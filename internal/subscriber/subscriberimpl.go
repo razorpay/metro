@@ -126,6 +126,8 @@ func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, respon
 		subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 	}
 
+	sm = filterMessages(ctx, s, sm, errChan)
+
 	if len(sm) > 0 {
 		s.logInMemoryStats(ctx)
 	}

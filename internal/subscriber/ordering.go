@@ -154,24 +154,14 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 			continue
 		}
 		ackID := ackMessage.BuildAckID()
-		// check if the subscription has any filter applied and check if the message satisfies it if any
-		if checkFilterCriteria(ctx, s, protoMsg) {
-			sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
-		} else {
-			// self acknowledging the message as it does not need to be delivered for this subscription
-			//
-			// Using subscriber's Acknowledge func instead of directly acking to consumer because of the following reason:
-			// Let there be 3 messages - Msg-1, Msg-2 and Msg-3. Msg-1 and Msg-3 satisfies the filter criteria while Msg-3 doesn't.
-			// If we directly ack Msg-2 using brokerStore consumer, in Kafka, new committed offset will be set to 2.
-			// Now if for some reason, delivery of Msg-1 fails, we will not be able to retry it as the broker's committed offset is already set to 2.
-			// To avoid this, subscriber Acknowledge is used which will wait for Msg-1 status before committing the offsets.
-			s.Acknowledge(ctx, ackMessage.(*AckMessage).WithContext(ctx), errChan)
-		}
+		sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
 
 		subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription.Name, s.subscriberID).Inc()
 		subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
 		subscriberTimeTakenFromPublishToConsumeMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 	}
+
+	sm = filterMessages(ctx, s, sm, errChan)
 
 	if len(sm) > 0 {
 		s.logInMemoryStats(ctx)

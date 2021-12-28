@@ -227,8 +227,30 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 	s.subscriberImpl.ModAckDeadline(ctx, req, s.GetErrorChannel())
 }
 
+func filterMessages(ctx context.Context, s Implementation, messages []*metrov1.ReceivedMessage, errChan chan error) []*metrov1.ReceivedMessage {
+	fm := make([]*metrov1.ReceivedMessage, 0)
+	for _, msg := range messages {
+		// check if the subscription has any filter applied and check if the message satisfies it if any
+		if checkFilterCriteria(ctx, s, msg) {
+			fm = append(fm, msg)
+		} else {
+			// self acknowledging the message as it does not need to be delivered for this subscription
+			//
+			// Using subscriber's Acknowledge func instead of directly acking to consumer because of the following reason:
+			// Let there be 3 messages - Msg-1, Msg-2 and Msg-3. Msg-1 and Msg-3 satisfies the filter criteria while Msg-3 doesn't.
+			// If we directly ack Msg-2 using brokerStore consumer, in Kafka, new committed offset will be set to 2.
+			// Now if for some reason, delivery of Msg-1 fails, we will not be able to retry it as the broker's committed offset is already set to 2.
+			// To avoid this, subscriber Acknowledge is used which will wait for Msg-1 status before committing the offsets.
+			logger.Ctx(ctx).Infow("subscriber: message filtered out", "logFields", getLogFields(s), "messageID", msg.Message.MessageId)
+			ackMsg, _ := ParseAckID(msg.AckId)
+			s.Acknowledge(ctx, ackMsg, errChan)
+		}
+	}
+	return fm
+}
+
 // checks if the message satisfies filter criteria(if any) for the subscription
-func checkFilterCriteria(ctx context.Context, s Implementation, protoMsg *metrov1.PubsubMessage) bool {
+func checkFilterCriteria(ctx context.Context, s Implementation, msg *metrov1.ReceivedMessage) bool {
 	sub := s.GetSubscription()
 	if sub.FilterExpression != "" {
 		subFilter, err := s.GetSubscription().GetFilterExpressionAsStruct()
@@ -237,13 +259,13 @@ func checkFilterCriteria(ctx context.Context, s Implementation, protoMsg *metrov
 			logger.Ctx(ctx).Errorw("subscriber: error in getting filter expression as a struct", "filter expression", sub.FilterExpression,
 				"logfields", getLogFields(s), "error", err.Error())
 		} else {
-			res, err := subFilter.Evaluate(protoMsg.Attributes)
+			res, err := subFilter.Evaluate(msg.Message.Attributes)
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriber: error occurred during filter evaluation", "filter expression", sub.FilterExpression,
 					"logfields", getLogFields(s), "error", err.Error())
 			} else {
 				if !res {
-					logger.Ctx(ctx).Infow("subscriber: Message didn't satisfy the filter criteria", "messageID", protoMsg.MessageId, "filter expression", sub.FilterExpression,
+					logger.Ctx(ctx).Infow("subscriber: Message didn't satisfy the filter criteria", "messageID", msg.Message.MessageId, "filter expression", sub.FilterExpression,
 						"logfields", getLogFields(s))
 					return false
 				}

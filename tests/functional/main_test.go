@@ -32,6 +32,8 @@ var username string
 var password string
 var orderedTopic string
 var orderedSub string
+var orderedFilterTopic string
+var orderedFilterSub string
 var ps *pushserver.PushServer
 var chanMap = map[string]chan pushserver.PushMessage{}
 
@@ -139,6 +141,39 @@ func teardown() {
 	ps.StopServer()
 }
 
+func setupOrderedFilter() {
+	orderedFilterTopic = fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+	orderedFilterSub = fmt.Sprintf("subscription-%s", uuid.New().String()[0:4])
+
+	topic, err := client.CreateTopic(context.Background(), orderedFilterTopic)
+	if err != nil {
+		os.Exit(10)
+	}
+
+	if _, err := client.CreateSubscription(context.Background(), orderedFilterSub,
+		pubsub.SubscriptionConfig{
+			Topic: topic,
+			PushConfig: pubsub.PushConfig{
+				Endpoint: mockServerPushEndpoint,
+			},
+			DeadLetterPolicy: &pubsub.DeadLetterPolicy{
+				MaxDeliveryAttempts: 2,
+				DeadLetterTopic:     "dummy",
+			},
+			RetryPolicy: &pubsub.RetryPolicy{
+				MinimumBackoff: 1 * time.Second,
+				MaximumBackoff: 1 * time.Second,
+			},
+			EnableMessageOrdering: true,
+			Filter:                "attributes.x = \"org\"",
+		}); err != nil {
+		os.Exit(12)
+	}
+
+	chanMap[fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedFilterSub)] = make(chan pushserver.PushMessage)
+	time.Sleep(time.Duration(time.Second * 5))
+}
+
 func setupOrdering() {
 	orderedTopic = fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
 	orderedSub = fmt.Sprintf("subscription-%s", uuid.New().String()[0:4])
@@ -168,10 +203,13 @@ func setupOrdering() {
 	}
 
 	chanMap[fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedSub)] = make(chan pushserver.PushMessage)
+	setupOrderedFilter()
 	time.Sleep(time.Duration(time.Second * 5))
 }
 
 func teardownOrdering() {
 	client.Topic(orderedTopic).Delete(context.TODO())
 	client.Subscription(orderedSub).Delete(context.TODO())
+	client.Topic(orderedFilterTopic).Delete(context.TODO())
+	client.Subscription(orderedFilterSub).Delete(context.TODO())
 }

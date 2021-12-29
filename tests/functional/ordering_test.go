@@ -162,3 +162,47 @@ func Test_Ordering_FailDelivery_MultipleKeys(t *testing.T) {
 		expectedDelivery[pushMessage.Request.Message.OrderingKey] = msgNos[1:]
 	}
 }
+
+func Test_Ordering_Filtered(t *testing.T) {
+	topic := client.Topic(orderedFilterTopic)
+	topic.EnableMessageOrdering = true
+	subName := fmt.Sprintf("projects/%s/subscriptions/%s", projectId, orderedFilterSub)
+	pushChan := chanMap[subName]
+
+	ctx := context.Background()
+
+	orderedMessages := map[string][]string{
+		"o1": []string{"m1", "m2", "m3"},
+	}
+	attributes := []string{"org", "not org", "org"}
+
+	expectedDelivery := map[string][]string{
+		"o1": []string{"m1", "m1", "m3", "m3"},
+	}
+
+	for orderKey, msgNos := range orderedMessages {
+		for i, msgNo := range msgNos {
+			_, err := topic.Publish(
+				ctx,
+				&pubsub.Message{
+					Data:        []byte(""),
+					OrderingKey: orderKey,
+					Attributes: map[string]string{
+						"order": msgNo,
+						"x":     attributes[i],
+					},
+				},
+			).Get(ctx)
+			assert.Nil(t, err)
+		}
+	}
+
+	for i := 0; i < 4; i++ {
+		pushMessage := <-pushChan
+		pushMessage.ResponseChan <- 500
+		msgNos := expectedDelivery[pushMessage.Request.Message.OrderingKey]
+		assert.NotZero(t, msgNos)
+		assert.Equal(t, msgNos[0], pushMessage.Request.Message.Attributes["order"])
+		expectedDelivery[pushMessage.Request.Message.OrderingKey] = msgNos[1:]
+	}
+}

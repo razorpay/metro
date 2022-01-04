@@ -29,7 +29,8 @@ type Manager struct {
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subCache         []*subscription.Model
-	cleanupCh        chan cleanupMessage
+	cleanupCh        chan consumerIdentifier
+	recoveryCh       chan consumerIdentifier
 	registry         registry.IRegistry
 	replicas         int
 	ordinalID        int
@@ -62,6 +63,8 @@ func NewLifecycleManager(ctx context.Context, replicas int, ordinalID int, subsc
 		subscriberCore:   subscriberCore,
 		registry:         r,
 		bs:               bs,
+		cleanupCh:        make(chan consumerIdentifier),
+		recoveryCh:       make(chan consumerIdentifier),
 		replicas:         replicas,
 		ordinalID:        ordinalID,
 		mutex:            &sync.Mutex{},
@@ -144,6 +147,22 @@ func (m *Manager) Run() error {
 
 			m.subCache = newSubs
 			m.refreshConsumers()
+		case recoveryMessage := <-m.recoveryCh:
+			logger.Ctx(m.ctx).Infow("lifecyclemanager: consumer encountered irrecoverable error, attempting to recover", "recoveryMessage", recoveryMessage)
+			if existingCon, ok := m.consumers[recoveryMessage.computedHash]; ok {
+
+				sub := existingCon.subscription
+				part := existingCon.subscription.Partition
+
+				m.CloseConsumer(m.ctx, recoveryMessage.computedHash)
+
+				con, err := m.CreateConsumer(m.ctx, sub, part, recoveryMessage.computedHash)
+				if err != nil {
+					logger.Ctx(m.ctx).Errorw("lifecyclemanager: failed to restore consumer", "subscription", sub.Name, "partition", part)
+				}
+				m.consumers[recoveryMessage.computedHash] = con
+			}
+
 		case cleanupMessage := <-m.cleanupCh:
 			logger.Ctx(m.ctx).Infow("lifecyclemanager: got request to cleanup subscriber", "cleanupMessage", cleanupMessage)
 			m.CloseConsumer(m.ctx, cleanupMessage.computedHash)
@@ -182,7 +201,7 @@ func (m *Manager) refreshConsumers() {
 	// Gracefully shutdown reassigned consumers
 	for h := range m.consumers {
 		if _, ok := m.consumers[h]; !ok {
-			m.cleanupCh <- cleanupMessage{
+			m.cleanupCh <- consumerIdentifier{
 				computedHash: h,
 			}
 		}
@@ -251,8 +270,8 @@ func (m *Manager) CloseConsumer(ctx context.Context, computedhash int) error {
 	return nil
 }
 
-// cleanupMessage ...
-type cleanupMessage struct {
+// consumerIdentifier ...
+type consumerIdentifier struct {
 	computedHash int
 }
 

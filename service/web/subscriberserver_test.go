@@ -539,3 +539,126 @@ func TestSubscriberServer_StreamingPull(t *testing.T) {
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
 	newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
 }
+
+func TestSubscriberServer_ListTopicSubscriptions(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+
+	req := &metrov1.ListTopicSubscriptionsRequest{
+		Topic: "projects/project_1/topics/topic_1",
+	}
+
+	subs := []*subscription.Model{
+		{
+			ExtractedTopicName:        "topic_1",
+			ExtractedSubscriptionName: "sub_1",
+		},
+		{
+			ExtractedTopicName:        "topic_1",
+			ExtractedSubscriptionName: "sub_2",
+		},
+		{
+			ExtractedTopicName:        "topic_1",
+			ExtractedSubscriptionName: "sub_3",
+		},
+		{
+			ExtractedTopicName:        "topic_2",
+			ExtractedSubscriptionName: "sub_4",
+		},
+		{
+			ExtractedTopicName:        "topic_2",
+			ExtractedSubscriptionName: "sub_5",
+		},
+	}
+	subscriptionCore.EXPECT().List(gomock.Any(), "subscriptions/project_1").Return(subs, nil)
+	res, err := server.ListTopicSubscriptions(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(res.Subscriptions))
+}
+
+func TestSubscriberServer_ListTopicSubscriptionsFailure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+
+	req := &metrov1.ListTopicSubscriptionsRequest{
+		Topic: "projects/project_1/topics/topic_1",
+	}
+
+	subscriptionCore.EXPECT().List(gomock.Any(), "subscriptions/project_1").Return(nil, fmt.Errorf("error"))
+	res, err := server.ListTopicSubscriptions(ctx, req)
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+}
+
+func TestSubscriberServer_ListProjectSubscriptions(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+
+	req := &metrov1.ListProjectSubscriptionsRequest{
+		ProjectId: "project_1",
+	}
+
+	subs := []*subscription.Model{
+		{
+			ExtractedSubscriptionName: "sub_1",
+		},
+		{
+			ExtractedSubscriptionName: "sub_2",
+		},
+		{
+			ExtractedSubscriptionName: "sub_3",
+		},
+		{
+			ExtractedSubscriptionName: "sub_4",
+		},
+		{
+			ExtractedSubscriptionName: "sub_5",
+		},
+	}
+	subscriptionCore.EXPECT().List(gomock.Any(), subscription.Prefix+req.ProjectId).Return(subs, nil)
+	res, err := server.ListProjectSubscriptions(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(res.Subscriptions))
+}
+
+func TestSubscriberServer_ListProjectSubscriptionsFailure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+
+	ctx := context.Background()
+
+	req := &metrov1.ListProjectSubscriptionsRequest{
+		ProjectId: "project_1",
+	}
+
+	subscriptionCore.EXPECT().List(gomock.Any(), subscription.Prefix+req.ProjectId).Return(nil, fmt.Errorf("error"))
+	res, err := server.ListProjectSubscriptions(ctx, req)
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+}

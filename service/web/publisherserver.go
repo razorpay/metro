@@ -93,6 +93,30 @@ func (s publisherServer) DeleteTopic(ctx context.Context, req *metrov1.DeleteTop
 	return &emptypb.Empty{}, nil
 }
 
+func (s publisherServer) ListProjectTopics(ctx context.Context,
+	req *metrov1.ListProjectTopicsRequest) (*metrov1.ListProjectTopicsResponse, error) {
+	logger.Ctx(ctx).Infow("publisherServer: received request to list project topics", "project_id", req.ProjectId)
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.ListProjectTopics", opentracing.Tags{
+		"project": req.ProjectId,
+	})
+	defer span.Finish()
+
+	topics, err := s.topicCore.List(ctx, topic.Prefix+req.ProjectId)
+
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	res := []string{}
+	for _, t := range topics {
+		if !t.IsDeadLetterTopic() {
+			res = append(res, t.ExtractedTopicName)
+		}
+	}
+	return &metrov1.ListProjectTopicsResponse{Topics: res}, nil
+}
+
 //AuthFuncOverride - Override function called by the auth interceptor
 func (s publisherServer) AuthFuncOverride(ctx context.Context, fullMethodName string, req interface{}) (context.Context, error) {
 	return authRequest(ctx, s.credentialsCore, fullMethodName, req)

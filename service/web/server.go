@@ -33,11 +33,18 @@ func authRequest(ctx context.Context, credCore credentials.ICore, fullMethodName
 }
 
 func getProjectIDFromRequest(ctx context.Context, req interface{}) (string, error) {
-	resourceName, err := getResourceNameFromRequest(ctx, req)
-	if err != nil {
-		return "", err
+	switch req.(type) {
+	case *metrov1.ListProjectSubscriptionsRequest:
+		return req.(*metrov1.ListProjectSubscriptionsRequest).ProjectId, nil
+	case *metrov1.ListProjectTopicsRequest:
+		return req.(*metrov1.ListProjectTopicsRequest).ProjectId, nil
+	default:
+		resourceName, err := getResourceNameFromRequest(ctx, req)
+		if err != nil {
+			return "", err
+		}
+		return getProjectIDFromResourceName(ctx, resourceName)
 	}
-	return getProjectIDFromResourceName(ctx, resourceName)
 }
 
 func getResourceNameFromRequest(ctx context.Context, req interface{}) (string, error) {
@@ -65,6 +72,8 @@ func getResourceNameFromRequest(ctx context.Context, req interface{}) (string, e
 		return req.(*metrov1.DeleteSubscriptionRequest).Subscription, nil
 	case *metrov1.ModifyAckDeadlineRequest:
 		return req.(*metrov1.ModifyAckDeadlineRequest).Subscription, nil
+	case *metrov1.ListTopicSubscriptionsRequest:
+		return req.(*metrov1.ListTopicSubscriptionsRequest).Topic, nil
 	default:
 		logger.Ctx(ctx).Infof("unknown request type: %v", t)
 		return "", unknownResourceError

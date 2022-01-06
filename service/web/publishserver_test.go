@@ -175,3 +175,64 @@ func TestPublishServer_PublishFailure_OnWrongTopic(t *testing.T) {
 	_, err := server.Publish(ctx, req)
 	assert.NotNil(t, err)
 }
+
+func TestPublishServer_ListProjectTopics(t *testing.T) {
+	ctx := context.Background()
+
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	topicCore := mocks2.NewMockICore(ctrl)
+	publisher := mocks3.NewMockIPublisher(ctrl)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
+
+	req := &metrov1.ListProjectTopicsRequest{
+		ProjectId: "project_1",
+	}
+
+	topics := []*topic.Model{
+		{
+			ExtractedTopicName: "topic_1",
+		},
+		{
+			ExtractedTopicName: "topic_2",
+		},
+		{
+			ExtractedTopicName: "topic_3",
+		},
+		{
+			ExtractedTopicName: "topic_4",
+		},
+		{
+			ExtractedTopicName: "topic_5",
+		},
+	}
+	topicCore.EXPECT().List(gomock.Any(), topic.Prefix+req.ProjectId).Return(topics, nil)
+
+	res, err := server.ListProjectTopics(ctx, req)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(res.Topics))
+}
+
+func TestPublishServer_ListProjectTopicsFailure(t *testing.T) {
+	ctx := context.Background()
+
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	topicCore := mocks2.NewMockICore(ctrl)
+	publisher := mocks3.NewMockIPublisher(ctrl)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
+
+	req := &metrov1.ListProjectTopicsRequest{
+		ProjectId: "project_1",
+	}
+
+	topicCore.EXPECT().List(gomock.Any(), topic.Prefix+req.ProjectId).Return(nil, fmt.Errorf("error"))
+
+	res, err := server.ListProjectTopics(ctx, req)
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+}

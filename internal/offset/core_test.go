@@ -28,6 +28,17 @@ func TestCore_SetOffset(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCore_SetOffsetStatus(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo)
+	oStatus := getDummyOffsetStatusModel()
+	ctx := context.Background()
+	mockRepo.EXPECT().Save(gomock.Any(), oStatus)
+	err := core.SetOffsetStatus(ctx, oStatus)
+	assert.NoError(t, err)
+}
+
 func TestCore_Exists(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)
@@ -36,6 +47,18 @@ func TestCore_Exists(t *testing.T) {
 	ctx := context.Background()
 	mockRepo.EXPECT().Exists(gomock.Any(), offset.Key()).Return(true, nil)
 	ok, err := core.Exists(ctx, offset)
+	assert.True(t, ok)
+	assert.NoError(t, err)
+}
+
+func TestCore_OffsetStatusExists(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo)
+	oStatus := getDummyOffsetStatusModel()
+	ctx := context.Background()
+	mockRepo.EXPECT().Exists(gomock.Any(), oStatus.Key()).Return(true, nil)
+	ok, err := core.OffsetStatusExists(ctx, oStatus)
 	assert.True(t, ok)
 	assert.NoError(t, err)
 }
@@ -52,6 +75,18 @@ func TestCore_GetOffset(t *testing.T) {
 	assert.NotNil(t, offset)
 }
 
+func TestCore_GetOffsetStatus(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo)
+	oStatus := getDummyOffsetStatusModel()
+	ctx := context.Background()
+	mockRepo.EXPECT().Get(gomock.Any(), oStatus.Key(), gomock.Any()).Return(nil)
+	_, err := core.GetOffsetStatus(ctx, oStatus)
+	assert.NoError(t, err)
+	assert.NotNil(t, oStatus)
+}
+
 func TestCore_DeleteOffset(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)
@@ -63,4 +98,17 @@ func TestCore_DeleteOffset(t *testing.T) {
 	err := core.DeleteOffset(ctx, offset)
 	assert.NoError(t, err)
 	assert.NotNil(t, offset)
+}
+
+func TestCore_DeleteOffsetStatus(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo)
+	oStatus := getDummyOffsetStatusModel()
+	ctx := context.Background()
+	mockRepo.EXPECT().Exists(gomock.Any(), oStatus.Key()).Return(true, nil)
+	mockRepo.EXPECT().Delete(gomock.Any(), oStatus).Return(nil)
+	err := core.DeleteOffsetStatus(ctx, oStatus)
+	assert.NoError(t, err)
+	assert.NotNil(t, oStatus)
 }

@@ -460,6 +460,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			receivedMessage.Topic = *msg.TopicPartition.Topic
 			receivedMessage.Partition = msg.TopicPartition.Partition
 			receivedMessage.Offset = int32(msg.TopicPartition.Offset)
+			receivedMessage.OrderingKey = string(msg.Key)
 
 			msgs = append(msgs, receivedMessage)
 			if int32(len(msgs)) == request.NumOfMessages {

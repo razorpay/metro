@@ -164,7 +164,7 @@ func (sm *SubscriptionTask) handleWatchUpdates(ctx context.Context) error {
 func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBindingPairs []registry.Pair) error {
 	oldBindings := sm.nodebindingCache
 	var newBindings []*nodebinding.Model
-
+	var bindingsReceived []string
 	for _, pair := range newBindingPairs {
 		nb := nodebinding.Model{}
 		err := json.Unmarshal(pair.Value, &nb)
@@ -172,7 +172,12 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 			return err
 		}
 		newBindings = append(newBindings, &nb)
+		bindingsReceived = append(bindingsReceived, nb.SubscriptionID)
 	}
+	logger.Ctx(ctx).Infow("Receievd bindings on watch update", "logFields", map[string]interface{}{
+		"bindings":    bindingsReceived,
+		"oldBindings": oldBindings,
+	})
 
 	for _, old := range oldBindings {
 		oldKey := old.Key()

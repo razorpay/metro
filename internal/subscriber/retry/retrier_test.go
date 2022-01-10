@@ -5,7 +5,7 @@ package retry
 import (
 	"testing"
 
-	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -81,7 +81,7 @@ func Test_Interval_Calculator(t *testing.T) {
 		},
 	}
 
-	availableDelayIntervals := subscription.Intervals
+	availableDelayIntervals := topic.Intervals
 	for _, test := range tests {
 		actualIntervals := findAllRetryIntervals(test.min, test.max, test.currentRetryCount, test.maxRetryCount, test.currentInterval, availableDelayIntervals)
 		assert.Equal(t, test.want, actualIntervals)

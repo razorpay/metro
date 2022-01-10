@@ -110,7 +110,7 @@ func (s publisherServer) ListProjectTopics(ctx context.Context,
 
 	res := []string{}
 	for _, t := range topics {
-		if !t.IsDeadLetterTopic() {
+		if t.IsPrimaryTopic() {
 			res = append(res, t.ExtractedTopicName)
 		}
 	}

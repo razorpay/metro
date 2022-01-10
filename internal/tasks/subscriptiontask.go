@@ -164,7 +164,7 @@ func (sm *SubscriptionTask) handleWatchUpdates(ctx context.Context) error {
 func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBindingPairs []registry.Pair) error {
 	oldBindings := sm.nodebindingCache
 	var newBindings []*nodebinding.Model
-
+	var bindingsReceived []string
 	for _, pair := range newBindingPairs {
 		nb := nodebinding.Model{}
 		err := json.Unmarshal(pair.Value, &nb)
@@ -172,7 +172,12 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 			return err
 		}
 		newBindings = append(newBindings, &nb)
+		bindingsReceived = append(bindingsReceived, nb.SubscriptionID)
 	}
+	logger.Ctx(ctx).Infow("Receievd bindings on watch update", "logFields", map[string]interface{}{
+		"bindings":    bindingsReceived,
+		"oldBindings": oldBindings,
+	})
 
 	for _, old := range oldBindings {
 		oldKey := old.Key()
@@ -209,8 +214,18 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 		}
 
 		if !found {
-			logger.Ctx(ctx).Infow("binding added", "key", newBinding.Key())
-			handler := stream.NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, sm.subscriptionCore, sm.subscriber, sm.httpConfig)
+			logger.Ctx(ctx).Infow("Adding binding and setting up subscription handler", "logFeilds", map[string]interface{}{
+				"bindingKey":   newBinding.Key(),
+				"subscription": newBinding.SubscriptionID,
+				"nodeID":       newBinding.NodeID,
+			})
+			handler, err := stream.NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, sm.subscriptionCore, sm.subscriber, sm.httpConfig)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriptionstask: Failed to setup handler for subscription", "logFields", map[string]interface{}{
+					"subscription": newBinding.SubscriptionID,
+					"bindingKey":   newBinding.Key,
+				})
+			}
 
 			// run the stream in a separate go routine, this go routine is not part of the worker error group
 			// as the worker should continue to run if a single subscription stream exists with error

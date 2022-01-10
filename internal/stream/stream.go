@@ -304,14 +304,17 @@ func (ps *PushStream) getLogFields() map[string]interface{} {
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) (*PushStream, error) {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
-
+	logger.Ctx(pushCtx).Infow("worker: Setting up new push stream", "logFields", map[string]interface{}{
+		"subscription": subName,
+		"node":         nodeID,
+	})
 	// get subscription Model details
 	subModel, err := subscriptionCore.Get(pushCtx, subName)
 	if err != nil {
 		logger.Ctx(pushCtx).Errorw("error fetching subscription", "error", err.Error())
-		return nil
+		return nil, err
 	}
 
 	// set http connection timeout from the subscription
@@ -344,7 +347,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
 		httpClient:       httpclient,
-	}
+	}, nil
 }
 
 func newPushEndpointRequest(message *metrov1.ReceivedMessage, subscription string) *metrov1.PushEndpointRequest {

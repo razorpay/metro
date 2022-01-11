@@ -237,6 +237,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 			sm.nodeBindingCore.DeleteNodeBinding(ctx, nb)
 		} else {
 			validBindings = append(validBindings, nb)
+			logger.Ctx(ctx).Infow("schedulertask: found valid nodebinding for subscription", "subscription", nb.SubscriptionID)
 		}
 	}
 	// update the binding list after deletions
@@ -312,6 +313,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 			for i := 0; i < topicM.NumPartitions; i++ {
 				serr := sm.scheduleSubscription(ctx, sub, &nodeBindings)
 				if serr != nil {
+					logger.Ctx(ctx).Errorw("schedulertask: error in scheduling subscription", "err", serr, "subscription", sub.ExtractedSubscriptionName, "topic", sub.ExtractedTopicName, "partition", i)
 					return serr
 				}
 			}

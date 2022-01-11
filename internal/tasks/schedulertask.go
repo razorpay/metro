@@ -148,7 +148,9 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 				serr = sm.refreshNodeBindings(gctx)
 				if serr != nil {
 					// just log the error, we want to retry the sub update failures
-					logger.Ctx(gctx).Infow("error processing subscription updates", "error", serr)
+					logger.Ctx(gctx).Errorw("error processing subscription updates", "error", serr, "logFields", map[string]interface{}{
+						"subscriptions": newSubs,
+					})
 				}
 			case val := <-sm.nodeWatchData:
 				if val == nil {
@@ -307,11 +309,19 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model) error {
 	nb, serr := sm.scheduler.Schedule(sub, *nodeBindings, sm.nodeCache)
 	if serr != nil {
+		logger.Ctx(ctx).Errorw("scheduler: failed to schedule subscription", "err", serr.Error(), "logFields", map[string]interface{}{
+			"subscription": sub.Name,
+			"topic":        sub.Topic,
+		})
 		return serr
 	}
 
 	berr := sm.nodeBindingCore.CreateNodeBinding(ctx, nb)
 	if berr != nil {
+		logger.Ctx(ctx).Errorw("scheduler: failed to create nodebinding", "err", serr.Error(), "logFields", map[string]interface{}{
+			"subscription": sub.Name,
+			"topic":        sub.Topic,
+		})
 		return berr
 	}
 

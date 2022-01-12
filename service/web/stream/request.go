@@ -12,7 +12,9 @@ type ParsedStreamingPullRequest struct {
 	ClientID                     string
 	Subscription                 string
 	AckIDs                       []string
+	ModAckIDs                    []string
 	AckMessages                  []*subscriber.AckMessage
+	ModAckMessages               []*subscriber.AckMessage
 	ModifyDeadlineMsgIdsWithSecs map[string]int32
 }
 
@@ -28,7 +30,7 @@ func (r *ParsedStreamingPullRequest) HasAcknowledgement() bool {
 
 // HasModifyAcknowledgement ...
 func (r *ParsedStreamingPullRequest) HasModifyAcknowledgement() bool {
-	return r.ModifyDeadlineMsgIdsWithSecs != nil && len(r.ModifyDeadlineMsgIdsWithSecs) > 0
+	return r.ModAckMessages != nil && len(r.ModAckMessages) > 0
 }
 
 // NewParsedStreamingPullRequest ...
@@ -39,19 +41,31 @@ func NewParsedStreamingPullRequest(req *metrov1.StreamingPullRequest) (*ParsedSt
 	parsedReq.Subscription = req.Subscription
 	if req.AckIds != nil && len(req.AckIds) > 0 {
 		ackMessages := make([]*subscriber.AckMessage, 0)
-		modifyDeadlineMsgIdsWithSecs := make(map[string]int32)
 		parsedReq.AckIDs = req.AckIds
-		for index, ackID := range req.AckIds {
+		for _, ackID := range req.AckIds {
 			ackMessage, err := subscriber.ParseAckID(ackID)
 			if err != nil {
 				return nil, err
 			}
 			ackMessages = append(ackMessages, ackMessage)
-			modifyDeadlineMsgIdsWithSecs[ackMessage.MessageID] = req.ModifyDeadlineSeconds[index]
 		}
 		parsedReq.AckIDs = req.AckIds
 		parsedReq.AckMessages = ackMessages
-		parsedReq.ModifyDeadlineMsgIdsWithSecs = modifyDeadlineMsgIdsWithSecs
+	}
+	if req.ModifyDeadlineAckIds != nil && len(req.ModifyDeadlineAckIds) > 0 {
+		ackMessages := make([]*subscriber.AckMessage, 0)
+		deadlineMap := map[string]int32{}
+		for index, ackID := range req.ModifyDeadlineAckIds {
+			ackMessage, err := subscriber.ParseAckID(ackID)
+			if err != nil {
+				return nil, err
+			}
+			ackMessages = append(ackMessages, ackMessage)
+			deadlineMap[ackMessage.MessageID] = req.ModifyDeadlineSeconds[index]
+		}
+		parsedReq.ModifyDeadlineMsgIdsWithSecs = deadlineMap
+		parsedReq.ModAckIDs = req.ModifyDeadlineAckIds
+		parsedReq.ModAckMessages = ackMessages
 	}
 
 	return parsedReq, nil
@@ -89,7 +103,7 @@ func NewParsedModifyAckDeadlineRequest(req *metrov1.ModifyAckDeadlineRequest) (*
 	if req.AckIds != nil && len(req.AckIds) > 0 {
 		ackMessages := make([]*subscriber.AckMessage, 0)
 		modifyDeadlineMsgIdsWithSecs := make(map[string]int32)
-		parsedReq.AckIDs = req.AckIds
+		parsedReq.ModAckIDs = req.AckIds
 		for _, ackID := range req.AckIds {
 			ackMessage, err := subscriber.ParseAckID(ackID)
 			if err != nil {
@@ -98,8 +112,8 @@ func NewParsedModifyAckDeadlineRequest(req *metrov1.ModifyAckDeadlineRequest) (*
 			ackMessages = append(ackMessages, ackMessage)
 			modifyDeadlineMsgIdsWithSecs[ackMessage.MessageID] = req.AckDeadlineSeconds
 		}
-		parsedReq.AckIDs = req.AckIds
-		parsedReq.AckMessages = ackMessages
+		parsedReq.ModAckIDs = req.AckIds
+		parsedReq.ModAckMessages = ackMessages
 		parsedReq.ModifyDeadlineMsgIdsWithSecs = modifyDeadlineMsgIdsWithSecs
 	}
 

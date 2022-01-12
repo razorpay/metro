@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 )
@@ -24,6 +25,23 @@ func (r *registryHealthChecker) name() string {
 // NewRegistryHealthChecker returns a registry health checker
 func NewRegistryHealthChecker(registry registry.IRegistry) Checker {
 	return &registryHealthChecker{registry}
+}
+
+type cacheHealthChecker struct {
+	cache cache.ICache
+}
+
+func (c *cacheHealthChecker) checkHealth(ctx context.Context) (bool, error) {
+	return c.cache.IsAlive(ctx)
+}
+
+func (c *cacheHealthChecker) name() string {
+	return fmt.Sprintf("cache:%T", c)
+}
+
+// NewCacheHealthChecker returns a cache health checker
+func NewCacheHealthChecker(cache cache.ICache) Checker {
+	return &cacheHealthChecker{cache}
 }
 
 type brokerHealthChecker struct {

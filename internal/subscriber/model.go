@@ -310,6 +310,33 @@ func (cm *ConsumptionMetadata) Store(msg messagebroker.ReceivedMessage, deadline
 	heap.Init(&cm.deadlineBasedMinHeap)
 }
 
+type offsetStatus string
+
+const (
+	offsetStatusAcknowledge offsetStatus = "ACK"
+	offsetStatusRetry       offsetStatus = "RETRY"
+)
+
+// OrderedConsumptionMetadata holds consumption metadata for ordered consumer
+type OrderedConsumptionMetadata struct {
+	ConsumptionMetadata
+	offsetStatusMap map[int32]offsetStatus // holds mapping of ack/nack requests received per offset
+}
+
+// NewOrderedConsumptionMetadata ...
+func NewOrderedConsumptionMetadata() *OrderedConsumptionMetadata {
+	cm := NewConsumptionMetadata()
+	return &OrderedConsumptionMetadata{
+		ConsumptionMetadata: *cm,
+		offsetStatusMap:     make(map[int32]offsetStatus),
+	}
+}
+
+// Store updates all the internal data structures with the consumed message metadata
+func (cm *OrderedConsumptionMetadata) Store(msg messagebroker.ReceivedMessage, deadline int64) {
+	cm.ConsumptionMetadata.Store(msg, deadline)
+}
+
 // TopicPartition ...
 type TopicPartition struct {
 	topic     string

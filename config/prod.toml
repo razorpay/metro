@@ -60,6 +60,15 @@
             scheme             = "https"
             caPem              = ""
 
+[cache]
+    driver                    = "consul"
+    [cache.consulconfig]
+        [cache.consulconfig.config]
+            address            = "localhost:8500"
+            token              = ""
+            scheme             = "http"
+            caPem              = ""
+
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"
     grpcGatewayAddress    = "localhost:8085"

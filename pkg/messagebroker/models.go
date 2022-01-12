@@ -64,6 +64,10 @@ type MessageHeader struct {
 	DeadLetterTopic string
 	// the time interval after which this message can be read by the delay-consumer on a retry cycle
 	NextDeliveryTime time.Time
+	// Sequence number for ordered message delivery
+	CurrentSequence int32
+	// sequence number of the previous message in ordered message delivery
+	PrevSequence int32
 }
 
 // LogFields ...
@@ -83,6 +87,8 @@ func (mh MessageHeader) LogFields() []interface{} {
 			"closestDelayInterval": mh.ClosestDelayInterval,
 			"deadLetterTopic":      mh.DeadLetterTopic,
 			"nextDeliveryTime":     mh.NextDeliveryTime.Unix(),
+			"currentSequence":      mh.CurrentSequence,
+			"prevSequence":         mh.PrevSequence,
 		},
 	}
 }
@@ -147,21 +153,22 @@ func NewPartitionOffset(partition, offset int32) PartitionOffset {
 
 // GetMessagesFromTopicResponse ...
 type GetMessagesFromTopicResponse struct {
-	PartitionOffsetWithMessages map[string]ReceivedMessage
+	Messages []ReceivedMessage
 }
 
 // HasNonZeroMessages ...
 func (g *GetMessagesFromTopicResponse) HasNonZeroMessages() bool {
-	return len(g.PartitionOffsetWithMessages) > 0
+	return len(g.Messages) > 0
 }
 
 // ReceivedMessage ...
 type ReceivedMessage struct {
-	Data       []byte
-	Topic      string
-	Partition  int32
-	Offset     int32
-	Attributes []map[string][]byte
+	Data        []byte
+	Topic       string
+	Partition   int32
+	Offset      int32
+	OrderingKey string
+	Attributes  []map[string][]byte
 	MessageHeader
 }
 
@@ -175,6 +182,11 @@ func (rm ReceivedMessage) HasReachedRetryThreshold() bool {
 // the number of allowed retries have been exhausted
 func (rm ReceivedMessage) CanProcessMessage() bool {
 	return time.Now().Unix() >= rm.NextDeliveryTime.Unix() || rm.HasReachedRetryThreshold()
+}
+
+// RequiresOrdering checks if the message contains an ordering key
+func (rm ReceivedMessage) RequiresOrdering() bool {
+	return rm.OrderingKey != ""
 }
 
 // CommitOnTopicResponse ...

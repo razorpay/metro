@@ -147,8 +147,15 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 				sm.subCache = newSubs
 				serr = sm.refreshNodeBindings(gctx)
 				if serr != nil {
+					subNames := make([]string, 0)
+
+					for _, sub := range newSubs {
+						subNames = append(subNames, sub.ExtractedSubscriptionName)
+					}
 					// just log the error, we want to retry the sub update failures
-					logger.Ctx(gctx).Infow("error processing subscription updates", "error", serr)
+					logger.Ctx(gctx).Errorw("error processing subscription updates", "error", serr, "logFields", map[string]interface{}{
+						"subscriptions": subNames,
+					})
 				}
 			case val := <-sm.nodeWatchData:
 				if val == nil {
@@ -216,6 +223,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 			subVersion := sub.GetVersion()
 			if sub.Name == nb.SubscriptionID {
 				if nb.SubscriptionVersion == subVersion {
+					logger.Ctx(ctx).Infow("schedulertask: existing subscription stream found", "subscription", nb.SubscriptionID, "topic", sub.ExtractedTopicName)
 					found = true
 					break
 				}
@@ -225,9 +233,11 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 		}
 
 		if !found {
+			logger.Ctx(ctx).Infow("schedulertask: unable to find nodebinding for subscription", "subscription", nb.SubscriptionID)
 			sm.nodeBindingCore.DeleteNodeBinding(ctx, nb)
 		} else {
 			validBindings = append(validBindings, nb)
+			logger.Ctx(ctx).Infow("schedulertask: found valid nodebinding for subscription", "subscription", nb.SubscriptionID)
 		}
 	}
 	// update the binding list after deletions
@@ -236,6 +246,8 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	// Reschedule any binding where node is removed
 	validBindings = []*nodebinding.Model{}
 	var invalidBindings []*nodebinding.Model
+	var invalidBindingNames []string
+	var validBindingNames []string
 
 	// TODO: Optimize O(N*M) to O(N+M)
 	for _, nb := range nodeBindings {
@@ -249,18 +261,21 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 
 		if !found {
 			invalidBindings = append(invalidBindings, nb)
+			invalidBindingNames = append(invalidBindingNames, nb.SubscriptionID)
 			sm.nodeBindingCore.DeleteNodeBinding(ctx, nb)
 		} else {
 			validBindings = append(validBindings, nb)
+			validBindingNames = append(validBindingNames, nb.SubscriptionID)
 		}
 	}
 
+	logger.Ctx(ctx).Infow("schedulertask:  binding validation completed", "invalidBindings", invalidBindingNames, "validBindings", validBindingNames)
 	// update the binding list after deletions
 	nodeBindings = validBindings
 
 	// Reschedule Bindings which are invalid due to node failures
 	for _, nb := range invalidBindings {
-		logger.Ctx(ctx).Infow("rescheduling subscription on nodes", "key", nb.SubscriptionID)
+		logger.Ctx(ctx).Infow("schedulertask: rescheduling subscription on nodes", "key", nb.SubscriptionID, "subscription", nb.SubscriptionID)
 
 		sub, serr := sm.subscriptionCore.Get(ctx, nb.SubscriptionID)
 		if serr != nil {
@@ -269,12 +284,14 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 
 		serr = sm.scheduleSubscription(ctx, sub, &nodeBindings)
 		if serr != nil {
+			logger.Ctx(ctx).Errorw("schedulertask: failed to update invalid nodebindings", "err", serr, "subscription", sub.ExtractedSubscriptionName, "topic", sub.ExtractedTopicName)
 			return serr
 		}
 	}
 
 	// Create bindings for new subscriptions
 	for _, sub := range sm.subCache {
+
 		found := false
 		subVersion := sub.GetVersion()
 		for _, nb := range nodeBindings {
@@ -283,20 +300,25 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 				break
 			}
 		}
-
+		logger.Ctx(ctx).Infow("schedulertask: evaluating nodebinding for subscripiton", "subscription", sub.Name, "topic", sub.ExtractedTopicName, "found", found)
 		if !found {
 			logger.Ctx(ctx).Infow("scheduling subscription on nodes",
 				"subscription", sub.Name, "topic", sub.Topic, "subscription version", subVersion)
 
 			topicM, terr := sm.topicCore.Get(ctx, sub.Topic)
 			if terr != nil {
-				return terr
+				logger.Ctx(ctx).Errorw("Failed to fetch topic for subscription",
+					"subscription", sub.Name, "topic", sub.Topic, "subscription version", subVersion)
+				//return terr
+				continue
 			}
 
 			for i := 0; i < topicM.NumPartitions; i++ {
 				serr := sm.scheduleSubscription(ctx, sub, &nodeBindings)
 				if serr != nil {
-					return serr
+					logger.Ctx(ctx).Errorw("schedulertask: error in scheduling subscription", "err", serr, "subscription", sub.ExtractedSubscriptionName, "topic", sub.ExtractedTopicName, "partition", i)
+					//return serr
+					continue
 				}
 			}
 		}
@@ -307,11 +329,19 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model) error {
 	nb, serr := sm.scheduler.Schedule(sub, *nodeBindings, sm.nodeCache)
 	if serr != nil {
+		logger.Ctx(ctx).Errorw("scheduler: failed to schedule subscription", "err", serr.Error(), "logFields", map[string]interface{}{
+			"subscription": sub.Name,
+			"topic":        sub.Topic,
+		})
 		return serr
 	}
 
 	berr := sm.nodeBindingCore.CreateNodeBinding(ctx, nb)
 	if berr != nil {
+		logger.Ctx(ctx).Errorw("scheduler: failed to create nodebinding", "err", serr.Error(), "logFields", map[string]interface{}{
+			"subscription": sub.Name,
+			"topic":        sub.Topic,
+		})
 		return berr
 	}
 

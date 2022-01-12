@@ -110,18 +110,90 @@ func (s *Subscriber) retry(ctx context.Context, msg messagebroker.ReceivedMessag
 		return
 	}
 
-	// commit on the primary topic after message has been submitted for retry
-	_, err = s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
-		Topic:     msg.Topic,
-		Partition: msg.Partition,
-		// add 1 to current offset
-		// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
-		Offset: msg.Offset + 1,
-	})
-	if err != nil {
-		logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "logFields", s.getLogFields(), "error", err.Error())
-		s.errChan <- err
-		return
+	s.commitAndRemoveFromMemory(ctx, msg)
+}
+
+func (s *Subscriber) commitAndRemoveFromMemory(ctx context.Context, msg messagebroker.ReceivedMessage) {
+	logFields := s.getLogFields()
+
+	tp := TopicPartition{topic: msg.Topic, partition: msg.Partition}
+	stats := s.consumedMessageStats[tp]
+
+	offsetToCommit := msg.Offset
+	shouldCommit := false
+	peek := stats.offsetBasedMinHeap.Indices[0]
+
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset)
+	if offsetToCommit == peek.Offset {
+		start := time.Now()
+		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
+		shouldCommit = true
+
+		logger.Ctx(ctx).Infow("subscriber: evicted offsets", "logFields", logFields, "stats.evictedButNotCommittedOffsets", stats.evictedButNotCommittedOffsets)
+		// find if any previously evicted offsets can be committed as well
+		// eg. if we get an commit for 5, check for 6,7,8...etc have previously been evicted.
+		// in such cases we can commit the max contiguous offset available directly instead of 5.
+		newOffset := offsetToCommit
+		for {
+			if stats.evictedButNotCommittedOffsets[newOffset+1] {
+				delete(stats.evictedButNotCommittedOffsets, newOffset+1)
+				newOffset++
+				continue
+			}
+			if offsetToCommit != newOffset {
+				logger.Ctx(ctx).Infow("subscriber: updating offset to commit", "logFields", logFields, "old", offsetToCommit, "new", newOffset)
+				offsetToCommit = newOffset
+			}
+			break
+		}
+		subscriberTimeTakenToIdentifyNextOffset.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
+	}
+
+	if shouldCommit {
+		offsetUpdated := true
+		registryOffset := strconv.Itoa(int(offsetToCommit) + 1)
+		offsetModel := offset.Model{
+			Topic:        s.subscription.Topic,
+			Subscription: s.subscription.ExtractedSubscriptionName,
+			Partition:    msg.Partition,
+			LatestOffset: registryOffset,
+		}
+		err := s.offsetCore.SetOffset(ctx, &offsetModel)
+		if err != nil {
+			// DO NOT terminate here since registry update failures should not affect message broker commits
+			logger.Ctx(ctx).Errorw("subscriber: failed to store offset in registry", "logFields", logFields)
+			offsetUpdated = false
+		}
+		_, err = s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
+			Topic:     msg.Topic,
+			Partition: msg.Partition,
+			// add 1 to current offset
+			// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
+			Offset: offsetToCommit + 1,
+		})
+		if err != nil {
+			logFields["error"] = err.Error()
+			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "logFields", logFields)
+			s.errChan <- err
+			// Rollback will move latest commit to the last known successful commit.
+			if offsetUpdated {
+				err = s.offsetCore.RollBackOffset(ctx, &offsetModel)
+				if err != nil {
+					logger.Ctx(ctx).Errorw("subscriber: Failed to rollback offset", "logFields", logFields, "msg", err.Error())
+				}
+			}
+			return
+		}
+		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
+		stats.maxCommittedOffset = offsetToCommit
+		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "logFields", logFields, "offsetToCommit", offsetToCommit, "topic-partition", tp)
+	}
+
+	s.removeMessageFromMemory(ctx, stats, msg.MessageID)
+
+	// add to eviction map only in case of any out of order eviction
+	if offsetToCommit > stats.maxCommittedOffset {
+		stats.evictedButNotCommittedOffsets[offsetToCommit] = true
 	}
 }
 
@@ -174,87 +246,11 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 
 		// push for retry
 		s.retry(ctx, msg)
-		s.removeMessageFromMemory(ctx, stats, req.MessageID)
 
 		return
 	}
 
-	offsetToCommit := req.Offset
-	shouldCommit := false
-	peek := stats.offsetBasedMinHeap.Indices[0]
-
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "logFields", logFields, "req offset", req.Offset, "peek offset", peek.Offset)
-	if offsetToCommit == peek.Offset {
-		start := time.Now()
-		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
-		shouldCommit = true
-
-		logger.Ctx(ctx).Infow("subscriber: evicted offsets", "logFields", logFields, "stats.evictedButNotCommittedOffsets", stats.evictedButNotCommittedOffsets)
-		// find if any previously evicted offsets can be committed as well
-		// eg. if we get an commit for 5, check for 6,7,8...etc have previously been evicted.
-		// in such cases we can commit the max contiguous offset available directly instead of 5.
-		newOffset := offsetToCommit
-		for {
-			if stats.evictedButNotCommittedOffsets[newOffset+1] {
-				delete(stats.evictedButNotCommittedOffsets, newOffset+1)
-				newOffset++
-				continue
-			}
-			if offsetToCommit != newOffset {
-				logger.Ctx(ctx).Infow("subscriber: updating offset to commit", "logFields", logFields, "old", offsetToCommit, "new", newOffset)
-				offsetToCommit = newOffset
-			}
-			break
-		}
-		subscriberTimeTakenToIdentifyNextOffset.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
-	}
-
-	if shouldCommit {
-		offsetUpdated := true
-		registryOffset := strconv.Itoa(int(offsetToCommit) + 1)
-		offsetModel := offset.Model{
-			Topic:        s.subscription.Topic,
-			Subscription: s.subscription.ExtractedSubscriptionName,
-			Partition:    req.Partition,
-			LatestOffset: registryOffset,
-		}
-		err := s.offsetCore.SetOffset(ctx, &offsetModel)
-		if err != nil {
-			// DO NOT terminate here since registry update failures should not affect message broker commits
-			logger.Ctx(ctx).Errorw("subscriber: failed to store offset in registry", "logFields", logFields)
-			offsetUpdated = false
-		}
-		_, err = s.consumer.CommitByPartitionAndOffset(ctx, messagebroker.CommitOnTopicRequest{
-			Topic:     req.Topic,
-			Partition: req.Partition,
-			// add 1 to current offset
-			// https://docs.confluent.io/5.5.0/clients/confluent-kafka-go/index.html#pkg-overview
-			Offset: offsetToCommit + 1,
-		})
-		if err != nil {
-			logFields["error"] = err.Error()
-			logger.Ctx(ctx).Errorw("subscriber: failed to commit message", "logFields", logFields)
-			s.errChan <- err
-			// Rollback will move latest commit to the last known successful commit.
-			if offsetUpdated {
-				err = s.offsetCore.RollBackOffset(ctx, &offsetModel)
-				if err != nil {
-					logger.Ctx(ctx).Errorw("subscriber: Failed to rollback offset", "logFields", logFields, "msg", err.Error())
-				}
-			}
-			return
-		}
-		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
-		stats.maxCommittedOffset = offsetToCommit
-		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "logFields", logFields, "offsetToCommit", offsetToCommit, "topic-partition", tp)
-	}
-
-	s.removeMessageFromMemory(ctx, stats, req.MessageID)
-
-	// add to eviction map only in case of any out of order eviction
-	if offsetToCommit > stats.maxCommittedOffset {
-		stats.evictedButNotCommittedOffsets[offsetToCommit] = true
-	}
+	s.commitAndRemoveFromMemory(ctx, msg)
 
 	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
 	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
@@ -330,9 +326,6 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 		// push to retry queue
 		s.retry(ctx, msg)
 
-		// cleanup message from memory
-		s.removeMessageFromMemory(ctx, stats, msgID)
-
 		subscriberMessagesModAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
 		subscriberTimeTakenToModAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
 
@@ -377,9 +370,6 @@ func (s *Subscriber) checkAndEvictBasedOnAckDeadline(ctx context.Context) {
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
 			// this way the message is eligible to be retried
 			s.retry(ctx, msg)
-
-			// cleanup message from memory only after a successful push to retry topic
-			s.removeMessageFromMemory(ctx, metadata, peek.MsgID)
 
 			logFields["messageId"] = peek.MsgID
 			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "logFields", logFields)
@@ -571,7 +561,20 @@ func (s *Subscriber) pull(req *PullRequest) {
 				continue
 			}
 			ackID := ackMessage.BuildAckID()
-			sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
+
+			// check if the subscription has any filter applied and check if the message satisfies it if any
+			if s.checkFilterCriteria(ctx, protoMsg) {
+				sm = append(sm, &metrov1.ReceivedMessage{AckId: ackID, Message: protoMsg, DeliveryAttempt: msg.CurrentRetryCount + 1})
+			} else {
+				// self acknowledging the message as it does not need to be delivered for this subscription
+				//
+				// Using subscriber's Acknowledge func instead of directly acking to consumer because of the following reason:
+				// Let there be 3 messages - Msg-1, Msg-2 and Msg-3. Msg-1 and Msg-3 satisfies the filter criteria while Msg-3 doesn't.
+				// If we directly ack Msg-2 using brokerStore consumer, in Kafka, new committed offset will be set to 2.
+				// Now if for some reason, delivery of Msg-1 fails, we will not be able to retry it as the broker's committed offset is already set to 2.
+				// To avoid this, subscriber Acknowledge is used which will wait for Msg-1 status before committing the offsets.
+				s.acknowledge(ackMessage.(*AckMessage).WithContext(ctx))
+			}
 
 			subscriberMessagesConsumed.WithLabelValues(env, msg.Topic, s.subscription.Name, s.subscriberID).Inc()
 			subscriberMemoryMessagesCountTotal.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Set(float64(len(s.consumedMessageStats[tp].consumedMessages)))
@@ -583,6 +586,31 @@ func (s *Subscriber) pull(req *PullRequest) {
 		}
 		s.responseChan <- &metrov1.PullResponse{ReceivedMessages: sm}
 	}()
+}
+
+// checks if the message satisfies filter criteria(if any) for the subscription
+func (s *Subscriber) checkFilterCriteria(ctx context.Context, protoMsg *metrov1.PubsubMessage) bool {
+	if s.subscription.FilterExpression != "" {
+		subFilter, err := s.subscription.GetFilterExpressionAsStruct()
+
+		if err != nil {
+			logger.Ctx(ctx).Errorw("subscriber: error in getting filter expression as a struct", "filter expression", s.subscription.FilterExpression,
+				"logfields", s.getLogFields(), "error", err.Error())
+		} else {
+			res, err := subFilter.Evaluate(protoMsg.Attributes)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("subscriber: error occurred during filter evaluation", "filter expression", s.subscription.FilterExpression,
+					"logfields", s.getLogFields(), "error", err.Error())
+			} else {
+				if !res {
+					logger.Ctx(ctx).Infow("subscriber: Message didn't satisfy the filter criteria", "messageID", protoMsg.MessageId, "filter expression", s.subscription.FilterExpression,
+						"logfields", s.getLogFields())
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func (s *Subscriber) logInMemoryStats(ctx context.Context) {

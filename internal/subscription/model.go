@@ -17,16 +17,17 @@ const (
 // Model for a subscription
 type Model struct {
 	common.BaseModel
-	Name                           string            `json:"name,omitempty"`
-	Topic                          string            `json:"topic,omitempty"`
-	PushConfig                     *PushConfig       `json:"push_config,omitempty"`
-	AckDeadlineSeconds             int32             `json:"ack_deadline_seconds,omitempty"`
-	RetainAckedMessages            bool              `json:"retain_acked_messages,omitempty"`
-	MessageRetentionDuration       uint              `json:"message_retention_duration,omitempty"`
-	Labels                         map[string]string `json:"labels,omitempty"`
-	EnableMessageOrdering          bool              `json:"enable_message_ordering,omitempty"`
-	ExpirationPolicy               *ExpirationPolicy `json:"expiration_policy,omitempty"`
-	FilterExpression               string            `json:"filter,omitempty"`
+	Name                     string            `json:"name,omitempty"`
+	Topic                    string            `json:"topic,omitempty"`
+	PushConfig               *PushConfig       `json:"push_config,omitempty"`
+	AckDeadlineSeconds       int32             `json:"ack_deadline_seconds,omitempty"`
+	RetainAckedMessages      bool              `json:"retain_acked_messages,omitempty"`
+	MessageRetentionDuration uint              `json:"message_retention_duration,omitempty"`
+	Labels                   map[string]string `json:"labels,omitempty"`
+	EnableMessageOrdering    bool              `json:"enable_message_ordering,omitempty"`
+	ExpirationPolicy         *ExpirationPolicy `json:"expiration_policy,omitempty"`
+	// use SetFilterExpression function for setting FilterExpression field
+	FilterExpression               string `json:"filter,omitempty"`
 	filterStruct                   *Filter
 	RetryPolicy                    *RetryPolicy      `json:"retry_policy,omitempty"`
 	DeadLetterPolicy               *DeadLetterPolicy `json:"dead_letter_policy,omitempty"`
@@ -222,4 +223,11 @@ func (m *Model) GetFilterExpressionAsStruct() (*Filter, error) {
 	}
 	m.filterStruct = f
 	return f, nil
+}
+
+// SetFilterExpression sets filter expression to the new input.
+// It also sets filter struct to nil. It will be set greedily whenever required
+func (m *Model) SetFilterExpression(Filter string) {
+	m.FilterExpression = Filter
+	m.filterStruct = nil
 }

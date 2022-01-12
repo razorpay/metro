@@ -80,11 +80,12 @@ func (c consumeplaneserver) Fetch(ctx context.Context, req *metrov1.FetchRequest
 	defer span.Finish()
 	consumer, err := c.manager.GetConsumer(ctx, parsedReq.Subscription, parsedReq.Partition)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("consumeplaneserver: error in fetching consumer for fetch request", "request", req, "error", err.Error())
+		logger.Ctx(ctx).Errorw("consumeplaneserver: error in fetching consumer for fetch request", "subscription", parsedReq.Subscription)
 		return &metrov1.PullResponse{}, err
 	}
 	res, err := consumer.Fetch(ctx, int(req.MaxMessages))
 	if err != nil {
+		logger.Ctx(ctx).Errorw("consumeplaneserver: Failed to fetch messages", "err", err.Error())
 		return &metrov1.PullResponse{}, err
 	}
 	return res, nil

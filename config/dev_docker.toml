@@ -17,6 +17,8 @@
     errorLevel            = 1
 
 [web]
+    replicaCount              = 1
+    consumePlaneDeployment    = "metro.svc.cluster.local"
     [web.broker]
         variant               = "kafka"
         [web.broker.brokerconfig]

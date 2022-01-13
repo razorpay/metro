@@ -316,8 +316,6 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 					serr := sm.scheduleSubscription(ctx, sub, &nodeBindings)
 					if serr != nil {
 						logger.Ctx(ctx).Errorw("schedulertask: error in scheduling subscription", "err", serr, "subscription", sub.ExtractedSubscriptionName, "topic", sub.ExtractedTopicName, "partition", i)
-						//return serr
-						continue
 					}
 				}
 			}

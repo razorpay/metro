@@ -1,6 +1,7 @@
 package topic
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/razorpay/metro/internal/common"
@@ -46,4 +47,25 @@ func (m *Model) Prefix() string {
 // IsDeadLetterTopic checks if the topic is a dead letter topic created for dlq support on subscription
 func (m *Model) IsDeadLetterTopic() bool {
 	return strings.HasSuffix(m.ExtractedTopicName, DeadLetterTopicSuffix)
+}
+
+// IsDelayTopic checks if the topic is a delay topic created for delay support in subscription
+func (m *Model) IsDelayTopic() bool {
+	for _, interval := range Intervals {
+		delaySuffix := fmt.Sprintf(DelayTopicSuffix, interval)
+		if strings.HasSuffix(m.ExtractedTopicName, delaySuffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsRetryTopic checks if the topic is a retry topic created for retry support in subscription
+func (m *Model) IsRetryTopic() bool {
+	return strings.HasSuffix(m.ExtractedTopicName, RetryTopicSuffix)
+}
+
+// IsPrimaryTopic checks if the topic is primary topic or not
+func (m *Model) IsPrimaryTopic() bool {
+	return !m.IsDeadLetterTopic() && !m.IsDelayTopic() && !m.IsRetryTopic()
 }

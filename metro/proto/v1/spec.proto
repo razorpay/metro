@@ -237,6 +237,18 @@ service Publisher {
             tags: "Topic"
         };
     }
+
+    // Lists the names of the topics in the given project.
+    rpc ListProjectTopics(ListProjectTopicsRequest) returns (ListProjectTopicsResponse) {
+        option (google.api.http) = {
+            get: "/v1/projects/{project_id}/topics"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "List Project Topics"
+            description: "Get all the topics created in the given project"
+            tags: "Topics"
+        };
+    }
 }
 
 // A topic resource.
@@ -304,6 +316,18 @@ message PubsubMessage {
     // Pub/Sub system. All `PubsubMessage`s Produceed in a given `ProduceRequest`
     // must specify the same `ordering_key` value.
     string ordering_key = 5;
+}
+
+// Request for the `ListProjectTopics` method.
+message ListProjectTopicsRequest {
+    // Required. The project_id in which topics are created.
+    string project_id = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Response for the `ListProjectTopics` method.
+message ListProjectTopicsResponse {
+    // The names of topics created in the specified project.
+    repeated string topics = 1;
 }
 
 // The service that an application uses to manipulate subscriptions and to
@@ -422,6 +446,30 @@ service Subscriber {
         option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
             summary: "Modify Ack Deadline"
             description: "Modify Ack Deadline"
+            tags: "Subscriptions"
+        };
+    }
+
+    // Lists the names of the subscriptions on the given topic.
+    rpc ListTopicSubscriptions(ListTopicSubscriptionsRequest) returns (ListTopicSubscriptionsResponse) {
+        option (google.api.http) = {
+            get: "/v1/{topic=projects/*/topics/*}/subscriptions"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "List Topic Subscriptions"
+            description: "Get all the subscriptions created on the given topic"
+            tags: "Subscriptions"
+        };
+    }
+
+    // Lists the names of the subscriptions in the given project.
+    rpc ListProjectSubscriptions(ListProjectSubscriptionsRequest) returns (ListProjectSubscriptionsResponse) {
+        option (google.api.http) = {
+            get: "/v1/projects/{project_id}/subscriptions"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "List Project Subscriptions"
+            description: "Get all the subscriptions created in the given project"
             tags: "Subscriptions"
         };
     }
@@ -964,5 +1012,29 @@ service ConsumePlane {
             tags: "Subscriptions"
         };
     }
+}
 
+// Request for the `ListTopicSubscriptions` method.
+message ListTopicSubscriptionsRequest {
+    // Required. The name of the topic that subscriptions are attached to.
+    // Format is `projects/{project}/topics/{topic}`.
+    string topic = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Response for the `ListTopicSubscriptions` method.
+message ListTopicSubscriptionsResponse {
+    // The names of subscriptions attached to the topic specified in the request.
+    repeated string subscriptions = 1;
+}
+
+// Request for the `ListProjectSubscriptions` method.
+message ListProjectSubscriptionsRequest {
+    // Required. The project_id in which subscriptions are created.
+    string project_id = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Response for the `ListProjectSubscriptions` method.
+message ListProjectSubscriptionsResponse {
+    // The names of subscriptions created in the specified project.
+    repeated string subscriptions = 1;
 }

@@ -309,8 +309,6 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 			if terr != nil {
 				logger.Ctx(ctx).Errorw("Failed to fetch topic for subscription",
 					"subscription", sub.Name, "topic", sub.Topic, "subscription version", subVersion)
-				//return terr
-				continue
 			} else {
 				for i := 0; i < topicM.NumPartitions; i++ {
 					serr := sm.scheduleSubscription(ctx, sub, &nodeBindings)
@@ -319,8 +317,6 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 					}
 				}
 			}
-
-
 		}
 	}
 	return nil

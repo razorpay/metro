@@ -86,12 +86,11 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 					return
 				}
 			}
-			if len(resp.PartitionOffsetWithMessages) > 0 {
-				logger.Ctx(ctx).Infow("delay-consumer: non zero messages received", dc.LogFields("len", len(resp.PartitionOffsetWithMessages))...)
+			if len(resp.Messages) > 0 {
+				logger.Ctx(ctx).Infow("delay-consumer: non zero messages received", dc.LogFields("len", len(resp.Messages))...)
 			}
-			for _, msg := range resp.PartitionOffsetWithMessages {
-				dc.cachedMsgs = append(dc.cachedMsgs, msg)
-			}
+
+			dc.cachedMsgs = append(dc.cachedMsgs, resp.Messages...)
 
 			dc.processMsgs()
 		}
@@ -126,6 +125,7 @@ func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) er
 	_, err = dlProducer.SendMessage(dc.ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:         msg.DeadLetterTopic,
 		Message:       msg.Data,
+		OrderingKey:   msg.OrderingKey,
 		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
 		MessageHeader: msg.MessageHeader,
 	})

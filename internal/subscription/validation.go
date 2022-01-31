@@ -136,6 +136,14 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
 
+	// validate Filter Expression
+	err = validateFilterExpression(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
+	}
+
+	m.EnableMessageOrdering = req.EnableMessageOrdering
+
 	return m, nil
 }
 
@@ -182,6 +190,20 @@ func validateSubscriptionName(ctx context.Context, m *Model, req *metrov1.Subscr
 	m.ExtractedSubscriptionProjectID = p
 	m.ExtractedSubscriptionName = s
 
+	return nil
+}
+
+func validateFilterExpression(ctx context.Context, m *Model, req *metrov1.Subscription) error {
+	if req.Filter != "" {
+		m.FilterExpression = req.Filter
+
+		// validate that the filter expression is in the expected format.
+		// To validate, we convert it into a GO Struct with the defined Grammar in Struct Tags
+		_, err := m.GetFilterExpressionAsStruct()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

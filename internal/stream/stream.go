@@ -33,6 +33,12 @@ type PushStream struct {
 	doneCh           chan struct{}
 }
 
+const (
+	defaultTimeoutMs          int   = 100
+	defaultMaxOutstandingMsgs int64 = 2
+	defaultMaxOuttandingBytes int64 = 0
+)
+
 // Start reads the messages from the broker and publish them to the subscription endpoint
 func (ps *PushStream) Start() error {
 	defer close(ps.doneCh)
@@ -50,8 +56,8 @@ func (ps *PushStream) Start() error {
 	// is a race condition that subscriber exits before the stream is stopped. this causes issues as there are no
 	// subscribers listening to the requests send by stream
 	subscriberCtx := context.Background()
-	ps.subs, err = ps.subscriberCore.NewSubscriber(subscriberCtx, ps.nodeID, ps.subscription, 100, 50, 0,
-		subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
+	ps.subs, err = ps.subscriberCore.NewSubscriber(subscriberCtx, ps.nodeID, ps.subscription, defaultTimeoutMs,
+		defaultMaxOutstandingMsgs, defaultMaxOuttandingBytes, subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscription.Name, "error", err.Error())
 		return err
@@ -97,12 +103,17 @@ func (ps *PushStream) processMessages() {
 	})
 	defer span.Finish()
 
+	pullBatchSize := 10
+	if ps.subscription.EnableMessageOrdering {
+		pullBatchSize = 1
+	}
+
 	// Send message pull request to subsriber request channel
-	logger.Ctx(ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
-	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: 10}).WithContext(ctx)
+	// logger.Ctx(ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
+	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: int32(pullBatchSize)}).WithContext(ctx)
 
 	// wait for response data from subscriber response channel
-	logger.Ctx(ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
+	// logger.Ctx(ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
 	data := <-ps.subs.GetResponseChannel()
 	if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 		logger.Ctx(ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())
@@ -304,14 +315,17 @@ func (ps *PushStream) getLogFields() map[string]interface{} {
 }
 
 // NewPushStream return a push stream obj which is used for push subscriptions
-func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) *PushStream {
+func NewPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) (*PushStream, error) {
 	pushCtx, cancelFunc := context.WithCancel(ctx)
-
+	logger.Ctx(pushCtx).Infow("worker: Setting up new push stream", "logFields", map[string]interface{}{
+		"subscription": subName,
+		"node":         nodeID,
+	})
 	// get subscription Model details
 	subModel, err := subscriptionCore.Get(pushCtx, subName)
 	if err != nil {
 		logger.Ctx(pushCtx).Errorw("error fetching subscription", "error", err.Error())
-		return nil
+		return nil, err
 	}
 
 	// set http connection timeout from the subscription
@@ -344,7 +358,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
 		httpClient:       httpclient,
-	}
+	}, nil
 }
 
 func newPushEndpointRequest(message *metrov1.ReceivedMessage, subscription string) *metrov1.PushEndpointRequest {

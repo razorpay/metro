@@ -6,6 +6,7 @@ import (
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/topic"
+	filter "github.com/razorpay/metro/pkg/filtering"
 )
 
 const (
@@ -16,17 +17,19 @@ const (
 // Model for a subscription
 type Model struct {
 	common.BaseModel
-	Name                           string            `json:"name,omitempty"`
-	Topic                          string            `json:"topic,omitempty"`
-	PushConfig                     *PushConfig       `json:"push_config,omitempty"`
-	Partition                      int               `json:partition`
-	AckDeadlineSeconds             int32             `json:"ack_deadline_seconds,omitempty"`
-	RetainAckedMessages            bool              `json:"retain_acked_messages,omitempty"`
-	MessageRetentionDuration       uint              `json:"message_retention_duration,omitempty"`
-	Labels                         map[string]string `json:"labels,omitempty"`
-	EnableMessageOrdering          bool              `json:"enable_message_ordering,omitempty"`
-	ExpirationPolicy               *ExpirationPolicy `json:"expiration_policy,omitempty"`
-	Filter                         string            `json:"filter,omitempty"`
+	Name                     string            `json:"name,omitempty"`
+	Topic                    string            `json:"topic,omitempty"`
+	Partition                int               `json:partition`
+	PushConfig               *PushConfig       `json:"push_config,omitempty"`
+	AckDeadlineSeconds       int32             `json:"ack_deadline_seconds,omitempty"`
+	RetainAckedMessages      bool              `json:"retain_acked_messages,omitempty"`
+	MessageRetentionDuration uint              `json:"message_retention_duration,omitempty"`
+	Labels                   map[string]string `json:"labels,omitempty"`
+	EnableMessageOrdering    bool              `json:"enable_message_ordering,omitempty"`
+	ExpirationPolicy         *ExpirationPolicy `json:"expiration_policy,omitempty"`
+	// use SetFilterExpression function for setting FilterExpression field
+	FilterExpression               string `json:"filter,omitempty"`
+	filterStruct                   *Filter
 	RetryPolicy                    *RetryPolicy      `json:"retry_policy,omitempty"`
 	DeadLetterPolicy               *DeadLetterPolicy `json:"dead_letter_policy,omitempty"`
 	Detached                       bool              `json:"detached,omitempty"`
@@ -35,6 +38,9 @@ type Model struct {
 	ExtractedTopicName             string            `json:"extracted_topic_name"`
 	ExtractedSubscriptionName      string            `json:"extracted_subscription_name"`
 }
+
+// Filter defines the Filter criteria for messages
+type Filter = filter.Condition
 
 // PushConfig defines the push endpoint
 type PushConfig struct {
@@ -204,4 +210,25 @@ func (m *Model) GetDelayConsumerGroupID(delayTopic string, partition int) string
 // GetDelayConsumerGroupInstanceID returns the consumer group ID to be used by the specific delay consumer
 func (m *Model) GetDelayConsumerGroupInstanceID(subscriberID, delayTopic string) string {
 	return fmt.Sprintf(delayConsumerGroupInstanceIDFormat, delayTopic, subscriberID)
+}
+
+// GetFilterExpressionAsStruct parses and returns the filter expression into GO Struct
+func (m *Model) GetFilterExpressionAsStruct() (*Filter, error) {
+	if m.filterStruct != nil {
+		return m.filterStruct, nil
+	}
+	f := &Filter{}
+	err := filter.Parser.ParseString("", m.FilterExpression, f)
+	if err != nil {
+		return nil, err
+	}
+	m.filterStruct = f
+	return f, nil
+}
+
+// SetFilterExpression sets filter expression to the new input.
+// It also sets filter struct to nil. It will be set greedily whenever required
+func (m *Model) SetFilterExpression(Filter string) {
+	m.FilterExpression = Filter
+	m.filterStruct = nil
 }

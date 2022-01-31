@@ -385,3 +385,63 @@ func Test_validateDeadletterConfig(t *testing.T) {
 		assert.Equal(t, test.outputPolicy, m.DeadLetterPolicy)
 	}
 }
+
+func Test_validateFilterExpression(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		filterExpression string
+		err              error
+	}{
+		{
+			filterExpression: "attributes:x",
+			err:              nil,
+		},
+		{
+			filterExpression: "attributes.x = \"com\"",
+			err:              nil,
+		},
+		{
+			filterExpression: "attributes.x != \"com\"",
+			err:              nil,
+		},
+		{
+			filterExpression: "NOT attributes.x = \"com\"",
+			err:              nil,
+		},
+		{
+			filterExpression: "hasPrefix(attributes.x, \"a\")",
+			err:              nil,
+		},
+		{
+			filterExpression: "hasSuffix(attributes.x, \"a\")",
+			err:              errors.New("1:1: unexpected token \"hasSuffix\" (expected (BasicExpression | (\"(\" Condition \")\")))"),
+		},
+		{
+			filterExpression: "attributes:domain AND NOT hasPrefix(attributes.domain, \"co\") AND attributes.domain != \"com\" AND (attributes:x AND NOT hasPrefix(attributes.x, \"co\") AND attributes.x != \"com\")",
+			err:              nil,
+		},
+		{
+			filterExpression: "attributes:domain AND NOT hasPrefix(attributes.domain, \"co\") AND attributes.domain != \"com\" AND (attributes:x OR NOT hasPrefix(attributes.x, \"co\") OR attributes.x != \"com\")",
+			err:              nil,
+		},
+		{
+			filterExpression: "attributes:domain AND NOT hasPrefix(attributes.domain, \"co\") OR attributes.domain != \"com\" AND (attributes:x AND NOT hasPrefix(attributes.x, \"co\") AND attributes.x != \"com\"",
+			err:              errors.New("1:62: unexpected token \"OR\""),
+		},
+		{
+			filterExpression: "attributes:domain OR ",
+			err:              errors.New("1:19: sub-expression (\"OR\" Term)+ must match at least once"),
+		},
+	}
+	for _, test := range tests {
+		m := &Model{}
+		err := validateFilterExpression(ctx, m, &metrov1.Subscription{Filter: test.filterExpression})
+		if err != nil {
+			assert.Equal(t, test.err.Error(), err.Error())
+		} else {
+			assert.Equal(t, test.err, err)
+		}
+		assert.Equal(t, test.filterExpression, m.FilterExpression)
+	}
+}

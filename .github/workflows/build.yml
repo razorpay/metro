@@ -117,7 +117,10 @@ jobs:
           EXEC_MODE: test
   integration-tests:
       runs-on: ubuntu-latest
-      container: golang:1.16.5-alpine3.13
+      container: 
+        image: golang:1.16.5-alpine3.13
+        ports:
+          - 8077
       continue-on-error: false
       name: integration and compatibility tests
       needs: build

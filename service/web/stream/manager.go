@@ -157,7 +157,7 @@ func (s *Manager) ModifyAcknowledgement(ctx context.Context, parsedReq *ParsedSt
 	// holds a map of modAckMsgs to their corresponding originating server addresses
 	msgsToBeProxied := make(map[string][]*subscriber.AckMessage, 0)
 
-	for _, ackMsg := range parsedReq.AckMessages {
+	for _, ackMsg := range parsedReq.ModAckMessages {
 		// non zero ack deadline is not supported, hence continue
 		if parsedReq.ModifyDeadlineMsgIdsWithSecs[ackMsg.MessageID] != 0 {
 			continue

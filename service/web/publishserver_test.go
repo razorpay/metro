@@ -123,8 +123,12 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	req := &metrov1.PublishRequest{
-		Topic:    "projects/project123/topics/test-topic",
-		Messages: []*metrov1.PubsubMessage{},
+		Topic: "projects/project123/topics/test-topic",
+		Messages: []*metrov1.PubsubMessage{
+			&metrov1.PubsubMessage{
+				Data: []byte("data"),
+			},
+		},
 	}
 
 	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(true, nil)
@@ -145,12 +149,37 @@ func TestPublishServer_PublishFailure(t *testing.T) {
 	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	req := &metrov1.PublishRequest{
+		Topic: "projects/project123/topics/test-topic",
+		Messages: []*metrov1.PubsubMessage{
+			&metrov1.PubsubMessage{
+				Data: []byte("data"),
+			},
+		},
+	}
+
+	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(true, nil)
+	publisher.EXPECT().Publish(gomock.Any(), req).Times(1).Return([]string{}, fmt.Errorf("error"))
+	_, err := server.Publish(ctx, req)
+	assert.NotNil(t, err)
+}
+
+func TestPublishServer_PublishFailure_OnValidation(t *testing.T) {
+	ctx := context.Background()
+
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	topicCore := mocks2.NewMockICore(ctrl)
+	publisher := mocks3.NewMockIPublisher(ctrl)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
+
+	req := &metrov1.PublishRequest{
 		Topic:    "projects/project123/topics/test-topic",
 		Messages: []*metrov1.PubsubMessage{},
 	}
 
 	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(true, nil)
-	publisher.EXPECT().Publish(gomock.Any(), req).Times(1).Return([]string{}, fmt.Errorf("error"))
 	_, err := server.Publish(ctx, req)
 	assert.NotNil(t, err)
 }
@@ -167,8 +196,12 @@ func TestPublishServer_PublishFailure_OnWrongTopic(t *testing.T) {
 	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	req := &metrov1.PublishRequest{
-		Topic:    "projects/project123/topics/non-existent-topic",
-		Messages: []*metrov1.PubsubMessage{},
+		Topic: "projects/project123/topics/non-existent-topic",
+		Messages: []*metrov1.PubsubMessage{
+			&metrov1.PubsubMessage{
+				Data: []byte("data"),
+			},
+		},
 	}
 
 	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(false, nil)

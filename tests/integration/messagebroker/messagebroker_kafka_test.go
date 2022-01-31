@@ -176,12 +176,12 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	assert.Nil(t, err)
 
 	fmt.Printf("\n\nmsg received from topic : %v", topic)
-	for _, msg := range resp.PartitionOffsetWithMessages {
+	for _, msg := range resp.Messages {
 		fmt.Printf("%v", msg.LogFields())
 	}
 
 	// message produced count should be zero as auto.offset.reset is set to latest
-	assert.Equal(t, 0, len(resp.PartitionOffsetWithMessages))
+	assert.Equal(t, 0, len(resp.Messages))
 
 	// spwan a new consumer and try to re-receive after commit and make sure no new messages are available
 	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
@@ -203,7 +203,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 	})
 
 	assert.NotNil(t, resp3)
-	assert.Equal(t, len(resp3.PartitionOffsetWithMessages), 0)
+	assert.Equal(t, len(resp3.Messages), 0)
 	assert.Nil(t, rerr)
 }
 func Test_IsHealthy(t *testing.T) {

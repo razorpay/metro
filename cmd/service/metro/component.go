@@ -25,9 +25,9 @@ func NewComponent(component string, cfg config.Config) (*Component, error) {
 
 	switch component {
 	case Web:
-		svc, err = web.NewService(&cfg.Admin, &cfg.Web, &cfg.Registry)
+		svc, err = web.NewService(&cfg.Admin, &cfg.Web, &cfg.Registry, &cfg.Cache)
 	case Worker:
-		svc, err = worker.NewService(&cfg.Worker, &cfg.Registry)
+		svc, err = worker.NewService(&cfg.Worker, &cfg.Registry, &cfg.Cache)
 	case OpenAPIServer:
 		svc, err = openapiserver.NewService(&cfg.OpenAPIServer)
 	case ConsumePlane:

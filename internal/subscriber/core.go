@@ -2,7 +2,6 @@ package subscriber
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -45,18 +44,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	ackCh chan *AckMessage,
 	modAckCh chan *ModAckMessage) (ISubscriber, error) {
 
-	groupID := subscription.Name
-
-	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []messagebroker.TopicPartition{
-		{
-			Topic:     subscription.Topic,
-			Partition: 0,
-		},
-		{
-			Topic:     subscription.GetRetryTopic(),
-			Partition: 0,
-		},
-	}, GroupID: groupID, GroupInstanceID: subscriberID})
+	consumer, err := NewConsumerManager(ctx, c.bs, timeoutInMs, subscriberID, subscription.Name, subscription.Topic, subscription.GetRetryTopic(), 0)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: failed to create consumer", "error", err.Error())
 		return nil, err
@@ -83,28 +71,55 @@ func (c *Core) NewSubscriber(ctx context.Context,
 		}
 	}
 
+	var subImpl Implementation
+	if subscription.EnableMessageOrdering {
+		subImpl = &OrderedImplementation{
+			maxOutstandingMessages: maxOutstandingMessages,
+			maxOutstandingBytes:    maxOutstandingBytes,
+			topic:                  subscription.Topic,
+			subscriberID:           subscriberID,
+			consumer:               consumer,
+			offsetCore:             c.offsetCore,
+			retrier:                retrier,
+			ctx:                    subsCtx,
+			subscription:           subscription,
+			consumedMessageStats:   make(map[TopicPartition]*OrderedConsumptionMetadata),
+			pausedMessages:         make([]messagebroker.ReceivedMessage, 0),
+			sequenceManager:        NewOffsetSequenceManager(ctx, c.offsetCore),
+		}
+		logger.Ctx(ctx).Infow("subscriber: subscriber impl is ordered", "logFields", getLogFields(subImpl))
+	} else {
+		subImpl = &BasicImplementation{
+			maxOutstandingMessages: maxOutstandingMessages,
+			maxOutstandingBytes:    maxOutstandingBytes,
+			topic:                  subscription.Topic,
+			subscriberID:           subscriberID,
+			consumer:               consumer,
+			offsetCore:             c.offsetCore,
+			retrier:                retrier,
+			ctx:                    subsCtx,
+			subscription:           subscription,
+			consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
+		}
+		logger.Ctx(ctx).Infow("subscriber: subscriber impl is basic", "logFields", getLogFields(subImpl))
+	}
+
 	s := &Subscriber{
-		subscription:           subscription,
-		topic:                  subscription.Topic,
-		subscriberID:           subscriberID,
-		subscriptionCore:       c.subscriptionCore,
-		offsetCore:             c.offsetCore,
-		requestChan:            requestCh,
-		responseChan:           make(chan *metrov1.PullResponse),
-		errChan:                make(chan error, 1000),
-		closeChan:              make(chan struct{}),
-		ackChan:                ackCh,
-		modAckChan:             modAckCh,
-		deadlineTicker:         time.NewTicker(deadlineTickerInterval),
-		timeoutInMs:            timeoutInMs,
-		consumer:               consumer,
-		cancelFunc:             cancelFunc,
-		maxOutstandingMessages: maxOutstandingMessages,
-		maxOutstandingBytes:    maxOutstandingBytes,
-		consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
-		ctx:                    subsCtx,
-		bs:                     c.bs,
-		retrier:                retrier,
+		subscription:   subscription,
+		topic:          subscription.Topic,
+		subscriberID:   subscriberID,
+		requestChan:    requestCh,
+		responseChan:   make(chan *metrov1.PullResponse),
+		errChan:        make(chan error, 1000),
+		closeChan:      make(chan struct{}),
+		ackChan:        ackCh,
+		modAckChan:     modAckCh,
+		deadlineTicker: time.NewTicker(deadlineTickerInterval),
+		consumer:       consumer,
+		cancelFunc:     cancelFunc,
+		ctx:            subsCtx,
+		retrier:        retrier,
+		subscriberImpl: subImpl,
 	}
 
 	go s.Run(subsCtx)
@@ -124,18 +139,7 @@ func (c *Core) NewOpinionatedSubscriber(ctx context.Context,
 	ackCh chan *AckMessage,
 	modAckCh chan *ModAckMessage) (ISubscriber, error) {
 
-	groupID := subscription.Name + "-" + strconv.Itoa(partition)
-
-	consumer, err := c.bs.GetConsumer(ctx, messagebroker.ConsumerClientOptions{Topics: []messagebroker.TopicPartition{
-		{
-			Topic:     subscription.Topic,
-			Partition: partition,
-		},
-		{
-			Topic:     subscription.GetRetryTopic(),
-			Partition: partition,
-		},
-	}, GroupID: groupID, GroupInstanceID: subscriberID})
+	consumer, err := NewConsumerManager(ctx, c.bs, timeoutInMs, subscriberID, subscription.Name, subscription.Topic, subscription.GetRetryTopic())
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: failed to create consumer", "error", err.Error())
 		return nil, err

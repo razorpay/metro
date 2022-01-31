@@ -17,6 +17,7 @@ import (
 	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
@@ -29,15 +30,17 @@ import (
 type Service struct {
 	webConfig      *Config
 	registryConfig *registry.Config
-	admin          *credentials.Model
+	// cacheConfig    *cache.Config
+	admin *credentials.Model
 }
 
 // NewService creates an instance of new producer service
-func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config) (*Service, error) {
+func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, cacheConfig *cache.Config) (*Service, error) {
 	return &Service{
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
 		admin:          admin,
+		// cacheConfig:    cacheConfig,
 	}, nil
 }
 
@@ -49,6 +52,11 @@ func (svc *Service) Start(ctx context.Context) error {
 		return err
 	}
 
+	// c, err := cache.NewCache(svc.cacheConfig)
+	// if err != nil {
+	// 	return err
+	// }
+
 	brokerStore, err := brokerstore.NewBrokerStore(svc.webConfig.Broker.Variant, &svc.webConfig.Broker.BrokerConfig)
 	if err != nil {
 		return err
@@ -56,6 +64,9 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	// init registry health checker
 	registryHealthChecker := health.NewRegistryHealthChecker(r)
+
+	// init cache health checker
+	// cacheHealthChecker := health.NewCacheHealthChecker(c)
 
 	admin, _ := brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	// init broker health checker

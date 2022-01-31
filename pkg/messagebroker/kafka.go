@@ -39,9 +39,24 @@ type KafkaBroker struct {
 // newKafkaConsumerClient returns a kafka consumer
 func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options *ConsumerClientOptions) (Consumer, error) {
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// ** This section is deferred until ingestion/subscription topics are in place.
+	// ** Explicit Partition Assignment not to be undertaken since consumer groups are no longer honored.
+	//
+	// normalizedTopics := make([]kafkapkg.TopicPartition, 0)
+	// for i := range options.Topics {
+	// 	brokerTopicName := normalizeTopicName(options.Topics[i].Topic)
+	// 	kfkTp := kafkapkg.TopicPartition{
+	// 		Topic:     &brokerTopicName,
+	// 		Partition: int32(options.Topics[i].Partition),
+	// 	}
+	// 	normalizedTopics = append(normalizedTopics, kfkTp)
+	// }
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	normalizedTopics := make([]string, 0)
 	for _, topic := range options.Topics {
-		normalizedTopics = append(normalizedTopics, normalizeTopicName(topic))
+		normalizedTopics = append(normalizedTopics, normalizeTopicName(topic.Topic))
 	}
 
 	err := validateKafkaConsumerBrokerConfig(bConfig)
@@ -83,7 +98,21 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
+	// With partition specific consumers in place at the consume plane this would still work given
+	// only one partition per topic is currently supported.
+	// This behaviour is not guaranteed with multiple partitions per primary topic.
 	c.SubscribeTopics(normalizedTopics, nil)
+
+	//////////////////////////////////////////////////////
+	// *** Warning *** DO NOT explicitly assign topic partitions to consumers
+	// unless subscriptions have dedicated topics. This will result in consumers being shared across subscribers
+	// and messages being consumed erratically.
+	//
+	// err = c.Assign(normalizedTopics)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//////////////////////////////////////////////////////
 
 	logger.Ctx(ctx).Infow("kafka consumer: initialized", "options", options)
 
@@ -303,8 +332,51 @@ func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicReques
 	}, nil
 }
 
-// GetTopicMetadata fetches the given topics metadata stored in the broker
-func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMetadataRequest) (GetTopicMetadataResponse, error) {
+// ListTopics fetches all topics from the broker
+func (k *KafkaBroker) ListTopics(ctx context.Context) (ListTopicsResponse, error) {
+	logger.Ctx(ctx).Infow("kafka: list topics request received")
+	defer func() {
+		logger.Ctx(ctx).Infow("kafka: list topics request completed")
+	}()
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.ListTopics")
+	defer span.Finish()
+
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "ListTopics").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "ListTopics").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	// TODO : normalize timeouts
+	resp, err := k.Consumer.GetMetadata(nil, true, 5000)
+	if err != nil {
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "ListTopics", err.Error()).Inc()
+		return ListTopicsResponse{}, err
+	}
+
+	topics := make(map[string]TopicMetadata)
+	for _, topic := range resp.Topics {
+		tmd := TopicMetadata{
+			Topic:      topic.Topic,
+			Partitions: make([]PartitionMetadata, 0),
+		}
+		for _, part := range topic.Partitions {
+			pmd := PartitionMetadata{
+				ID:     int(part.ID),
+				Leader: int(part.Leader),
+			}
+			tmd.Partitions = append(tmd.Partitions, pmd)
+		}
+		topics[topic.Topic] = tmd
+	}
+	return ListTopicsResponse{topics}, nil
+
+}
+
+// GetTopicPartitionMetadata fetches the given topics metadata stored in the broker
+func (k *KafkaBroker) GetTopicPartitionMetadata(ctx context.Context, request GetTopicPartitionMetadataRequest) (GetTopicPartitionMetadataResponse, error) {
 	logger.Ctx(ctx).Infow("kafka: get metadata request received", "request", request)
 	defer func() {
 		logger.Ctx(ctx).Infow("kafka: get metadata request completed", "request", request)
@@ -313,11 +385,11 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.GetMetadata")
 	defer span.Finish()
 
-	messageBrokerOperationCount.WithLabelValues(env, Kafka, "GetTopicMetadata").Inc()
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "GetTopicPartitionMetadata").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "GetTopicMetadata").Observe(time.Now().Sub(startTime).Seconds())
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "GetTopicPartitionMetadata").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
 	topicN := normalizeTopicName(request.Topic)
@@ -332,13 +404,13 @@ func (k *KafkaBroker) GetTopicMetadata(ctx context.Context, request GetTopicMeta
 	// TODO : normalize timeouts
 	resp, err := k.Consumer.Committed(tps, 5000)
 	if err != nil {
-		messageBrokerOperationError.WithLabelValues(env, Kafka, "GetTopicMetadata", err.Error()).Inc()
-		return GetTopicMetadataResponse{}, err
+		messageBrokerOperationError.WithLabelValues(env, Kafka, "GetTopicPartitionMetadata", err.Error()).Inc()
+		return GetTopicPartitionMetadataResponse{}, err
 	}
 
 	tpStats := resp[0]
 	offset, _ := strconv.ParseInt(tpStats.Offset.String(), 10, 0)
-	return GetTopicMetadataResponse{
+	return GetTopicPartitionMetadataResponse{
 		Topic:     request.Topic,
 		Partition: request.Partition,
 		Offset:    int32(offset),

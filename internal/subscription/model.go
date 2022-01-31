@@ -19,6 +19,7 @@ type Model struct {
 	common.BaseModel
 	Name                     string            `json:"name,omitempty"`
 	Topic                    string            `json:"topic,omitempty"`
+	Partition                int               `json:partition`
 	PushConfig               *PushConfig       `json:"push_config,omitempty"`
 	AckDeadlineSeconds       int32             `json:"ack_deadline_seconds,omitempty"`
 	RetainAckedMessages      bool              `json:"retain_acked_messages,omitempty"`
@@ -202,8 +203,8 @@ func (m *Model) GetDelay3600secTopic() string {
 }
 
 // GetDelayConsumerGroupID returns the consumer group ID to be used by the delay consumers
-func (m *Model) GetDelayConsumerGroupID(delayTopic string) string {
-	return fmt.Sprintf(delayConsumerGroupIDFormat, delayTopic)
+func (m *Model) GetDelayConsumerGroupID(delayTopic string, partition int) string {
+	return fmt.Sprintf(delayConsumerGroupIDFormat, delayTopic, partition)
 }
 
 // GetDelayConsumerGroupInstanceID returns the consumer group ID to be used by the specific delay consumer

@@ -2,11 +2,13 @@ package subscription
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 
 	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/internal/hash"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/topic"
@@ -25,18 +27,25 @@ type ICore interface {
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
 	Migrate(ctx context.Context, names []string) error
+	FetchPartitionsForHash(ctx context.Context, m *Model, node int) ([]int, error)
+	FetchSubscriptionHash(ctx context.Context, subName string, partition int) int
 }
+
+const (
+	subscriptionHashFormat = "%s-%s-"
+)
 
 // Core implements all business logic for a subscription
 type Core struct {
+	TotalNodes  int
 	repo        IRepo
 	projectCore project.ICore
 	topicCore   topic.ICore
 }
 
 // NewCore returns an instance of Core
-func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore) ICore {
-	return &Core{repo, projectCore, topicCore}
+func NewCore(nodes int, repo IRepo, projectCore project.ICore, topicCore topic.ICore) ICore {
+	return &Core{nodes, repo, projectCore, topicCore}
 }
 
 // CreateSubscription creates a subscription for a given topic
@@ -327,6 +336,38 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) err
 	}
 
 	return nil
+}
+
+// FetchPartitionsForHash ...
+func (c *Core) FetchPartitionsForHash(ctx context.Context, sub *Model, node int) ([]int, error) {
+	matchingPartitions := make([]int, 0)
+	topicModel, err := c.topicCore.Get(ctx, sub.GetTopic())
+	if err != nil {
+		logger.Ctx(ctx).Errorw("fetchpartitionsforhash: failed to fetch topic for subscription", "subscription", sub.Name, "topic", sub.GetTopic())
+		return matchingPartitions, err
+	}
+
+	if c.TotalNodes == 1 {
+		partitions := make([]int, topicModel.NumPartitions)
+		for i := 0; i < topicModel.NumPartitions; i++ {
+			partitions = append(partitions, i)
+		}
+		return partitions, nil
+	}
+	for i := 0; i < topicModel.NumPartitions; i++ {
+		computedHash := c.FetchSubscriptionHash(ctx, sub.Name, i)
+		partitionNode := computedHash % c.TotalNodes
+		if partitionNode == node {
+			matchingPartitions = append(matchingPartitions, partitionNode)
+		}
+	}
+
+	return matchingPartitions, nil
+}
+
+// FetchSubscriptionHash ...
+func (c *Core) FetchSubscriptionHash(ctx context.Context, sub string, partition int) int {
+	return hash.ComputeHash([]byte(sub + strconv.Itoa(partition)))
 }
 
 // Migrate takes care of backfilling subscription topics for existing subscriptions.

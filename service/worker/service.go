@@ -67,6 +67,7 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 	topicCore := topic.NewCore(topic.NewRepo(reg), projectCore, brokerStore)
 
 	subscriptionCore := subscription.NewCore(
+		1, // Workers do not fetch from consume plane. Hence init nodes as 1.
 		subscription.NewRepo(reg),
 		projectCore,
 		topicCore)

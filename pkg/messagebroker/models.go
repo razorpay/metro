@@ -107,8 +107,8 @@ type CommitOnTopicRequest struct {
 	ID        string
 }
 
-// GetTopicMetadataRequest ...
-type GetTopicMetadataRequest struct {
+// GetTopicPartitionMetadataRequest ...
+type GetTopicPartitionMetadataRequest struct {
 	Topic     string
 	Partition int32
 }
@@ -121,6 +121,23 @@ type CreateTopicResponse struct {
 // AddTopicPartitionResponse ...
 type AddTopicPartitionResponse struct {
 	Response interface{}
+}
+
+// PartitionMetadata holds information about a given topic
+type PartitionMetadata struct {
+	ID     int
+	Leader int
+}
+
+// TopicMetadata holds information about a given topic
+type TopicMetadata struct {
+	Topic      string
+	Partitions []PartitionMetadata
+}
+
+// ListTopicsResponse retuns metadata for all topics in the broker
+type ListTopicsResponse struct {
+	topics map[string]TopicMetadata
 }
 
 // DeleteTopicResponse ...
@@ -194,8 +211,8 @@ type CommitOnTopicResponse struct {
 	Response interface{}
 }
 
-// GetTopicMetadataResponse ...
-type GetTopicMetadataResponse struct {
+// GetTopicPartitionMetadataResponse ...
+type GetTopicPartitionMetadataResponse struct {
 	Topic     string
 	Partition int32
 	Offset    int32

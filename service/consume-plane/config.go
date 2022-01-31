@@ -1,17 +1,15 @@
-package web
+package consumeplane
 
 import (
-	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
-// Config for producer
+// Config for consumer
 type Config struct {
-	Broker              Broker
-	ReplicaCount        int
-	ConsumePlaneAddress string
-	HTTPClientConfig    httpclient.Config
-	Interfaces          struct {
+	Broker       Broker
+	ReplicaCount int
+	OrdinalID    int
+	Interfaces   struct {
 		API NetworkInterfaces
 	}
 }

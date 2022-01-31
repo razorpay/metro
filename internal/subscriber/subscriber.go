@@ -48,6 +48,7 @@ type Implementation interface {
 type Subscriber struct {
 	subscription   *subscription.Model
 	topic          string
+	partition      int
 	subscriberID   string
 	requestChan    chan *PullRequest
 	responseChan   chan *metrov1.PullResponse

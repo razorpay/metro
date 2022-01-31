@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package messagebroker
@@ -32,10 +33,15 @@ func Test_CreateValidTopic(t *testing.T) {
 
 	// create consumer to fetch topic metadata
 	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
-		Topics:  []string{topic},
+		Topics: []messagebroker.TopicPartition{
+			{
+				Topic:     topic,
+				Partition: 0,
+			},
+		},
 		GroupID: "dummy-group-2",
 	})
-	metadata, merr := consumer1.GetTopicMetadata(context.Background(), messagebroker.GetTopicMetadataRequest{Topic: topic})
+	metadata, merr := consumer1.GetTopicPartitionMetadata(context.Background(), messagebroker.GetTopicPartitionMetadataRequest{Topic: topic})
 
 	assert.Nil(t, merr)
 	assert.NotNil(t, metadata)
@@ -149,7 +155,12 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	// now consume the messages and assert the message ids generated in the previous step
 	consumer1, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
-		Topics:  []string{topic},
+		Topics: []messagebroker.TopicPartition{
+			{
+				Topic:     topic,
+				Partition: 0,
+			},
+		},
 		GroupID: "dummy-group-1",
 	})
 
@@ -174,7 +185,12 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 
 	// spwan a new consumer and try to re-receive after commit and make sure no new messages are available
 	consumer3, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
-		Topics:  []string{topic},
+		Topics: []messagebroker.TopicPartition{
+			{
+				Topic:     topic,
+				Partition: 0,
+			},
+		},
 		GroupID: "dummy-group-1",
 	})
 

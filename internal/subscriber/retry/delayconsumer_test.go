@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package retry
@@ -55,7 +56,7 @@ func TestDelayConsumer_Run(t *testing.T) {
 	mockConsumer.EXPECT().Resume(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
 
 	// initialize delay consumer
-	dc, err := NewDelayConsumer(ctx, subscriberID, "t1", subs, mockBrokerStore, mockHandler)
+	dc, err := NewDelayConsumer(ctx, subscriberID, "t1", 0, subs, mockBrokerStore, mockHandler)
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())

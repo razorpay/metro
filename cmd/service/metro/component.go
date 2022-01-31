@@ -6,6 +6,7 @@ import (
 	"github.com/razorpay/metro/internal/config"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/service"
+	consumeplane "github.com/razorpay/metro/service/consume-plane"
 	openapiserver "github.com/razorpay/metro/service/openapi-server"
 	"github.com/razorpay/metro/service/web"
 	"github.com/razorpay/metro/service/worker"
@@ -29,6 +30,8 @@ func NewComponent(component string, cfg config.Config) (*Component, error) {
 		svc, err = worker.NewService(&cfg.Worker, &cfg.Registry, &cfg.Cache)
 	case OpenAPIServer:
 		svc, err = openapiserver.NewService(&cfg.OpenAPIServer)
+	case ConsumePlane:
+		svc, err = consumeplane.NewService(&cfg.ConsumePlane, &cfg.Registry)
 	}
 
 	if err != nil {

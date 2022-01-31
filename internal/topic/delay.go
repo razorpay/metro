@@ -1,16 +1,19 @@
-package subscription
+package topic
 
-// subs-delay-30-seconds, subs-delay-60-seconds ... subs-delay-600-seconds
-const delayTopicNameFormat = "%v.delay.%v.seconds"
+// DelayTopicNameFormat ... -> subs-delay-30-seconds, subs-delay-60-seconds ... subs-delay-600-seconds
+const DelayTopicNameFormat = "%v.delay.%v.seconds"
 
-// projects/p1/topics/subs.delay.30.seconds
-const delayTopicWithProjectNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
+// DelayTopicWithProjectNameFormat ... -> projects/p1/topics/subs.delay.30.seconds
+const DelayTopicWithProjectNameFormat = "projects/%v/topics/%v.delay.%v.seconds"
 
-// subs.delay.30.seconds-cg
-const delayConsumerGroupIDFormat = "%v-cg"
+// DelayConsumerGroupIDFormat ... -> subs.delay.30.seconds-cg
+const DelayConsumerGroupIDFormat = "%v-cg"
 
-// delayTopicName-subscriberID
-const delayConsumerGroupInstanceIDFormat = "%v-%v"
+//DelayConsumerGroupInstanceIDFormat ... -> delayTopicName-subscriberID
+const DelayConsumerGroupInstanceIDFormat = "%v-%v"
+
+//DelayTopicSuffix ... -> delay-30-seconds, delay-60-seconds ... delay-600-seconds
+const DelayTopicSuffix = "delay.%v.seconds"
 
 // Interval is internal delay type per allowed interval
 type Interval uint

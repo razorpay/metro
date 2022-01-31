@@ -5,8 +5,7 @@ package retry
 import (
 	"testing"
 
-	"github.com/razorpay/metro/internal/subscription"
-
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +22,7 @@ func Test_ClosestIntervalWithCeil(t *testing.T) {
 			min:           10,
 			max:           3600,
 			delayInterval: inputInterval,
-			intervals:     subscription.Intervals,
+			intervals:     topic.Intervals,
 		})
 		actualIntervals = append(actualIntervals, float64(closestInterval))
 	}

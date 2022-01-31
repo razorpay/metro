@@ -60,9 +60,9 @@ func TestDelayConsumer_Run(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
 
-	msgs := make(map[string]messagebroker.ReceivedMessage)
-	msgs["10-99"] = getDummyBrokerMessage()
-	resp := &messagebroker.GetMessagesFromTopicResponse{PartitionOffsetWithMessages: msgs}
+	msgs := make([]messagebroker.ReceivedMessage, 0)
+	msgs = append(msgs, getDummyBrokerMessage())
+	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}
 	mockConsumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).Return(resp, nil).AnyTimes()
 
 	// on new message from broker

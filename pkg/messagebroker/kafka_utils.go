@@ -24,6 +24,8 @@ const (
 	closestDelayIntervalHeader = "closestDelayInterval"
 	deadLetterTopicHeader      = "deadLetterTopic"
 	nextDeliveryTimeHeader     = "nextDeliveryTime"
+	currentSequenceHeader      = "currentSequence"
+	prevSequenceHeader         = "prevSequence"
 )
 
 // extracts the message headers from a given SendMessageToTopicRequest and converts to the equivalent broker headers
@@ -112,7 +114,18 @@ func convertRequestToKafkaHeaders(request SendMessageToTopicRequest) []kafkapkg.
 		Key:   nextDeliveryTimeHeader,
 		Value: ndt,
 	})
-
+	// extract currentSequence
+	cs, _ := json.Marshal(request.CurrentSequence)
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   currentSequenceHeader,
+		Value: cs,
+	})
+	// extract prevSequence
+	ps, _ := json.Marshal(request.PrevSequence)
+	kHeaders = append(kHeaders, kafkapkg.Header{
+		Key:   prevSequenceHeader,
+		Value: ps,
+	})
 	return kHeaders
 }
 
@@ -134,6 +147,8 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 		deadLetterTopic      string
 		nextDeliveryTime     int64 // unix timestamp
 		otherAttributes      []map[string][]byte
+		currentSequence      int32
+		prevSequence         int32
 	)
 	for _, v := range headers {
 		switch v.Key {
@@ -163,6 +178,10 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			deadLetterTopic = string(v.Value)
 		case nextDeliveryTimeHeader:
 			json.Unmarshal(v.Value, &nextDeliveryTime)
+		case currentSequenceHeader:
+			json.Unmarshal(v.Value, &currentSequence)
+		case prevSequenceHeader:
+			json.Unmarshal(v.Value, &prevSequence)
 		default:
 			otherAttributes = append(otherAttributes, map[string][]byte{
 				v.Key: v.Value,
@@ -186,6 +205,8 @@ func convertKafkaHeadersToResponse(headers []kafkapkg.Header) ReceivedMessage {
 			MaxRetryCount:        maxRetryCount,
 			DeadLetterTopic:      deadLetterTopic,
 			NextDeliveryTime:     time.Unix(nextDeliveryTime, 0),
+			CurrentSequence:      currentSequence,
+			PrevSequence:         prevSequence,
 		},
 	}
 }

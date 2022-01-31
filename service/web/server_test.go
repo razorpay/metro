@@ -78,6 +78,21 @@ func TestGetProjectIDFromRequest(t *testing.T) {
 			},
 			pid: "",
 			err: invalidResourceNameError,
+		}, {
+			request: &metrov1.ListTopicSubscriptionsRequest{
+				Topic: "projects/project-p001/topics/topic-001",
+			},
+			pid: "project-p001",
+		}, {
+			request: &metrov1.ListProjectSubscriptionsRequest{
+				ProjectId: "project-p001",
+			},
+			pid: "project-p001",
+		}, {
+			request: &metrov1.ListProjectTopicsRequest{
+				ProjectId: "project-p001",
+			},
+			pid: "project-p001",
 		},
 	}
 

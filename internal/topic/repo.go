@@ -1,6 +1,10 @@
 package topic
 
 import (
+	"context"
+	"encoding/json"
+
+	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/pkg/registry"
 )
@@ -8,6 +12,7 @@ import (
 // IRepo interface over database repository
 type IRepo interface {
 	common.IRepo
+	List(ctx context.Context, prefix string) ([]common.IModel, error)
 }
 
 // Repo implements various repository methods
@@ -20,4 +25,27 @@ func NewRepo(registry registry.IRegistry) IRepo {
 	return &Repo{
 		common.BaseRepo{Registry: registry},
 	}
+}
+
+// List returns a slice of topics matching prefix
+func (r *Repo) List(ctx context.Context, prefix string) ([]common.IModel, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "TopicsRepository.List")
+	defer span.Finish()
+
+	pairs, err := r.Registry.List(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	models := []common.IModel{}
+	for _, pair := range pairs {
+		var m Model
+		err = json.Unmarshal(pair.Value, &m)
+		if err != nil {
+			return nil, err
+		}
+		m.SetVersion(pair.Version)
+		models = append(models, &m)
+	}
+	return models, nil
 }

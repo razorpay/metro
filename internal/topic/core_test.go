@@ -34,3 +34,37 @@ func TestCore_CreateTopic(t *testing.T) {
 	err := topicCore.CreateTopic(ctx, dTopic)
 	assert.Nil(t, err)
 }
+
+func TestCore_List(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+	topicCore := NewCore(mockTopicRepo, mockProjectCore, mockBrokerStore)
+	ctx := context.Background()
+
+	topics := []common.IModel{
+		&Model{
+			Name: "project_1/topic_1",
+		},
+		&Model{
+			Name: "project_1/topic_2",
+		},
+	}
+
+	prefix := "subscriptions/project_1"
+	mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+prefix).Return(topics, nil)
+	out, err := topicCore.List(ctx, prefix)
+
+	expectedOutput := []*Model{
+		{
+			Name: "project_1/topic_1",
+		},
+		{
+			Name: "project_1/topic_2",
+		},
+	}
+
+	assert.Nil(t, err)
+	assert.Equal(t, expectedOutput, out)
+}

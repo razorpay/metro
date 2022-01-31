@@ -7,6 +7,7 @@ import (
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
@@ -83,7 +84,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		min:           r.subs.RetryPolicy.MinimumBackoff,
 		max:           r.subs.RetryPolicy.MaximumBackoff,
 		delayInterval: nextDelayInterval,
-		intervals:     subscription.Intervals,
+		intervals:     topic.Intervals,
 	})
 
 	dcFromMap, _ := r.delayConsumers.Load(dInterval)
@@ -105,12 +106,15 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		InitialDelayInterval: msg.InitialDelayInterval,
 		CurrentDelayInterval: uint(nextDelayInterval),
 		ClosestDelayInterval: uint(dInterval),
+		CurrentSequence:      msg.CurrentSequence,
+		PrevSequence:         msg.PrevSequence,
 	}
 
 	// new broker message
 	newMessage := messagebroker.SendMessageToTopicRequest{
 		Topic:         dc.topic,
 		Message:       msg.Data,
+		OrderingKey:   msg.OrderingKey,
 		MessageHeader: newMessageHeaders,
 	}
 
@@ -137,7 +141,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 }
 
 // helper function to calculate all the retry intervals
-func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []subscription.Interval) []float64 {
+func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []topic.Interval) []float64 {
 	expectedIntervals := make([]float64, 0)
 
 	nef := NewExponentialWindowBackoff()

@@ -1,12 +1,12 @@
 package retry
 
 import (
-	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
 )
 
 // IntervalFinder defines the next interval identification logic
 type IntervalFinder interface {
-	Next(IntervalFinderParams) subscription.Interval
+	Next(IntervalFinderParams) topic.Interval
 }
 
 // IntervalFinderParams defines the constraints to be used to identify the next interval
@@ -14,7 +14,7 @@ type IntervalFinderParams struct {
 	min           uint
 	max           uint
 	delayInterval float64
-	intervals     []subscription.Interval
+	intervals     []topic.Interval
 }
 
 // NewClosestIntervalWithCeil  returns the closest interval window finder
@@ -25,7 +25,7 @@ func NewClosestIntervalWithCeil() IntervalFinder {
 // returns the minimum interval greater or equal to the given delay interval
 type closestIntervalWithCeil struct{}
 
-func (closestIntervalWithCeil) Next(i IntervalFinderParams) subscription.Interval {
+func (closestIntervalWithCeil) Next(i IntervalFinderParams) topic.Interval {
 	newDelay := i.delayInterval
 	// restrict newDelay based on the given min-max boundary conditions
 	if newDelay < float64(i.min) {
@@ -42,5 +42,5 @@ func (closestIntervalWithCeil) Next(i IntervalFinderParams) subscription.Interva
 	}
 
 	// by default use the max available delay
-	return subscription.MaxDelay
+	return topic.MaxDelay
 }

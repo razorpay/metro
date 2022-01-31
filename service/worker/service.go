@@ -20,6 +20,7 @@ import (
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
@@ -34,11 +35,12 @@ type Service struct {
 	subscriptionTask tasks.ITask
 	doneCh           chan struct{}
 	registry         registry.IRegistry
-	brokerStore      brokerstore.IBrokerStore
+	// cache            cache.ICache
+	brokerStore brokerstore.IBrokerStore
 }
 
 // NewService creates an instance of new worker
-func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service, error) {
+func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConfig *cache.Config) (*Service, error) {
 	workerID := uuid.New().String()
 
 	// Init registry
@@ -46,6 +48,11 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service
 	if err != nil {
 		return nil, err
 	}
+
+	// cache, err := cache.NewCache(cacheConfig)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// init broker store
 	brokerStore, err := brokerstore.NewBrokerStore(workerConfig.Broker.Variant, &workerConfig.Broker.BrokerConfig)
@@ -111,10 +118,11 @@ func NewService(workerConfig *Config, registryConfig *registry.Config) (*Service
 	}
 
 	return &Service{
-		id:               workerID,
-		doneCh:           make(chan struct{}),
-		workerConfig:     workerConfig,
-		registry:         reg,
+		id:           workerID,
+		doneCh:       make(chan struct{}),
+		workerConfig: workerConfig,
+		registry:     reg,
+		// cache:            cache,
 		brokerStore:      brokerStore,
 		leaderTask:       leaderTask,
 		subscriptionTask: subscriptionTask,
@@ -130,6 +138,9 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	// init registry health checker
 	registryHealthChecker := health.NewRegistryHealthChecker(svc.registry)
+
+	// init cache health checker
+	// cacheHealthChecker := health.NewCacheHealthChecker(svc.cache)
 
 	// init broker health checker
 	admin, _ := svc.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})

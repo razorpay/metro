@@ -25,6 +25,7 @@ type ICore interface {
 	CreateSubscriptionTopic(ctx context.Context, model *Model) error
 	CreateRetryTopic(ctx context.Context, model *Model) error
 	CreateDeadLetterTopic(ctx context.Context, model *Model) error
+	List(ctx context.Context, prefix string) ([]*Model, error)
 }
 
 // Core implements all business logic for a topic
@@ -253,4 +254,27 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 	})
 
 	return terr
+}
+
+// List gets slice of topics starting with given prefix
+func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
+	topicOperationCount.WithLabelValues(env, "List").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		topicOperationTimeTaken.WithLabelValues(env, "List").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	prefix = common.GetBasePrefix() + prefix
+
+	var out []*Model
+	ret, err := c.repo.List(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, obj := range ret {
+		out = append(out, obj.(*Model))
+	}
+	return out, nil
 }

@@ -17,6 +17,8 @@
     errorLevel            = 1
 
 [web]
+    replicaCount              = 1
+    consumePlaneDeployment    = "int.perf.razorpay.in"
     [web.broker]
         variant               = "kafka"
         [web.broker.brokerconfig]

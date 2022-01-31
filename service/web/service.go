@@ -17,7 +17,6 @@ import (
 	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
-	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
@@ -31,19 +30,17 @@ import (
 type Service struct {
 	webConfig      *Config
 	registryConfig *registry.Config
-	// cacheConfig    *cache.Config
 	openapiConfig  *openapiserver.Config
 	admin          *credentials.Model
 }
 
 // NewService creates an instance of new producer service
-func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, cacheConfig *cache.Config, openapiConfig *openapiserver.Config) (*Service, error) {
+func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, openapiConfig *openapiserver.Config) (*Service, error) {
 	return &Service{
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
 		openapiConfig:  openapiConfig,
 		admin:          admin,
-		// cacheConfig:    cacheConfig,
 	}, nil
 }
 

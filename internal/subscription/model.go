@@ -82,6 +82,14 @@ func (m *Model) IsPush() bool {
 	return m.PushConfig != nil && m.PushConfig.PushEndpoint != ""
 }
 
+// GetSubscriptionType returns subscription type i.e. Push or Pull
+func (m *Model) GetSubscriptionType() string {
+	if m.IsPush() {
+		return "Push"
+	}
+	return "Pull"
+}
+
 // GetTopic returns the primary subscription topic
 func (m *Model) GetTopic() string {
 	return m.Topic
@@ -230,4 +238,9 @@ func (m *Model) GetFilterExpressionAsStruct() (*Filter, error) {
 func (m *Model) SetFilterExpression(Filter string) {
 	m.FilterExpression = Filter
 	m.filterStruct = nil
+}
+
+// IsFilteringEnabled checks if the subscription has filter criteria or not
+func (m *Model) IsFilteringEnabled() bool {
+	return m.FilterExpression != ""
 }

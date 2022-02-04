@@ -132,7 +132,8 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	err = c.repo.Save(ctx, m)
 
 	if err == nil {
-		subscriptionCount.WithLabelValues(env,
+		subscriptionCount.WithLabelValues(
+			env,
 			m.ExtractedTopicName,
 			m.GetSubscriptionType(),
 			strconv.FormatBool(m.IsFilteringEnabled()),

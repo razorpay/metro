@@ -26,6 +26,8 @@ var (
 	subscriberTimeTakenToRemoveMsgFromMemory   *prometheus.HistogramVec
 	subscriberTimeTakenToIdentifyNextOffset    *prometheus.HistogramVec
 	subscriberTimeTakenToPushToRetry           *prometheus.HistogramVec
+	subscriberNumberOfReatinedAckedMessages    *prometheus.GaugeVec
+	subscriberReatinedAckedMessagesSize        *prometheus.GaugeVec
 )
 
 func init() {
@@ -118,4 +120,12 @@ func init() {
 		Help:    "Time taken to process retry message",
 		Buckets: prometheus.ExponentialBuckets(0.001, 1.1, 200),
 	}, []string{"env"})
+
+	subscriberNumberOfReatinedAckedMessages = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metro_subscriber_retained_acked_messages",
+	}, []string{"env", "topic", "subscription"})
+
+	subscriberReatinedAckedMessagesSize = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metro_subscriber_total_size_retained_acked_messages",
+	}, []string{"env", "topic", "subscription"})
 }

@@ -182,6 +182,8 @@ func (s *BasicImplementation) Acknowledge(ctx context.Context, req *AckMessage, 
 
 	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
 	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
+	subscriberNumberOfReatinedAckedMessages.WithLabelValues(env, s.topic, s.subscription.Name).Inc()
+	subscriberReatinedAckedMessagesSize.WithLabelValues(env, s.topic, s.subscription.Name).Add(float64(len(msg.Data)))
 }
 
 // ModAckDeadline modifies ack deadline

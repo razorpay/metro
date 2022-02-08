@@ -24,6 +24,7 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
     }
     schemes: HTTP
     schemes: HTTPS
+    host: "https://metro-web.razorpay.com"
     security_definitions: {
         security: {
             key: "basicAuth"

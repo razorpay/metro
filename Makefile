@@ -96,7 +96,8 @@ proto-generate:
 	@echo "\n + Generating pb language bindings\n"
 	@buf generate --path ./metro-proto/metro/proto
 	# Substitute {param=...} path params into {param} to solve swagger substitution problem
-	@sed -E "s/\{([a-zA-Z0-9\.]+)=[^\}]+\}/{\1}/g" third_party/OpenAPI/proto/v1/spec.swagger.json > third_party/OpenAPI/proto/v1/spec.swagger.json.tmp
+	# We add #header tags to work around OpenAPI limitations in detecting dunamic paths
+	@sed -E "s/\{([a-zA-Z0-9\.]+)=([a-zA-Z0-9]+)s([/])([\*])\/([a-zA-Z0-9]+)s([/])([\*])(.*)\}/{\1}#\5/g" third_party/OpenAPI/proto/v1/spec.swagger.json > third_party/OpenAPI/proto/v1/spec.swagger.json.tmp
 	@rm third_party/OpenAPI/proto/v1/spec.swagger.json
 	@mv third_party/OpenAPI/proto/v1/spec.swagger.json.tmp third_party/OpenAPI/proto/v1/spec.swagger.json
 	# Generate static assets for OpenAPI UI

@@ -51,7 +51,7 @@ func (svc *Service) runOpenAPIHandler(ctx context.Context) error {
 		if strings.HasPrefix(r.RequestURI, metroAPIPrefix) {
 			httputil.NewSingleHostReverseProxy(&url.URL{
 				Scheme: svc.config.Scheme,
-				Host:   svc.config.GRPCGatewayAddress,
+				Host:   svc.config.ProxyHostAddress,
 			}).ServeHTTP(w, r)
 		} else {
 			http.FileServer(statikFS).ServeHTTP(w, r)

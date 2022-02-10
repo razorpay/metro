@@ -126,6 +126,8 @@ func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) er
 		return err
 	}
 
+	subscriberTotalMessagesPushedToDLQ.WithLabelValues(env, msg.SourceTopic, msg.Subscription).Inc()
+
 	return nil
 }
 

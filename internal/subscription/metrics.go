@@ -11,6 +11,7 @@ var (
 	env                            string
 	subscriptionOperationCount     *prometheus.CounterVec
 	subscriptionOperationTimeTaken *prometheus.HistogramVec
+	subscriptionCount              *prometheus.GaugeVec
 )
 
 func init() {
@@ -25,4 +26,8 @@ func init() {
 		Help:    "Time taken for each subscription operation",
 		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 100),
 	}, []string{"env", "operation"})
+
+	subscriptionCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metro_subscription_total_count",
+	}, []string{"env", "topic", "type", "filtering_enabled", "ordering_enabled"})
 }

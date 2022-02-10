@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -128,7 +129,17 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		}
 	}
 
-	return c.repo.Save(ctx, m)
+	err = c.repo.Save(ctx, m)
+
+	if err == nil {
+		subscriptionCount.WithLabelValues(
+			env,
+			m.ExtractedTopicName,
+			m.GetSubscriptionType(),
+			strconv.FormatBool(m.IsFilteringEnabled()),
+			strconv.FormatBool(m.EnableMessageOrdering)).Inc()
+	}
+	return err
 }
 
 // UpdateSubscription - Updates a given subscription

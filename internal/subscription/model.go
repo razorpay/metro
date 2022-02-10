@@ -12,6 +12,12 @@ import (
 const (
 	// Prefix for all subscriptions keys in the registry
 	Prefix = "subscriptions/"
+
+	// SubscriptionTypePush ...
+	SubscriptionTypePush = "Push"
+
+	// SubscriptionTypePull ...
+	SubscriptionTypePull = "Pull"
 )
 
 // Model for a subscription
@@ -80,6 +86,14 @@ func (m *Model) Prefix() string {
 // IsPush returns true if a subscription is a push subscription
 func (m *Model) IsPush() bool {
 	return m.PushConfig != nil && m.PushConfig.PushEndpoint != ""
+}
+
+// GetSubscriptionType returns subscription type i.e. Push or Pull
+func (m *Model) GetSubscriptionType() string {
+	if m.IsPush() {
+		return SubscriptionTypePush
+	}
+	return SubscriptionTypePull
 }
 
 // GetTopic returns the primary subscription topic
@@ -230,4 +244,9 @@ func (m *Model) GetFilterExpressionAsStruct() (*Filter, error) {
 func (m *Model) SetFilterExpression(Filter string) {
 	m.FilterExpression = Filter
 	m.filterStruct = nil
+}
+
+// IsFilteringEnabled checks if the subscription has filter criteria or not
+func (m *Model) IsFilteringEnabled() bool {
+	return len(m.FilterExpression) > 0
 }

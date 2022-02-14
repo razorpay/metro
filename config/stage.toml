@@ -71,7 +71,7 @@
 
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"
-    proxyHostAddress      = "0.0.0.0:8082"
+    proxyHostAddress      = "https://metro-web.int.stage.razorpay.in"
     scheme                = "http"
 
 [admin]

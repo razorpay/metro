@@ -377,7 +377,13 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 		err = c.topicCore.CreateSubscriptionTopic(ctx, &topic.Model{
 			Name:               sub.GetSubscriptionTopic(),
 			ExtractedTopicName: sub.ExtractedSubscriptionName,
-			ExtractedProjectID: sub.ExtractedTopicProjectID,
+			ExtractedProjectID: sub.ExtractedSubscriptionProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		})
+		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
+			Name:               sub.GetRetryTopic(),
+			ExtractedTopicName: sub.ExtractedSubscriptionName,
+			ExtractedProjectID: sub.ExtractedSubscriptionProjectID,
 			NumPartitions:      topicModel.NumPartitions,
 		})
 		if err != nil {

@@ -49,6 +49,8 @@ func (svc *Service) runOpenAPIHandler(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.RequestURI, metroAPIPrefix) {
+			// Change Host header to avoid CORS conflict
+			r.Host = svc.config.ProxyHostAddress
 			httputil.NewSingleHostReverseProxy(&url.URL{
 				Scheme: svc.config.Scheme,
 				Host:   svc.config.ProxyHostAddress,

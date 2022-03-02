@@ -67,7 +67,7 @@
 
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"
-    grpcGatewayAddress    = "localhost:8085"
+    proxyHostAddress      = "0.0.0.0:8082"
     scheme                = "http"
 
 [admin]

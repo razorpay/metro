@@ -214,6 +214,7 @@ func (s *BasicImplementation) ModAckDeadline(ctx context.Context, req *ModAckMes
 
 	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
 
+	logger.Ctx(ctx).Infow("subscriber: logging message details", "consumedMessages", len(stats.consumedMessages), "msgId", msgID)
 	if req.ackDeadline == 0 {
 		// modAck with deadline = 0 means nack
 		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
@@ -331,7 +332,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
 
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset)
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
 	if offsetToCommit == peek.Offset {
 		start := time.Now()
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes

@@ -171,7 +171,6 @@ func (s *BasicImplementation) Acknowledge(ctx context.Context, req *AckMessage, 
 	// if somehow an ack request comes for a message that has met deadline eviction threshold
 	if req.HasHitDeadline() {
 
-		logger.Ctx(ctx).Infow("subscriber: msg hit deadline", "logFields", logFields)
 		logger.Ctx(ctx).Infow("subscriberimpl: retry on ack since req has hit deadline", msg.LogFields()...)
 		// push for retry
 		s.retry(ctx, s, s.consumer, s.retrier, msg, errChan)

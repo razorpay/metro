@@ -364,7 +364,9 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 	} else if offsetToCommit > peek.Offset && msg.CurrentTopic == msg.RetryTopic {
 		shouldCommit = true
 	}
+  
 	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "stats", stats, "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
+
 	if shouldCommit {
 		offsetUpdated := true
 		offsetModel := offset.Model{

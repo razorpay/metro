@@ -172,7 +172,7 @@ func (s *BasicImplementation) Acknowledge(ctx context.Context, req *AckMessage, 
 	if req.HasHitDeadline() {
 
 		logger.Ctx(ctx).Infow("subscriber: msg hit deadline", "logFields", logFields)
-
+		logger.Ctx(ctx).Infow("subscriberimpl: retry on ack since req has hit deadline", msg.LogFields()...)
 		// push for retry
 		s.retry(ctx, s, s.consumer, s.retrier, msg, errChan)
 
@@ -262,11 +262,11 @@ func (s *BasicImplementation) EvictUnackedMessagesPastDeadline(ctx context.Conte
 				// check if message is present in-memory or not
 				continue
 			}
-			//msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
-
+			msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+			logger.Ctx(ctx).Infow("subscriberimpl: evict unacked msgs past deadline retry", msg.LogFields()...)
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
 			// this way the message is eligible to be retried
-			// s.retry(ctx, s, s.consumer, s.retrier, msg, errChan)
+			s.retry(ctx, s, s.consumer, s.retrier, msg, errChan)
 
 			logFields["messageId"] = peek.MsgID
 			logger.Ctx(ctx).Infow("subscriber: deadline eviction: message evicted", "logFields", logFields)
@@ -364,7 +364,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 	} else if offsetToCommit > peek.Offset && msg.CurrentTopic == msg.RetryTopic {
 		shouldCommit = true
 	}
-  
+
 	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "stats", stats, "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
 
 	if shouldCommit {

@@ -71,11 +71,8 @@ type MessageHeader struct {
 }
 
 // LogFields ...
-func (msg ReceivedMessage) LogFields() []interface{} {
-	mh := msg.MessageHeader
+func (mh MessageHeader) LogFields() []interface{} {
 	return []interface{}{
-		"offset", msg.Offset,
-		"topic", msg.Topic,
 		"messageHeader", map[string]interface{}{
 			"messageID":            mh.MessageID,
 			"publishTime":          mh.PublishTime.Unix(),

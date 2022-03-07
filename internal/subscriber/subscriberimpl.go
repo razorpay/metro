@@ -166,19 +166,17 @@ func (s *BasicImplementation) Acknowledge(ctx context.Context, req *AckMessage, 
 	}
 
 	msg := stats.consumedMessages[msgID].(messagebroker.ReceivedMessage)
+	s.commitAndRemoveFromMemory(ctx, msg, errChan)
 
 	// if somehow an ack request comes for a message that has met deadline eviction threshold
 	if req.HasHitDeadline() {
 
-		logger.Ctx(ctx).Infow("subscriber: msg hit deadline", "logFields", logFields)
-
+		logger.Ctx(ctx).Infow("subscriberimpl: retry on ack since req has hit deadline", msg.LogFields()...)
 		// push for retry
 		s.retry(ctx, s, s.consumer, s.retrier, msg, errChan)
 
 		return
 	}
-
-	s.commitAndRemoveFromMemory(ctx, msg, errChan)
 
 	subscriberMessagesAckd.WithLabelValues(env, s.topic, s.subscription.Name, s.subscriberID).Inc()
 	subscriberTimeTakenToAckMsg.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(msg.PublishTime).Seconds())
@@ -264,7 +262,7 @@ func (s *BasicImplementation) EvictUnackedMessagesPastDeadline(ctx context.Conte
 				continue
 			}
 			msg := metadata.consumedMessages[msgID].(messagebroker.ReceivedMessage)
-
+			logger.Ctx(ctx).Infow("subscriberimpl: evict unacked msgs past deadline retry", msg.LogFields()...)
 			// NOTE :  if push to retry queue fails due to any error, we do not delete from the deadline heap
 			// this way the message is eligible to be retried
 			s.retry(ctx, s, s.consumer, s.retrier, msg, errChan)
@@ -338,7 +336,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
 
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "stats", stats, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
 	if offsetToCommit == peek.Offset {
 		start := time.Now()
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
@@ -362,8 +360,12 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 			break
 		}
 		subscriberTimeTakenToIdentifyNextOffset.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
+	} else if offsetToCommit > peek.Offset && msg.CurrentTopic == msg.RetryTopic {
+		shouldCommit = true
 	}
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
+
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "stats", stats, "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
+
 	if shouldCommit {
 		offsetUpdated := true
 		offsetModel := offset.Model{

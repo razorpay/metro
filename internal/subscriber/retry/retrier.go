@@ -92,6 +92,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 
 	nextDeliveryTime := time.Now().Add(time.Duration(dInterval) * time.Second)
 
+	logger.Ctx(ctx).Infow("retrier: resolved delay topic for retry", "dc.topic", dc.topic, "interval", dInterval, "nextInterval", nextDelayInterval)
 	// update message headers with new values
 	newMessageHeaders := messagebroker.MessageHeader{
 		MessageID:            msg.MessageID,

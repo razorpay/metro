@@ -194,6 +194,7 @@ func (s *BasicImplementation) ModAckDeadline(ctx context.Context, req *ModAckMes
 
 	logFields := getLogFields(s)
 	logFields["messageId"] = req.AckMessage.MessageID
+	logFields["currentTopic"] = req.AckMessage.Topic
 
 	logger.Ctx(ctx).Infow("subscriber: got mod ack request", "logFields", logFields)
 
@@ -219,6 +220,7 @@ func (s *BasicImplementation) ModAckDeadline(ctx context.Context, req *ModAckMes
 		// modAck with deadline = 0 means nack
 		// https://github.com/googleapis/google-cloud-go/blob/pubsub/v1.10.0/pubsub/iterator.go#L348
 
+		logger.Ctx(ctx).Infow("subscriberimpl: retry due to modack 0", msg.LogFields()...)
 		// push to retry queue
 		s.retry(ctx, s, s.consumer, s.retrier, msg, errChan)
 
@@ -318,7 +320,11 @@ func (s *BasicImplementation) logInMemoryStats(ctx context.Context) {
 
 func (s *BasicImplementation) retry(ctx context.Context, i Implementation, consumer IConsumer,
 	retrier retry.IRetrier, msg messagebroker.ReceivedMessage, errChan chan error) {
-	retryMessage(ctx, i, consumer, retrier, msg)
+
+	err := retryMessage(ctx, i, consumer, retrier, msg)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("subscriberimpl: error in retryMessage", err.Error())
+	}
 	s.commitAndRemoveFromMemory(ctx, msg, errChan)
 }
 
@@ -357,7 +363,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 		}
 		subscriberTimeTakenToIdentifyNextOffset.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
 	}
-
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
 	if shouldCommit {
 		offsetUpdated := true
 		offsetModel := offset.Model{
@@ -390,7 +396,6 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 					logger.Ctx(ctx).Errorw("subscriber: Failed to rollback offset", "logFields", logFields, "msg", err.Error())
 				}
 			}
-			return
 		}
 		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
 		stats.maxCommittedOffset = offsetToCommit

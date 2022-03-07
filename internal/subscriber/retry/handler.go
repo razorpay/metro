@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
@@ -24,6 +25,7 @@ func NewPushToPrimaryRetryTopicHandler(bs brokerstore.IBrokerStore) MessageHandl
 
 // Do defines the retry action. In this case it will push the message back on to the primary retry topic for re-processing by subscriber
 func (s *PushToPrimaryRetryTopic) Do(ctx context.Context, msg messagebroker.ReceivedMessage) error {
+	logger.Ctx(ctx).Infow("retryhandler: comes to push to retry", msg.LogFields()...)
 	producer, err := s.bs.GetProducer(ctx, messagebroker.ProducerClientOptions{
 		Topic:     msg.RetryTopic,
 		TimeoutMs: defaultBrokerOperationsTimeoutMs,
@@ -39,7 +41,7 @@ func (s *PushToPrimaryRetryTopic) Do(ctx context.Context, msg messagebroker.Rece
 		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
 		MessageHeader: msg.MessageHeader,
 	})
-
+	logger.Ctx(ctx).Infow("retryhandler: send to retry topic response", "logFields", msg.LogFields(), "topic", msg.RetryTopic)
 	if err != nil {
 		return err
 	}

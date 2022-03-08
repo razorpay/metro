@@ -138,7 +138,6 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 
 	logger.Ctx(ctx).Infow("retrier: pushed msg to delay topic", newMessage.LogFields()...)
 
-	logger.Ctx(ctx).Infow("retrier : ", newMessage.LogFields(), "topic", dc.topic)
 	return nil
 }
 

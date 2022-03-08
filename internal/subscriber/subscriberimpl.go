@@ -360,7 +360,10 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 			break
 		}
 		subscriberTimeTakenToIdentifyNextOffset.WithLabelValues(env).Observe(time.Now().Sub(start).Seconds())
-	} else if offsetToCommit > peek.Offset && msg.CurrentTopic == msg.RetryTopic {
+	} else if offsetToCommit > peek.Offset && msg.CurrentTopic != msg.SourceTopic {
+		// This is a stop-gap fix and will reduce strain on the system.
+		// But this could mean messages are committed before they are ack'd/nack'd but after they're attempted in the delay queues.
+		// In case of a nack in delay queues, they are anyway sent to retry.
 		shouldCommit = true
 	}
 

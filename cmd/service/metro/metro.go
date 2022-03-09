@@ -12,6 +12,9 @@ import (
 	configreader "github.com/razorpay/metro/pkg/config"
 	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/razorpay/metro/pkg/logger"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 const (
@@ -38,7 +41,7 @@ func isValidComponent(component string) bool {
 }
 
 // Init initializes all modules (logger, tracing, config, metro component)
-func Init(_ context.Context, env string, componentName string) {
+func Init(ctx context.Context, env string, componentName string) {
 	// componentName validation
 	ok := isValidComponent(componentName)
 	if !ok {
@@ -67,6 +70,8 @@ func Init(_ context.Context, env string, componentName string) {
 	encryption.RegisterEncryptionKey(appConfig.Encryption.Key)
 
 	err = boot.InitMonitoring(env, appConfig.App, appConfig.Sentry, appConfig.Tracing)
+
+	setPprofProfiles(ctx, componentName)
 
 	if err != nil {
 		log.Fatalf("error in setting up monitoring : %v", err)
@@ -113,4 +118,16 @@ func Run(ctx context.Context) {
 	}
 
 	logger.Ctx(ctx).Infow("stopped metro")
+}
+
+// sets up pprof profile for perfomance monitoring
+func setPprofProfiles(ctx context.Context, componentName string) {
+	logger.Ctx(ctx).Infow("initialising pprof profiles")
+	go func() {
+		if componentName == Web {
+			http.ListenAndServe("metro-web-pprof.concierge.stage.razorpay.in:8080", nil)
+		} else if componentName == Worker {
+			http.ListenAndServe("metro-worker-pprof.concierge.stage.razorpay.in:8080", nil)
+		}
+	}()
 }

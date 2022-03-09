@@ -14,6 +14,7 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 
 	"net/http"
+	// blank import added for testing.
 	_ "net/http/pprof"
 )
 

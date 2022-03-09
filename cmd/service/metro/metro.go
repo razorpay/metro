@@ -14,6 +14,7 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 
 	"net/http"
+
 	// blank import added for testing.
 	_ "net/http/pprof"
 )
@@ -125,10 +126,9 @@ func Run(ctx context.Context) {
 func setPprofProfiles(ctx context.Context, componentName string) {
 	logger.Ctx(ctx).Infow("initialising pprof profiles")
 	go func() {
-		if componentName == Web {
-			http.ListenAndServe("metro-web-pprof.concierge.stage.razorpay.in:8080", nil)
-		} else if componentName == Worker {
-			http.ListenAndServe("metro-worker-pprof.concierge.stage.razorpay.in:8080", nil)
+		myMux := http.DefaultServeMux
+		if err := http.ListenAndServe("localhost:8080", myMux); err != nil {
+			logger.Ctx(ctx).Fatalw("Error when starting or running %v pprof http server: %v", componentName, err)
 		}
 	}()
 }

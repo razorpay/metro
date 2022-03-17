@@ -117,7 +117,7 @@ build-info:
 	@echo "\t\033[33mArch\033[0m: $(UNAME_ARCH)"
 	@echo "\t\033[33mGo Version\033[0m: $(GOVERSION)\n"
 
-.PHONY: go-build-api ## Build the binary file for API server
+.PHONY: go-build-metro ## Build the binary file for API server
 go-build-metro:
 	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 

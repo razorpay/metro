@@ -8,6 +8,7 @@ import (
 	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/subscriber/retry"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -24,11 +25,12 @@ type Core struct {
 	bs               brokerstore.IBrokerStore
 	subscriptionCore subscription.ICore
 	offsetCore       offset.ICore
+	ch               cache.ICache
 }
 
 // NewCore returns a new subscriber core
-func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore, offsetCore offset.ICore) ICore {
-	return &Core{bs: bs, subscriptionCore: subscriptionCore, offsetCore: offsetCore}
+func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore, offsetCore offset.ICore, ch cache.ICache) ICore {
+	return &Core{bs: bs, subscriptionCore: subscriptionCore, offsetCore: offsetCore, ch: ch}
 }
 
 // NewSubscriber initiates a new subscriber for a given topic
@@ -57,6 +59,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 		retrier = retry.NewRetrierBuilder().
 			WithSubscription(subscription).
 			WithBrokerStore(c.bs).
+			WithCache(c.ch).
 			WithBackoff(retry.NewExponentialWindowBackoff()).
 			WithIntervalFinder(retry.NewClosestIntervalWithCeil()).
 			WithMessageHandler(retry.NewPushToPrimaryRetryTopicHandler(c.bs)).

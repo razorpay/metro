@@ -2,7 +2,7 @@ package cache
 
 import (
 	"context"
-	"fmt"
+	"net"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -11,7 +11,7 @@ import (
 // RedisConfig holds all required info for initializing redis driver
 type RedisConfig struct {
 	Host     string
-	Port     int32
+	Port     string
 	Database int32
 	Password string
 }
@@ -22,7 +22,7 @@ type RedisClient struct {
 
 func NewRedisClient(config *RedisConfig) (*RedisClient, error) {
 	options := &redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", config.Host, config.Port),
+		Addr:     net.JoinHostPort(config.Host, config.Port),
 		Password: config.Password,
 		DB:       int(config.Database),
 	}

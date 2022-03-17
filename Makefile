@@ -186,6 +186,7 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=internal/health/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/health ICore
 	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_registry.go -package=mocks github.com/razorpay/metro/pkg/registry IRegistry
 	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_watcher.go -package=mocks github.com/razorpay/metro/pkg/registry IWatcher
+	@mockgen --build_flags='--tags=musl' -destination=pkg/cache/mocks/mock_cache.go -package=mocks github.com/razorpay/metro/pkg/cache ICache
 	@mockgen --build_flags='--tags=musl' -destination=service/web/stream/mocks/manager/mock_manager.go -package=mocks github.com/razorpay/metro/service/web/stream IManager
 	@mockgen --build_flags='--tags=musl' -destination=internal/scheduler/mocks/mock_scheduler.go -package=mocks github.com/razorpay/metro/internal/scheduler IScheduler
 	@mockgen --build_flags='--tags=musl' -destination=internal/tasks/mocks/mock_task.go -package=mocks github.com/razorpay/metro/internal/tasks ITask

@@ -7,7 +7,8 @@ import (
 const (
 	// Consul constant for getting ConsulClient from Cache factory
 	Consul = "consul"
-	Redis  = "redis"
+	// Redis constant for getting Redis cache client
+	Redis = "redis"
 )
 
 // NewCache initializes the cache instance based on Config

@@ -16,10 +16,12 @@ type RedisConfig struct {
 	Password string
 }
 
+// RedisClient ...
 type RedisClient struct {
 	client *redis.Client
 }
 
+// NewRedisClient ...
 func NewRedisClient(config *RedisConfig) (*RedisClient, error) {
 	options := &redis.Options{
 		Addr:     net.JoinHostPort(config.Host, config.Port),
@@ -34,7 +36,7 @@ func NewRedisClient(config *RedisConfig) (*RedisClient, error) {
 	return &RedisClient{client}, nil
 }
 
-// Set -
+// Set ...
 func (rc *RedisClient) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	err := rc.client.Set(key, string(value), ttl).Err()
 	if err != nil {
@@ -44,7 +46,7 @@ func (rc *RedisClient) Set(ctx context.Context, key string, value []byte, ttl ti
 	return nil
 }
 
-// Get -
+// Get ...
 func (rc *RedisClient) Get(ctx context.Context, key string) ([]byte, error) {
 	val, err := rc.client.Get(key).Result()
 	if err != nil {
@@ -53,16 +55,18 @@ func (rc *RedisClient) Get(ctx context.Context, key string) ([]byte, error) {
 	return []byte(val), nil
 }
 
-// Delete -
+// Delete ...
 func (rc *RedisClient) Delete(ctx context.Context, key string) error {
 	err := rc.client.Del(key).Err()
 	return err
 }
 
+// MGet ...
 func (rc *RedisClient) MGet(keys ...string) ([]interface{}, error) {
 	return rc.client.MGet(keys...).Result()
 }
 
+// IsAlive ...
 func (rc *RedisClient) IsAlive(ctx context.Context) (bool, error) {
 	ping, err := rc.client.Ping().Result()
 	if err != nil {

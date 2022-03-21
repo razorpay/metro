@@ -8,6 +8,7 @@ import (
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
@@ -28,6 +29,7 @@ type Retrier struct {
 	subscriberID   string
 	subs           *subscription.Model
 	bs             brokerstore.IBrokerStore
+	ch             cache.ICache
 	backoff        Backoff
 	finder         IntervalFinder
 	handler        MessageHandler
@@ -38,7 +40,7 @@ type Retrier struct {
 func (r *Retrier) Start(ctx context.Context) error {
 	// TODO : validate retrier params for nils and substitute with defaults
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
-		dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler)
+		dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch)
 		if err != nil {
 			return err
 		}

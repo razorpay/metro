@@ -17,6 +17,7 @@ import (
 	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
@@ -31,15 +32,17 @@ type Service struct {
 	webConfig      *Config
 	registryConfig *registry.Config
 	openapiConfig  *openapiserver.Config
+	cacheConfig    *cache.Config
 	admin          *credentials.Model
 }
 
 // NewService creates an instance of new producer service
-func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, openapiConfig *openapiserver.Config) (*Service, error) {
+func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, openapiConfig *openapiserver.Config, cacheConfig *cache.Config) (*Service, error) {
 	return &Service{
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
 		openapiConfig:  openapiConfig,
+		cacheConfig:    cacheConfig,
 		admin:          admin,
 	}, nil
 }
@@ -52,10 +55,11 @@ func (svc *Service) Start(ctx context.Context) error {
 		return err
 	}
 
-	// c, err := cache.NewCache(svc.cacheConfig)
-	// if err != nil {
-	// 	return err
-	// }
+	ch, err := cache.NewCache(svc.cacheConfig)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("Failed to setup cache", "err", err.Error())
+		return err
+	}
 
 	brokerStore, err := brokerstore.NewBrokerStore(svc.webConfig.Broker.Variant, &svc.webConfig.Broker.BrokerConfig)
 	if err != nil {
@@ -103,7 +107,7 @@ func (svc *Service) Start(ctx context.Context) error {
 				metrov1.RegisterStatusCheckAPIServer(server, health.NewServer(healthCore))
 				metrov1.RegisterPublisherServer(server, newPublisherServer(projectCore, brokerStore, topicCore, credentialsCore, publisherCore))
 				metrov1.RegisterAdminServiceServer(server, newAdminServer(svc.admin, projectCore, subscriptionCore, topicCore, credentialsCore, brokerStore))
-				metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, credentialsCore, streamManager))
+				metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, credentialsCore, streamManager, ch))
 				return nil
 			},
 			getInterceptors()...,

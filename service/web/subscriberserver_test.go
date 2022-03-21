@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package web
@@ -18,6 +19,7 @@ import (
 	mocks4 "github.com/razorpay/metro/internal/project/mocks/core"
 	"github.com/razorpay/metro/internal/subscription"
 	mocks2 "github.com/razorpay/metro/internal/subscription/mocks/core"
+	cachemock "github.com/razorpay/metro/pkg/cache/mocks"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/razorpay/metro/service/web/stream"
 	mocks3 "github.com/razorpay/metro/service/web/stream/mocks/manager"
@@ -32,7 +34,8 @@ func TestSubscriberServer_UpdateSubscription(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.UpdateSubscriptionRequest{
@@ -81,7 +84,8 @@ func TestSubscriberServer_UpdateSubscriptionTestEmptyInRequest(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.UpdateSubscriptionRequest{
@@ -130,7 +134,8 @@ func TestSubscriberServer_UpdateSubscriptionTestEmptyInCurrent(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.UpdateSubscriptionRequest{
@@ -179,7 +184,8 @@ func TestSubscriberServer_UpdateSubscriptionTestValidationFailure(t *testing.T) 
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.UpdateSubscriptionRequest{
@@ -205,7 +211,8 @@ func TestSubscriberServer_UpdateSubscriptionRetryConfig(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.UpdateSubscriptionRequest{
@@ -265,7 +272,8 @@ func TestSubscriberServer_UpdateSubscriptionDeadletterPolicy(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.UpdateSubscriptionRequest{
@@ -324,7 +332,8 @@ func TestSubscriberServer_CreateSubscription(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.Subscription{
@@ -348,7 +357,8 @@ func TestSubscriberServer_CreateSubscriptionFailure(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.Subscription{
@@ -372,7 +382,8 @@ func TestSubscriberServer_Acknowledge(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.AcknowledgeRequest{
@@ -396,7 +407,8 @@ func TestSubscriberServer_AcknowledgeFailure(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.AcknowledgeRequest{
@@ -420,7 +432,8 @@ func TestSubscriberServer_Pull(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.PullRequest{
@@ -441,7 +454,8 @@ func TestSubscriberServer_DeleteSubscription(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.DeleteSubscriptionRequest{
@@ -464,7 +478,8 @@ func TestSubscriberServer_DeleteSubscriptionFailure(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.DeleteSubscriptionRequest{
@@ -487,7 +502,8 @@ func TestSubscriberServer_ModifyAckDeadline(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.ModifyAckDeadlineRequest{
@@ -512,7 +528,8 @@ func TestSubscriberServer_ModifyAckDeadlineFailure(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 	req := &metrov1.ModifyAckDeadlineRequest{
@@ -537,7 +554,8 @@ func TestSubscriberServer_StreamingPull(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 }
 
 func TestSubscriberServer_ListTopicSubscriptions(t *testing.T) {
@@ -547,7 +565,8 @@ func TestSubscriberServer_ListTopicSubscriptions(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 
@@ -590,7 +609,8 @@ func TestSubscriberServer_ListTopicSubscriptionsFailure(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 
@@ -611,7 +631,8 @@ func TestSubscriberServer_ListProjectSubscriptions(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 
@@ -649,7 +670,8 @@ func TestSubscriberServer_ListProjectSubscriptionsFailure(t *testing.T) {
 	subscriptionCore := mocks2.NewMockICore(ctrl)
 	manager := mocks3.NewMockIManager(ctrl)
 	mockCredentialsCore := mocks5.NewMockICore(ctrl)
-	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
 
 	ctx := context.Background()
 

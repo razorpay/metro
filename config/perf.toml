@@ -61,18 +61,13 @@
             caPem              = ""
 
 [cache]
-    driver                    = "redis"
+    driver                    = "consul"
     [cache.consulconfig]
         [cache.consulconfig.config]
             address            = "localhost:8500"
             token              = ""
             scheme             = "http"
             caPem              = ""
-    [cache.redisConfig]
-            host            = "localhost"
-            port            = "6379"
-            database        = 5
-            password        = ""
 
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"

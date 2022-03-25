@@ -109,15 +109,18 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	logger.Ctx(ctx).Infow("kafka producer: initializing new", "options", options)
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
-		"socket.keepalive.enable": true,
-		"retries":                 3,
-		"linger.ms":               0,
-		"request.timeout.ms":      3000,
-		"delivery.timeout.ms":     10000,
-		"connections.max.idle.ms": 180000,
-		"go.logs.channel.enable":  true,
-		"debug":                   "all",
+		"bootstrap.servers":            strings.Join(bConfig.Brokers, ","),
+		"socket.keepalive.enable":      true,
+		"acks":                         1,
+		"retries":                      3,
+		"linger.ms":                    0,
+		"request.timeout.ms":           3000,
+		"delivery.timeout.ms":          10000,
+		"connections.max.idle.ms":      180000,
+		"log.queue":                    false,
+		"queue.buffering.max.messages": 100,
+		"go.logs.channel.enable":       true,
+		"debug":                        "all",
 	}
 
 	if bConfig.EnableTLS {

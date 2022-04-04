@@ -120,6 +120,8 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"log.queue":                    false,
 		"queue.buffering.max.messages": 100,
 		"go.logs.channel.enable":       false,
+		"go.events.channel.size":       1,
+		"go.produce.channel.size":      1000,
 		"go.delivery.reports":          false,
 		"go.batch.producer":            true,
 		"debug":                        "all",
@@ -383,7 +385,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		logger.Ctx(ctx).Warnw("error injecting span context in message headers", "error", injectErr.Error())
 	}
 
-	deliveryChan := make(chan kafkapkg.Event, 1000)
+	deliveryChan := make(chan kafkapkg.Event, 1)
 	defer close(deliveryChan)
 
 	topicN := normalizeTopicName(request.Topic)
@@ -405,10 +407,9 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}
 
 	var m *kafkapkg.Message
-	select {
-	case event := <-deliveryChan:
-		m = event.(*kafkapkg.Message)
-	}
+
+	event := <-deliveryChan
+	m = event.(*kafkapkg.Message)
 
 	if m != nil && m.TopicPartition.Error != nil {
 		logger.Ctx(ctx).Errorw("kafka: error in publishing messages", "error", m.TopicPartition.Error.Error())

@@ -40,12 +40,14 @@ type Retrier struct {
 func (r *Retrier) Start(ctx context.Context) error {
 	// TODO : validate retrier params for nils and substitute with defaults
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
-		dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch)
-		if err != nil {
-			return err
+		if uint(interval) <= r.subs.RetryPolicy.MaximumBackoff {
+			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch)
+			if err != nil {
+				return err
+			}
+			go dc.Run(ctx)                       // run the delay consumer
+			r.delayConsumers.Store(interval, dc) // store the delay consumer for lookup
 		}
-		go dc.Run(ctx)                       // run the delay consumer
-		r.delayConsumers.Store(interval, dc) // store the delay consumer for lookup
 	}
 	return nil
 }

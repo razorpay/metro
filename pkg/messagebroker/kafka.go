@@ -124,7 +124,6 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"go.events.channel.size":       1,
 		"go.produce.channel.size":      1000,
 		"go.delivery.reports":          false,
-		"go.batch.producer":            true,
 		"debug":                        "all",
 	}
 

@@ -113,7 +113,7 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"socket.keepalive.enable":      true,
 		"acks":                         1,
 		"retries":                      3,
-		"go.batch.producer":            true,
+		"go.batch.producer":            false,
 		"linger.ms":                    0,
 		"request.timeout.ms":           3000,
 		"delivery.timeout.ms":          10000,

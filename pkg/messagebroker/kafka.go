@@ -119,9 +119,9 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"delivery.timeout.ms":          10000,
 		"connections.max.idle.ms":      180000,
 		"log.queue":                    false,
-		"queue.buffering.max.messages": 100,
+		"queue.buffering.max.messages": 1000,
 		"go.logs.channel.enable":       false,
-		"go.events.channel.size":       1,
+		"go.events.channel.size":       100,
 		"go.produce.channel.size":      1000,
 		"go.delivery.reports":          false,
 	}

@@ -109,21 +109,22 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	logger.Ctx(ctx).Infow("kafka producer: initializing new", "options", options)
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers":            strings.Join(bConfig.Brokers, ","),
-		"socket.keepalive.enable":      true,
-		"acks":                         1,
-		"retries":                      3,
-		"go.batch.producer":            false,
-		"linger.ms":                    0,
-		"request.timeout.ms":           3000,
-		"delivery.timeout.ms":          10000,
-		"connections.max.idle.ms":      180000,
-		"log.queue":                    false,
-		"queue.buffering.max.messages": 1000,
-		"go.logs.channel.enable":       false,
-		"go.events.channel.size":       100,
-		"go.produce.channel.size":      1000,
-		"go.delivery.reports":          false,
+		"bootstrap.servers":          strings.Join(bConfig.Brokers, ","),
+		"socket.keepalive.enable":    true,
+		"retries":                    3,
+		"linger.ms":                  0,
+		"request.timeout.ms":         3000,
+		"delivery.timeout.ms":        10000,
+		"connections.max.idle.ms":    180000,
+		"acks":                       1, // Num of In-Sync Broker Acks required.
+		"log.queue":                  false,
+		"queue.buffering.max.kbytes": 65536, // Total message size sum allocated in buffer. Shared across topics/partitions
+		"go.logs.channel.enable":     false, // Disable logs via channel
+		"go.events.channel.size":     1,     // Limit this to 1 to avoid outdated events
+		"go.produce.channel.size":    1000,  // Allocated buffer size for the produce channel.
+		"go.delivery.reports":        true,  // Returns delivery acks
+		"go.batch.producer":          false, // Disable batch producer since it clubs calls to librdkafka across topics. This causes memory bloat.
+		"debug":                      "broker",
 	}
 
 	if bConfig.EnableTLS {

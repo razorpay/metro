@@ -4,4 +4,5 @@ package cache
 type Config struct {
 	Driver       string
 	ConsulConfig ConsulConfig
+	RedisConfig  RedisConfig
 }

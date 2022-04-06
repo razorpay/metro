@@ -11,6 +11,8 @@ import (
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/razorpay/metro/service/web/stream"
@@ -24,10 +26,11 @@ type subscriberserver struct {
 	subscriptionCore subscription.ICore
 	credentialCore   credentials.ICore
 	psm              stream.IManager
+	ch               cache.ICache
 }
 
-func newSubscriberServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, credentialCore credentials.ICore, psm stream.IManager) *subscriberserver {
-	return &subscriberserver{projectCore, brokerStore, subscriptionCore, credentialCore, psm}
+func newSubscriberServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, credentialCore credentials.ICore, psm stream.IManager, ch cache.ICache) *subscriberserver {
+	return &subscriberserver{projectCore, brokerStore, subscriptionCore, credentialCore, psm, ch}
 }
 
 // CreateSubscription to create a new subscription
@@ -154,7 +157,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 
 	// request to init a new stream
 	if parsedReq.HasSubscription() {
-		err := s.psm.CreateNewStream(server, parsedReq, errGroup)
+		err := s.psm.CreateNewStream(server, parsedReq, errGroup, s.ch)
 		if err != nil {
 			return merror.ToGRPCError(err)
 		}
@@ -227,6 +230,59 @@ func (s subscriberserver) ModifyAckDeadline(ctx context.Context, req *metrov1.Mo
 		return nil, merror.ToGRPCError(err)
 	}
 	return new(emptypb.Empty), nil
+}
+
+func (s subscriberserver) ListTopicSubscriptions(ctx context.Context, req *metrov1.ListTopicSubscriptionsRequest) (*metrov1.ListTopicSubscriptionsResponse, error) {
+	logger.Ctx(ctx).Infow("subscriberserver: received request to list topic subscriptions", "topic", req.Topic)
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.ListTopicSubscriptions", opentracing.Tags{
+		"topic": req.Topic,
+	})
+	defer span.Finish()
+
+	p, t, err := topic.ExtractTopicMetaAndValidate(ctx, req.Topic)
+
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	subs, err := s.subscriptionCore.List(ctx, subscription.Prefix+p)
+
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	res := []string{}
+	for _, sub := range subs {
+		if sub.ExtractedTopicName == t {
+			res = append(res, sub.ExtractedSubscriptionName)
+		}
+	}
+
+	return &metrov1.ListTopicSubscriptionsResponse{Subscriptions: res}, nil
+}
+
+func (s subscriberserver) ListProjectSubscriptions(ctx context.Context,
+	req *metrov1.ListProjectSubscriptionsRequest) (*metrov1.ListProjectSubscriptionsResponse, error) {
+	logger.Ctx(ctx).Infow("subscriberserver: received request to list project subscriptions", "project_id", req.ProjectId)
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SubscriberServer.ListProjectSubscriptions", opentracing.Tags{
+		"project": req.ProjectId,
+	})
+	defer span.Finish()
+
+	subs, err := s.subscriptionCore.List(ctx, subscription.Prefix+req.ProjectId)
+
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+
+	res := []string{}
+	for _, sub := range subs {
+		res = append(res, sub.ExtractedSubscriptionName)
+	}
+
+	return &metrov1.ListProjectSubscriptionsResponse{Subscriptions: res}, nil
 }
 
 //AuthFuncOverride - Override function called by the auth interceptor

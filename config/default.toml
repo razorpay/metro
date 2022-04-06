@@ -62,17 +62,21 @@
             caPem              = ""
 
 [cache]
-    driver                    = "consul"
+    driver                    = "redis"
     [cache.consulconfig]
         [cache.consulconfig.config]
             address            = "localhost:8500"
             token              = ""
             scheme             = "http"
             caPem              = ""
-
+    [cache.redisConfig]
+            host            = "localhost"
+            port            = "6379"
+            database        = 0
+            password        = ""
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"
-    grpcGatewayAddress    = "localhost:8085"
+    proxyHostAddress      = "0.0.0.0:8082"
     scheme                = "http"
 
 [admin]

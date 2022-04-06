@@ -123,6 +123,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			if modAckRequest == nil || ctx.Err() != nil {
 				continue
 			}
+			logger.Ctx(ctx).Infow("subscriber: received mod ack for msg", "modAckReq", modAckRequest)
 			s.modifyAckDeadline(modAckRequest)
 			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-s.deadlineTicker.C:
@@ -172,6 +173,7 @@ func retryMessage(ctx context.Context, s Implementation, consumer IConsumer, ret
 		logger.Ctx(ctx).Infow("subscriber: skipping retry as retrier not configured", "logFields", getLogFields(s))
 		return nil
 	}
+	logger.Ctx(ctx).Infow("subscriber: send to retry", msg.LogFields()...)
 
 	subscription := s.GetSubscription()
 	// prepare message headers to be used by retrier
@@ -184,6 +186,7 @@ func retryMessage(ctx context.Context, s Implementation, consumer IConsumer, ret
 	msg.DeadLetterTopic = subscription.DeadLetterPolicy.DeadLetterTopic
 	msg.InitialDelayInterval = subscription.RetryPolicy.MinimumBackoff
 
+	logger.Ctx(ctx).Infow("subscriber: retry params", "current topic", msg.CurrentTopic, "retrycount", msg.CurrentRetryCount, "retry topic", msg.RetryTopic)
 	err := retrier.Handle(ctx, msg)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("subscriber: push to retrier failed", "logFields", getLogFields(s), "error", err.Error())
@@ -223,6 +226,14 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 		"message_id":   req.AckMessage.MessageID,
 		"partition":    req.AckMessage.Partition,
 	})
+
+	logger.Ctx(ctx).Infow("subscriber: modAck request",
+		"subscriber", req.AckMessage.SubscriberID,
+		"topic", req.AckMessage.Topic,
+		"subscription", s.subscription.Name,
+		"message_id", req.AckMessage.MessageID,
+		"partition", req.AckMessage.Partition,
+	)
 	defer span.Finish()
 	s.subscriberImpl.ModAckDeadline(ctx, req, s.GetErrorChannel())
 }

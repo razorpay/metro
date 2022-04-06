@@ -7,6 +7,8 @@ import (
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
@@ -27,6 +29,7 @@ type Retrier struct {
 	subscriberID   string
 	subs           *subscription.Model
 	bs             brokerstore.IBrokerStore
+	ch             cache.ICache
 	backoff        Backoff
 	finder         IntervalFinder
 	handler        MessageHandler
@@ -37,7 +40,7 @@ type Retrier struct {
 func (r *Retrier) Start(ctx context.Context) error {
 	// TODO : validate retrier params for nils and substitute with defaults
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
-		dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler)
+		dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch)
 		if err != nil {
 			return err
 		}
@@ -83,7 +86,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		min:           r.subs.RetryPolicy.MinimumBackoff,
 		max:           r.subs.RetryPolicy.MaximumBackoff,
 		delayInterval: nextDelayInterval,
-		intervals:     subscription.Intervals,
+		intervals:     topic.Intervals,
 	})
 
 	dcFromMap, _ := r.delayConsumers.Load(dInterval)
@@ -91,6 +94,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 
 	nextDeliveryTime := time.Now().Add(time.Duration(dInterval) * time.Second)
 
+	logger.Ctx(ctx).Infow("retrier: resolved delay topic for retry", "dc.topic", dc.topic, "interval", dInterval, "nextInterval", nextDelayInterval)
 	// update message headers with new values
 	newMessageHeaders := messagebroker.MessageHeader{
 		MessageID:            msg.MessageID,
@@ -140,7 +144,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 }
 
 // helper function to calculate all the retry intervals
-func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []subscription.Interval) []float64 {
+func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []topic.Interval) []float64 {
 	expectedIntervals := make([]float64, 0)
 
 	nef := NewExponentialWindowBackoff()

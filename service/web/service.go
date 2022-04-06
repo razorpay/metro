@@ -22,6 +22,7 @@ import (
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/razorpay/metro/pkg/registry"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
+	openapiserver "github.com/razorpay/metro/service/openapi-server"
 	"github.com/razorpay/metro/service/web/stream"
 	_ "github.com/razorpay/metro/statik" // to serve openAPI static assets
 )
@@ -30,17 +31,19 @@ import (
 type Service struct {
 	webConfig      *Config
 	registryConfig *registry.Config
-	// cacheConfig    *cache.Config
-	admin *credentials.Model
+	openapiConfig  *openapiserver.Config
+	cacheConfig    *cache.Config
+	admin          *credentials.Model
 }
 
 // NewService creates an instance of new producer service
-func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, cacheConfig *cache.Config) (*Service, error) {
+func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, openapiConfig *openapiserver.Config, cacheConfig *cache.Config) (*Service, error) {
 	return &Service{
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
+		openapiConfig:  openapiConfig,
+		cacheConfig:    cacheConfig,
 		admin:          admin,
-		// cacheConfig:    cacheConfig,
 	}, nil
 }
 
@@ -52,10 +55,11 @@ func (svc *Service) Start(ctx context.Context) error {
 		return err
 	}
 
-	// c, err := cache.NewCache(svc.cacheConfig)
-	// if err != nil {
-	// 	return err
-	// }
+	ch, err := cache.NewCache(svc.cacheConfig)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("Failed to setup cache", "err", err.Error())
+		return err
+	}
 
 	brokerStore, err := brokerstore.NewBrokerStore(svc.webConfig.Broker.Variant, &svc.webConfig.Broker.BrokerConfig)
 	if err != nil {
@@ -103,7 +107,7 @@ func (svc *Service) Start(ctx context.Context) error {
 				metrov1.RegisterStatusCheckAPIServer(server, health.NewServer(healthCore))
 				metrov1.RegisterPublisherServer(server, newPublisherServer(projectCore, brokerStore, topicCore, credentialsCore, publisherCore))
 				metrov1.RegisterAdminServiceServer(server, newAdminServer(svc.admin, projectCore, subscriptionCore, topicCore, credentialsCore, brokerStore))
-				metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, credentialsCore, streamManager))
+				metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, credentialsCore, streamManager, ch))
 				return nil
 			},
 			getInterceptors()...,
@@ -145,6 +149,14 @@ func (svc *Service) Start(ctx context.Context) error {
 	grp.Go(func() error {
 		err := server.RunInternalHTTPServer(gctx, svc.webConfig.Interfaces.API.InternalHTTPServerAddress)
 		return err
+	})
+
+	oasvc, err := openapiserver.NewService(svc.openapiConfig)
+	if err != nil {
+		logger.Ctx(gctx).Errorf("Failed to initialize openapi server: %s", err.Error())
+	}
+	grp.Go(func() error {
+		return oasvc.Start(gctx)
 	})
 
 	err = grp.Wait()

@@ -61,7 +61,7 @@
             caPem              = ""
 
 [cache]
-    driver                    = "consul"
+    driver                    = "redis"
     [cache.consulconfig]
         [cache.consulconfig.config]
             address            = "localhost:8500"
@@ -71,8 +71,8 @@
 
 [openAPIServer]
     httpServerAddress     = "0.0.0.0:3000"
-    grpcGatewayAddress    = "localhost:8085"
-    scheme                = "http"
+    proxyHostAddress      = "metro-web.int.stage.razorpay.in"
+    scheme                = "https"
 
 [admin]
     username = ""

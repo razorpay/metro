@@ -96,7 +96,8 @@ proto-generate:
 	@echo "\n + Generating pb language bindings\n"
 	@buf generate --path ./metro-proto/metro/proto
 	# Substitute {param=...} path params into {param} to solve swagger substitution problem
-	@sed -E "s/\{([a-zA-Z0-9\.]+)=[^\}]+\}/{\1}/g" third_party/OpenAPI/proto/v1/spec.swagger.json > third_party/OpenAPI/proto/v1/spec.swagger.json.tmp
+	# We add #header tags to work around OpenAPI limitations in detecting dunamic paths
+	@sed -E "s/\{([a-zA-Z0-9\.]+)=([a-zA-Z0-9]+)([/])([\*])\/([a-zA-Z0-9]+)([/])([\*])(.*)\}([:a-zA-Z0-9]*)/{\1}\9#\5/g" third_party/OpenAPI/proto/v1/spec.swagger.json > third_party/OpenAPI/proto/v1/spec.swagger.json.tmp
 	@rm third_party/OpenAPI/proto/v1/spec.swagger.json
 	@mv third_party/OpenAPI/proto/v1/spec.swagger.json.tmp third_party/OpenAPI/proto/v1/spec.swagger.json
 	# Generate static assets for OpenAPI UI
@@ -116,7 +117,7 @@ build-info:
 	@echo "\t\033[33mArch\033[0m: $(UNAME_ARCH)"
 	@echo "\t\033[33mGo Version\033[0m: $(GOVERSION)\n"
 
-.PHONY: go-build-api ## Build the binary file for API server
+.PHONY: go-build-metro ## Build the binary file for API server
 go-build-metro:
 	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
@@ -185,6 +186,7 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=internal/health/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/health ICore
 	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_registry.go -package=mocks github.com/razorpay/metro/pkg/registry IRegistry
 	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_watcher.go -package=mocks github.com/razorpay/metro/pkg/registry IWatcher
+	@mockgen --build_flags='--tags=musl' -destination=pkg/cache/mocks/mock_cache.go -package=mocks github.com/razorpay/metro/pkg/cache ICache
 	@mockgen --build_flags='--tags=musl' -destination=service/web/stream/mocks/manager/mock_manager.go -package=mocks github.com/razorpay/metro/service/web/stream IManager
 	@mockgen --build_flags='--tags=musl' -destination=internal/scheduler/mocks/mock_scheduler.go -package=mocks github.com/razorpay/metro/internal/scheduler IScheduler
 	@mockgen --build_flags='--tags=musl' -destination=internal/tasks/mocks/mock_task.go -package=mocks github.com/razorpay/metro/internal/tasks ITask

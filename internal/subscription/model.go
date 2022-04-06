@@ -12,6 +12,12 @@ import (
 const (
 	// Prefix for all subscriptions keys in the registry
 	Prefix = "subscriptions/"
+
+	// SubscriptionTypePush ...
+	SubscriptionTypePush = "Push"
+
+	// SubscriptionTypePull ...
+	SubscriptionTypePull = "Pull"
 )
 
 // Model for a subscription
@@ -82,6 +88,14 @@ func (m *Model) IsPush() bool {
 	return m.PushConfig != nil && m.PushConfig.PushEndpoint != ""
 }
 
+// GetSubscriptionType returns subscription type i.e. Push or Pull
+func (m *Model) GetSubscriptionType() string {
+	if m.IsPush() {
+		return SubscriptionTypePush
+	}
+	return SubscriptionTypePull
+}
+
 // GetTopic returns the primary subscription topic
 func (m *Model) GetTopic() string {
 	return m.Topic
@@ -134,16 +148,16 @@ func (m *Model) setDefaultDeadLetterPolicy() {
 }
 
 // GetDelayTopicsMap returns the all the delay topic names to its interval map
-func (m *Model) GetDelayTopicsMap() map[Interval]string {
-	return map[Interval]string{
-		Delay5sec:    m.GetDelay5secTopic(),
-		Delay30sec:   m.GetDelay30secTopic(),
-		Delay60sec:   m.GetDelay60secTopic(),
-		Delay150sec:  m.GetDelay150secTopic(),
-		Delay300sec:  m.GetDelay300secTopic(),
-		Delay600sec:  m.GetDelay600secTopic(),
-		Delay1800sec: m.GetDelay1800secTopic(),
-		Delay3600sec: m.GetDelay3600secTopic(),
+func (m *Model) GetDelayTopicsMap() map[topic.Interval]string {
+	return map[topic.Interval]string{
+		topic.Delay5sec:    m.GetDelay5secTopic(),
+		topic.Delay30sec:   m.GetDelay30secTopic(),
+		topic.Delay60sec:   m.GetDelay60secTopic(),
+		topic.Delay150sec:  m.GetDelay150secTopic(),
+		topic.Delay300sec:  m.GetDelay300secTopic(),
+		topic.Delay600sec:  m.GetDelay600secTopic(),
+		topic.Delay1800sec: m.GetDelay1800secTopic(),
+		topic.Delay3600sec: m.GetDelay3600secTopic(),
 	}
 }
 
@@ -163,52 +177,52 @@ func (m *Model) GetDelayTopics() []string {
 
 // GetDelay5secTopic returns the formatted delay topic name for 5sec interval
 func (m *Model) GetDelay5secTopic() string {
-	return fmt.Sprintf(delayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay5sec)
+	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay5sec)
 }
 
 // GetDelay30secTopic returns the formatted delay topic name for 30sec interval
 func (m *Model) GetDelay30secTopic() string {
-	return fmt.Sprintf(delayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay30sec)
+	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay30sec)
 }
 
 // GetDelay60secTopic returns the formatted delay topic name for 60sec interval
 func (m *Model) GetDelay60secTopic() string {
-	return fmt.Sprintf(delayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay60sec)
+	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay60sec)
 }
 
 // GetDelay150secTopic returns the formatted delay topic name for 150sec interval
 func (m *Model) GetDelay150secTopic() string {
-	return fmt.Sprintf(delayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay150sec)
+	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay150sec)
 }
 
 // GetDelay300secTopic returns the formatted delay topic name for 300sec interval
 func (m *Model) GetDelay300secTopic() string {
-	return fmt.Sprintf(delayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay300sec)
+	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay300sec)
 }
 
 // GetDelay600secTopic returns the formatted delay topic name for 600sec interval
 func (m *Model) GetDelay600secTopic() string {
-	return fmt.Sprintf(delayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay600sec)
+	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay600sec)
 }
 
 // GetDelay1800secTopic returns the formatted delay topic name for 1800sec interval
 func (m *Model) GetDelay1800secTopic() string {
-	return fmt.Sprintf(delayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay1800sec)
+	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay1800sec)
 }
 
 // GetDelay3600secTopic returns the formatted delay topic name for 3600sec interval
 func (m *Model) GetDelay3600secTopic() string {
-	return fmt.Sprintf(delayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, Delay3600sec)
+	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay3600sec)
 }
 
 // GetDelayConsumerGroupID returns the consumer group ID to be used by the delay consumers
 func (m *Model) GetDelayConsumerGroupID(delayTopic string) string {
-	return fmt.Sprintf(delayConsumerGroupIDFormat, delayTopic)
+	return fmt.Sprintf(topic.DelayConsumerGroupIDFormat, delayTopic)
 }
 
 // GetDelayConsumerGroupInstanceID returns the consumer group ID to be used by the specific delay consumer
 func (m *Model) GetDelayConsumerGroupInstanceID(subscriberID, delayTopic string) string {
-	return fmt.Sprintf(delayConsumerGroupInstanceIDFormat, delayTopic, subscriberID)
+	return fmt.Sprintf(topic.DelayConsumerGroupInstanceIDFormat, delayTopic, subscriberID)
 }
 
 // GetFilterExpressionAsStruct parses and returns the filter expression into GO Struct
@@ -230,4 +244,9 @@ func (m *Model) GetFilterExpressionAsStruct() (*Filter, error) {
 func (m *Model) SetFilterExpression(Filter string) {
 	m.FilterExpression = Filter
 	m.filterStruct = nil
+}
+
+// IsFilteringEnabled checks if the subscription has filter criteria or not
+func (m *Model) IsFilteringEnabled() bool {
+	return len(m.FilterExpression) > 0
 }

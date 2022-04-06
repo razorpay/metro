@@ -404,13 +404,13 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
 		return nil, err
 	}
-
+	logger.Ctx(ctx).Infow("successfully sent messsage and waiting for ack callback", "msgId", request.MessageID)
 	var m *kafkapkg.Message
 	select {
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
 	}
-
+	logger.Ctx(ctx).Infow("successfully received callback", "msgId", request.MessageID)
 	if m != nil && m.TopicPartition.Error != nil {
 		logger.Ctx(ctx).Errorw("kafka: error in publishing messages", "error", m.TopicPartition.Error.Error())
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", m.TopicPartition.Error.Error()).Inc()

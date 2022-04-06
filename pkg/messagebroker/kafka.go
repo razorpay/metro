@@ -388,12 +388,12 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	defer close(deliveryChan)
 
 	topicN := normalizeTopicName(request.Topic)
-	logger.Ctx(ctx).Debugw("normalized topic name", "topic", topicN)
+	logger.Ctx(ctx).Infow("normalized topic name", "topic", topicN)
 
 	if k.Producer == nil {
 		return nil, errProducerUnavailable
 	}
-
+	logger.Ctx(ctx).Infow("broker: producing message", "topic", topicN, "msgId", request.MessageID)
 	err := k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &topicN, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
@@ -402,6 +402,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}, deliveryChan)
 	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
+		logger.Ctx(ctx).Errorw("Failed to produce message", "err", err.Error())
 		return nil, err
 	}
 	logger.Ctx(ctx).Infow("successfully sent messsage and waiting for ack callback", "msgId", request.MessageID)

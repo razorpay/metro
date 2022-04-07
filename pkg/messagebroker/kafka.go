@@ -148,6 +148,12 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		select {
 		case <-ctx.Done():
 			return
+		case events := <-p.Events():
+			logger.Ctx(ctx).Infow("Receieved event from producer", "producer", p.String(), "event", events.String())
+			ferr := p.GetFatalError()
+			if ferr != nil {
+				logger.Ctx(ctx).Errorw("Fatar error encountered for producer", "producer", p.String(), "error", ferr.Error())
+			}
 		case log := <-p.Logs():
 			logger.Ctx(ctx).Infow("kafka producer logs", "topic", options.Topic, "log", log.String())
 		}

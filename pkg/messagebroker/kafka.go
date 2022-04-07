@@ -118,7 +118,7 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"connections.max.idle.ms":    180000,
 		"log.queue":                  true,
 		"queue.buffering.max.kbytes": 65536, // Total message size sum allocated in buffer. Shared across topics/partitions
-		"go.logs.channel.enable":     true,  // Disable logs via channel
+		"go.logs.channel.enable":     false, // Disable logs via channel
 		"go.events.channel.size":     10,    // Limit this to 1 to avoid outdated events
 		"go.produce.channel.size":    1000,  // Allocated buffer size for the produce channel.
 		"go.delivery.reports":        true,  // Returns delivery acks

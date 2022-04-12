@@ -113,8 +113,10 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	}
 
 	// for subscription over deadletter topics, skip the deadletter topic creation
-	if !topicModel.IsDeadLetterTopic() {
-
+	if topicModel.IsDeadLetterTopic() {
+		m.Labels["isDLQSubscription"] = "true"
+	} else {
+		m.Labels["isDLQSubscription"] = "false"
 		// create dead-letter topic for subscription
 		err = c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
 			Name:               m.GetDeadLetterTopic(),

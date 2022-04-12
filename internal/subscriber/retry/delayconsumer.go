@@ -148,7 +148,7 @@ func (dc *DelayConsumer) processMsgs() {
 		if msg.CanProcessMessage() {
 			if dc.retryExhausted(msg) || (msg.CurrentRetryCount > msg.MaxRetryCount) {
 				// if the source topic is dlq-topic, message will be lost after exhausting max retries.
-				if !topic.IsTopicDLQ(dc.subs.GetTopic()) {
+				if !topic.IsDLQTopic(dc.subs.GetTopic()) {
 					// push to dead-letter topic directly in such cases
 					logger.Ctx(dc.ctx).Infow("delay-consumer: publishing to DLQ topic", dc.LogFields("messageID", msg.MessageID)...)
 					err := dc.pushToDeadLetter(&msg)

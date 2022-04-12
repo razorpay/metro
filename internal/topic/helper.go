@@ -15,7 +15,7 @@ func GetTopicName(projectID string, name string) string {
 	return fmt.Sprintf(TopicNameFormat, projectID, name)
 }
 
-// IsTopicDLQ helper checks if the topic is dlq topic
-func IsTopicDLQ(topicName string) bool {
+// IsDLQTopic helper checks if the topic is dlq topic
+func IsDLQTopic(topicName string) bool {
 	return strings.HasSuffix(topicName, DeadLetterTopicSuffix)
 }

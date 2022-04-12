@@ -34,7 +34,12 @@ func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) 
 	m.Labels = req.GetLabels()
 	m.ExtractedProjectID = p
 	m.ExtractedTopicName = t
-	m.NumPartitions = DefaultNumPartitions
+	if req.NumOfPartitions == 0 {
+		m.NumPartitions = DefaultNumPartitions
+	} else {
+		m.NumPartitions = int(req.NumOfPartitions)
+	}
+
 	return m, nil
 }
 

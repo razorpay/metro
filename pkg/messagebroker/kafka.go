@@ -112,18 +112,16 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
 		"socket.keepalive.enable": true,
 		"retries":                 3,
-		"linger.ms":               100,
-		"request.timeout.ms":      30000,
-		"delivery.timeout.ms":     20000,
-		"connections.max.idle.ms": 10000,
-		"go.logs.channel.enable":  false,
-		"queue.buffering.max.ms":  100,
+		"linger.ms":               0,
+		"request.timeout.ms":      3000,
+		"delivery.timeout.ms":     2000,
+		"connections.max.idle.ms": 180000,
 		// "log.queue":                  true,
 		"queue.buffering.max.kbytes": 4096, // Total message size sum allocated in buffer. Shared across topics/partitions
 		// "go.logs.channel.enable":     false, // Disable logs via channel
 		// "go.events.channel.size":     10,    // Limit this to 1 to avoid outdated events
-		"go.produce.channel.size": 10,   // Allocated buffer size for the produce channel.
-		"go.delivery.reports":     true, // Returns delivery acks
+		"go.produce.channel.size":    100,  // Allocated buffer size for the produce channel.
+		"go.delivery.reports":        true,  // Returns delivery acks
 		// "go.batch.producer":          false, // Disable batch producer since it clubs calls to librdkafka across topics. This causes memory bloat.
 		"debug": "broker,topic,msg",
 	}
@@ -150,14 +148,14 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		select {
 		case <-ctx.Done():
 			return
-			// case events := <-p.Events():
-			// 	logger.Ctx(ctx).Infow("Receieved event from producer", "producer", p.String(), "event", events.String())
-			// 	ferr := p.GetFatalError()
-			// 	if ferr != nil {
-			// 		logger.Ctx(ctx).Errorw("Fatar error encountered for producer", "producer", p.String(), "error", ferr.Error())
-			// 	}
-			// case log := <-p.Logs():
-			// 	logger.Ctx(ctx).Infow("kafka producer logs", "topic", options.Topic, "log", log.String())
+		case events := <-p.Events():
+			logger.Ctx(ctx).Infow("Receieved event from producer", "producer", p.String(), "event", events.String())
+			ferr := p.GetFatalError()
+			if ferr != nil {
+				logger.Ctx(ctx).Errorw("Fatar error encountered for producer", "producer", p.String(), "error", ferr.Error())
+			}
+		case log := <-p.Logs():
+			logger.Ctx(ctx).Infow("kafka producer logs", "topic", options.Topic, "log", log.String())
 		}
 	}()
 
@@ -415,6 +413,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}
 	logger.Ctx(ctx).Infow("successfully sent messsage and waiting for ack callback", "msgId", request.MessageID)
 	var m *kafkapkg.Message
+
 	// doneChan := make(chan bool, 1)
 	// defer close(doneChan)
 	start := time.Now()
@@ -436,6 +435,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	//	doneChan <- true
 
 	logger.Ctx(ctx).Infow("successfully received callback", "msgId", request.MessageID, "time taken", end.String())
+
 	if m != nil && m.TopicPartition.Error != nil {
 		logger.Ctx(ctx).Errorw("kafka: error in publishing messages", "error", m.TopicPartition.Error.Error())
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", m.TopicPartition.Error.Error()).Inc()

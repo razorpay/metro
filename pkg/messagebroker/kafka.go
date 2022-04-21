@@ -112,11 +112,12 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"bootstrap.servers":          strings.Join(bConfig.Brokers, ","),
 		"socket.keepalive.enable":    true,
 		"retries":                    3,
-		"linger.ms":                  100,
 		"request.timeout.ms":         3000,
 		"delivery.timeout.ms":        2000,
 		"connections.max.idle.ms":    180000,
-		"queue.buffering.max.kbytes": 4096,  // Total message size sum allocated in buffer. Shared across topics/partitions
+		"batch.num.messages":         1,
+		"queue.buffering.max.kbytes": 4096, // Total message size sum allocated in buffer. Shared across topics/partitions
+		"queue.buffering.max.ms":     100,
 		"go.logs.channel.enable":     false, // Disable logs via channel
 		"go.produce.channel.size":    100,   // Allocated buffer size for the produce channel.
 		"go.delivery.reports":        true,  // Returns delivery acks

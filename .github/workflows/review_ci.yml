@@ -19,7 +19,7 @@ jobs:
           submodules: true
       - name: install prerequisites
         run: |
-          apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl bash
+          apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl bash sudo
       - name: setup
         run: |
           make deps proto-generate mock-gen

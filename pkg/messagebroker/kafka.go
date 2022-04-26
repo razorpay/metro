@@ -147,12 +147,6 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		select {
 		case <-ctx.Done():
 			return
-		case events := <-p.Events():
-			logger.Ctx(ctx).Infow("Receieved event from producer", "producer", p.String(), "event", events.String())
-			ferr := p.GetFatalError()
-			if ferr != nil {
-				logger.Ctx(ctx).Errorw("Fatar error encountered for producer", "producer", p.String(), "error", ferr.Error())
-			}
 		case log := <-p.Logs():
 			logger.Ctx(ctx).Infow("kafka producer logs", "topic", options.Topic, "log", log.String())
 		}
@@ -393,12 +387,12 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	defer close(deliveryChan)
 
 	topicN := normalizeTopicName(request.Topic)
-	logger.Ctx(ctx).Infow("normalized topic name", "topic", topicN)
+	logger.Ctx(ctx).Debugw("normalized topic name", "topic", topicN)
 
 	if k.Producer == nil {
 		return nil, errProducerUnavailable
 	}
-	logger.Ctx(ctx).Infow("broker: producing message", "topic", topicN, "msgId", request.MessageID)
+
 	err := k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &topicN, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
@@ -407,10 +401,9 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}, deliveryChan)
 	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
-		logger.Ctx(ctx).Errorw("Failed to produce message", "err", err.Error())
 		return nil, err
 	}
-	logger.Ctx(ctx).Infow("successfully sent messsage and waiting for ack callback", "msgId", request.MessageID)
+
 	var m *kafkapkg.Message
 
 	start := time.Now()

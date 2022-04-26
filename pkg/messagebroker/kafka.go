@@ -109,22 +109,22 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	logger.Ctx(ctx).Infow("kafka producer: initializing new", "options", options)
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
-		"socket.keepalive.enable": true,
-		"retries":                 3,
-		"linger.ms":               0,
-		"request.timeout.ms":      3000,
-		"delivery.timeout.ms":     2000,
-		"connections.max.idle.ms": 180000,
-		"go.log.channel.enable":   true,
-		// "log.queue":                  true,
-		// "queue.buffering.max.kbytes": 65536, // Total message size sum allocated in buffer. Shared across topics/partitions
-		// "go.logs.channel.enable":     false, // Disable logs via channel
-		// "go.events.channel.size":     10,    // Limit this to 1 to avoid outdated events
-		// "go.produce.channel.size":    1000,  // Allocated buffer size for the produce channel.
-		// "go.delivery.reports":        true,  // Returns delivery acks
-		// "go.batch.producer":          false, // Disable batch producer since it clubs calls to librdkafka across topics. This causes memory bloat.
-		"debug": "broker",
+		"bootstrap.servers":          strings.Join(bConfig.Brokers, ","),
+		"socket.keepalive.enable":    true,
+		"retries":                    3,
+		"linger.ms":                  0,
+		"request.timeout.ms":         3000,
+		"delivery.timeout.ms":        10000,
+		"connections.max.idle.ms":    180000,
+		"acks":                       1, // Number of In-Sync Broker Acks required.
+		"log.queue":                  false,
+		"queue.buffering.max.kbytes": 65536, // Total message size sum allocated in buffer. Shared across topics/partitions
+		"go.logs.channel.enable":     false, // Disable logs via channel
+		"go.events.channel.size":     1,     // Limit this to 1 to avoid outdated events
+		"go.produce.channel.size":    1000,  // Allocated buffer size for the produce channel.
+		"go.delivery.reports":        true,  // Returns delivery acks
+		"go.batch.producer":          false, // Disable batch producer since it clubs calls to librdkafka across topics. This causes memory bloat.
+		"debug":                      "broker",
 	}
 
 	if bConfig.EnableTLS {
@@ -149,12 +149,6 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		select {
 		case <-ctx.Done():
 			return
-		case events := <-p.Events():
-			logger.Ctx(ctx).Infow("Receieved event from producer", "producer", p.String(), "event", events.String())
-			ferr := p.GetFatalError()
-			if ferr != nil {
-				logger.Ctx(ctx).Errorw("Fatar error encountered for producer", "producer", p.String(), "error", ferr.Error())
-			}
 		case log := <-p.Logs():
 			logger.Ctx(ctx).Infow("kafka producer logs", "topic", options.Topic, "log", log.String())
 		}
@@ -395,12 +389,12 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	defer close(deliveryChan)
 
 	topicN := normalizeTopicName(request.Topic)
-	logger.Ctx(ctx).Infow("normalized topic name", "topic", topicN)
+	logger.Ctx(ctx).Debugw("normalized topic name", "topic", topicN)
 
 	if k.Producer == nil {
 		return nil, errProducerUnavailable
 	}
-	logger.Ctx(ctx).Infow("broker: producing message", "topic", topicN, "msgId", request.MessageID)
+
 	err := k.Producer.Produce(&kafkapkg.Message{
 		TopicPartition: kafkapkg.TopicPartition{Topic: &topicN, Partition: kafkapkg.PartitionAny},
 		Value:          request.Message,
@@ -409,16 +403,15 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}, deliveryChan)
 	if err != nil {
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", err.Error()).Inc()
-		logger.Ctx(ctx).Errorw("Failed to produce message", "err", err.Error())
 		return nil, err
 	}
-	logger.Ctx(ctx).Infow("successfully sent messsage and waiting for ack callback", "msgId", request.MessageID)
+
 	var m *kafkapkg.Message
 	select {
 	case event := <-deliveryChan:
 		m = event.(*kafkapkg.Message)
 	}
-	logger.Ctx(ctx).Infow("successfully received callback", "msgId", request.MessageID)
+
 	if m != nil && m.TopicPartition.Error != nil {
 		logger.Ctx(ctx).Errorw("kafka: error in publishing messages", "error", m.TopicPartition.Error.Error())
 		messageBrokerOperationError.WithLabelValues(env, Kafka, "SendMessage", m.TopicPartition.Error.Error()).Inc()

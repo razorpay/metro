@@ -36,8 +36,11 @@ func GetValidatedModel(ctx context.Context, req *metrov1.Topic) (*Model, error) 
 	m.ExtractedTopicName = t
 	if req.NumOfPartitions == 0 {
 		m.NumPartitions = DefaultNumPartitions
-	} else {
+	} else if req.NumOfPartitions >= 1 && req.NumOfPartitions <= MaxNumPartitions {
 		m.NumPartitions = int(req.NumOfPartitions)
+	} else {
+		return nil, merror.Newf(merror.InvalidArgument,
+			"Invalid [topics] num of partition: %d. Num of partitions should be between 1 and %d", req.NumOfPartitions, MaxNumPartitions)
 	}
 
 	return m, nil

@@ -22,6 +22,9 @@ const (
 
 	// DefaultNumPartitions default no of partitions for a topic
 	DefaultNumPartitions = 1
+
+	// MaxNumPartitions max number of partitions for a topic
+	MaxNumPartitions = 10
 )
 
 // Model for a topic

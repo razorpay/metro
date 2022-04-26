@@ -88,7 +88,7 @@ linters:
 run:
   timeout: 5m
   skip-files:
-    - ".*\\.kafka\\.go$"
+    - ".*confluentinc.*$"
   skip-dirs:
     - vendor
     - third_party

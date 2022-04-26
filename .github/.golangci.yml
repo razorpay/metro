@@ -97,3 +97,4 @@ run:
     - third_party
     - statik
     - tests
+  go: '1.16'

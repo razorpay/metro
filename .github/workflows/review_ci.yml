@@ -24,6 +24,7 @@ jobs:
         run: |
           make deps proto-generate mock-gen
           go mod vendor
+          go mod tidy
       - name: golangci-lint
         uses: reviewdog/action-golangci-lint@v1
         with:

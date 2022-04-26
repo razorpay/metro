@@ -389,7 +389,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 		logger.Ctx(ctx).Warnw("error injecting span context in message headers", "error", injectErr.Error())
 	}
 
-	deliveryChan := make(chan kafkapkg.Event, 1000)
+	deliveryChan := make(chan kafkapkg.Event, 1)
 	defer close(deliveryChan)
 
 	topicN := normalizeTopicName(request.Topic)

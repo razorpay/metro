@@ -15,7 +15,7 @@ require (
 	github.com/dvsekhvalnov/jose2go v0.0.0-20201001154944-b09cfaf05951 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/getsentry/sentry-go v0.11.0
-	github.com/go-redis/redis v6.15.9+incompatible // indirect
+	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2

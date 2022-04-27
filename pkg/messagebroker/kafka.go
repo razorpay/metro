@@ -122,7 +122,7 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		"go.produce.channel.size":    100,   // Allocated buffer size for the produce channel.
 		"go.delivery.reports":        true,  // Returns delivery acks
 		"go.batch.producer":          true,  // Disable batch producer since it clubs calls to librdkafka across topics. This causes memory bloat.
-		"debug":                      "broker,topic,msg",
+		"debug":                      "broker,msg",
 	}
 
 	if bConfig.EnableTLS {

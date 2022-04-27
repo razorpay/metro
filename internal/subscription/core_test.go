@@ -22,18 +22,8 @@ func TestSubscriptionCore_CreateSubscription(t *testing.T) {
 	mockRepo := repo.NewMockIRepo(ctrl)
 
 	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
-	sub := Model{
-		Name:                           "projects/project123/subscriptions/subscription123",
-		Topic:                          "projects/project123/topics/topic123",
-		ExtractedSubscriptionProjectID: "project123",
-		ExtractedTopicProjectID:        "project123",
-		ExtractedSubscriptionName:      "subscription123",
-		PushConfig: &PushConfig{
-			PushEndpoint: "https://www.razorpay.com/api/v1",
-		},
-		AckDeadlineSeconds: 20,
-		Labels:             map[string]string{},
-	}
+
+	sub := getSubModel()
 
 	tpc := topic.Model{
 		Name:               sub.GetSubscriptionTopic(),
@@ -78,20 +68,9 @@ func TestSubscriptionCore_CreateSubscription_DLQTopic(t *testing.T) {
 	mockRepo := repo.NewMockIRepo(ctrl)
 
 	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
-	sub := Model{
-		Name:                           "projects/project123/subscriptions/subscription123",
-		Topic:                          "projects/project123/topics/subscription123-dlq",
-		ExtractedSubscriptionProjectID: "project123",
-		ExtractedTopicProjectID:        "project123",
-		ExtractedSubscriptionName:      "subscription123",
-		ExtractedTopicName:             "subscription123-dlq",
-		PushConfig: &PushConfig{
-			PushEndpoint: "https://www.razorpay.com/api/v1",
-		},
-		AckDeadlineSeconds: 20,
-		Labels:             map[string]string{},
-	}
-
+	sub := getSubModel()
+	sub.Topic = "projects/project123/topics/subscription123-dlq"
+	sub.ExtractedTopicName = "subscription123-dlq"
 	tpc := topic.Model{
 		Name:               sub.Topic,
 		ExtractedTopicName: sub.ExtractedTopicName,
@@ -130,15 +109,7 @@ func TestSubscriptionCore_UpdateSubscription(t *testing.T) {
 	mockRepo := repo.NewMockIRepo(ctrl)
 
 	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
-	sub := Model{
-		Name:                           "projects/project123/subscriptions/subscription123",
-		Topic:                          "projects/project123/subscriptions/subscription123",
-		ExtractedSubscriptionProjectID: "project123",
-		PushConfig: &PushConfig{
-			PushEndpoint: "https://www.razorpay.com/api/v1",
-		},
-		AckDeadlineSeconds: 20,
-	}
+	sub := getSubModel()
 
 	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(true, nil)
 	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil)
@@ -155,15 +126,7 @@ func TestSubscriptionCore_UpdateSubscriptionNotExists(t *testing.T) {
 	mockRepo := repo.NewMockIRepo(ctrl)
 
 	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
-	sub := Model{
-		Name:                           "projects/project123/subscriptions/subscription123",
-		Topic:                          "projects/project123/subscriptions/subscription123",
-		ExtractedSubscriptionProjectID: "project123",
-		PushConfig: &PushConfig{
-			PushEndpoint: "https://www.razorpay.com/api/v1",
-		},
-		AckDeadlineSeconds: 20,
-	}
+	sub := getSubModel()
 
 	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(true, nil)
 	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(false, nil)
@@ -180,15 +143,7 @@ func TestSubscriptionCore_UpdateSubscriptionProjectNotExists(t *testing.T) {
 	mockRepo := repo.NewMockIRepo(ctrl)
 
 	core := NewCore(mockRepo, mockProjectCore, mockTopicCore)
-	sub := Model{
-		Name:                           "projects/project123/subscriptions/subscription123",
-		Topic:                          "projects/project123/subscriptions/subscription123",
-		ExtractedSubscriptionProjectID: "project123",
-		PushConfig: &PushConfig{
-			PushEndpoint: "https://www.razorpay.com/api/v1",
-		},
-		AckDeadlineSeconds: 20,
-	}
+	sub := getSubModel()
 
 	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(false, nil)
 
@@ -220,4 +175,21 @@ func TestSubscriptionCore_CreateDelayTopics(t *testing.T) {
 	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).Times(8) // number of delay topics being created
 	err = createDelayTopics(ctx, sub, mockTopicCore)
 	assert.Nil(t, err)
+}
+
+func getSubModel() Model {
+	sub := Model{
+		Name:                           "projects/project123/subscriptions/subscription123",
+		Topic:                          "projects/project123/topics/topic123",
+		ExtractedSubscriptionProjectID: "project123",
+		ExtractedTopicProjectID:        "project123",
+		ExtractedSubscriptionName:      "subscription123",
+		ExtractedTopicName:             "topic123",
+		PushConfig: &PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api/v1",
+		},
+		AckDeadlineSeconds: 20,
+		Labels:             map[string]string{},
+	}
+	return sub
 }

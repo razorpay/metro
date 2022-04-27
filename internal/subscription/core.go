@@ -2,7 +2,6 @@ package subscription
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -112,8 +111,6 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
 		return err
 	}
-
-	fmt.Println(topicModel)
 
 	// for subscription over deadletter topics, skip the deadletter topic creation
 	if topicModel.IsDeadLetterTopic() {

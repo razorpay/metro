@@ -5,6 +5,7 @@ import (
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -118,6 +119,10 @@ func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) er
 		return err
 	}
 
+	msg.MessageHeader.ClosestDelayInterval = 0
+	msg.MessageHeader.CurrentDelayInterval = 0
+	msg.MessageHeader.CurrentRetryCount = 0
+
 	_, err = dlProducer.SendMessage(dc.ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:         msg.DeadLetterTopic,
 		Message:       msg.Data,
@@ -142,14 +147,17 @@ func (dc *DelayConsumer) processMsgs() {
 
 		if msg.CanProcessMessage() {
 			if dc.retryExhausted(msg) || (msg.CurrentRetryCount > msg.MaxRetryCount) {
-				// push to dead-letter topic directly in such cases
-				logger.Ctx(dc.ctx).Infow("delay-consumer: publishing to DLQ topic", dc.LogFields("messageID", msg.MessageID)...)
-				err := dc.pushToDeadLetter(&msg)
-				if err != nil {
-					logger.Ctx(dc.ctx).Errorw("delay-consumer: failed to push to dead-letter topic",
-						dc.LogFields("messageID", msg.MessageID, "topic", msg.DeadLetterTopic, "error", err.Error())...,
-					)
-					return
+				// if the source topic is dlq-topic, message will be lost after exhausting max retries.
+				if !topic.IsDLQTopic(dc.subs.GetTopic()) {
+					// push to dead-letter topic directly in such cases
+					logger.Ctx(dc.ctx).Infow("delay-consumer: publishing to DLQ topic", dc.LogFields("messageID", msg.MessageID)...)
+					err := dc.pushToDeadLetter(&msg)
+					if err != nil {
+						logger.Ctx(dc.ctx).Errorw("delay-consumer: failed to push to dead-letter topic",
+							dc.LogFields("messageID", msg.MessageID, "topic", msg.DeadLetterTopic, "error", err.Error())...,
+						)
+						return
+					}
 				}
 			} else {
 				// submit to

@@ -7,6 +7,7 @@ import (
 	"github.com/razorpay/metro/cmd/service/metro"
 	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/boot"
+	_ "github.com/golang/mock/mockgen/model"
 )
 
 var (

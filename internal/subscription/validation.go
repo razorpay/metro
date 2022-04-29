@@ -228,8 +228,11 @@ func validateTopicName(ctx context.Context, m *Model, req *metrov1.Subscription)
 func validateLabels(_ context.Context, m *Model, req *metrov1.Subscription) error {
 	// TODO: add validations on labels
 	labels := req.GetLabels()
-
-	m.Labels = labels
+	if labels != nil {
+		m.Labels = labels
+	} else {
+		m.Labels = make(map[string]string)
+	}
 	return nil
 }
 

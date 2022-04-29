@@ -81,33 +81,42 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 		return err
 	}
 
-	// for subscription over deadletter topics, skip the subscription, retry and deadletter topic creation
-	if !topicModel.IsDeadLetterTopic() {
+	err = c.topicCore.CreateSubscriptionTopic(ctx, &topic.Model{
+		Name:               m.GetSubscriptionTopic(),
+		ExtractedTopicName: m.ExtractedSubscriptionName,
+		ExtractedProjectID: m.ExtractedTopicProjectID,
+		NumPartitions:      topicModel.NumPartitions,
+	})
 
-		err = c.topicCore.CreateSubscriptionTopic(ctx, &topic.Model{
-			Name:               m.GetSubscriptionTopic(),
-			ExtractedTopicName: m.ExtractedSubscriptionName,
-			ExtractedProjectID: m.ExtractedTopicProjectID,
-			NumPartitions:      topicModel.NumPartitions,
-		})
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to create subscription topic for subscription", "name", m.GetSubscriptionTopic(), "error", err.Error())
+		return err
+	}
 
-		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create subscription topic for subscription", "name", m.GetSubscriptionTopic(), "error", err.Error())
-			return err
-		}
+	err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
+		Name:               m.GetRetryTopic(),
+		ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
+		ExtractedProjectID: m.ExtractedTopicProjectID,
+		NumPartitions:      topicModel.NumPartitions,
+	})
 
-		err = c.topicCore.CreateRetryTopic(ctx, &topic.Model{
-			Name:               m.GetRetryTopic(),
-			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
-			ExtractedProjectID: m.ExtractedTopicProjectID,
-			NumPartitions:      topicModel.NumPartitions,
-		})
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic(), "error", err.Error())
+		return err
+	}
 
-		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create retry topic for subscription", "name", m.GetRetryTopic(), "error", err.Error())
-			return err
-		}
+	// this creates the needed delay topics in the broker
+	err = createDelayTopics(ctx, m, c.topicCore)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
+		return err
+	}
 
+	// for subscription over deadletter topics, skip the deadletter topic creation
+	if topicModel.IsDeadLetterTopic() {
+		m.Labels["isDLQSubscription"] = "true"
+	} else {
+		m.Labels["isDLQSubscription"] = "false"
 		// create dead-letter topic for subscription
 		err = c.topicCore.CreateDeadLetterTopic(ctx, &topic.Model{
 			Name:               m.GetDeadLetterTopic(),
@@ -118,13 +127,6 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 
 		if err != nil {
 			logger.Ctx(ctx).Errorw("failed to create dead letter topic for subscription", "name", m.GetDeadLetterTopic(), "error", err.Error())
-			return err
-		}
-
-		// this creates the needed delay topics in the broker
-		err = createDelayTopics(ctx, m, c.topicCore)
-		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
 			return err
 		}
 	}

@@ -39,8 +39,23 @@ type Retrier struct {
 // Start starts a new retrier which internally takes care of spawning the needed delay-consumers.
 func (r *Retrier) Start(ctx context.Context) error {
 	// TODO : validate retrier params for nils and substitute with defaults
+
+	// Identify the max delay interval possible
+	nextDelayInterval := r.backoff.Next(BackoffPolicy{
+		startInterval: float64(r.subs.RetryPolicy.MinimumBackoff),
+		lastInterval:  float64(r.subs.RetryPolicy.MaximumBackoff),
+		count:         float64(r.subs.DeadLetterPolicy.MaxDeliveryAttempts),
+		exponential:   2,
+	})
+
+	dInterval := r.finder.Next(IntervalFinderParams{
+		min:           r.subs.RetryPolicy.MinimumBackoff,
+		max:           r.subs.RetryPolicy.MaximumBackoff,
+		delayInterval: nextDelayInterval,
+		intervals:     topic.Intervals,
+	})
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
-		if uint(interval) <= r.subs.RetryPolicy.MaximumBackoff {
+		if uint(interval) <= uint(dInterval) {
 			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch)
 			if err != nil {
 				return err

@@ -48,14 +48,14 @@ func (r *Retrier) Start(ctx context.Context) error {
 		exponential:   2,
 	})
 
-	dInterval := r.finder.Next(IntervalFinderParams{
+	predefinedInterval := r.finder.Next(IntervalFinderParams{
 		min:           r.subs.RetryPolicy.MinimumBackoff,
 		max:           r.subs.RetryPolicy.MaximumBackoff,
 		delayInterval: nextDelayInterval,
 		intervals:     topic.Intervals,
 	})
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
-		if uint(interval) <= uint(dInterval) {
+		if uint(interval) <= uint(predefinedInterval) {
 			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch)
 			if err != nil {
 				return err

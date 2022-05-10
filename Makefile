@@ -119,7 +119,7 @@ build-info:
 
 .PHONY: go-build-metro ## Build the binary file for API server
 go-build-metro:
-	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
+	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl,dynamic -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
 .PHONY: clean ## Remove mocks, previous builds, protobuf files, and proto compiled code
 clean: mock-gen-clean proto-clean
@@ -160,38 +160,38 @@ docker-build-metro:
 .PHONY: mock-gen ## Generates mocks
 mock-gen:
 	@go generate ./...
-	@mockgen --build_flags='--tags=musl' -destination=internal/brokerstore/mocks/mock_brokerstore.go -package=mocks github.com/razorpay/metro/internal/brokerstore IBrokerStore
-	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_broker.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Broker
-	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_admin.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Admin
-	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_consumer.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Consumer
-	@mockgen --build_flags='--tags=musl' -destination=pkg/messagebroker/mocks/mock_producer.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Producer
-	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/topic ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/topic/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/topic IRepo
-	@mockgen --build_flags='--tags=musl' -destination=internal/subscription/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscription ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/subscription/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/subscription IRepo
-	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/mocks/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscriber ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/mocks/mock_subscriber.go -package=mocks github.com/razorpay/metro/internal/subscriber ISubscriber
-	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/project ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/project/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/project IRepo
-	@mockgen --build_flags='--tags=musl' -destination=internal/offset/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/offset ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/offset/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/offset IRepo
-	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/node ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/node/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/node IRepo
-	@mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/nodebinding ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/nodebinding/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/nodebinding IRepo
-	@mockgen --build_flags='--tags=musl' -destination=internal/credentials/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/credentials ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/credentials/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/credentials IRepo
-	@mockgen --build_flags='--tags=musl' -destination=internal/publisher/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/publisher ICore
-	@mockgen --build_flags='--tags=musl' -destination=internal/publisher/mocks/publisher/mock_publisher.go -package=mocks github.com/razorpay/metro/internal/publisher IPublisher
-	@mockgen --build_flags='--tags=musl' -destination=internal/health/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/health ICore
-	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_registry.go -package=mocks github.com/razorpay/metro/pkg/registry IRegistry
-	@mockgen --build_flags='--tags=musl' -destination=pkg/registry/mocks/mock_watcher.go -package=mocks github.com/razorpay/metro/pkg/registry IWatcher
-	@mockgen --build_flags='--tags=musl' -destination=pkg/cache/mocks/mock_cache.go -package=mocks github.com/razorpay/metro/pkg/cache ICache
-	@mockgen --build_flags='--tags=musl' -destination=service/web/stream/mocks/manager/mock_manager.go -package=mocks github.com/razorpay/metro/service/web/stream IManager
-	@mockgen --build_flags='--tags=musl' -destination=internal/scheduler/mocks/mock_scheduler.go -package=mocks github.com/razorpay/metro/internal/scheduler IScheduler
-	@mockgen --build_flags='--tags=musl' -destination=internal/tasks/mocks/mock_task.go -package=mocks github.com/razorpay/metro/internal/tasks ITask
-	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/retry/mocks/mock_handler.go -package=mocks github.com/razorpay/metro/internal/subscriber/retry MessageHandler
-	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/retry/mocks/mock_retrier.go -package=mocks github.com/razorpay/metro/internal/subscriber/retry IRetrier
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/brokerstore/mocks/mock_brokerstore.go -package=mocks github.com/razorpay/metro/internal/brokerstore IBrokerStore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=pkg/messagebroker/mocks/mock_broker.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Broker
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=pkg/messagebroker/mocks/mock_admin.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Admin
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=pkg/messagebroker/mocks/mock_consumer.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Consumer
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=pkg/messagebroker/mocks/mock_producer.go -package=mocks github.com/razorpay/metro/pkg/messagebroker Producer
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/topic/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/topic ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/topic/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/topic IRepo
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/subscription/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscription ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/subscription/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/subscription IRepo
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/subscriber/mocks/mock_core.go -package=mocks github.com/razorpay/metro/internal/subscriber ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/subscriber/mocks/mock_subscriber.go -package=mocks github.com/razorpay/metro/internal/subscriber ISubscriber
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/project/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/project ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/project/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/project IRepo
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/offset/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/offset ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/offset/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/offset IRepo
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/node/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/node ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/node/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/node IRepo
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/nodebinding/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/nodebinding ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/nodebinding/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/nodebinding IRepo
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/credentials/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/credentials ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/credentials/mocks/repo/mock_repo.go -package=mocks github.com/razorpay/metro/internal/credentials IRepo
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/publisher/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/publisher ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/publisher/mocks/publisher/mock_publisher.go -package=mocks github.com/razorpay/metro/internal/publisher IPublisher
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/health/mocks/core/mock_core.go -package=mocks github.com/razorpay/metro/internal/health ICore
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=pkg/registry/mocks/mock_registry.go -package=mocks github.com/razorpay/metro/pkg/registry IRegistry
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=pkg/registry/mocks/mock_watcher.go -package=mocks github.com/razorpay/metro/pkg/registry IWatcher
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=pkg/cache/mocks/mock_cache.go -package=mocks github.com/razorpay/metro/pkg/cache ICache
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=service/web/stream/mocks/manager/mock_manager.go -package=mocks github.com/razorpay/metro/service/web/stream IManager
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/scheduler/mocks/mock_scheduler.go -package=mocks github.com/razorpay/metro/internal/scheduler IScheduler
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/tasks/mocks/mock_task.go -package=mocks github.com/razorpay/metro/internal/tasks ITask
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/subscriber/retry/mocks/mock_handler.go -package=mocks github.com/razorpay/metro/internal/subscriber/retry MessageHandler
+	@mockgen --build_flags='--tags=musl,dynamic' -destination=internal/subscriber/retry/mocks/mock_retrier.go -package=mocks github.com/razorpay/metro/internal/subscriber/retry IRetrier
 
 .PHONY: mock-gen-clean ## Clean up all mockgen generated mocks directories
 mock-gen-clean:
@@ -238,7 +238,7 @@ test-unit-prepare:
 
 .PHONY: test-unit ## Run unit tests
 test-unit: test-unit-prepare
-	@APP_ENV=dev_docker go test --count=1 -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE) ./...
+	@APP_ENV=dev_docker go test --count=1 -tags=unit,musl,dynamic -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE) ./...
 	@go tool cover -func=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE)
 
 .PHONY: help ## Display this help screen

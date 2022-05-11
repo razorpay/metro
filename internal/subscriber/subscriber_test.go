@@ -282,29 +282,28 @@ func TestSubscriber_AcknowledgelMessage(t *testing.T) {
 	testInputs := []struct {
 		message            string
 		offset             int32
-		messageId          string
-		ackId              string
+		messageID          string
 		canConsumeMore     bool
 		maxCommittedOffset int32
 	}{
 		{
 			message:            "there",
 			offset:             2,
-			messageId:          "1",
+			messageID:          "1",
 			canConsumeMore:     false,
 			maxCommittedOffset: 0,
 		},
 		{
 			message:            "Hello",
 			offset:             1,
-			messageId:          "2",
+			messageID:          "2",
 			canConsumeMore:     true,
 			maxCommittedOffset: 2,
 		},
 		{
 			message:            "Razor",
 			offset:             3,
-			messageId:          "3",
+			messageID:          "3",
 			canConsumeMore:     true,
 			maxCommittedOffset: 3,
 		},
@@ -319,7 +318,7 @@ func TestSubscriber_AcknowledgelMessage(t *testing.T) {
 			Partition: partition,
 			Offset:    input.offset,
 		}
-		msgProto.MessageID = input.messageId
+		msgProto.MessageID = input.messageID
 		messages = append(messages, msgProto)
 	}
 	cs.EXPECT().ReceiveMessages(ctx, gomock.Any()).Return(
@@ -342,14 +341,10 @@ func TestSubscriber_AcknowledgelMessage(t *testing.T) {
 		tp := NewTopicPartition(topic, partition)
 		assert.Equal(t, len(testInputs), len(resp.ReceivedMessages))
 		for index, msg := range resp.ReceivedMessages {
-			testInputs[index].ackId = msg.AckId
-		}
-
-		for _, test := range testInputs {
-			ackMsg, _ := ParseAckID(test.ackId)
+			ackMsg, _ := ParseAckID(msg.AckId)
 			subImpl.Acknowledge(ctx, ackMsg, errChan)
-			assert.Equal(t, test.canConsumeMore, subImpl.CanConsumeMore())
-			assert.Equal(t, test.maxCommittedOffset, subImpl.consumedMessageStats[tp].maxCommittedOffset)
+			assert.Equal(t, testInputs[index].canConsumeMore, subImpl.CanConsumeMore())
+			assert.Equal(t, testInputs[index].maxCommittedOffset, subImpl.consumedMessageStats[tp].maxCommittedOffset)
 		}
 	case <-ticker.C:
 		assert.FailNow(t, "Test case timed out")
@@ -405,20 +400,19 @@ func TestSubscriber_ModAckAndEvictPastDeadline(t *testing.T) {
 
 	testInputs := []struct {
 		message              string
-		messageId            string
-		ackId                string
+		messageID            string
 		ackDeadline          int32
 		consumedMessageCount int
 	}{
 		{
 			message:              "Hello",
-			messageId:            "1",
+			messageID:            "1",
 			ackDeadline:          int32(0),
 			consumedMessageCount: 1,
 		},
 		{
 			message:              "there",
-			messageId:            "2",
+			messageID:            "2",
 			ackDeadline:          int32(time.Now().Add(1 * time.Millisecond).Unix()),
 			consumedMessageCount: 1,
 		},
@@ -432,7 +426,7 @@ func TestSubscriber_ModAckAndEvictPastDeadline(t *testing.T) {
 			Topic:     topic,
 			Partition: partition,
 		}
-		msgProto.MessageID = input.messageId
+		msgProto.MessageID = input.messageID
 		messages = append(messages, msgProto)
 	}
 
@@ -458,18 +452,14 @@ func TestSubscriber_ModAckAndEvictPastDeadline(t *testing.T) {
 		tp := NewTopicPartition(topic, partition)
 		assert.Equal(t, len(testInputs), len(resp.ReceivedMessages))
 		for index, msg := range resp.ReceivedMessages {
-			testInputs[index].ackId = msg.AckId
-		}
-
-		for _, test := range testInputs {
-			ackMsg, _ := ParseAckID(test.ackId)
+			ackMsg, _ := ParseAckID(msg.AckId)
 			modAckReq := &ModAckMessage{
 				ctx:         ctx,
 				AckMessage:  ackMsg,
-				ackDeadline: test.ackDeadline,
+				ackDeadline: testInputs[index].ackDeadline,
 			}
 			subImpl.ModAckDeadline(ctx, modAckReq, errChan)
-			assert.Equal(t, test.consumedMessageCount, len(subImpl.consumedMessageStats[tp].consumedMessages))
+			assert.Equal(t, testInputs[index].consumedMessageCount, len(subImpl.consumedMessageStats[tp].consumedMessages))
 		}
 
 		time.Sleep(1 * time.Second)

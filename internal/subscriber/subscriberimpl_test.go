@@ -30,7 +30,7 @@ const (
 func TestBasicImplementation_Pull(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
-	cs, consumer := getMockConsumerAndManager(t, ctx, ctrl)
+	cs, consumer := getMockConsumerAndManager(ctx, t, ctrl)
 	subImpl := getBasicImplementation(ctx, consumer, nil)
 
 	tests := []struct {
@@ -108,7 +108,7 @@ func TestBasicImplementation_Acknowledge(t *testing.T) {
 	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes()
 	offsetRepo.EXPECT().Save(gomock.Any(), gomock.Any()).AnyTimes()
 
-	cs, consumer := getMockConsumerAndManager(t, ctx, ctrl)
+	cs, consumer := getMockConsumerAndManager(ctx, t, ctrl)
 	subImpl := getBasicImplementation(ctx, consumer, offsetCore)
 
 	testInputs := []struct {
@@ -189,7 +189,7 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes()
 	offsetRepo.EXPECT().Save(gomock.Any(), gomock.Any()).AnyTimes()
 
-	cs, consumer := getMockConsumerAndManager(t, ctx, ctrl)
+	cs, consumer := getMockConsumerAndManager(ctx, t, ctrl)
 	subImpl := getBasicImplementation(ctx, consumer, offsetCore)
 
 	testInputs := []struct {
@@ -282,8 +282,8 @@ func getBasicImplementation(ctx context.Context, consumer IConsumer, offsetCore 
 }
 
 func getMockConsumerAndManager(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	ctrl *gomock.Controller,
 ) (*mockMB.MockConsumer, IConsumer) {
 	cs := mockMB.NewMockConsumer(ctrl)

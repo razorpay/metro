@@ -30,7 +30,7 @@ const (
 func TestBasicImplementation_Pull(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
-	cs, consumer := getMockConsumerAndManager(ctx, t, ctrl)
+	cs, consumer := getMockConsumerAndManager(ctx, ctrl)
 	subImpl := getBasicImplementation(ctx, consumer, nil)
 
 	tests := []struct {
@@ -54,9 +54,17 @@ func TestBasicImplementation_Pull(t *testing.T) {
 			wantErr:          true,
 			consumer:         consumer,
 		},
+		{
+			maxNumOfMessages: 1,
+			expected:         []string{},
+			err:              nil,
+			wantErr:          false,
+			consumer:         nil,
+		},
 	}
 
 	for _, test := range tests {
+		subImpl.consumer = test.consumer
 		messages := make([]messagebroker.ReceivedMessage, 0, test.maxNumOfMessages)
 		for index, msg := range test.expected {
 			pubSub := &metrov1.PubsubMessage{Data: []byte(msg)}
@@ -70,11 +78,13 @@ func TestBasicImplementation_Pull(t *testing.T) {
 			messages = append(messages, msgProto)
 		}
 
-		cs.EXPECT().ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: test.maxNumOfMessages, TimeoutMs: 1000}).Return(
-			&messagebroker.GetMessagesFromTopicResponse{
-				Messages: messages,
-			}, test.err,
-		)
+		if subImpl.consumer != nil {
+			cs.EXPECT().ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: test.maxNumOfMessages, TimeoutMs: 1000}).Return(
+				&messagebroker.GetMessagesFromTopicResponse{
+					Messages: messages,
+				}, test.err,
+			)
+		}
 
 		pullRequest := &PullRequest{ctx: ctx, MaxNumOfMessages: test.maxNumOfMessages}
 		responseChan := make(chan *metrov1.PullResponse, 10)
@@ -108,7 +118,7 @@ func TestBasicImplementation_Acknowledge(t *testing.T) {
 	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes()
 	offsetRepo.EXPECT().Save(gomock.Any(), gomock.Any()).AnyTimes()
 
-	cs, consumer := getMockConsumerAndManager(ctx, t, ctrl)
+	cs, consumer := getMockConsumerAndManager(ctx, ctrl)
 	subImpl := getBasicImplementation(ctx, consumer, offsetCore)
 
 	testInputs := []struct {
@@ -189,7 +199,7 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes()
 	offsetRepo.EXPECT().Save(gomock.Any(), gomock.Any()).AnyTimes()
 
-	cs, consumer := getMockConsumerAndManager(ctx, t, ctrl)
+	cs, consumer := getMockConsumerAndManager(ctx, ctrl)
 	subImpl := getBasicImplementation(ctx, consumer, offsetCore)
 
 	testInputs := []struct {
@@ -253,12 +263,9 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 			assert.Equal(t, testInputs[index].consumedMessageCount, len(subImpl.consumedMessageStats[tp].consumedMessages))
 		}
 
-		ticker := time.NewTimer(1 * time.Second)
-		select {
-		case <-ticker.C:
-			subImpl.EvictUnackedMessagesPastDeadline(ctx, errChan)
-			assert.Equal(t, 0, len(subImpl.consumedMessageStats[tp].consumedMessages))
-		}
+		<-time.NewTimer(1 * time.Second).C
+		subImpl.EvictUnackedMessagesPastDeadline(ctx, errChan)
+		assert.Equal(t, 0, len(subImpl.consumedMessageStats[tp].consumedMessages))
 	case <-ticker.C:
 		assert.FailNow(t, "Test case timed out")
 	}
@@ -283,7 +290,6 @@ func getBasicImplementation(ctx context.Context, consumer IConsumer, offsetCore 
 
 func getMockConsumerAndManager(
 	ctx context.Context,
-	t *testing.T,
 	ctrl *gomock.Controller,
 ) (*mockMB.MockConsumer, IConsumer) {
 	cs := mockMB.NewMockConsumer(ctrl)

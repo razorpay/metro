@@ -247,6 +247,7 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 	tp := NewTopicPartition(topic, partition)
 	<-time.NewTimer(1 * time.Second).C
 	subscriber.cancelFunc()
+	subImpl.EvictUnackedMessagesPastDeadline(ctx, subscriber.errChan)
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
 }
 

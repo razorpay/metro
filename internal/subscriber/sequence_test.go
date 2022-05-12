@@ -66,7 +66,8 @@ func Test_offsetSequenceManager_SetOrderedSequenceNum(t *testing.T) {
 		}).AnyTimes()
 
 	offsetSeqManager := getMockSequenceManager(ctx, mockRepo)
-	offsetSeqManager.SetOrderedSequenceNum(ctx, getMockSubModel(), partition, orderingKey, sequenceNum)
+	err := offsetSeqManager.SetOrderedSequenceNum(ctx, getMockSubModel(), partition, orderingKey, sequenceNum)
+	assert.Nil(t, err)
 	got, err := offsetSeqManager.GetLastMessageSequenceNum(ctx, getMockSubModel(), partition, orderingKey)
 	assert.Nil(t, err)
 	assert.Equal(t, sequenceNum, got)
@@ -143,7 +144,8 @@ func Test_offsetSequenceManager_SetLastSequenceStatus(t *testing.T) {
 		}).AnyTimes()
 
 	offsetSeqManager := getMockSequenceManager(ctx, mockRepo)
-	offsetSeqManager.SetLastSequenceStatus(ctx, getMockSubModel(), partition, orderingKey, expected)
+	err := offsetSeqManager.SetLastSequenceStatus(ctx, getMockSubModel(), partition, orderingKey, expected)
+	assert.Nil(t, err)
 	got, err := offsetSeqManager.GetLastSequenceStatus(ctx, getMockSubModel(), partition, orderingKey)
 	assert.Nil(t, err)
 	if !reflect.DeepEqual(got, expected) {
@@ -172,14 +174,5 @@ func getMockSubModel() *subscription.Model {
 	return &subscription.Model{
 		Topic: topic,
 		Name:  subName,
-	}
-}
-
-func getMockOffsetModel() *offset.Model {
-	return &offset.Model{
-		Topic:        topic,
-		Subscription: subID,
-		Partition:    partition,
-		OrderingKey:  orderingKey,
 	}
 }

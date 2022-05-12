@@ -27,44 +27,43 @@ const (
 	Partition  = int32(0)
 )
 
-func TestBasicImplementation_Pull(t *testing.T) {
-	ctx := context.Background()
+func setup(t *testing.T) (
+	ctx context.Context,
+	cs *mockMB.MockConsumer,
+	subImpl *BasicImplementation,
+) {
 	ctrl := gomock.NewController(t)
-	cs, consumer := getMockConsumerAndManager(ctx, ctrl)
-	subImpl := getBasicImplementation(ctx, consumer, nil)
+	ctx = context.Background()
+	cs = getMockConsumer(ctx, ctrl)
+	consumer := getMockConsumerManager(ctx, ctrl, cs)
+	subImpl = getBasicImplementation(ctx, consumer, ctrl)
 
+	return
+}
+
+func TestBasicImplementation_Pull(t *testing.T) {
+	ctx, cs, subImpl := setup(t)
 	tests := []struct {
 		maxNumOfMessages int32
 		expected         []string
 		err              error
 		wantErr          bool
-		consumer         IConsumer
 	}{
 		{
 			maxNumOfMessages: 2,
 			expected:         []string{"a", "b"},
 			err:              nil,
 			wantErr:          false,
-			consumer:         consumer,
 		},
 		{
 			maxNumOfMessages: 1,
 			expected:         []string{},
 			err:              fmt.Errorf("Consumer is paused"),
 			wantErr:          true,
-			consumer:         consumer,
-		},
-		{
-			maxNumOfMessages: 1,
-			expected:         []string{},
-			err:              nil,
-			wantErr:          false,
-			consumer:         nil,
 		},
 	}
 
 	for _, test := range tests {
-		subImpl.consumer = test.consumer
 		messages := make([]messagebroker.ReceivedMessage, 0, test.maxNumOfMessages)
 		for index, msg := range test.expected {
 			pubSub := &metrov1.PubsubMessage{Data: []byte(msg)}
@@ -78,13 +77,11 @@ func TestBasicImplementation_Pull(t *testing.T) {
 			messages = append(messages, msgProto)
 		}
 
-		if subImpl.consumer != nil {
-			cs.EXPECT().ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: test.maxNumOfMessages, TimeoutMs: 1000}).Return(
-				&messagebroker.GetMessagesFromTopicResponse{
-					Messages: messages,
-				}, test.err,
-			)
-		}
+		cs.EXPECT().ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: test.maxNumOfMessages, TimeoutMs: 1000}).Return(
+			&messagebroker.GetMessagesFromTopicResponse{
+				Messages: messages,
+			}, test.err,
+		)
 
 		pullRequest := &PullRequest{ctx: ctx, MaxNumOfMessages: test.maxNumOfMessages}
 		responseChan := make(chan *metrov1.PullResponse, 10)
@@ -92,7 +89,6 @@ func TestBasicImplementation_Pull(t *testing.T) {
 		subImpl.Pull(ctx, pullRequest, responseChan, errChan)
 
 		ticker := time.NewTimer(30 * time.Second)
-
 		select {
 		case resp := <-responseChan:
 			assert.Equal(t, len(test.expected), len(resp.ReceivedMessages))
@@ -103,24 +99,12 @@ func TestBasicImplementation_Pull(t *testing.T) {
 			assert.Equal(t, test.wantErr, err != nil)
 		case <-ticker.C:
 			assert.FailNow(t, "Test case timed out")
-		default:
-			assert.Zero(t, len(test.expected))
-			assert.False(t, test.wantErr)
 		}
 	}
 }
 
 func TestBasicImplementation_Acknowledge(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	ctx := context.Background()
-	offsetRepo := mocks.NewMockIRepo(ctrl)
-	offsetCore := offset.NewCore(offsetRepo)
-	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes()
-	offsetRepo.EXPECT().Save(gomock.Any(), gomock.Any()).AnyTimes()
-
-	cs, consumer := getMockConsumerAndManager(ctx, ctrl)
-	subImpl := getBasicImplementation(ctx, consumer, offsetCore)
-
+	ctx, cs, subImpl := setup(t)
 	testInputs := []struct {
 		message            string
 		offset             int32
@@ -191,17 +175,7 @@ func TestBasicImplementation_Acknowledge(t *testing.T) {
 }
 
 func TestBasicImplementation_ModAckDeadline(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	ctx := context.Background()
-	offsetRepo := mocks.NewMockIRepo(ctrl)
-	offsetCore := offset.NewCore(offsetRepo)
-
-	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes()
-	offsetRepo.EXPECT().Save(gomock.Any(), gomock.Any()).AnyTimes()
-
-	cs, consumer := getMockConsumerAndManager(ctx, ctrl)
-	subImpl := getBasicImplementation(ctx, consumer, offsetCore)
-
+	ctx, cs, subImpl := setup(t)
 	testInputs := []struct {
 		message              string
 		messageID            string
@@ -271,7 +245,13 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 	}
 }
 
-func getBasicImplementation(ctx context.Context, consumer IConsumer, offsetCore offset.ICore) *BasicImplementation {
+func getBasicImplementation(ctx context.Context, consumer IConsumer, ctrl *gomock.Controller) *BasicImplementation {
+	offsetRepo := mocks.NewMockIRepo(ctrl)
+	offsetCore := offset.NewCore(offsetRepo)
+
+	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes()
+	offsetRepo.EXPECT().Save(gomock.Any(), gomock.Any()).AnyTimes()
+
 	return &BasicImplementation{
 		maxOutstandingMessages: 1,
 		maxOutstandingBytes:    100,
@@ -288,11 +268,11 @@ func getBasicImplementation(ctx context.Context, consumer IConsumer, offsetCore 
 	}
 }
 
-func getMockConsumerAndManager(
+func getMockConsumerManager(
 	ctx context.Context,
 	ctrl *gomock.Controller,
-) (*mockMB.MockConsumer, IConsumer) {
-	cs := mockMB.NewMockConsumer(ctrl)
+	cs *mockMB.MockConsumer,
+) IConsumer {
 	bs := mockBS.NewMockIBrokerStore(ctrl)
 	bs.EXPECT().GetConsumer(
 		ctx,
@@ -303,6 +283,11 @@ func getMockConsumerAndManager(
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, SubID, SubName, Topic, RetryTopic)
+	return consumer
+}
+
+func getMockConsumer(ctx context.Context, ctrl *gomock.Controller) *mockMB.MockConsumer {
+	cs := mockMB.NewMockConsumer(ctrl)
 	req := messagebroker.GetTopicMetadataRequest{
 		Topic:     Topic,
 		Partition: Partition,
@@ -312,5 +297,5 @@ func getMockConsumerAndManager(
 	cs.EXPECT().CommitByPartitionAndOffset(ctx, gomock.Any()).Return(
 		messagebroker.CommitOnTopicResponse{}, nil,
 	).AnyTimes()
-	return cs, consumer
+	return cs
 }

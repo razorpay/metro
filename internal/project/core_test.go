@@ -116,7 +116,9 @@ func TestCore_Get(t *testing.T) {
 			}
 			mod := &Model{}
 			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), mod).Do(func(arg1 context.Context, arg2 string, mod *Model) {
-				mod.SetVersion("123")
+				if err2 == nil {
+					mod.SetVersion("123")
+				}
 			}).Return(err2)
 			got, err := c.Get(tt.args.ctx, tt.args.projectID)
 			if (err != nil) != tt.wantErr {
@@ -143,6 +145,11 @@ func TestCore_DeleteProject(t *testing.T) {
 	project := getDummyProjectModel()
 	ctx := context.Background()
 
+	dummyModel := &Model{
+		Name:      "test",
+		ProjectID: "",
+		Labels:    map[string]string{"label": "value"},
+	}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -160,14 +167,31 @@ func TestCore_DeleteProject(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test2",
+			fields: fields{
+				repo: mockRepo,
+			},
+			args: args{
+				ctx: ctx,
+				m:   dummyModel,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Core{
 				repo: tt.fields.repo,
 			}
-			mockRepo.EXPECT().Exists(gomock.Any(), project.Key()).Return(true, nil)
-			mockRepo.EXPECT().Delete(gomock.Any(), project).Return(nil)
+			var err2 error = nil
+			if len(tt.args.m.ProjectID) == 0 {
+				err2 = fmt.Errorf("Invalid Project ID!")
+				mockRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(false, err2)
+			} else {
+				mockRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, err2)
+				mockRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(err2)
+			}
 			if err := c.DeleteProject(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteProject() error = %v, wantErr %v", err, tt.wantErr)
 			}

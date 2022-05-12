@@ -221,7 +221,7 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 		}, nil,
 	)
 
-	subscriber := getSubscriber(ctx, subImpl)
+	subscriber := getMockSubscriber(ctx, subImpl)
 	pullRequest := &PullRequest{ctx: ctx, MaxNumOfMessages: 1}
 	subImpl.Pull(ctx, pullRequest, subscriber.responseChan, subscriber.errChan)
 
@@ -251,7 +251,7 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
 }
 
-func getSubscriber(ctx context.Context, subImpl *BasicImplementation) *Subscriber {
+func getMockSubscriber(ctx context.Context, subImpl *BasicImplementation) *Subscriber {
 	_, cancelFunc := context.WithCancel(ctx)
 	return &Subscriber{
 		subscription:   subImpl.subscription,

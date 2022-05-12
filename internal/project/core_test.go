@@ -67,11 +67,10 @@ func TestCore_Get(t *testing.T) {
 	}
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)
-	project := getDummyProjectModel()
 	ctx := context.Background()
 
-	testModel := &Model{}
-	testModel.SetVersion("123")
+	project := getDummyProjectModel()
+	project.SetVersion("123")
 
 	tests := []struct {
 		name    string
@@ -89,7 +88,7 @@ func TestCore_Get(t *testing.T) {
 				ctx:       ctx,
 				projectID: project.ProjectID,
 			},
-			want:    testModel,
+			want:    project,
 			wantErr: false,
 		},
 		{
@@ -114,9 +113,11 @@ func TestCore_Get(t *testing.T) {
 			if len(tt.args.projectID) == 0 {
 				err2 = fmt.Errorf("Invalid Project ID!")
 			}
-			mod := &Model{}
-			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), mod).Do(func(arg1 context.Context, arg2 string, mod *Model) {
+			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), &Model{}).Do(func(arg1 context.Context, arg2 string, mod *Model) {
 				if err2 == nil {
+					mod.ProjectID = "testID"
+					mod.Name = "test"
+					mod.Labels = map[string]string{"label": "value"}
 					mod.SetVersion("123")
 				}
 			}).Return(err2)

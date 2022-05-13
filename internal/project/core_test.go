@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/razorpay/metro/internal/common"
 	mocks "github.com/razorpay/metro/internal/project/mocks/repo"
 	"github.com/stretchr/testify/assert"
 )
@@ -69,8 +70,24 @@ func TestCore_Get(t *testing.T) {
 	mockRepo := mocks.NewMockIRepo(ctrl)
 	ctx := context.Background()
 
-	project := getDummyProjectModel()
-	project.SetVersion("123")
+	project1 := &Model{
+		Name:      "test1",
+		ProjectID: "testID1",
+		Labels:    map[string]string{"label": "value"},
+	}
+	project2 := &Model{
+		Name:      "test2",
+		ProjectID: "testID2",
+		Labels:    map[string]string{"label": "value"},
+	}
+	project3 := &Model{
+		Name:      "test3",
+		ProjectID: "testID3",
+		Labels:    map[string]string{"label": "value"},
+	}
+	project1.SetVersion("1")
+	project2.SetVersion("2")
+	project3.SetVersion("3")
 
 	tests := []struct {
 		name    string
@@ -80,19 +97,43 @@ func TestCore_Get(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Test1",
+			name: "Get Project 1 Successfully.",
 			fields: fields{
 				repo: mockRepo,
 			},
 			args: args{
 				ctx:       ctx,
-				projectID: project.ProjectID,
+				projectID: project1.ProjectID,
 			},
-			want:    project,
+			want:    project1,
 			wantErr: false,
 		},
 		{
-			name: "Test2",
+			name: "Get Project 2 Successfully.",
+			fields: fields{
+				repo: mockRepo,
+			},
+			args: args{
+				ctx:       ctx,
+				projectID: project2.ProjectID,
+			},
+			want:    project2,
+			wantErr: false,
+		},
+		{
+			name: "Get Project 3 Successfully.",
+			fields: fields{
+				repo: mockRepo,
+			},
+			args: args{
+				ctx:       ctx,
+				projectID: project3.ProjectID,
+			},
+			want:    project3,
+			wantErr: false,
+		},
+		{
+			name: "Throw error because of Invalid Project ID.",
 			fields: fields{
 				repo: mockRepo,
 			},
@@ -115,10 +156,22 @@ func TestCore_Get(t *testing.T) {
 			}
 			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), &Model{}).Do(func(arg1 context.Context, arg2 string, mod *Model) {
 				if err2 == nil {
-					mod.ProjectID = "testID"
-					mod.Name = "test"
-					mod.Labels = map[string]string{"label": "value"}
-					mod.SetVersion("123")
+					if arg2 == common.GetBasePrefix()+Prefix+"testID1" {
+						mod.ProjectID = "testID1"
+						mod.Name = "test1"
+						mod.Labels = map[string]string{"label": "value"}
+						mod.SetVersion("1")
+					} else if arg2 == common.GetBasePrefix()+Prefix+"testID2" {
+						mod.ProjectID = "testID2"
+						mod.Name = "test2"
+						mod.Labels = map[string]string{"label": "value"}
+						mod.SetVersion("2")
+					} else {
+						mod.ProjectID = "testID3"
+						mod.Name = "test3"
+						mod.Labels = map[string]string{"label": "value"}
+						mod.SetVersion("3")
+					}
 				}
 			}).Return(err2)
 			got, err := c.Get(tt.args.ctx, tt.args.projectID)
@@ -158,7 +211,7 @@ func TestCore_DeleteProject(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test1",
+			name: "Delete existing project with No errors.",
 			fields: fields{
 				repo: mockRepo,
 			},
@@ -169,7 +222,7 @@ func TestCore_DeleteProject(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "test2",
+			name: "Get error as Project doesn't exist.",
 			fields: fields{
 				repo: mockRepo,
 			},

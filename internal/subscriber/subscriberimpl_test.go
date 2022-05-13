@@ -66,22 +66,9 @@ func TestBasicImplementation_Pull(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		messages := make([]messagebroker.ReceivedMessage, 0, test.maxNumOfMessages)
-		for index, msg := range test.expected {
-			pubSub := &metrov1.PubsubMessage{Data: []byte(msg)}
-			data, _ := proto.Marshal(pubSub)
-			msgProto := messagebroker.ReceivedMessage{
-				Data:      data,
-				Topic:     topic,
-				Partition: partition,
-			}
-			msgProto.MessageID = strconv.Itoa(index)
-			messages = append(messages, msgProto)
-		}
-
 		cs.EXPECT().ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: test.maxNumOfMessages, TimeoutMs: 1000}).Return(
 			&messagebroker.GetMessagesFromTopicResponse{
-				Messages: messages,
+				Messages: getMockReceivedMessages(test.expected, ""),
 			}, test.err,
 		)
 
@@ -247,7 +234,10 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 	tp := NewTopicPartition(topic, partition)
 	<-time.NewTimer(1 * time.Second).C
 	subscriber.cancelFunc()
-	subImpl.EvictUnackedMessagesPastDeadline(ctx, subscriber.errChan)
+
+	if len(subImpl.consumedMessageStats) > 0 {
+		subImpl.EvictUnackedMessagesPastDeadline(ctx, subscriber.errChan)
+	}
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
 }
 
@@ -323,4 +313,24 @@ func getMockConsumer(ctx context.Context, ctrl *gomock.Controller) *mockMB.MockC
 		messagebroker.CommitOnTopicResponse{}, nil,
 	).AnyTimes()
 	return cs
+}
+
+func getMockReceivedMessages(input []string, orderingKey string) []messagebroker.ReceivedMessage {
+	messages := make([]messagebroker.ReceivedMessage, 0, len(input))
+	for index, msg := range input {
+		pubSub := &metrov1.PubsubMessage{Data: []byte(msg)}
+		data, _ := proto.Marshal(pubSub)
+		msgProto := messagebroker.ReceivedMessage{
+			Data:      data,
+			Topic:     topic,
+			Partition: partition,
+			Offset:    int32(index),
+		}
+		if orderingKey != "" {
+			msgProto.OrderingKey = "test-key"
+		}
+		msgProto.MessageID = strconv.Itoa(index)
+		messages = append(messages, msgProto)
+	}
+	return messages
 }

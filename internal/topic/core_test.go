@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package topic
@@ -6,10 +7,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/razorpay/metro/internal/common"
-
 	"github.com/golang/mock/gomock"
+	"github.com/razorpay/metro/internal/brokerstore"
 	brokerstoremock "github.com/razorpay/metro/internal/brokerstore/mocks"
+	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/internal/project"
 	projectcoremock "github.com/razorpay/metro/internal/project/mocks/core"
 	topicrepomock "github.com/razorpay/metro/internal/topic/mocks/repo"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -68,3 +70,117 @@ func TestCore_List(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, expectedOutput, out)
 }
+
+func TestCore_CreateSubscriptionTopic(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		brokerStore brokerstore.IBrokerStore
+	}
+	type args struct {
+		ctx   context.Context
+		model *Model
+	}
+	ctrl := gomock.NewController(t)
+	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
+	ctx := context.Background()
+	dTopic := getDummyTopicModel()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Test1",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:   ctx,
+				model: dTopic,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Core{
+				repo:        tt.fields.repo,
+				projectCore: tt.fields.projectCore,
+				brokerStore: tt.fields.brokerStore,
+			}
+			mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
+			mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
+			if err := c.CreateSubscriptionTopic(tt.args.ctx, tt.args.model); (err != nil) != tt.wantErr {
+				t.Errorf("Core.CreateSubscriptionTopic() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// func TestCore_ExistsWithName(t *testing.T) {
+// 	type fields struct {
+// 		repo        IRepo
+// 		projectCore project.ICore
+// 		brokerStore brokerstore.IBrokerStore
+// 	}
+// 	type args struct {
+// 		ctx  context.Context
+// 		name string
+// 	}
+// 	ctrl := gomock.NewController(t)
+// 	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+// 	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+// 	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+// 	// mockAdmin := messagebrokermock.NewMockBroker(ctrl)
+// 	ctx := context.Background()
+// 	dTopic := getDummyTopicModel()
+
+// 	tests := []struct {
+// 		name    string
+// 		fields  fields
+// 		args    args
+// 		want    bool
+// 		wantErr bool
+// 	}{
+// 		{
+// 			name: "Test1",
+// 			fields: fields{
+// 				repo:        mockTopicRepo,
+// 				projectCore: mockProjectCore,
+// 				brokerStore: mockBrokerStore,
+// 			},
+// 			args: args{
+// 				ctx:  ctx,
+// 				name: dTopic.Name,
+// 			},
+// 			want:    true,
+// 			wantErr: false,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			c := &Core{
+// 				repo:        tt.fields.repo,
+// 				projectCore: tt.fields.projectCore,
+// 				brokerStore: tt.fields.brokerStore,
+// 			}
+// 			// mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+tt.args.name)
+// 			got, err := c.ExistsWithName(tt.args.ctx, tt.args.name)
+// 			if (err != nil) != tt.wantErr {
+// 				t.Errorf("Core.ExistsWithName() error = %v, wantErr %v", err, tt.wantErr)
+// 				return
+// 			}
+// 			if got != tt.want {
+// 				t.Errorf("Core.ExistsWithName() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }

@@ -5,6 +5,7 @@ package topic
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -125,62 +126,89 @@ func TestCore_CreateSubscriptionTopic(t *testing.T) {
 	}
 }
 
-// func TestCore_ExistsWithName(t *testing.T) {
-// 	type fields struct {
-// 		repo        IRepo
-// 		projectCore project.ICore
-// 		brokerStore brokerstore.IBrokerStore
-// 	}
-// 	type args struct {
-// 		ctx  context.Context
-// 		name string
-// 	}
-// 	ctrl := gomock.NewController(t)
-// 	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
-// 	mockProjectCore := projectcoremock.NewMockICore(ctrl)
-// 	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
-// 	// mockAdmin := messagebrokermock.NewMockBroker(ctrl)
-// 	ctx := context.Background()
-// 	dTopic := getDummyTopicModel()
+func TestCore_ExistsWithName(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		brokerStore brokerstore.IBrokerStore
+	}
+	type args struct {
+		ctx       context.Context
+		name      string
+		projectID string
+		topicName string
+	}
+	ctrl := gomock.NewController(t)
+	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+	ctx := context.Background()
+	dTopic := getDummyTopicModel()
 
-// 	tests := []struct {
-// 		name    string
-// 		fields  fields
-// 		args    args
-// 		want    bool
-// 		wantErr bool
-// 	}{
-// 		{
-// 			name: "Test1",
-// 			fields: fields{
-// 				repo:        mockTopicRepo,
-// 				projectCore: mockProjectCore,
-// 				brokerStore: mockBrokerStore,
-// 			},
-// 			args: args{
-// 				ctx:  ctx,
-// 				name: dTopic.Name,
-// 			},
-// 			want:    true,
-// 			wantErr: false,
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			c := &Core{
-// 				repo:        tt.fields.repo,
-// 				projectCore: tt.fields.projectCore,
-// 				brokerStore: tt.fields.brokerStore,
-// 			}
-// 			// mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+tt.args.name)
-// 			got, err := c.ExistsWithName(tt.args.ctx, tt.args.name)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Errorf("Core.ExistsWithName() error = %v, wantErr %v", err, tt.wantErr)
-// 				return
-// 			}
-// 			if got != tt.want {
-// 				t.Errorf("Core.ExistsWithName() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "Check if Topic exists with name.",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				name:      dTopic.Name,
+				projectID: dTopic.ExtractedProjectID,
+				topicName: dTopic.ExtractedTopicName,
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "Throw error for invalid topic name.",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				name:      "",
+				projectID: "",
+				topicName: "",
+			},
+			want:    false,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Core{
+				repo:        tt.fields.repo,
+				projectCore: tt.fields.projectCore,
+				brokerStore: tt.fields.brokerStore,
+			}
+			var err2 error = nil
+			var expectBool bool = true
+			if len(tt.args.name) == 0 {
+				err2 = fmt.Errorf("Invalid Project Name!")
+				expectBool = false
+			} else {
+
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(expectBool, err2)
+			}
+			got, err := c.ExistsWithName(tt.args.ctx, tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Core.ExistsWithName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Core.ExistsWithName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

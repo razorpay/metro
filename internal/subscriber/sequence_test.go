@@ -67,9 +67,9 @@ func Test_offsetSequenceManager_SetOrderedSequenceNum(t *testing.T) {
 
 	offsetSeqManager := getMockSequenceManager(ctx, mockRepo)
 	err := offsetSeqManager.SetOrderedSequenceNum(ctx, getMockSubModel(), partition, orderingKey, sequenceNum)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	got, err := offsetSeqManager.GetLastMessageSequenceNum(ctx, getMockSubModel(), partition, orderingKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, sequenceNum, got)
 }
 
@@ -145,9 +145,9 @@ func Test_offsetSequenceManager_SetLastSequenceStatus(t *testing.T) {
 
 	offsetSeqManager := getMockSequenceManager(ctx, mockRepo)
 	err := offsetSeqManager.SetLastSequenceStatus(ctx, getMockSubModel(), partition, orderingKey, expected)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	got, err := offsetSeqManager.GetLastSequenceStatus(ctx, getMockSubModel(), partition, orderingKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("Get Status() = %v, want %v", got, expected)
 	}
@@ -162,7 +162,7 @@ func Test_offsetSequenceManager_DeleteSequence(t *testing.T) {
 
 	offsetSeqManager := getMockSequenceManager(ctx, mockRepo)
 	err := offsetSeqManager.DeleteSequence(ctx, getMockSubModel(), partition, orderingKey)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func getMockSequenceManager(ctx context.Context, mockRepo offset.IRepo) OrderingSequenceManager {

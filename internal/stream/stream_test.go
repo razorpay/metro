@@ -106,7 +106,7 @@ func TestNewPushStream(t *testing.T) {
 	workerID := uuid.New().String()
 	httpConfig := &httpclient.Config{}
 	got, err := NewPushStream(ctx, workerID, subName, subscriptionCoreMock, subscriberCoreMock, httpConfig)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, got)
 }
 

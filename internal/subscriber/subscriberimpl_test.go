@@ -232,12 +232,8 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 	}
 
 	tp := NewTopicPartition(topic, partition)
-	<-time.NewTimer(1 * time.Second).C
+	<-time.NewTimer(2 * time.Second).C
 	subscriber.cancelFunc()
-
-	if len(subImpl.consumedMessageStats) > 0 {
-		subImpl.EvictUnackedMessagesPastDeadline(ctx, subscriber.errChan)
-	}
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
 }
 
@@ -252,7 +248,7 @@ func getMockSubscriber(ctx context.Context, subImpl *BasicImplementation) *Subsc
 		errChan:        make(chan error, 1000),
 		closeChan:      make(chan struct{}),
 		modAckChan:     make(chan *ModAckMessage, 10),
-		deadlineTicker: time.NewTicker(deadlineTickerInterval),
+		deadlineTicker: time.NewTicker(1 * time.Second),
 		consumer:       subImpl.consumer,
 		cancelFunc:     cancelFunc,
 		ctx:            ctx,

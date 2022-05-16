@@ -28,7 +28,7 @@ const (
 	partition  int32  = 0
 )
 
-var ticker = time.NewTicker(2 * time.Second)
+var ticker = time.NewTicker(3 * time.Second)
 
 func setup(t *testing.T) (
 	ctx context.Context,

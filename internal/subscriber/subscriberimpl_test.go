@@ -68,7 +68,7 @@ func TestBasicImplementation_Pull(t *testing.T) {
 	for _, test := range tests {
 		cs.EXPECT().ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: test.maxNumOfMessages, TimeoutMs: 1000}).Return(
 			&messagebroker.GetMessagesFromTopicResponse{
-				Messages: getMockReceivedMessages(test.expected, ""),
+				Messages: getMockReceivedMessages(test.expected),
 			}, test.err,
 		)
 
@@ -240,7 +240,7 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 func getMockSubscriber(ctx context.Context, subImpl *BasicImplementation) *Subscriber {
 	_, cancelFunc := context.WithCancel(ctx)
 	return &Subscriber{
-		subscription:   subImpl.subscription,
+		subscription:   subImpl.GetSubscription(),
 		topic:          topic,
 		subscriberID:   subID,
 		requestChan:    make(chan *PullRequest, 10),
@@ -303,7 +303,7 @@ func getMockConsumer(ctx context.Context, ctrl *gomock.Controller) *mockMB.MockC
 		Topic:     topic,
 		Partition: partition,
 	}
-	cs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil)
+	cs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil).AnyTimes()
 	cs.EXPECT().Pause(ctx, gomock.Any()).AnyTimes().Return(nil)
 	cs.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(
 		messagebroker.CommitOnTopicResponse{}, nil,
@@ -311,7 +311,7 @@ func getMockConsumer(ctx context.Context, ctrl *gomock.Controller) *mockMB.MockC
 	return cs
 }
 
-func getMockReceivedMessages(input []string, orderingKey string) []messagebroker.ReceivedMessage {
+func getMockReceivedMessages(input []string) []messagebroker.ReceivedMessage {
 	messages := make([]messagebroker.ReceivedMessage, 0, len(input))
 	for index, msg := range input {
 		pubSub := &metrov1.PubsubMessage{Data: []byte(msg)}
@@ -321,9 +321,6 @@ func getMockReceivedMessages(input []string, orderingKey string) []messagebroker
 			Topic:     topic,
 			Partition: partition,
 			Offset:    int32(index),
-		}
-		if orderingKey != "" {
-			msgProto.OrderingKey = "test-key"
 		}
 		msgProto.MessageID = strconv.Itoa(index)
 		messages = append(messages, msgProto)

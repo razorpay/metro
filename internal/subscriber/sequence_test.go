@@ -10,6 +10,7 @@ import (
 	mocks "github.com/razorpay/metro/internal/node/mocks/repo"
 	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,7 +29,7 @@ func Test_offsetSequenceManager_GetLastMessageSequenceNum(t *testing.T) {
 		err      error
 	}{
 		{
-			expected: int32(0),
+			expected: 0,
 			wantErr:  false,
 			err:      nil,
 		}, {
@@ -174,5 +175,34 @@ func getMockSubModel() *subscription.Model {
 	return &subscription.Model{
 		Topic: topic,
 		Name:  subName,
+	}
+}
+
+func Test_offsetSequenceManager_GetOrderedSequenceNum(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	var previousOffset int32 = 1
+	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
+	mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(arg context.Context, arg2 string, arg3 *offset.Model) interface{} {
+			arg3.LatestOffset = previousOffset
+			return nil
+		})
+
+	offsetSeqManager := getMockSequenceManager(ctx, mockRepo)
+	dummyMsg := getDummyReceivedMessage()
+	got, err := offsetSeqManager.GetOrderedSequenceNum(ctx, getMockSubModel(), dummyMsg)
+	assert.NoError(t, err)
+	assert.Equal(t, dummyMsg.Offset, got.CurrentSequenceNum)
+	assert.Equal(t, previousOffset, got.PrevSequenceNum)
+}
+
+func getDummyReceivedMessage() messagebroker.ReceivedMessage {
+	return messagebroker.ReceivedMessage{
+		Topic:       topic,
+		Partition:   partition,
+		Offset:      2,
+		OrderingKey: orderingKey,
 	}
 }

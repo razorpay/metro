@@ -32,7 +32,7 @@ func orderedSetup(t *testing.T, lastStatus string) (
 	)
 	consumer := getMockConsumerManager(ctx, ctrl, cs)
 	offsetRepo := getMockOffsetRepo(ctrl, lastStatus)
-	subImpl = getMockOrderedImplementation(ctx, consumer, ctrl, offsetRepo)
+	subImpl = getMockOrderedImplementation(ctx, consumer, offsetRepo)
 	return
 }
 
@@ -102,7 +102,6 @@ func TestOrderedImplementation_ModAckDeadline(t *testing.T) {
 func getMockOrderedImplementation(
 	ctx context.Context,
 	consumer IConsumer,
-	ctrl *gomock.Controller,
 	offsetRepo *mocks.MockIRepo,
 ) *OrderedImplementation {
 	offsetCore := offset.NewCore(offsetRepo)

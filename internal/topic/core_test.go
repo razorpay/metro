@@ -198,7 +198,6 @@ func TestCore_ExistsWithName(t *testing.T) {
 				err2 = fmt.Errorf("Invalid Project Name!")
 				expectBool = false
 			} else {
-
 				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(expectBool, err2)
 			}
 			got, err := c.ExistsWithName(tt.args.ctx, tt.args.name)
@@ -208,6 +207,164 @@ func TestCore_ExistsWithName(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("Core.ExistsWithName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCore_DeleteTopic(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		brokerStore brokerstore.IBrokerStore
+	}
+	type args struct {
+		ctx       context.Context
+		m         *Model
+		name      string
+		projectID string
+		topicName string
+	}
+	ctrl := gomock.NewController(t)
+	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+	ctx := context.Background()
+	dTopic := getDummyTopicModel()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Delete Topic Successfully",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				m:         dTopic,
+				name:      dTopic.Name,
+				projectID: dTopic.ExtractedProjectID,
+				topicName: dTopic.ExtractedTopicName,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Deleting Topic failure",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				m:         dTopic,
+				name:      "",
+				projectID: "",
+				topicName: "",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Core{
+				repo:        tt.fields.repo,
+				projectCore: tt.fields.projectCore,
+				brokerStore: tt.fields.brokerStore,
+			}
+			var err2 error = nil
+			var expectBool bool = true
+			if len(tt.args.name) == 0 {
+				err2 = fmt.Errorf("Invalid Project Name!")
+				expectBool = false
+				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(expectBool, err2)
+			} else {
+				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(expectBool, err2)
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(expectBool, err2)
+				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(err2)
+			}
+			if err := c.DeleteTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
+				t.Errorf("Core.DeleteTopic() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCore_DeleteProjectTopics(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		brokerStore brokerstore.IBrokerStore
+	}
+	type args struct {
+		ctx       context.Context
+		projectID string
+		topicName string
+	}
+
+	ctrl := gomock.NewController(t)
+	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+	ctx := context.Background()
+	dTopic := getDummyTopicModel()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Delete Topic Tree Successfully",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				projectID: dTopic.ExtractedProjectID,
+				topicName: dTopic.ExtractedTopicName,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Delete Topic Tree hits Error",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				projectID: "",
+				topicName: "",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Core{
+				repo:        tt.fields.repo,
+				projectCore: tt.fields.projectCore,
+				brokerStore: tt.fields.brokerStore,
+			}
+			var err2 error = nil
+			if len(tt.args.projectID) == 0 {
+				err2 = fmt.Errorf("Invalid Project ID!")
+			} else {
+				mockTopicRepo.EXPECT().DeleteTree(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID).Return(err2)
+			}
+			if err := c.DeleteProjectTopics(tt.args.ctx, tt.args.projectID); (err != nil) != tt.wantErr {
+				t.Errorf("Core.DeleteProjectTopics() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

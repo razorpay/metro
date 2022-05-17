@@ -101,7 +101,7 @@ func TestNewPushStream(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	subscriptionCoreMock := mocks1.NewMockICore(ctrl)
 	subscriberCoreMock := mocks2.NewMockICore(ctrl)
-	subscriptionCoreMock.EXPECT().Get(gomock.Any(), gomock.Any()).Return(getMockSubModel(""), nil)
+	subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).Return(getMockSubModel(""), nil)
 
 	workerID := uuid.New().String()
 	httpConfig := &httpclient.Config{}
@@ -178,22 +178,23 @@ func getMockSubModel(endpoint string) *subscription.Model {
 func getMockPushStream(ctx context.Context, ctrl *gomock.Controller, endpoint string) *PushStream {
 	subscriptionCoreMock := mocks1.NewMockICore(ctrl)
 	subscriberCoreMock := mocks2.NewMockICore(ctrl)
-	subscriptionCoreMock.EXPECT().Get(gomock.Any(), gomock.Any()).Return(getMockSubModel(endpoint), nil)
+	subModel := getMockSubModel(endpoint)
+	subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).Return(subModel, nil)
 	workerID := uuid.New().String()
 	httpConfig := &httpclient.Config{}
 	pushStream, _ := NewPushStream(ctx, workerID, subName, subscriptionCoreMock, subscriberCoreMock, httpConfig)
 	pushStream.subs = getMockSubscriber(ctx, ctrl)
 
 	subscriberCoreMock.EXPECT().NewSubscriber(
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any()).Return(getMockSubscriber(ctx, ctrl), nil)
+		ctx,
+		workerID,
+		subModel,
+		defaultTimeoutMs,
+		defaultMaxOutstandingMsgs,
+		defaultMaxOuttandingBytes,
+		gomock.AssignableToTypeOf(make(chan *subscriber.PullRequest)),
+		gomock.AssignableToTypeOf(make(chan *subscriber.AckMessage)),
+		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).Return(getMockSubscriber(ctx, ctrl), nil)
 	return pushStream
 }
 

@@ -31,7 +31,7 @@ func orderedSetup(t *testing.T, lastStatus string) (
 		}, nil,
 	)
 	consumer := getMockConsumerManager(ctx, ctrl, cs)
-	offsetRepo := getMockOffsetRepo(ctrl, lastStatus)
+	offsetRepo := getMockOffsetRepo(ctx, ctrl, lastStatus)
 	subImpl = getMockOrderedImplementation(ctx, consumer, offsetRepo)
 	return
 }
@@ -47,7 +47,7 @@ func TestOrderedImplementation_Pull(t *testing.T) {
 	case resp := <-responseChan:
 		assert.Zero(t, len(resp.ReceivedMessages))
 		assert.True(t, subImpl.consumer.IsPrimaryPaused(ctx))
-	case <-ticker.C:
+	case <-time.NewTicker(tickerTimeout).C:
 		assert.FailNow(t, "Test case timed out")
 	}
 }
@@ -66,7 +66,7 @@ func TestOrderedImplementation_Acknowledge(t *testing.T) {
 			subImpl.Acknowledge(ctx, ackMsg, errChan)
 		}
 		assert.Equal(t, mockOffset, subImpl.consumedMessageStats[tp].maxCommittedOffset)
-	case <-ticker.C:
+	case <-time.NewTicker(tickerTimeout).C:
 		assert.FailNow(t, "Test case timed out")
 	}
 }
@@ -90,12 +90,11 @@ func TestOrderedImplementation_ModAckDeadline(t *testing.T) {
 			}
 			subImpl.ModAckDeadline(ctx, modAckReq, errChan)
 		}
-	case <-ticker.C:
+	case <-time.NewTicker(tickerTimeout).C:
 		assert.FailNow(t, "Test case timed out")
 		return
 	}
 	tp := NewTopicPartition(topic, partition)
-	<-time.NewTimer(2 * time.Second).C
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
 }
 
@@ -141,7 +140,7 @@ func getDummyOrderedReceivedMessage() []messagebroker.ReceivedMessage {
 	return []messagebroker.ReceivedMessage{msgProto}
 }
 
-func getMockOffsetRepo(ctrl *gomock.Controller, status string) *mocks.MockIRepo {
+func getMockOffsetRepo(ctx context.Context, ctrl *gomock.Controller, status string) *mocks.MockIRepo {
 	offsetRepo := mocks.NewMockIRepo(ctrl)
 
 	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)

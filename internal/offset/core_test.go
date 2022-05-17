@@ -37,7 +37,7 @@ func TestCore_SetOffset(t *testing.T) {
 	for _, test := range tests {
 		mockRepo.EXPECT().Exists(gomock.Any(), offset.Key()).Return(test.exists, nil)
 		mockRepo.EXPECT().Save(gomock.Any(), offset)
-		mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().Get(gomock.Any(), offset.Key(), offset).DoAndReturn(
 			func(arg1 context.Context, arg2 string, arg3 *Model) *Model {
 				arg3.rollbackOffset = 1
 				return arg3
@@ -139,7 +139,7 @@ func TestCore_RollBackOffset(t *testing.T) {
 	offset := getDummyOffsetModel()
 	ctx := context.Background()
 	mockRepo.EXPECT().Exists(gomock.Any(), offset.Key()).Return(true, nil)
-	mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+	mockRepo.EXPECT().Get(gomock.Any(), offset.Key(), offset).DoAndReturn(
 		func(arg1 context.Context, arg2 string, arg3 *Model) *Model {
 			arg3.rollbackOffset = 1
 			return arg3

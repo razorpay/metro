@@ -22,6 +22,7 @@ func Test_offsetSequenceManager_GetLastMessageSequenceNum(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)
+	offsetModel := getDummyOffsetModel()
 
 	tests := []struct {
 		expected int32
@@ -40,7 +41,7 @@ func Test_offsetSequenceManager_GetLastMessageSequenceNum(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().Get(gomock.Any(), offsetModel.Key(), offsetModel).DoAndReturn(
 			func(arg context.Context, arg2 string, arg3 *offset.Model) interface{} {
 				arg3.LatestOffset = tt.expected
 				return tt.err
@@ -57,10 +58,11 @@ func Test_offsetSequenceManager_SetOrderedSequenceNum(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)
 	sequenceNum := int32(20)
+	offsetModel := getDummyOffsetModel()
 
-	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Return(true, nil)
-	mockRepo.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil)
-	mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+	mockRepo.EXPECT().Exists(gomock.Any(), offsetModel.Key()).Return(true, nil)
+	mockRepo.EXPECT().Save(gomock.Any(), gomock.AssignableToTypeOf(offsetModel)).Return(nil)
+	mockRepo.EXPECT().Get(gomock.Any(), offsetModel.Key(), gomock.AssignableToTypeOf(offsetModel)).DoAndReturn(
 		func(arg context.Context, arg2 string, arg3 *offset.Model) interface{} {
 			arg3.LatestOffset = sequenceNum
 			return nil
@@ -78,6 +80,8 @@ func Test_offsetSequenceManager_GetLastSequenceStatus(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)
+	offsetStatus := getDummyOffsetStatus()
+
 	tests := []struct {
 		exists   bool
 		expected *lastSequenceStatus
@@ -108,8 +112,8 @@ func Test_offsetSequenceManager_GetLastSequenceStatus(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Return(tt.exists, nil)
-		mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().Exists(gomock.Any(), offsetStatus.Key()).Return(tt.exists, nil)
+		mockRepo.EXPECT().Get(gomock.Any(), offsetStatus.Key(), offsetStatus).DoAndReturn(
 			func(arg context.Context, arg2 string, arg3 *offset.Status) interface{} {
 				if tt.expected != nil {
 					arg3.LatestOffset = tt.expected.SequenceNum
@@ -134,10 +138,11 @@ func Test_offsetSequenceManager_SetLastSequenceStatus(t *testing.T) {
 		SequenceNum: 10,
 		Status:      sequenceSuccess,
 	}
+	offsetStatus := getDummyOffsetStatus()
 
-	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Return(true, nil)
-	mockRepo.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil)
-	mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+	mockRepo.EXPECT().Exists(gomock.Any(), gomock.AssignableToTypeOf(offsetStatus.Key())).Return(true, nil)
+	mockRepo.EXPECT().Save(gomock.Any(), gomock.AssignableToTypeOf(offsetStatus)).Return(nil)
+	mockRepo.EXPECT().Get(gomock.Any(), offsetStatus.Key(), offsetStatus).DoAndReturn(
 		func(arg context.Context, arg2 string, arg3 *offset.Status) interface{} {
 			arg3.LatestOffset = expected.SequenceNum
 			arg3.OffsetStatus = string(expected.Status)
@@ -158,8 +163,13 @@ func Test_offsetSequenceManager_DeleteSequence(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockIRepo(ctrl)
-	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
-	mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes().AnyTimes()
+	offsetStatus := getDummyOffsetStatus()
+	offsetModel := getDummyOffsetModel()
+
+	mockRepo.EXPECT().Exists(gomock.Any(), offsetModel.Key()).Return(true, nil).AnyTimes()
+	mockRepo.EXPECT().Exists(gomock.Any(), offsetStatus.Key()).Return(true, nil).AnyTimes()
+	mockRepo.EXPECT().Delete(gomock.Any(), offsetModel).Return(nil).AnyTimes().AnyTimes()
+	mockRepo.EXPECT().Delete(gomock.Any(), offsetStatus).Return(nil).AnyTimes().AnyTimes()
 
 	offsetSeqManager := getMockSequenceManager(ctx, mockRepo)
 	err := offsetSeqManager.DeleteSequence(ctx, getMockSubModel(), partition, orderingKey)
@@ -204,5 +214,20 @@ func getDummyReceivedMessage() messagebroker.ReceivedMessage {
 		Partition:   partition,
 		Offset:      2,
 		OrderingKey: orderingKey,
+	}
+}
+
+func getDummyOffsetModel() *offset.Model {
+	return &offset.Model{
+		Topic:        topic,
+		Subscription: subName,
+		Partition:    partition,
+		OrderingKey:  orderingKey,
+	}
+}
+
+func getDummyOffsetStatus() *offset.Status {
+	return &offset.Status{
+		Model: *getDummyOffsetModel(),
 	}
 }

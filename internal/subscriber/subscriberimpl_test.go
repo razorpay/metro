@@ -20,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var tickerTimeout = 2 * time.Second
+
 const (
 	subID      string = "subscriber-id"
 	subName    string = "subscription-name"
@@ -27,8 +29,6 @@ const (
 	retryTopic string = "retry-topic"
 	partition  int32  = 0
 )
-
-var ticker = time.NewTicker(3 * time.Second)
 
 func setup(t *testing.T) (
 	ctx context.Context,
@@ -92,7 +92,7 @@ func TestBasicImplementation_Pull(t *testing.T) {
 			}
 		case err := <-errChan:
 			assert.Equal(t, test.wantErr, err != nil)
-		case <-ticker.C:
+		case <-time.NewTicker(tickerTimeout).C:
 			assert.FailNow(t, "Test case timed out")
 		}
 	}
@@ -142,7 +142,8 @@ func TestBasicImplementation_Acknowledge(t *testing.T) {
 		msgProto.MessageID = input.messageID
 		messages = append(messages, msgProto)
 	}
-	cs.EXPECT().ReceiveMessages(ctx, gomock.Any()).Return(
+
+	cs.EXPECT().ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: int32(len(testInputs)), TimeoutMs: 1000}).Return(
 		&messagebroker.GetMessagesFromTopicResponse{
 			Messages: messages,
 		}, nil,
@@ -163,7 +164,7 @@ func TestBasicImplementation_Acknowledge(t *testing.T) {
 			assert.Equal(t, testInputs[index].canConsumeMore, subImpl.CanConsumeMore())
 			assert.Equal(t, testInputs[index].maxCommittedOffset, subImpl.consumedMessageStats[tp].maxCommittedOffset)
 		}
-	case <-ticker.C:
+	case <-time.NewTicker(tickerTimeout).C:
 		assert.FailNow(t, "Test case timed out")
 	}
 }
@@ -226,13 +227,13 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 			}
 			subscriber.modAckChan <- modAckReq
 		}
-	case <-ticker.C:
+	case <-time.NewTicker(tickerTimeout).C:
 		assert.FailNow(t, "Test case timed out")
 		return
 	}
 
 	tp := NewTopicPartition(topic, partition)
-	<-time.NewTimer(2 * time.Second).C
+	<-time.NewTimer(tickerTimeout).C
 	subscriber.cancelFunc()
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
 }

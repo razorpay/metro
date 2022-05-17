@@ -31,7 +31,7 @@ func orderedSetup(t *testing.T, lastStatus string) (
 		}, nil,
 	)
 	consumer := getMockConsumerManager(ctx, ctrl, cs)
-	offsetRepo := getMockOffsetRepo(ctx, ctrl, lastStatus)
+	offsetRepo := getMockOffsetRepo(ctrl, lastStatus)
 	subImpl = getMockOrderedImplementation(ctx, consumer, offsetRepo)
 	return
 }
@@ -140,7 +140,7 @@ func getDummyOrderedReceivedMessage() []messagebroker.ReceivedMessage {
 	return []messagebroker.ReceivedMessage{msgProto}
 }
 
-func getMockOffsetRepo(ctx context.Context, ctrl *gomock.Controller, status string) *mocks.MockIRepo {
+func getMockOffsetRepo(ctrl *gomock.Controller, status string) *mocks.MockIRepo {
 	offsetRepo := mocks.NewMockIRepo(ctrl)
 
 	offsetRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)

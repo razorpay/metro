@@ -6,11 +6,12 @@ package project
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/razorpay/metro/internal/common"
 	mocks "github.com/razorpay/metro/internal/project/mocks/repo"
 	"github.com/stretchr/testify/assert"
 )
@@ -71,23 +72,35 @@ func TestCore_Get(t *testing.T) {
 	ctx := context.Background()
 
 	project1 := &Model{
-		Name:      "test1",
-		ProjectID: "testID1",
+		Name:      "test-1",
+		ProjectID: "testID-1",
 		Labels:    map[string]string{"label": "value"},
 	}
 	project2 := &Model{
-		Name:      "test2",
-		ProjectID: "testID2",
+		Name:      "test-2",
+		ProjectID: "testID-2",
 		Labels:    map[string]string{"label": "value"},
 	}
 	project3 := &Model{
-		Name:      "test3",
-		ProjectID: "testID3",
+		Name:      "test-3",
+		ProjectID: "testID-3",
 		Labels:    map[string]string{"label": "value"},
 	}
 	project1.SetVersion("1")
 	project2.SetVersion("2")
 	project3.SetVersion("3")
+
+	num := rand.Intn(3)
+
+	testProject := &Model{}
+	switch num {
+	case 1:
+		testProject = project1
+	case 2:
+		testProject = project2
+	case 3:
+		testProject = project3
+	}
 
 	tests := []struct {
 		name    string
@@ -97,39 +110,15 @@ func TestCore_Get(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Get Project 1 Successfully.",
+			name: "Get Project Successfully.",
 			fields: fields{
 				repo: mockRepo,
 			},
 			args: args{
 				ctx:       ctx,
-				projectID: project1.ProjectID,
+				projectID: testProject.ProjectID,
 			},
-			want:    project1,
-			wantErr: false,
-		},
-		{
-			name: "Get Project 2 Successfully.",
-			fields: fields{
-				repo: mockRepo,
-			},
-			args: args{
-				ctx:       ctx,
-				projectID: project2.ProjectID,
-			},
-			want:    project2,
-			wantErr: false,
-		},
-		{
-			name: "Get Project 3 Successfully.",
-			fields: fields{
-				repo: mockRepo,
-			},
-			args: args{
-				ctx:       ctx,
-				projectID: project3.ProjectID,
-			},
-			want:    project3,
+			want:    testProject,
 			wantErr: false,
 		},
 		{
@@ -156,22 +145,13 @@ func TestCore_Get(t *testing.T) {
 			}
 			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), &Model{}).Do(func(arg1 context.Context, arg2 string, mod *Model) {
 				if err2 == nil {
-					if arg2 == common.GetBasePrefix()+Prefix+"testID1" {
-						mod.ProjectID = "testID1"
-						mod.Name = "test1"
-						mod.Labels = map[string]string{"label": "value"}
-						mod.SetVersion("1")
-					} else if arg2 == common.GetBasePrefix()+Prefix+"testID2" {
-						mod.ProjectID = "testID2"
-						mod.Name = "test2"
-						mod.Labels = map[string]string{"label": "value"}
-						mod.SetVersion("2")
-					} else {
-						mod.ProjectID = "testID3"
-						mod.Name = "test3"
-						mod.Labels = map[string]string{"label": "value"}
-						mod.SetVersion("3")
-					}
+					id := strings.Split(tt.args.projectID, "-")
+					serial := id[1]
+
+					mod.ProjectID = "testID" + "-" + serial
+					mod.Name = "test" + "-" + serial
+					mod.Labels = map[string]string{"label": "value"}
+					mod.SetVersion(serial)
 				}
 			}).Return(err2)
 			got, err := c.Get(tt.args.ctx, tt.args.projectID)

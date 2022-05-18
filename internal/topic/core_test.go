@@ -6,6 +6,7 @@ package topic
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -365,6 +366,177 @@ func TestCore_DeleteProjectTopics(t *testing.T) {
 			}
 			if err := c.DeleteProjectTopics(tt.args.ctx, tt.args.projectID); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteProjectTopics() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCore_UpdateTopic(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		brokerStore brokerstore.IBrokerStore
+	}
+	type args struct {
+		ctx       context.Context
+		m         *Model
+		projectID string
+	}
+	ctrl := gomock.NewController(t)
+	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+	ctx := context.Background()
+	dTopic := getDummyTopicModel()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Update Topic successfully",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				m:         dTopic,
+				projectID: dTopic.ExtractedProjectID,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Get error due to invalid Project ID",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				m:         dTopic,
+				projectID: "",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Core{
+				repo:        tt.fields.repo,
+				projectCore: tt.fields.projectCore,
+				brokerStore: tt.fields.brokerStore,
+			}
+			var err2 error = nil
+			var expectBool = true
+			if len(tt.args.projectID) == 0 {
+				err2 = fmt.Errorf("Invalid Project ID!")
+				expectBool = false
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.m.ExtractedProjectID+"/"+tt.args.m.ExtractedTopicName).Return(expectBool, err2)
+			} else {
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.m.ExtractedProjectID+"/"+tt.args.m.ExtractedTopicName).Return(expectBool, err2)
+				mockTopicRepo.EXPECT().Save(gomock.Any(), tt.args.m)
+			}
+			if err := c.UpdateTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
+				t.Errorf("Core.UpdateTopic() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCore_Get(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		brokerStore brokerstore.IBrokerStore
+	}
+	type args struct {
+		ctx       context.Context
+		key       string
+		projectID string
+		topicName string
+	}
+	ctrl := gomock.NewController(t)
+	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+	ctx := context.Background()
+	dTopic := getDummyTopicModel()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *Model
+		wantErr bool
+	}{
+		{
+			name: "Successfully Get Topic",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				key:       dTopic.Name,
+				projectID: dTopic.ExtractedProjectID,
+				topicName: dTopic.ExtractedTopicName,
+			},
+			want:    dTopic,
+			wantErr: false,
+		},
+		{
+			name: "Error while Get Topic",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:       ctx,
+				key:       "",
+				projectID: "",
+				topicName: "",
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Core{
+				repo:        tt.fields.repo,
+				projectCore: tt.fields.projectCore,
+				brokerStore: tt.fields.brokerStore,
+			}
+			var err2 error = nil
+			if len(tt.args.projectID) == 0 {
+				err2 = fmt.Errorf("Invalid Project ID!")
+			} else {
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(true, nil)
+				mockTopicRepo.EXPECT().Get(gomock.Any(), gomock.Any(), &Model{}).Do(func(arg1 context.Context, arg2 string, mod *Model) {
+					if err2 == nil {
+						mod.Name = "projects/test-project/topics/test-topic"
+						mod.Labels = map[string]string{"label": "value"}
+						mod.ExtractedProjectID = "test-project"
+						mod.ExtractedTopicName = "test-topic"
+						mod.NumPartitions = DefaultNumPartitions
+					}
+				}).Return(err2)
+			}
+			got, err := c.Get(tt.args.ctx, tt.args.key)
+			fmt.Println(err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Core.Get() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Core.Get() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
-// NewWatcher is the subscriber watcher
+// Watcher is the subscriber watcher
 type Watcher struct {
 	subscriber *Subscriber
 }

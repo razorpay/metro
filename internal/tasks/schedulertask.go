@@ -330,10 +330,10 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 		if serr != nil {
 			logger.Ctx(ctx).Errorw("schedulertask: failed to update invalid nodebindings", "err", serr, "subscription", sub.ExtractedSubscriptionName, "topic", sub.ExtractedTopicName)
 			return serr
-		} else {
-			subPart := nb.SubscriptionID + "_" + strconv.Itoa(nb.Partition)
-			subscriptionBindings[subPart] = nb
 		}
+		subPart := nb.SubscriptionID + "_" + strconv.Itoa(nb.Partition)
+		subscriptionBindings[subPart] = nb
+
 	}
 	for _, sub := range sm.subCache {
 		//Fetch topic and see if all partitions are assigned.

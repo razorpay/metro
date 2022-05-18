@@ -34,17 +34,17 @@ func New(algo Algorithm) (IScheduler, error) {
 }
 
 // Schedule schedules a subsciption on a node and returns a nodebinding model
-func (s *Scheduler) Schedule(subscription *subscription.Model, partition int, nbs []*nodebinding.Model, nodes map[string]*node.Model) (*nodebinding.Model, error) {
+func (s *Scheduler) Schedule(sub *subscription.Model, partition int, nbs []*nodebinding.Model, nodes map[string]*node.Model) (*nodebinding.Model, error) {
 	node, err := s.algoImpl.GetNode(nbs, nodes)
 	if err != nil {
 		return nil, err
 	}
-	subVersion := subscription.GetVersion()
+	subVersion := sub.GetVersion()
 
 	nb := nodebinding.Model{
 		ID:                  uuid.New().String(),
 		NodeID:              node.ID,
-		SubscriptionID:      subscription.Name,
+		SubscriptionID:      sub.Name,
 		SubscriptionVersion: subVersion,
 		Partition:           partition,
 	}

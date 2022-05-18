@@ -271,9 +271,12 @@ func (sm *SchedulerTask) refreshCache(ctx context.Context) error {
 //    a. Remove nodebindings for deleted/invalid subscriptions.
 //    b. Remove nodebindings for z
 // 2. Evaluate subscriptions and schedule any missing subscription/partition combos to nodes available.
-// 3. Topic changes are inherently covered sicne subscription validates against topic.
+// 3. Topic changes are inherently covered since subscription validates against topic.
 func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
-	sm.refreshCache(ctx)
+	err := sm.refreshCache(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("schedulertask: Filed to refresh cache for topic/subscripiton/nodes", "error", err.Error())
+	}
 	// fetch all current node bindings across all nodes
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
 
@@ -348,8 +351,6 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 				if err != nil {
 					//TODO: Track status here and re-assign if possible
 					logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.ExtractedTopicName, "subscription", sub.Name, "partition", i)
-				} else {
-
 				}
 			}
 		}

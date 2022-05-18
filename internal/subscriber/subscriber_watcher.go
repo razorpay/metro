@@ -7,15 +7,17 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
-type SubscriberWatcher struct {
+type Watcher struct {
 	subscriber *Subscriber
 }
 
-func NewSubscriberWatcher(subscriber *Subscriber) *SubscriberWatcher {
-	return &SubscriberWatcher{subscriber: subscriber}
+// NewWatcher returns subscriber watcher that monitors subscriber's health
+func NewWatcher(subscriber *Subscriber) *Watcher {
+	return &Watcher{subscriber: subscriber}
 }
 
-func (sw *SubscriberWatcher) Run(ctx context.Context) {
+// Run loop
+func (sw *Watcher) Run(ctx context.Context) {
 	defer logger.Ctx(ctx).Infow("subscriberWatcher: exiting", "logFields", sw.subscriber.getLogFields())
 
 	for {

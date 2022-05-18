@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"strconv"
 
 	"golang.org/x/sync/errgroup"
 
@@ -27,10 +28,12 @@ type SchedulerTask struct {
 	topicCore        topic.ICore
 	nodeBindingCore  nodebinding.ICore
 	subscriptionCore subscription.ICore
-	nodeCache        []*node.Model
-	subCache         []*subscription.Model
+	nodeCache        map[string]*node.Model
+	subCache         map[string]*subscription.Model
+	topicCache       map[string]*topic.Model
 	nodeWatchData    chan *struct{}
 	subWatchData     chan *struct{}
+	topicWatchData   chan *struct{}
 }
 
 // NewSchedulerTask creates SchedulerTask instance
@@ -54,10 +57,12 @@ func NewSchedulerTask(
 		topicCore:        topicCore,
 		nodeBindingCore:  nodeBindingCore,
 		subscriptionCore: subscriptionCore,
-		nodeCache:        []*node.Model{},
-		subCache:         []*subscription.Model{},
+		nodeCache:        make(map[string]*node.Model),
+		subCache:         make(map[string]*subscription.Model),
+		topicCache:       make(map[string]*topic.Model),
 		nodeWatchData:    make(chan *struct{}),
 		subWatchData:     make(chan *struct{}),
+		topicWatchData:   make(chan *struct{}),
 	}
 
 	for _, option := range options {
@@ -74,6 +79,7 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 	var err error
 	var nodeWatcher registry.IWatcher
 	var subWatcher registry.IWatcher
+	var topicWatcher registry.IWatcher
 
 	nwh := registry.WatchConfig{
 		WatchType: "keyprefix",
@@ -86,6 +92,21 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 
 	logger.Ctx(ctx).Infof("setting watch on nodes")
 	nodeWatcher, err = sm.registry.Watch(ctx, &nwh)
+	if err != nil {
+		return err
+	}
+
+	twh := registry.WatchConfig{
+		WatchType: "keyprefix",
+		WatchPath: common.GetBasePrefix() + topic.Prefix,
+		Handler: func(ctx context.Context, pairs []registry.Pair) {
+			logger.Ctx(ctx).Infow("topic watch handler data", "pairs", pairs)
+			sm.nodeWatchData <- &struct{}{}
+		},
+	}
+
+	logger.Ctx(ctx).Infof("setting watch on topics")
+	topicWatcher, err = sm.registry.Watch(ctx, &twh)
 	if err != nil {
 		return err
 	}
@@ -121,6 +142,13 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 		return watchErr
 	})
 
+	// watch the Subscriptions path for new subscriptions and rebalance
+	leadgrp.Go(func() error {
+		watchErr := topicWatcher.StartWatch()
+		close(sm.topicWatchData)
+		return watchErr
+	})
+
 	// handle node and subscription updates
 	leadgrp.Go(func() error {
 		for {
@@ -131,25 +159,12 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 				if val == nil {
 					continue
 				}
-				allSubs, serr := sm.subscriptionCore.List(gctx, subscription.Prefix)
-				if serr != nil {
-					logger.Ctx(gctx).Errorw("error fetching new subscription list", "error", serr)
-					return err
-				}
-				// Filter Push Subscriptions
-				var newSubs []*subscription.Model
-				for _, sub := range allSubs {
-					if sub.IsPush() {
-						newSubs = append(newSubs, sub)
-					}
-				}
 
-				sm.subCache = newSubs
-				serr = sm.refreshNodeBindings(gctx)
+				serr := sm.refreshNodeBindings(gctx)
 				if serr != nil {
 					subNames := make([]string, 0)
 
-					for _, sub := range newSubs {
+					for _, sub := range sm.subCache {
 						subNames = append(subNames, sub.ExtractedSubscriptionName)
 					}
 					// just log the error, we want to retry the sub update failures
@@ -161,17 +176,19 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 				if val == nil {
 					continue
 				}
-				nodes, nerr := sm.nodeCore.List(gctx, node.Prefix)
-				if nerr != nil {
-					logger.Ctx(gctx).Errorw("error fetching new node list", "error", nerr)
-					return nerr
-				}
-				sm.nodeCache = nodes
-				nerr = sm.refreshNodeBindings(gctx)
+				nerr := sm.refreshNodeBindings(gctx)
 				if nerr != nil {
 					logger.Ctx(gctx).Infow("error processing node updates", "error", nerr)
 				}
 
+			case val := <-sm.topicWatchData:
+				if val == nil {
+					continue
+				}
+				terr := sm.refreshNodeBindings(gctx)
+				if terr != nil {
+					logger.Ctx(gctx).Infow("error processing topic updates", "error", terr)
+				}
 			}
 		}
 	})
@@ -188,6 +205,10 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 			subWatcher.StopWatch()
 		}
 
+		if topicWatcher != nil {
+			topicWatcher.StopWatch()
+		}
+
 		logger.Ctx(gctx).Info("scheduler group context done")
 		return gctx.Err()
 	})
@@ -202,9 +223,60 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 	return err
 }
 
+func (sm *SchedulerTask) refreshCache(ctx context.Context) error {
+	topics, terr := sm.topicCore.List(ctx, topic.Prefix)
+	if terr != nil {
+		logger.Ctx(ctx).Errorw("error fetching topic list", "error", terr)
+		return terr
+	}
+
+	topicData := make(map[string]*topic.Model)
+	for _, topic := range topics {
+		topicData[topic.Name] = topic
+	}
+	sm.topicCache = topicData
+
+	nodes, nerr := sm.nodeCore.List(ctx, node.Prefix)
+	if nerr != nil {
+		logger.Ctx(ctx).Errorw("error fetching new node list", "error", nerr)
+		return nerr
+	}
+
+	nodeData := make(map[string]*node.Model)
+	for _, node := range nodes {
+		nodeData[node.ID] = node
+	}
+	sm.nodeCache = nodeData
+
+	allSubs, serr := sm.subscriptionCore.List(ctx, subscription.Prefix)
+	if serr != nil {
+		logger.Ctx(ctx).Errorw("error fetching new subscription list", "error", serr)
+		return serr
+	}
+	// Filter Push Subscriptions
+	newSubs := make(map[string]*subscription.Model)
+	for _, sub := range allSubs {
+		if sub.IsPush() {
+			newSubs[sub.Name] = sub
+		}
+	}
+
+	sm.subCache = newSubs
+	return nil
+}
+
+// refreshNodeBindings achieves the following in the order outline:
+// 1. Go through node bindings and remove invalid bindings
+// 	 (Invalid due to changes in the subscription, node failures, topic updates, etc)
+//    a. Remove nodebindings for deleted/invalid subscriptions.
+//    b. Remove nodebindings for z
+// 2. Evaluate subscriptions and schedule any missing subscription/partition combos to nodes available.
+// 3. Topic changes are inherently covered sicne subscription validates against topic.
 func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
+	sm.refreshCache(ctx)
 	// fetch all current node bindings across all nodes
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
+
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
 		return err
@@ -215,119 +287,84 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	// This needs to be handled before nodes updates
 	// as node update will cause subscriptions to be rescheduled on other nodes
 	var validBindings []*nodebinding.Model
-
-	// TODO: Optimize O(N*M) to O(N+M)
-	for _, nb := range nodeBindings {
-		found := false
-		for _, sub := range sm.subCache {
-			subVersion := sub.GetVersion()
-			if sub.Name == nb.SubscriptionID {
-				if nb.SubscriptionVersion == subVersion {
-					logger.Ctx(ctx).Infow("schedulertask: existing subscription stream found", "subscription", nb.SubscriptionID, "topic", sub.ExtractedTopicName)
-					found = true
-					break
-				}
-				logger.Ctx(ctx).Infow("subscription updated, stale node binding will be deleted",
-					"subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
-			}
-		}
-
-		if !found {
-			logger.Ctx(ctx).Infow("schedulertask: unable to find nodebinding for subscription", "subscription", nb.SubscriptionID)
-			sm.nodeBindingCore.DeleteNodeBinding(ctx, nb)
-		} else {
-			validBindings = append(validBindings, nb)
-			logger.Ctx(ctx).Infow("schedulertask: found valid nodebinding for subscription", "subscription", nb.SubscriptionID)
-		}
-	}
-	// update the binding list after deletions
-	nodeBindings = validBindings
-
-	// Reschedule any binding where node is removed
-	validBindings = []*nodebinding.Model{}
 	var invalidBindings []*nodebinding.Model
-	var invalidBindingNames []string
-	var validBindingNames []string
+	subscriptionBindings := make(map[string]*nodebinding.Model)
 
-	// TODO: Optimize O(N*M) to O(N+M)
 	for _, nb := range nodeBindings {
-		found := false
-		for _, node := range sm.nodeCache {
-			if node.ID == nb.NodeID {
-				found = true
-				break
-			}
-		}
 
-		if !found {
-			invalidBindings = append(invalidBindings, nb)
-			invalidBindingNames = append(invalidBindingNames, nb.SubscriptionID)
-			sm.nodeBindingCore.DeleteNodeBinding(ctx, nb)
-		} else {
+		sub := sm.subCache[nb.SubscriptionID]
+		subVersion := sub.GetVersion()
+		if nb.SubscriptionVersion == subVersion {
+			logger.Ctx(ctx).Infow("schedulertask: existing subscription stream found", "subscription", nb.SubscriptionID, "topic", sub.ExtractedTopicName, "partition", nb.Partition)
 			validBindings = append(validBindings, nb)
-			validBindingNames = append(validBindingNames, nb.SubscriptionID)
+			subPart := nb.SubscriptionID + "_" + strconv.Itoa(nb.Partition)
+			subscriptionBindings[subPart] = nb
+		} else {
+			err := sm.nodeBindingCore.DeleteNodeBinding(ctx, nb)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding", "subscripiton", sub.Name, "partition", nb.Partition, "nodebinding", nb.ID)
+			}
+			invalidBindings = append(invalidBindings, nb)
+		}
+		logger.Ctx(ctx).Infow("subscription updated, stale node bindings will be deleted",
+			"subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
+
+		// Re-assign bindings for nodes that no longer exist.
+		if sm.nodeCache[nb.NodeID] == nil {
+			err := sm.nodeBindingCore.DeleteNodeBinding(ctx, nb)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding", "subscripiton", sub.Name, "partition", nb.Partition, "nodebinding", nb.ID)
+			}
+			invalidBindings = append(invalidBindings, nb)
 		}
 	}
 
-	logger.Ctx(ctx).Infow("schedulertask:  binding validation completed", "invalidBindings", invalidBindingNames, "validBindings", validBindingNames)
-	// update the binding list after deletions
-	nodeBindings = validBindings
+	logger.Ctx(ctx).Infow("schedulertask: Resolved valid and invalid bindings", "validBindings", validBindings, "invalidBindings", invalidBindings)
 
-	// Reschedule Bindings which are invalid due to node failures
+	// Reschedule Bindings which are invalid due to node failures/subscription version changes
 	for _, nb := range invalidBindings {
-		logger.Ctx(ctx).Infow("schedulertask: rescheduling subscription on nodes", "key", nb.SubscriptionID, "subscription", nb.SubscriptionID)
 
-		sub, serr := sm.subscriptionCore.Get(ctx, nb.SubscriptionID)
-		if serr != nil {
-			return serr
-		}
-
-		serr = sm.scheduleSubscription(ctx, sub, &nodeBindings)
+		sub := sm.subCache[nb.SubscriptionID]
+		logger.Ctx(ctx).Infow("schedulertask: rescheduling subscription on nodes", "partition", nb.Partition, "subscription", nb.SubscriptionID, "topic", sub.Topic)
+		serr := sm.scheduleSubscription(ctx, sub, &nodeBindings, nb.Partition)
 		if serr != nil {
 			logger.Ctx(ctx).Errorw("schedulertask: failed to update invalid nodebindings", "err", serr, "subscription", sub.ExtractedSubscriptionName, "topic", sub.ExtractedTopicName)
 			return serr
+		} else {
+			subPart := nb.SubscriptionID + "_" + strconv.Itoa(nb.Partition)
+			subscriptionBindings[subPart] = nb
 		}
 	}
-
-	// Create bindings for new subscriptions
 	for _, sub := range sm.subCache {
+		//Fetch topic and see if all partitions are assigned.
+		// If not assign missing ones
+		topic := sm.topicCache[sub.Topic]
 
-		found := false
-		subVersion := sub.GetVersion()
-		for _, nb := range nodeBindings {
-			if sub.Name == nb.SubscriptionID && nb.SubscriptionVersion == subVersion {
-				found = true
-				break
-			}
-		}
-		logger.Ctx(ctx).Infow("schedulertask: evaluating nodebinding for subscripiton", "subscription", sub.Name, "topic", sub.ExtractedTopicName, "found", found)
-		if !found {
-			logger.Ctx(ctx).Infow("scheduling subscription on nodes",
-				"subscription", sub.Name, "topic", sub.Topic, "subscription version", subVersion)
+		for i := 0; i < topic.NumPartitions; i++ {
+			subPart := sub.Name + "_" + strconv.Itoa(i)
+			if subscriptionBindings[subPart] == nil {
+				logger.Ctx(ctx).Infow("schedulertask: assigning nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
+				err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
+				if err != nil {
+					//TODO: Track status here and re-assign if possible
+					logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.ExtractedTopicName, "subscription", sub.Name, "partition", i)
+				} else {
 
-			topicM, terr := sm.topicCore.Get(ctx, sub.Topic)
-			if terr != nil {
-				logger.Ctx(ctx).Errorw("Failed to fetch topic for subscription",
-					"subscription", sub.Name, "topic", sub.Topic, "subscription version", subVersion)
-			} else {
-				for i := 0; i < topicM.NumPartitions; i++ {
-					serr := sm.scheduleSubscription(ctx, sub, &nodeBindings)
-					if serr != nil {
-						logger.Ctx(ctx).Errorw("schedulertask: error in scheduling subscription", "err", serr, "subscription", sub.ExtractedSubscriptionName, "topic", sub.ExtractedTopicName, "partition", i)
-					}
 				}
 			}
 		}
 	}
+
 	return nil
 }
 
-func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model) error {
-	nb, serr := sm.scheduler.Schedule(sub, *nodeBindings, sm.nodeCache)
+func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model, partition int) error {
+	nb, serr := sm.scheduler.Schedule(sub, partition, *nodeBindings, sm.nodeCache)
 	if serr != nil {
 		logger.Ctx(ctx).Errorw("scheduler: failed to schedule subscription", "err", serr.Error(), "logFields", map[string]interface{}{
 			"subscription": sub.Name,
 			"topic":        sub.Topic,
+			"partition":    partition,
 		})
 		return serr
 	}
@@ -337,10 +374,12 @@ func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscrip
 		logger.Ctx(ctx).Errorw("scheduler: failed to create nodebinding", "err", serr.Error(), "logFields", map[string]interface{}{
 			"subscription": sub.Name,
 			"topic":        sub.Topic,
+			"partition":    partition,
 		})
 		return berr
 	}
 
 	*nodeBindings = append(*nodeBindings, nb)
+	logger.Ctx(ctx).Infow("schedulertask: successfully assigned nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", partition)
 	return nil
 }

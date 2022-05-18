@@ -1,6 +1,7 @@
 package nodebinding
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/razorpay/metro/internal/common"
@@ -18,12 +19,13 @@ type Model struct {
 	NodeID              string `json:"node_id"`
 	SubscriptionID      string `json:"subscription_id"`
 	SubscriptionVersion string `json:"subscription_version"`
+	Partition           int    `json`
 }
 
 // Key returns the key for storing in the registry
 func (m *Model) Key() string {
 	subID := strings.ReplaceAll(m.SubscriptionID, "/", "_")
-	return m.Prefix() + m.NodeID + "/" + subID + "_" + m.ID[0:4]
+	return m.Prefix() + m.NodeID + "/" + subID + "_" + strconv.Itoa(m.Partition) + "_" + m.ID[0:4]
 }
 
 // Prefix returns the key prefix

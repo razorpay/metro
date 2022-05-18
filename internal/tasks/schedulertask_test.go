@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package tasks
@@ -114,7 +115,7 @@ func TestSchedulerTask_Run(t *testing.T) {
 		}, nil).Times(2)
 
 	// mock scheduler
-	schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any()).Return(nb, nil).Times(2)
+	schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).Times(2)
 
 	go func() {
 		err = task.Run(ctx)

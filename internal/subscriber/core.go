@@ -124,5 +124,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	}
 
 	go s.Run(subsCtx)
+	sm := NewSubscriberWatcher(s)
+	go sm.Run(subsCtx)
 	return s, nil
 }

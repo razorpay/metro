@@ -46,21 +46,22 @@ type Implementation interface {
 
 // Subscriber consumes messages from a topic
 type Subscriber struct {
-	subscription   *subscription.Model
-	topic          string
-	subscriberID   string
-	requestChan    chan *PullRequest
-	responseChan   chan *metrov1.PullResponse
-	ackChan        chan *AckMessage
-	modAckChan     chan *ModAckMessage
-	deadlineTicker *time.Ticker
-	errChan        chan error
-	closeChan      chan struct{}
-	consumer       IConsumer // consume messages from primary topic and retry topic
-	cancelFunc     func()
-	ctx            context.Context
-	retrier        retry.IRetrier
-	subscriberImpl Implementation
+	subscription          *subscription.Model
+	topic                 string
+	subscriberID          string
+	requestChan           chan *PullRequest
+	responseChan          chan *metrov1.PullResponse
+	ackChan               chan *AckMessage
+	modAckChan            chan *ModAckMessage
+	deadlineTicker        *time.Ticker
+	errChan               chan error
+	closeChan             chan struct{}
+	consumer              IConsumer // consume messages from primary topic and retry topic
+	cancelFunc            func()
+	ctx                   context.Context
+	retrier               retry.IRetrier
+	subscriberImpl        Implementation
+	lastMessageProcessing time.Time
 }
 
 // GetID ...
@@ -111,6 +112,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			caseStartTime := time.Now()
 			s.pull(req)
 			subscriberTimeTakenInRequestChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
+			s.lastMessageProcessing = caseStartTime
 		case ackRequest := <-s.ackChan:
 			caseStartTime := time.Now()
 			if ackRequest == nil || ctx.Err() != nil {
@@ -118,6 +120,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			}
 			s.acknowledge(ackRequest)
 			subscriberTimeTakenInAckChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
+			s.lastMessageProcessing = caseStartTime
 		case modAckRequest := <-s.modAckChan:
 			caseStartTime := time.Now()
 			if modAckRequest == nil || ctx.Err() != nil {
@@ -126,6 +129,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			logger.Ctx(ctx).Infow("subscriber: received mod ack for msg", "modAckReq", modAckRequest)
 			s.modifyAckDeadline(modAckRequest)
 			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
+			s.lastMessageProcessing = caseStartTime
 		case <-s.deadlineTicker.C:
 			caseStartTime := time.Now()
 			if ctx.Err() != nil {

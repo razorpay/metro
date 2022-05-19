@@ -26,9 +26,9 @@ var (
 	subscriberTimeTakenToRemoveMsgFromMemory   *prometheus.HistogramVec
 	subscriberTimeTakenToIdentifyNextOffset    *prometheus.HistogramVec
 	subscriberTimeTakenToPushToRetry           *prometheus.HistogramVec
-	subscriberTimeSinceLastMsgProcessing       *prometheus.HistogramVec
 	subscriberNumberOfRetainedAckedMessages    *prometheus.GaugeVec
 	subscriberRetainedAckedMessagesSize        *prometheus.GaugeVec
+	subscriberLastMsgProcessingTime            *prometheus.GaugeVec
 )
 
 func init() {
@@ -122,17 +122,15 @@ func init() {
 		Buckets: prometheus.ExponentialBuckets(0.001, 1.1, 200),
 	}, []string{"env"})
 
-	subscriberTimeSinceLastMsgProcessing = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "metro_subscriber_identify_time_passed_since_last_message_processing_seconds",
-		Help:    "Time passed since last message processing",
-		Buckets: prometheus.LinearBuckets(0.001, 0.005, 200),
-	}, []string{"env", "topic", "subscription"})
-
 	subscriberNumberOfRetainedAckedMessages = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_retained_acked_messages",
 	}, []string{"env", "topic", "subscription"})
 
 	subscriberRetainedAckedMessagesSize = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_total_size_retained_acked_messages",
+	}, []string{"env", "topic", "subscription"})
+
+	subscriberLastMsgProcessingTime = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metro_subscriber_identify_last_message_processing_time",
 	}, []string{"env", "topic", "subscription"})
 }

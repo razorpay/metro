@@ -158,6 +158,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		}
 
 		success := ps.pushMessage(ctx, subModel, message)
+		ps.subs.UpdateLastProcessingTime()
 		if !success {
 			ps.nack(ctx, message)
 		} else {

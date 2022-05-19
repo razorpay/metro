@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
@@ -80,6 +81,7 @@ func (p *Core) Publish(ctx context.Context, req *metrov1.PublishRequest) ([]stri
 		}
 		msgIDs = append(msgIDs, msgResp.MessageID)
 		publisherMessagesPublished.WithLabelValues(env, req.Topic).Inc()
+		publisherLastMsgProcessingTime.WithLabelValues(env, req.Topic).Add(float64(time.Now().Unix()))
 	}
 
 	return msgIDs, nil

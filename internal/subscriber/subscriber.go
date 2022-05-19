@@ -99,6 +99,7 @@ func (s *Subscriber) GetModAckChannel() chan *ModAckMessage {
 	return s.modAckChan
 }
 
+// UpdateLastProcessingTime updates the last processing time of the subscriber
 func (s *Subscriber) UpdateLastProcessingTime() {
 	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name).Add(float64(time.Now().Unix()))
 }

@@ -1,12 +1,16 @@
+//go:build unit
 // +build unit
 
 package subscription
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/internal/project"
 	pCore "github.com/razorpay/metro/internal/project/mocks/core"
 	repo "github.com/razorpay/metro/internal/subscription/mocks/repo"
 	"github.com/razorpay/metro/internal/topic"
@@ -192,4 +196,150 @@ func getSubModel() Model {
 		Labels:             map[string]string{},
 	}
 	return sub
+}
+
+func TestCore_DeleteSubscription(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		topicCore   topic.ICore
+	}
+	type args struct {
+		ctx       context.Context
+		m         *Model
+		projectID string
+	}
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	sub := getSubModel()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Delete Subscription successfully",
+			fields: fields{
+				repo:        mockRepo,
+				projectCore: mockProjectCore,
+				topicCore:   mockTopicCore,
+			},
+			args: args{
+				ctx:       ctx,
+				m:         &sub,
+				projectID: sub.ExtractedSubscriptionProjectID,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Delete Subscription failed with error",
+			fields: fields{
+				repo:        mockRepo,
+				projectCore: mockProjectCore,
+				topicCore:   mockTopicCore,
+			},
+			args: args{
+				ctx:       ctx,
+				m:         &sub,
+				projectID: "",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			topicCore:   tt.fields.topicCore,
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			var err2 error = nil
+			expectBool := true
+			if len(tt.args.projectID) == 0 {
+				err2 = fmt.Errorf("Invalid Project ID!")
+				expectBool = false
+				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), tt.args.m.ExtractedSubscriptionProjectID).Times(1).Return(expectBool, err2)
+			} else {
+				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), tt.args.m.ExtractedSubscriptionProjectID).Times(1).Return(true, nil)
+				mockRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Times(1).Return(true, nil)
+				mockRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil)
+			}
+			if err := c.DeleteSubscription(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
+				t.Errorf("Core.DeleteSubscription() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCore_DeleteProjectSubscriptions(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		topicCore   topic.ICore
+	}
+	type args struct {
+		ctx       context.Context
+		projectID string
+	}
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	sub := getSubModel()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Delete Project Subscription successfully",
+			fields: fields{
+				repo:        mockRepo,
+				projectCore: mockProjectCore,
+				topicCore:   mockTopicCore,
+			},
+			args: args{
+				ctx:       ctx,
+				projectID: sub.ExtractedSubscriptionProjectID,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Delete Project Subscription failed with errors",
+			fields: fields{
+				repo:        mockRepo,
+				projectCore: mockProjectCore,
+				topicCore:   mockTopicCore,
+			},
+			args: args{
+				ctx:       ctx,
+				projectID: "",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			topicCore:   tt.fields.topicCore,
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			if len(tt.args.projectID) != 0 {
+				prefix := common.GetBasePrefix() + Prefix + tt.args.projectID
+				mockRepo.EXPECT().DeleteTree(gomock.Any(), prefix).Return(nil)
+			}
+			if err := c.DeleteProjectSubscriptions(tt.args.ctx, tt.args.projectID); (err != nil) != tt.wantErr {
+				t.Errorf("Core.DeleteProjectSubscriptions() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

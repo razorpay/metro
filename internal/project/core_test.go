@@ -132,10 +132,10 @@ func TestCore_Get(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo: mockRepo,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo: tt.fields.repo,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			var err2 error = nil
 			if len(tt.args.projectID) == 0 {
@@ -211,10 +211,10 @@ func TestCore_DeleteProject(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo: mockRepo,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo: tt.fields.repo,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			var err2 error = nil
 			if len(tt.args.m.ProjectID) == 0 {

@@ -112,12 +112,12 @@ func TestCore_CreateSubscriptionTopic(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			brokerStore: tt.fields.brokerStore,
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo:        tt.fields.repo,
-				projectCore: tt.fields.projectCore,
-				brokerStore: tt.fields.brokerStore,
-			}
 			mockBrokerStore.EXPECT().GetAdmin(gomock.AssignableToTypeOf(ctx), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
 			mockAdmin.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
 			if err := c.CreateSubscriptionTopic(tt.args.ctx, tt.args.model); (err != nil) != tt.wantErr {

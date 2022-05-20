@@ -6,6 +6,7 @@ package subscription
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -339,6 +340,147 @@ func TestCore_DeleteProjectSubscriptions(t *testing.T) {
 			}
 			if err := c.DeleteProjectSubscriptions(tt.args.ctx, tt.args.projectID); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteProjectSubscriptions() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCore_GetTopicFromSubscriptionName(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		topicCore   topic.ICore
+	}
+	type args struct {
+		ctx              context.Context
+		subscription     string
+		projectID        string
+		subscriptionName string
+	}
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	sub := getSubModel()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "Get Topic successfully",
+			fields: fields{
+				repo:        mockRepo,
+				projectCore: mockProjectCore,
+				topicCore:   mockTopicCore,
+			},
+			args: args{
+				ctx:              ctx,
+				subscription:     sub.Name,
+				projectID:        sub.ExtractedSubscriptionProjectID,
+				subscriptionName: sub.ExtractedSubscriptionName,
+			},
+			want:    sub.Topic,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			topicCore:   tt.fields.topicCore,
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			prefix := common.GetBasePrefix() + Prefix + tt.args.projectID + "/" + tt.args.subscriptionName
+			mockRepo.EXPECT().Get(gomock.Any(), prefix, &Model{}).Do(func(arg1 context.Context, arg2 string, mod *Model) {
+				mod.Name = "projects/project123/subscriptions/subscription123"
+				mod.Topic = "projects/project123/topics/topic123"
+				mod.ExtractedSubscriptionProjectID = "project123"
+				mod.ExtractedTopicProjectID = "project123"
+				mod.ExtractedSubscriptionName = "subscription123"
+				mod.ExtractedTopicName = "topic123"
+				mod.PushConfig = &PushConfig{
+					PushEndpoint: "https://www.razorpay.com/api/v1",
+				}
+				mod.AckDeadlineSeconds = 20
+				mod.Labels = map[string]string{}
+
+			}).Return(nil)
+			got, err := c.GetTopicFromSubscriptionName(tt.args.ctx, tt.args.subscription)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Core.GetTopicFromSubscriptionName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Core.GetTopicFromSubscriptionName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCore_ListKeys(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		topicCore   topic.ICore
+	}
+	type args struct {
+		ctx    context.Context
+		prefix string
+	}
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "List Keys successfully",
+			fields: fields{
+				repo:        mockRepo,
+				projectCore: mockProjectCore,
+				topicCore:   mockTopicCore,
+			},
+			args: args{
+				ctx:    ctx,
+				prefix: "test-prefix",
+			},
+			want: []string{
+				"key1", "key2",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			topicCore:   tt.fields.topicCore,
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			expectedList := []string{
+				"key1", "key2",
+			}
+			prefix := common.GetBasePrefix() + tt.args.prefix
+			mockRepo.EXPECT().ListKeys(gomock.Any(), prefix).Return(expectedList, nil)
+			got, err := c.ListKeys(tt.args.ctx, tt.args.prefix)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Core.ListKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Core.ListKeys() = %v, want %v", got, tt.want)
 			}
 		})
 	}

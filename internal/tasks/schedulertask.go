@@ -280,6 +280,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	}
 	// fetch all current node bindings across all nodes
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
+
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
 		return err
@@ -332,6 +333,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 			invalidBindings[nb.Key()] = nb
 			logger.Ctx(ctx).Infow("subscription updated, stale node bindings will be deleted",
 				"subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
+
 		}
 
 	}

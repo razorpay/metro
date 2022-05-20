@@ -59,14 +59,14 @@ func TestRepo_List(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		r := &Repo{
+			BaseRepo: tt.fields.BaseRepo,
+		}
+		data := []registry.Pair{
+			{Key: "key1", Value: []byte("{}"), Version: "1"},
+			{Key: "key2", Value: []byte("{}"), Version: "2"},
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Repo{
-				BaseRepo: tt.fields.BaseRepo,
-			}
-			data := []registry.Pair{
-				{Key: "key1", Value: []byte("{}"), Version: "1"},
-				{Key: "key2", Value: []byte("{}"), Version: "2"},
-			}
 			mockRegistry.EXPECT().List(gomock.Any(), tt.args.prefix).Return(data, nil)
 			got, err := r.List(tt.args.ctx, tt.args.prefix)
 			if (err != nil) != tt.wantErr {

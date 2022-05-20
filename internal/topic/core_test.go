@@ -98,7 +98,7 @@ func TestCore_CreateSubscriptionTopic(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Test1",
+			name: "Create Subscription successfully",
 			fields: fields{
 				repo:        mockTopicRepo,
 				projectCore: mockProjectCore,
@@ -118,8 +118,8 @@ func TestCore_CreateSubscriptionTopic(t *testing.T) {
 				projectCore: tt.fields.projectCore,
 				brokerStore: tt.fields.brokerStore,
 			}
-			mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
-			mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
+			mockBrokerStore.EXPECT().GetAdmin(gomock.AssignableToTypeOf(ctx), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
+			mockAdmin.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
 			if err := c.CreateSubscriptionTopic(tt.args.ctx, tt.args.model); (err != nil) != tt.wantErr {
 				t.Errorf("Core.CreateSubscriptionTopic() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -187,19 +187,14 @@ func TestCore_ExistsWithName(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			brokerStore: tt.fields.brokerStore,
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo:        tt.fields.repo,
-				projectCore: tt.fields.projectCore,
-				brokerStore: tt.fields.brokerStore,
-			}
-			var err2 error = nil
-			var expectBool bool = true
-			if len(tt.args.name) == 0 {
-				err2 = fmt.Errorf("Invalid Project Name!")
-				expectBool = false
-			} else {
-				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(expectBool, err2)
+			if len(tt.args.name) != 0 {
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(true, nil)
 			}
 			got, err := c.ExistsWithName(tt.args.ctx, tt.args.name)
 			if (err != nil) != tt.wantErr {
@@ -273,12 +268,12 @@ func TestCore_DeleteTopic(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			brokerStore: tt.fields.brokerStore,
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo:        tt.fields.repo,
-				projectCore: tt.fields.projectCore,
-				brokerStore: tt.fields.brokerStore,
-			}
 			var err2 error = nil
 			var expectBool bool = true
 			if len(tt.args.name) == 0 {
@@ -286,9 +281,9 @@ func TestCore_DeleteTopic(t *testing.T) {
 				expectBool = false
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(expectBool, err2)
 			} else {
-				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(expectBool, err2)
-				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(expectBool, err2)
-				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(err2)
+				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(true, nil)
+				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil)
 			}
 			if err := c.DeleteTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteTopic() error = %v, wantErr %v", err, tt.wantErr)
@@ -352,17 +347,14 @@ func TestCore_DeleteProjectTopics(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			brokerStore: tt.fields.brokerStore,
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo:        tt.fields.repo,
-				projectCore: tt.fields.projectCore,
-				brokerStore: tt.fields.brokerStore,
-			}
-			var err2 error = nil
-			if len(tt.args.projectID) == 0 {
-				err2 = fmt.Errorf("Invalid Project ID!")
-			} else {
-				mockTopicRepo.EXPECT().DeleteTree(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID).Return(err2)
+			if len(tt.args.projectID) != 0 {
+				mockTopicRepo.EXPECT().DeleteTree(gomock.AssignableToTypeOf(ctx), common.GetBasePrefix()+Prefix+tt.args.projectID).Return(nil)
 			}
 			if err := c.DeleteProjectTopics(tt.args.ctx, tt.args.projectID); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteProjectTopics() error = %v, wantErr %v", err, tt.wantErr)
@@ -425,12 +417,12 @@ func TestCore_UpdateTopic(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			brokerStore: tt.fields.brokerStore,
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo:        tt.fields.repo,
-				projectCore: tt.fields.projectCore,
-				brokerStore: tt.fields.brokerStore,
-			}
 			var err2 error = nil
 			var expectBool = true
 			if len(tt.args.projectID) == 0 {
@@ -438,8 +430,8 @@ func TestCore_UpdateTopic(t *testing.T) {
 				expectBool = false
 				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.m.ExtractedProjectID+"/"+tt.args.m.ExtractedTopicName).Return(expectBool, err2)
 			} else {
-				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.m.ExtractedProjectID+"/"+tt.args.m.ExtractedTopicName).Return(expectBool, err2)
-				mockTopicRepo.EXPECT().Save(gomock.Any(), tt.args.m)
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.m.ExtractedProjectID+"/"+tt.args.m.ExtractedTopicName).Return(true, nil)
+				mockTopicRepo.EXPECT().Save(gomock.AssignableToTypeOf(ctx), tt.args.m)
 			}
 			if err := c.UpdateTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Core.UpdateTopic() error = %v, wantErr %v", err, tt.wantErr)
@@ -508,12 +500,12 @@ func TestCore_Get(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		c := &Core{
+			repo:        tt.fields.repo,
+			projectCore: tt.fields.projectCore,
+			brokerStore: tt.fields.brokerStore,
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo:        tt.fields.repo,
-				projectCore: tt.fields.projectCore,
-				brokerStore: tt.fields.brokerStore,
-			}
 			var err2 error = nil
 			if len(tt.args.projectID) == 0 {
 				err2 = fmt.Errorf("Invalid Project ID!")

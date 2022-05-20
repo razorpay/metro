@@ -252,12 +252,12 @@ func TestCore_DeleteSubscription(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo:        mockRepo,
+		projectCore: mockProjectCore,
+		topicCore:   mockTopicCore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			topicCore:   tt.fields.topicCore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			var err2 error = nil
 			expectBool := true
@@ -327,12 +327,12 @@ func TestCore_DeleteProjectSubscriptions(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo:        mockRepo,
+		projectCore: mockProjectCore,
+		topicCore:   mockTopicCore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			topicCore:   tt.fields.topicCore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			if len(tt.args.projectID) != 0 {
 				prefix := common.GetBasePrefix() + Prefix + tt.args.projectID
@@ -388,12 +388,12 @@ func TestCore_GetTopicFromSubscriptionName(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	c := &Core{
+		repo:        mockRepo,
+		projectCore: mockProjectCore,
+		topicCore:   mockTopicCore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			topicCore:   tt.fields.topicCore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			prefix := common.GetBasePrefix() + Prefix + tt.args.projectID + "/" + tt.args.subscriptionName
 			mockRepo.EXPECT().Get(gomock.Any(), prefix, &Model{}).Do(func(arg1 context.Context, arg2 string, mod *Model) {
@@ -462,12 +462,12 @@ func TestCore_ListKeys(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	c := &Core{
+		repo:        mockRepo,
+		projectCore: mockProjectCore,
+		topicCore:   mockTopicCore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			topicCore:   tt.fields.topicCore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			expectedList := []string{
 				"key1", "key2",
@@ -481,6 +481,72 @@ func TestCore_ListKeys(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Core.ListKeys() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCore_List(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		topicCore   topic.ICore
+	}
+	type args struct {
+		ctx    context.Context
+		prefix string
+	}
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	sub := getSubModel()
+
+	modelList := []*Model{
+		&sub,
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*Model
+		wantErr bool
+	}{
+		{
+			name: "Get List successfully",
+			fields: fields{
+				repo:        mockRepo,
+				projectCore: mockProjectCore,
+				topicCore:   mockTopicCore,
+			},
+			args: args{
+				ctx:    ctx,
+				prefix: "test-prefix",
+			},
+			want:    modelList,
+			wantErr: false,
+		},
+	}
+	c := &Core{
+		repo:        mockRepo,
+		projectCore: mockProjectCore,
+		topicCore:   mockTopicCore,
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectedModelList := []common.IModel{
+				&sub,
+			}
+			prefix := common.GetBasePrefix() + tt.args.prefix
+			mockRepo.EXPECT().List(gomock.Any(), prefix).Return(expectedModelList, nil)
+			got, err := c.List(tt.args.ctx, tt.args.prefix)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Core.List() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Core.List() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -133,10 +133,10 @@ func TestCore_Get(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		c := &Core{
+			repo: tt.fields.repo,
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo: tt.fields.repo,
-			}
 			var err2 error = nil
 			if len(tt.args.projectID) == 0 {
 				err2 = fmt.Errorf("Invalid Project ID!")

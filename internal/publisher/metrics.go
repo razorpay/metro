@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	env                        string
-	publisherMessagesPublished *prometheus.CounterVec
+	env                            string
+	publisherMessagesPublished     *prometheus.CounterVec
+	publisherLastMsgProcessingTime *prometheus.GaugeVec
 )
 
 func init() {
@@ -17,5 +18,9 @@ func init() {
 
 	publisherMessagesPublished = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_publisher_messages_published",
+	}, []string{"env", "topic"})
+
+	publisherLastMsgProcessingTime = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metro_publisher_identify_last_message_processing_time",
 	}, []string{"env", "topic"})
 }

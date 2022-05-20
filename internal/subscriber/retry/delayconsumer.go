@@ -76,7 +76,6 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			dc.consumer.Close(dc.ctx)
 			return
 		default:
-			logger.Ctx(dc.ctx).Infow("delay-consumer: fetching messages", dc.LogFields()...)
 			resp, err := dc.consumer.ReceiveMessages(dc.ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: 10, TimeoutMs: int(defaultBrokerOperationsTimeoutMs)})
 			if err != nil {
 				if !messagebroker.IsErrorRecoverable(err) {

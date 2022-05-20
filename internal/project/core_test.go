@@ -93,14 +93,12 @@ func TestCore_Get(t *testing.T) {
 	num := rand.Intn(3)
 
 	testProject := &Model{}
-	switch num {
-	case 1:
-		testProject = project1
-	case 2:
-		testProject = project2
-	case 3:
-		testProject = project3
+	projectMap := map[int]*Model{
+		1: project1,
+		2: project2,
+		3: project3,
 	}
+	testProject = projectMap[num]
 
 	tests := []struct {
 		name    string
@@ -214,17 +212,17 @@ func TestCore_DeleteProject(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		c := &Core{
+			repo: tt.fields.repo,
+		}
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo: tt.fields.repo,
-			}
 			var err2 error = nil
 			if len(tt.args.m.ProjectID) == 0 {
 				err2 = fmt.Errorf("Invalid Project ID!")
 				mockRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(false, err2)
 			} else {
-				mockRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, err2)
-				mockRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(err2)
+				mockRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, nil)
+				mockRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil)
 			}
 			if err := c.DeleteProject(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteProject() error = %v, wantErr %v", err, tt.wantErr)

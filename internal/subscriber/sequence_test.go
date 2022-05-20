@@ -168,8 +168,8 @@ func Test_offsetSequenceManager_DeleteSequence(t *testing.T) {
 
 	mockRepo.EXPECT().Exists(gomock.Any(), offsetModel.Key()).Return(true, nil).AnyTimes()
 	mockRepo.EXPECT().Exists(gomock.Any(), offsetStatus.Key()).Return(true, nil).AnyTimes()
-	mockRepo.EXPECT().Delete(gomock.Any(), offsetModel).Return(nil).AnyTimes().AnyTimes()
-	mockRepo.EXPECT().Delete(gomock.Any(), offsetStatus).Return(nil).AnyTimes().AnyTimes()
+	mockRepo.EXPECT().Delete(gomock.Any(), offsetModel).Return(nil).AnyTimes()
+	mockRepo.EXPECT().Delete(gomock.Any(), offsetStatus).Return(nil).AnyTimes()
 
 	offsetSeqManager := getMockSequenceManager(ctx, mockRepo)
 	err := offsetSeqManager.DeleteSequence(ctx, getMockSubModel(), partition, orderingKey)

@@ -28,6 +28,7 @@ func (m *Model) Key() string {
 	return m.Prefix() + m.NodeID + "/" + subID + "_" + strconv.Itoa(m.Partition) + "_" + m.ID[0:4]
 }
 
+// DefunctKey returns the key without the partition identifier
 func (m *Model) DefunctKey() string {
 	subID := strings.ReplaceAll(m.SubscriptionID, "/", "_")
 	return m.Prefix() + m.NodeID + "/" + subID + "_" + m.ID[0:4]

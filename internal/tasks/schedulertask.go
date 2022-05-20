@@ -299,26 +299,26 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	// the subscription's current version id doesn't match the node binding's subscription version id.
 	// This needs to be handled before nodes updates
 	// as node update will cause subscriptions to be rescheduled on other nodes
-	var invalidBindings []*nodebinding.Model
+	invalidBindings := make(map[string]*nodebinding.Model)
 
 	for _, nb := range nodeBindings {
 
 		// Remove non-partition specific nodebindings.
 		invalidKey := nb.DefunctKey()
 		if _, ok := nbKeymap[invalidKey]; ok {
-			invalidBindings = append(invalidBindings, nb)
+			invalidBindings[invalidKey] = nb
 			continue
 		}
 
 		// Remove bindings for nodes that no longer exist.
 		if _, ok := sm.nodeCache[nb.NodeID]; !ok {
-			invalidBindings = append(invalidBindings, nb)
+			invalidBindings[nb.Key()] = nb
 			continue
 		}
 
 		// Remove bindings for deleted subscriptions
 		if _, ok := sm.subCache[nb.SubscriptionID]; !ok {
-			invalidBindings = append(invalidBindings, nb)
+			invalidBindings[nb.Key()] = nb
 			continue
 		}
 
@@ -329,7 +329,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 			logger.Ctx(ctx).Infow("schedulertask: existing subscription stream found", "subscription", nb.SubscriptionID, "topic", sub.ExtractedTopicName, "partition", nb.Partition)
 		} else {
 			// Remove bindings for subscriptions that have changed.
-			invalidBindings = append(invalidBindings, nb)
+			invalidBindings[nb.Key()] = nb
 			logger.Ctx(ctx).Infow("subscription updated, stale node bindings will be deleted",
 				"subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
 		}
@@ -339,10 +339,10 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("schedulertask: Resolved invalid bindings to be deleted", "invalidBindings", invalidBindings)
 
 	// Delete bindings which are invalid due to node failures/subscription version changes/subscription deletions
-	for _, nb := range invalidBindings {
-		err := sm.nodeBindingCore.DeleteNodeBinding(ctx, nb)
+	for key, nb := range invalidBindings {
+		err := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding", "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
+			logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding", "error", err.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
 		}
 	}
 

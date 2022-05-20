@@ -111,12 +111,12 @@ func TestCore_CreateSubscriptionTopic(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	c := &Core{
+		repo:        mockTopicRepo,
+		projectCore: mockProjectCore,
+		brokerStore: mockBrokerStore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			brokerStore: tt.fields.brokerStore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			mockBrokerStore.EXPECT().GetAdmin(gomock.AssignableToTypeOf(ctx), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
 			mockAdmin.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
@@ -186,12 +186,12 @@ func TestCore_ExistsWithName(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo:        mockTopicRepo,
+		projectCore: mockProjectCore,
+		brokerStore: mockBrokerStore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			brokerStore: tt.fields.brokerStore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			if len(tt.args.name) != 0 {
 				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(true, nil)
@@ -267,12 +267,12 @@ func TestCore_DeleteTopic(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo:        mockTopicRepo,
+		projectCore: mockProjectCore,
+		brokerStore: mockBrokerStore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			brokerStore: tt.fields.brokerStore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			var err2 error = nil
 			var expectBool bool = true
@@ -346,12 +346,12 @@ func TestCore_DeleteProjectTopics(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo:        mockTopicRepo,
+		projectCore: mockProjectCore,
+		brokerStore: mockBrokerStore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			brokerStore: tt.fields.brokerStore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			if len(tt.args.projectID) != 0 {
 				mockTopicRepo.EXPECT().DeleteTree(gomock.AssignableToTypeOf(ctx), common.GetBasePrefix()+Prefix+tt.args.projectID).Return(nil)
@@ -416,12 +416,12 @@ func TestCore_UpdateTopic(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo:        mockTopicRepo,
+		projectCore: mockProjectCore,
+		brokerStore: mockBrokerStore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			brokerStore: tt.fields.brokerStore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			var err2 error = nil
 			var expectBool = true
@@ -499,12 +499,12 @@ func TestCore_Get(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	c := &Core{
+		repo:        mockTopicRepo,
+		projectCore: mockProjectCore,
+		brokerStore: mockBrokerStore,
+	}
 	for _, tt := range tests {
-		c := &Core{
-			repo:        tt.fields.repo,
-			projectCore: tt.fields.projectCore,
-			brokerStore: tt.fields.brokerStore,
-		}
 		t.Run(tt.name, func(t *testing.T) {
 			var err2 error = nil
 			if len(tt.args.projectID) == 0 {

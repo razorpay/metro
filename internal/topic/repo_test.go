@@ -58,10 +58,10 @@ func TestRepo_List(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	r := &Repo{
+		BaseRepo: mockRepo,
+	}
 	for _, tt := range tests {
-		r := &Repo{
-			BaseRepo: tt.fields.BaseRepo,
-		}
 		data := []registry.Pair{
 			{Key: "key1", Value: []byte("{}"), Version: "1"},
 			{Key: "key2", Value: []byte("{}"), Version: "2"},

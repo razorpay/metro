@@ -342,9 +342,9 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 
 	// Delete bindings which are invalid due to node failures/subscription version changes/subscription deletions
 	for key, nb := range invalidBindings {
-		err := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
+		dErr := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding", "error", err.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
+			logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding", "error", dErr.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
 		}
 	}
 

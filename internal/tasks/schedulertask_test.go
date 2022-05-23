@@ -100,6 +100,9 @@ func TestSchedulerTask_Run(t *testing.T) {
 	nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
 		[]*nodebinding.Model{}, nil).AnyTimes()
 
+	nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+		[]string{}, nil).AnyTimes()
+
 	nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
 
 	dummyTopicModels := []*topic.Model{

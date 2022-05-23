@@ -551,3 +551,66 @@ func TestCore_List(t *testing.T) {
 		})
 	}
 }
+
+func TestCore_Migrate(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		topicCore   topic.ICore
+	}
+	type args struct {
+		ctx              context.Context
+		names            []string
+		topicName        string
+		projectID        string
+		subscriptionName string
+	}
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	sub := getSubModel()
+	expectedList := []string{sub.Name}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Migrate successfully",
+			fields: fields{
+				repo:        mockRepo,
+				projectCore: mockProjectCore,
+				topicCore:   mockTopicCore,
+			},
+			args: args{
+				ctx:              ctx,
+				names:            expectedList,
+				topicName:        sub.Topic,
+				projectID:        sub.ExtractedSubscriptionProjectID,
+				subscriptionName: sub.ExtractedSubscriptionName,
+			},
+			wantErr: false,
+		},
+	}
+	c := &Core{
+		repo:        mockRepo,
+		projectCore: mockProjectCore,
+		topicCore:   mockTopicCore,
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prefix := common.GetBasePrefix() + Prefix + tt.args.projectID + "/" + tt.args.subscriptionName
+			mockRepo.EXPECT().Get(gomock.Any(), prefix, &Model{}).Return(nil)
+			mod := *&topic.Model{}
+			mockTopicCore.EXPECT().Get(gomock.Any(), "").Return(&mod, nil)
+			mockTopicCore.EXPECT().CreateSubscriptionTopic(gomock.Any(), gomock.Any()).Return(nil)
+			if err := c.Migrate(tt.args.ctx, tt.args.names); (err != nil) != tt.wantErr {
+				t.Errorf("Core.Migrate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

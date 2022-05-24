@@ -54,13 +54,13 @@ func newProcessor(ctx context.Context, poolSize int, msgChan chan *metrov1.Recei
 		//ants.WithMaxBlockingTasks(1),
 	)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("processor: Failed to set up porcessor pool", "subId", subId, "subscription", sub.Name)
+		logger.Ctx(ctx).Errorw("processor: Failed to set up porcessor pool", "subId", subID, "subscription", sub.Name)
 	}
 	pr.pool = pool
 	return pr
 }
 func (pr *processor) start() {
-	logger.Ctx(p.ctx).Infow("processor started")
+	logger.Ctx(pr.ctx).Infow("processor started")
 	for {
 		select {
 		case msg := <-pr.msgChan:
@@ -112,7 +112,7 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	resp, err := pr.httpClient.Do(req)
 
 	// log metrics
-	workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, p.subID).Inc()
+	workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, pr.subID).Inc()
 	workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
 
 	// Process responnse

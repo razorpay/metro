@@ -32,12 +32,12 @@ type processor struct {
 func (pr *processor) Printf(log string, args ...interface{}) {
 	logger.Ctx(pr.ctx).Infow(log, args)
 }
-func newProcessor(ctx context.Context, poolSize int, msgChan chan *metrov1.ReceivedMessage, statusChan chan deliveryStatus, subId string, sub *subscription.Model, httpClient *http.Client) *processor {
+func newProcessor(ctx context.Context, poolSize int, msgChan chan *metrov1.ReceivedMessage, statusChan chan deliveryStatus, subID string, sub *subscription.Model, httpClient *http.Client) *processor {
 	pr := &processor{
 		ctx:          ctx,
 		msgChan:      msgChan,
 		statusChan:   statusChan,
-		subID:        subId,
+		subID:        subID,
 		subscription: sub,
 		httpClient:   httpClient,
 	}
@@ -59,31 +59,31 @@ func newProcessor(ctx context.Context, poolSize int, msgChan chan *metrov1.Recei
 	pr.pool = pool
 	return pr
 }
-func (p *processor) start() {
+func (pr *processor) start() {
 	logger.Ctx(p.ctx).Infow("processor started")
 	for {
 		select {
-		case msg := <-p.msgChan:
-			logger.Ctx(p.ctx).Infow("Received message at processor", "msgId", msg.Message.MessageId)
-			p.pool.Invoke(msg)
-		case <-p.ctx.Done():
+		case msg := <-pr.msgChan:
+			logger.Ctx(pr.ctx).Infow("Received message at processor", "msgId", msg.Message.MessageId)
+			pr.pool.Invoke(msg)
+		case <-pr.ctx.Done():
 			return
 		}
 	}
 }
 
-func (p *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedMessage) bool {
-	subModel := p.subscription
+func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedMessage) bool {
+	subModel := pr.subscription
 	logFields := make(map[string]interface{})
-	logFields["subscripitonId"] = p.subID
-	logFields["subscription"] = p.subscription.Name
+	logFields["subscripitonId"] = pr.subID
+	logFields["subscription"] = pr.subscription.Name
 	logFields["messageId"] = message.Message.MessageId
 	logFields["ackId"] = message.AckId
 	logger.Ctx(ctx).Infow("worker: publishing response data to subscription endpoint", "logFields", logFields)
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.PushMessage", opentracing.Tags{
-		"subscriber":   p.subID,
-		"subscription": p.subscription.Name,
-		"topic":        p.subscription.Topic,
+		"subscriber":   pr.subID,
+		"subscription": pr.subscription.Name,
+		"topic":        pr.subscription.Topic,
 		"message_id":   message.Message.MessageId,
 	})
 	defer span.Finish()
@@ -93,7 +93,7 @@ func (p *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedMe
 	postData := getRequestBytes(pushRequest)
 	req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("processor: Failed to post message to endpoint", "subscription", p.subscription.Name, "msgId", message.Message.MessageId)
+		logger.Ctx(ctx).Errorw("processor: Failed to post message to endpoint", "subscription", pr.subscription.Name, "msgId", message.Message.MessageId)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if subModel.HasCredentials() {
@@ -109,7 +109,7 @@ func (p *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedMe
 
 	logFields["endpoint"] = subModel.PushConfig.PushEndpoint
 	logger.Ctx(ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
-	resp, err := p.httpClient.Do(req)
+	resp, err := pr.httpClient.Do(req)
 
 	// log metrics
 	workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, p.subID).Inc()
@@ -121,7 +121,7 @@ func (p *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedMe
 		return false
 	}
 
-	logger.Ctx(p.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
+	logger.Ctx(pr.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
 	workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
 
 	success := false
@@ -133,20 +133,20 @@ func (p *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedMe
 	if !success {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			logger.Ctx(p.ctx).Errorw("worker: push was unsuccessful and could not read response body", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
+			logger.Ctx(pr.ctx).Errorw("worker: push was unsuccessful and could not read response body", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
 		} else {
-			logger.Ctx(p.ctx).Errorw("worker: push was unsuccessful", "status", resp.StatusCode, "body", string(bodyBytes), "logFields", logFields)
+			logger.Ctx(pr.ctx).Errorw("worker: push was unsuccessful", "status", resp.StatusCode, "body", string(bodyBytes), "logFields", logFields)
 		}
 	}
 	_, err = io.Copy(ioutil.Discard, resp.Body)
 	err = resp.Body.Close()
 	if err != nil {
-		logger.Ctx(p.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
+		logger.Ctx(pr.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
 	}
 
 	return success
 }
 
-func (p *processor) Shutdown() {
+func (pr *processor) Shutdown() {
 	ants.Release()
 }

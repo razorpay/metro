@@ -133,13 +133,6 @@ func (s *Subscriber) Run(ctx context.Context) {
 			}
 			s.subscriberImpl.EvictUnackedMessagesPastDeadline(ctx, s.GetErrorChannel())
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
-		case err := <-s.errChan:
-			if ctx.Err() != nil {
-				continue
-			}
-			if err != nil {
-				logger.Ctx(ctx).Errorw("subscriber: got error on errCh channel", "logFields", s.getLogFields(), "error", err.Error())
-			}
 		case <-ctx.Done():
 			logger.Ctx(ctx).Infow("subscriber: <-ctx.Done() called", "logFields", s.getLogFields())
 

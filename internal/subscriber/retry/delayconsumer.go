@@ -27,10 +27,11 @@ type DelayConsumer struct {
 	// a paused consumer will not return new messages, so this cachedMsg will be used for lookups
 	// till the needed time elapses
 	cachedMsgs []messagebroker.ReceivedMessage
+	errChan    chan error
 }
 
 // NewDelayConsumer inits a new delay-consumer with the pre-defined message handler
-func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, ch cache.ICache) (*DelayConsumer, error) {
+func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, ch cache.ICache, errChan chan error) (*DelayConsumer, error) {
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
@@ -60,6 +61,7 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 		ch:           ch,
 		doneCh:       make(chan struct{}),
 		cachedMsgs:   make([]messagebroker.ReceivedMessage, 0),
+		errChan:      errChan,
 	}, nil
 }
 
@@ -80,6 +82,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			if err != nil {
 				if !messagebroker.IsErrorRecoverable(err) {
 					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in receiving messages", dc.LogFields("error", err.Error())...)
+					dc.errChan <- err
 					return
 				}
 			}

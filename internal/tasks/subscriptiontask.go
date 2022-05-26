@@ -232,9 +232,24 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 			go func(ctx context.Context) {
 				err := handler.Start()
 				if err != nil {
-					logger.Ctx(ctx).Errorw("[worker]: push stream handler exited",
+					logger.Ctx(ctx).Errorw(
+						"[worker]: push stream handler exited",
 						"subscription", newBinding.SubscriptionID,
-						"error", err.Error())
+						"error", err.Error(),
+					)
+				}
+
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case restart := <-handler.GetRestartChannel():
+						if restart {
+							handler.Restart(ctx)
+						} else {
+							break
+						}
+					}
 				}
 			}(ctx)
 

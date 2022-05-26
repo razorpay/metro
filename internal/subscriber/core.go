@@ -51,6 +51,8 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	}
 
 	subsCtx, cancelFunc := context.WithCancel(ctx)
+	errChan := make(chan error, 1000)
+
 	// using the subscriber ctx for retrier as well. This way when the ctx() for subscribers is done,
 	// all the delay-consumers spawned within retrier would also get marked as done.
 	var retrier retry.IRetrier
@@ -64,6 +66,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 			WithIntervalFinder(retry.NewClosestIntervalWithCeil()).
 			WithMessageHandler(retry.NewPushToPrimaryRetryTopicHandler(c.bs)).
 			WithSubscriberID(subscriberID).
+			WithErrChan(errChan).
 			Build()
 
 		err = retrier.Start(subsCtx)
@@ -111,7 +114,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 		subscriberID:   subscriberID,
 		requestChan:    requestCh,
 		responseChan:   make(chan *metrov1.PullResponse),
-		errChan:        make(chan error, 1000),
+		errChan:        errChan,
 		closeChan:      make(chan struct{}),
 		ackChan:        ackCh,
 		modAckChan:     modAckCh,

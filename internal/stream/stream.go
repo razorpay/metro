@@ -160,6 +160,7 @@ func (ps *PushStream) Stop() error {
 	return nil
 }
 
+// Restart is used to restart the push subscription processing
 func (ps *PushStream) Restart(ctx context.Context) {
 	logger.Ctx(ps.ctx).Infow("worker: push stream restart invoked", "subscription", ps.subscription.Name)
 	ps.Stop()

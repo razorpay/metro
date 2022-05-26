@@ -40,6 +40,7 @@ const (
 	defaultMaxOuttandingBytes int64 = 0
 )
 
+// GetRestartChannel returns the chan where restart request is received
 func (ps *PushStream) GetRestartChannel() chan bool {
 	return ps.restartChan
 }

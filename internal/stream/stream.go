@@ -164,13 +164,23 @@ func (ps *PushStream) Stop() error {
 // Restart is used to restart the push subscription processing
 func (ps *PushStream) Restart(ctx context.Context) {
 	logger.Ctx(ps.ctx).Infow("worker: push stream restart invoked", "subscription", ps.subscription.Name)
-	ps.Stop()
+	err := ps.Stop()
+	if err != nil {
+		logger.Ctx(ctx).Errorw(
+			"worker: push stream stop error",
+			"subscription", ps.subscription.Name,
+			"error", err,
+		)
+		return
+	}
 	go func(ctx context.Context) {
 		err := ps.Start()
 		if err != nil {
-			logger.Ctx(ctx).Errorw("[worker]: push stream restart error",
+			logger.Ctx(ctx).Errorw(
+				"worker: push stream restart error",
 				"subscription", ps.subscription.Name,
-				"error", err.Error())
+				"error", err.Error(),
+			)
 		}
 	}(ctx)
 	workerEntityRestartCount.WithLabelValues(env, "stream", ps.subscription.Topic, ps.subscription.Name).Inc()

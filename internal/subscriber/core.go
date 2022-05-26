@@ -28,6 +28,9 @@ type Core struct {
 	ch               cache.ICache
 }
 
+// DefaultLimitForErrChannel ...
+var DefaultLimitForErrChannel int32 = 1000
+
 // NewCore returns a new subscriber core
 func NewCore(bs brokerstore.IBrokerStore, subscriptionCore subscription.ICore, offsetCore offset.ICore, ch cache.ICache) ICore {
 	return &Core{bs: bs, subscriptionCore: subscriptionCore, offsetCore: offsetCore, ch: ch}
@@ -51,7 +54,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 	}
 
 	subsCtx, cancelFunc := context.WithCancel(ctx)
-	errChan := make(chan error, 1000)
+	errChan := make(chan error, DefaultLimitForErrChannel)
 
 	// using the subscriber ctx for retrier as well. This way when the ctx() for subscribers is done,
 	// all the delay-consumers spawned within retrier would also get marked as done.

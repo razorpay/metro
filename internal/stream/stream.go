@@ -95,9 +95,8 @@ func (ps *PushStream) Start() error {
 			case err = <-ps.subs.GetErrorChannel():
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
-					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "logFields", ps.getLogFields(), "error", err.Error())
+					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber, restarting", "logFields", ps.getLogFields(), "error", err.Error())
 					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
-					logger.Ctx(ps.ctx).Infow("worker: restarting subscriber", "logFields", ps.getLogFields())
 					if err = ps.restartSubsciber(); err != nil {
 						ps.restartChan <- true
 						return err
@@ -173,7 +172,7 @@ func (ps *PushStream) Restart(ctx context.Context) {
 		logger.Ctx(ctx).Errorw(
 			"worker: push stream stop error",
 			"subscription", ps.subscription.Name,
-			"error", err,
+			"error", err.Error(),
 		)
 		return
 	}
@@ -414,8 +413,8 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscriberCore:   subscriberCore,
 		doneCh:           make(chan struct{}),
 		httpClient:       httpclient,
-		restartChan:      make(chan bool, 10),
-		stopChan:         make(chan bool, 10),
+		restartChan:      make(chan bool),
+		stopChan:         make(chan bool),
 	}, nil
 }
 

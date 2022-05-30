@@ -276,7 +276,7 @@ func (sm *SchedulerTask) refreshCache(ctx context.Context) error {
 func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	err := sm.refreshCache(ctx)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("schedulertask: Filed to refresh cache for topic/subscripiton/nodes", "error", err.Error())
+		logger.Ctx(ctx).Errorw("schedulertask: Failed to refresh cache for topic/subscription/nodes", "error", err.Error())
 	}
 	// fetch all current node bindings across all nodes
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)

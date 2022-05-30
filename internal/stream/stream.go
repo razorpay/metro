@@ -32,6 +32,7 @@ type PushStream struct {
 	httpClient       *http.Client
 	doneCh           chan struct{}
 	restartChan      chan bool
+	stopChan         chan bool
 }
 
 const (
@@ -43,6 +44,11 @@ const (
 // GetRestartChannel returns the chan where restart request is received
 func (ps *PushStream) GetRestartChannel() chan bool {
 	return ps.restartChan
+}
+
+// GetStopChannel returns the chan where stop request is received
+func (ps *PushStream) GetStopChannel() chan bool {
+	return ps.stopChan
 }
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
@@ -85,8 +91,6 @@ func (ps *PushStream) Start() error {
 				// stop the subscriber after all the send channels are closed
 				ps.stopSubscriber()
 
-				ps.restartChan <- false
-
 				return gctx.Err()
 			case err = <-ps.subs.GetErrorChannel():
 				// if channel is closed, this can return with a nil error value
@@ -113,7 +117,7 @@ func (ps *PushStream) restartSubsciber() error {
 	var err error
 	ps.subs, err = ps.subscriberCore.NewSubscriber(context.Background(), ps.nodeID, ps.subscription, defaultTimeoutMs,
 		defaultMaxOutstandingMsgs, defaultMaxOuttandingBytes, make(chan *subscriber.PullRequest), make(chan *subscriber.AckMessage), make(chan *subscriber.ModAckMessage))
-	workerEntityRestartCount.WithLabelValues(env, "subscriber", ps.subscription.Topic, ps.subscription.Name).Inc()
+	workerComponentRestartCount.WithLabelValues(env, "subscriber", ps.subscription.Topic, ps.subscription.Name).Inc()
 	if err != nil {
 		logger.Ctx(ps.ctx).Errorw("worker: error restarting subscriber", "subscription", ps.subscription.Name, "error", err.Error())
 		return err
@@ -183,7 +187,7 @@ func (ps *PushStream) Restart(ctx context.Context) {
 			)
 		}
 	}(ctx)
-	workerEntityRestartCount.WithLabelValues(env, "stream", ps.subscription.Topic, ps.subscription.Name).Inc()
+	workerComponentRestartCount.WithLabelValues(env, "stream", ps.subscription.Topic, ps.subscription.Name).Inc()
 }
 
 func (ps *PushStream) stopSubscriber() {
@@ -411,6 +415,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		doneCh:           make(chan struct{}),
 		httpClient:       httpclient,
 		restartChan:      make(chan bool, 10),
+		stopChan:         make(chan bool, 10),
 	}, nil
 }
 
@@ -437,4 +442,32 @@ func getRequestBytes(pushRequest *metrov1.PushEndpointRequest) *bytes.Buffer {
 	marshaler.Marshal(byteBuffer, pushRequest)
 
 	return byteBuffer
+}
+
+// RunPushStreamManager return a runs a push stream manager used to handle restart/stop requests
+func (ps *PushStream) RunPushStreamManager(ctx context.Context) {
+	logger.Ctx(ctx).Infow("worker: started running stream manager", "subscription", ps.subscription.Name)
+
+	go func() {
+		defer logger.Ctx(ctx).Infow("worker: exiting stream manager", "subscription", ps.subscription.Name)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ps.GetRestartChannel():
+				logger.Ctx(ctx).Infow("worker: restarting stream handler", "subscription", ps.subscription.Name)
+				ps.Restart(ctx)
+			case <-ps.GetStopChannel():
+				logger.Ctx(ctx).Infow("worker: stopping stream handler", "subscription", ps.subscription.Name)
+				err := ps.Stop()
+				if err != nil {
+					logger.Ctx(ctx).Infow("worker: stopping stream handler", "error", err)
+				}
+				return
+			default:
+				continue
+			}
+		}
+	}()
 }

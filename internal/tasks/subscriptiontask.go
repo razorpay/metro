@@ -194,10 +194,8 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 			if handler, ok := sm.pushHandlers.Load(oldKey); ok && handler != nil {
 				logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
 				go func(ctx context.Context) {
-					err := handler.(*stream.PushStream).Stop()
-					if err == nil {
-						logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
-					}
+					handler.(*stream.PushStream).GetStopChannel() <- true
+					logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
 				}(ctx)
 				sm.pushHandlers.Delete(oldKey)
 			}
@@ -227,6 +225,8 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 				})
 			}
 
+			handler.RunPushStreamManager(ctx)
+
 			// run the stream in a separate go routine, this go routine is not part of the worker error group
 			// as the worker should continue to run if a single subscription stream exists with error
 			go func(ctx context.Context) {
@@ -235,19 +235,6 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 					logger.Ctx(ctx).Errorw("[worker]: push stream handler exited",
 						"subscription", newBinding.SubscriptionID,
 						"error", err.Error())
-				}
-
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case restart := <-handler.GetRestartChannel():
-						if restart {
-							handler.Restart(ctx)
-						} else {
-							break
-						}
-					}
 				}
 			}(ctx)
 
@@ -270,11 +257,7 @@ func (sm *SubscriptionTask) stopPushHandlers(ctx context.Context) {
 		go func(ps *stream.PushStream, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			err := ps.Stop()
-			if err != nil {
-				logger.Ctx(ctx).Errorw("error stopping stream handler", "error", err)
-				return
-			}
+			ps.GetStopChannel() <- true
 			logger.Ctx(ctx).Infow("successfully stopped stream handler")
 		}(ps, &wg)
 		return true

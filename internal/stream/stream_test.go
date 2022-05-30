@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -157,7 +158,8 @@ func TestPushStream_Start(t *testing.T) {
 		for _, msg := range msgData {
 			expected = append(expected, msg.ackID)
 		}
-
+		sort.Strings(got)
+		sort.Strings(expected)
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("Start() = %v, want %v", got, expected)
 		}
@@ -203,21 +205,34 @@ func getMockSubscriber(ctx context.Context, ctrl *gomock.Controller) *mocks3.Moc
 	reqCh := make(chan *subscriber.PullRequest, 1)
 	resCh := make(chan *metrov1.PullResponse)
 
+	cancelChan := make(chan bool)
+
+	go func() {
+		counter := 0
+		for {
+			select {
+			case <-reqCh:
+				if counter < 1 {
+					messages := getMockResponseMessages()
+					resCh <- &metrov1.PullResponse{
+						ReceivedMessages: messages,
+					}
+					counter++
+				}
+				resCh <- &metrov1.PullResponse{}
+			case <-cancelChan:
+				return
+			}
+		}
+	}()
 	subscriberMock.EXPECT().GetID().AnyTimes()
 	subscriberMock.EXPECT().GetErrorChannel().AnyTimes()
 	subscriberMock.EXPECT().GetModAckChannel().Return(make(chan *subscriber.ModAckMessage, 10)).AnyTimes()
 	subscriberMock.EXPECT().GetAckChannel().Return(make(chan *subscriber.AckMessage, 10)).AnyTimes()
 	subscriberMock.EXPECT().GetRequestChannel().Return(reqCh).AnyTimes()
-	subscriberMock.EXPECT().GetResponseChannel().DoAndReturn(
-		func() interface{} {
-			messages := getMockResponseMessages()
-			resCh = make(chan *metrov1.PullResponse, len(messages))
-			resCh <- &metrov1.PullResponse{
-				ReceivedMessages: messages,
-			}
-			return resCh
-		}).AnyTimes()
+	subscriberMock.EXPECT().GetResponseChannel().Return(resCh).AnyTimes()
 	subscriberMock.EXPECT().Stop().Do(func() {
+		cancelChan <- true
 		close(resCh)
 	}).AnyTimes()
 	return subscriberMock

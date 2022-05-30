@@ -113,6 +113,12 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 		return nil, merror.ToGRPCError(terr)
 	}
 
+	if int(req.NumPartitions) != m.NumPartitions {
+		err := s.subscriptionCore.RescaleSubTopics(ctx, m, int(req.NumPartitions))
+		if err != nil {
+			return &emptypb.Empty{}, err
+		}
+	}
 	// finally update topic with the updated partition count
 	m.NumPartitions = int(req.NumPartitions)
 	if uerr := s.topicCore.UpdateTopic(ctx, m); uerr != nil {

@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -26,6 +27,7 @@ type ICore interface {
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
 	Migrate(ctx context.Context, names []string) error
+	RescaleSubTopics(ctx context.Context, topicModel *topic.Model, partitions int) error
 }
 
 // Core implements all business logic for a subscription
@@ -341,6 +343,57 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, top
 		}
 	}
 
+	return nil
+}
+
+// Get all the subs and rescale all the Retry/Delay/DLQ topics
+func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, partitions int) error {
+	subList, err := c.List(ctx, common.GetBasePrefix()+Prefix+topicModel.ExtractedProjectID)
+	if err != nil {
+		return err
+	}
+	for index, m := range subList {
+		fmt.Print("At Index: ", (index), " | ", m)
+
+		retryModel := &topic.Model{
+			Name:               m.GetRetryTopic(),
+			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
+			ExtractedProjectID: m.ExtractedTopicProjectID,
+			NumPartitions:      partitions,
+		}
+		err1 := c.topicCore.UpdateTopic(ctx, retryModel)
+		if err1 != nil {
+			return err1
+		}
+		for _, delayTopic := range m.GetDelayTopics() {
+			delayModel := &topic.Model{
+				Name:               delayTopic,
+				ExtractedTopicName: m.ExtractedTopicName,
+				ExtractedProjectID: m.ExtractedTopicProjectID,
+				NumPartitions:      partitions,
+			}
+			err2 := c.topicCore.UpdateTopic(ctx, delayModel)
+			if err2 != nil {
+				return err2
+			}
+		}
+
+		if topicModel.IsDeadLetterTopic() {
+			m.Labels["isDLQSubscription"] = "true"
+		} else {
+			m.Labels["isDLQSubscription"] = "false"
+			dlqModel := &topic.Model{
+				Name:               m.GetDeadLetterTopic(),
+				ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
+				ExtractedProjectID: m.ExtractedTopicProjectID,
+				NumPartitions:      partitions,
+			}
+			err3 := c.topicCore.UpdateTopic(ctx, dlqModel)
+			if err3 != nil {
+				return err3
+			}
+		}
+	}
 	return nil
 }
 

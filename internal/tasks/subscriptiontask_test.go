@@ -246,5 +246,4 @@ func TestSubscriptionTask_handleNodeBindingUpdates(t *testing.T) {
 	close(task.(*SubscriptionTask).watchCh)
 	cancel()
 	<-doneCh
-	assert.Fail(t, "test")
 }

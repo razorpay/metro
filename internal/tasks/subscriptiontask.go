@@ -255,7 +255,11 @@ func (sm *SubscriptionTask) stopPushHandlers(ctx context.Context) {
 		go func(ps *stream.PushStream, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			ps.GetStopChannel() <- true
+			err := ps.Stop()
+			if err != nil {
+				logger.Ctx(ctx).Errorw("error stopping stream handler", "error", err)
+				return
+			}
 			logger.Ctx(ctx).Infow("successfully stopped stream handler")
 		}(ps, &wg)
 		return true

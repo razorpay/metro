@@ -91,7 +91,7 @@ func (ps *PushStream) Start() error {
 					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 				}
 			case ds := <-ps.statusChan:
-				logger.Ctx(ps.ctx).Infow("Received response form processor", "msgId", deliveryStatus.msg.Message.MessageId)
+				logger.Ctx(ps.ctx).Infow("Received response form processor", "msgId", ds.msg.Message.MessageId)
 				if !ds.status {
 					ps.nack(ps.ctx, ds.msg)
 				} else {

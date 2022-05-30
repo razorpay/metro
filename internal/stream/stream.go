@@ -90,12 +90,12 @@ func (ps *PushStream) Start() error {
 					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber", "logFields", ps.getLogFields(), "error", err.Error())
 					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 				}
-			case deliveryStatus := <-ps.statusChan:
+			case ds := <-ps.statusChan:
 				logger.Ctx(ps.ctx).Infow("Received response form processor", "msgId", deliveryStatus.msg.Message.MessageId)
-				if !deliveryStatus.status {
-					ps.nack(ps.ctx, deliveryStatus.msg)
+				if !ds.status {
+					ps.nack(ps.ctx, ds.msg)
 				} else {
-					ps.ack(ps.ctx, deliveryStatus.msg)
+					ps.ack(ps.ctx, ds.msg)
 				}
 				atomic.AddInt64(&ps.counter, -1)
 			default:

@@ -51,7 +51,6 @@ func newProcessor(ctx context.Context, poolSize int, msgChan chan *metrov1.Recei
 	},
 		ants.WithLogger(pr),
 		ants.WithPreAlloc(false),
-		//ants.WithMaxBlockingTasks(1),
 	)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("processor: Failed to set up porcessor pool", "subId", subID, "subscription", sub.Name)
@@ -60,12 +59,15 @@ func newProcessor(ctx context.Context, poolSize int, msgChan chan *metrov1.Recei
 	return pr
 }
 func (pr *processor) start() {
-	logger.Ctx(pr.ctx).Infow("processor started")
+	logger.Ctx(pr.ctx).Infow("processor:  Running processor witth threads", "subscripiton", pr.subscription.Name, "threads", pr.pool.Cap())
 	for {
 		select {
 		case msg := <-pr.msgChan:
 			logger.Ctx(pr.ctx).Infow("Received message at processor", "msgId", msg.Message.MessageId)
-			pr.pool.Invoke(msg)
+			err := pr.pool.Invoke(msg)
+			if err != nil {
+				logger.Ctx(pr.ctx).Errorw("processor: Error invoking thread for message", "error", err.Error(), "subscripiton", pr.subscription.Name, "msgID", msg.Message.MessageId)
+			}
 		case <-pr.ctx.Done():
 			return
 		}
@@ -91,7 +93,7 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	startTime := time.Now()
 	pushRequest := newPushEndpointRequest(message, subModel.Name)
 	postData := getRequestBytes(pushRequest)
-	req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("processor: Failed to post message to endpoint", "subscription", pr.subscription.Name, "msgId", message.Message.MessageId)
 	}
@@ -138,7 +140,7 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 			logger.Ctx(pr.ctx).Errorw("worker: push was unsuccessful", "status", resp.StatusCode, "body", string(bodyBytes), "logFields", logFields)
 		}
 	}
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	_, _ = io.Copy(ioutil.Discard, resp.Body)
 	err = resp.Body.Close()
 	if err != nil {
 		logger.Ctx(pr.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())

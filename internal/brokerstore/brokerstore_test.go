@@ -1,8 +1,10 @@
+//go:build unit
 // +build unit
 
 package brokerstore
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -42,4 +44,66 @@ func Test_findAllMatchingKeyPrefix(t *testing.T) {
 
 	val3 := findAllMatchingKeyPrefix(&mp, "prefix-wrong")
 	assert.Nil(t, val3)
+}
+
+func TestBrokerStore_GetConsumer(t *testing.T) {
+	ctx := context.Background()
+	bs, _ := NewBrokerStore("kafka", getValidBrokerConfig())
+	clientOptions := getValidConsumerClientOptions()
+	consumer, err := bs.GetConsumer(ctx, clientOptions)
+	assert.Nil(t, err)
+	assert.NotNil(t, consumer)
+	exists := bs.RemoveConsumer(ctx, clientOptions)
+	assert.True(t, exists)
+}
+
+func TestBrokerStore_GetProducer(t *testing.T) {
+	ctx := context.Background()
+	bs, _ := NewBrokerStore("kafka", getValidBrokerConfig())
+	clientOptions := getValidProducerClientOptions()
+	producer, err := bs.GetProducer(ctx, clientOptions)
+	assert.Nil(t, err)
+	assert.NotNil(t, producer)
+}
+
+func TestBrokerStore_RemoveProducer(t *testing.T) {
+	ctx := context.Background()
+	bs, _ := NewBrokerStore("kafka", getValidBrokerConfig())
+	clientOptions := getValidProducerClientOptions()
+	exists := bs.RemoveProducer(ctx, clientOptions)
+	assert.False(t, exists)
+}
+
+func TestBrokerStore_GetAdmin(t *testing.T) {
+	ctx := context.Background()
+	bs, _ := NewBrokerStore("kafka", getValidBrokerConfig())
+	admin, err := bs.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, admin)
+}
+
+func getValidBrokerConfig() *messagebroker.BrokerConfig {
+	return &messagebroker.BrokerConfig{
+		Brokers:             []string{"b1", "b2"},
+		EnableTLS:           false,
+		DebugEnabled:        false,
+		OperationTimeoutMs:  100,
+		ConnectionTimeoutMs: 100,
+	}
+}
+
+func getValidConsumerClientOptions() messagebroker.ConsumerClientOptions {
+	return messagebroker.ConsumerClientOptions{
+		Topics:          []string{"topic", "retry-topic"},
+		Subscription:    "s1",
+		GroupID:         "sub-id",
+		GroupInstanceID: "sub-name",
+	}
+}
+
+func getValidProducerClientOptions() messagebroker.ProducerClientOptions {
+	return messagebroker.ProducerClientOptions{
+		Topic:     "topic",
+		TimeoutMs: 1000,
+	}
 }

@@ -216,6 +216,7 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 	})
 	defer span.Finish()
 	s.subscriberImpl.Acknowledge(ctx, req, s.GetErrorChannel())
+	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name).SetToCurrentTime()
 }
 
 func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
@@ -236,6 +237,7 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 	)
 	defer span.Finish()
 	s.subscriberImpl.ModAckDeadline(ctx, req, s.GetErrorChannel())
+	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name).SetToCurrentTime()
 }
 
 func filterMessages(ctx context.Context, s Implementation, messages []*metrov1.ReceivedMessage, errChan chan error) []*metrov1.ReceivedMessage {

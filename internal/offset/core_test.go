@@ -22,10 +22,29 @@ func TestCore_SetOffset(t *testing.T) {
 	core := NewCore(mockRepo)
 	offset := getDummyOffsetModel()
 	ctx := context.Background()
-	mockRepo.EXPECT().Exists(gomock.Any(), offset.Key())
-	mockRepo.EXPECT().Save(gomock.Any(), offset)
-	err := core.SetOffset(ctx, offset)
-	assert.NoError(t, err)
+
+	tests := []struct {
+		exists bool
+	}{
+		{
+			exists: true,
+		},
+		{
+			exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		mockRepo.EXPECT().Exists(gomock.Any(), offset.Key()).Return(test.exists, nil)
+		mockRepo.EXPECT().Save(gomock.Any(), offset)
+		mockRepo.EXPECT().Get(gomock.Any(), offset.Key(), offset).DoAndReturn(
+			func(arg1 context.Context, arg2 string, arg3 *Model) *Model {
+				arg3.rollbackOffset = 1
+				return arg3
+			}).AnyTimes()
+		err := core.SetOffset(ctx, offset)
+		assert.NoError(t, err)
+	}
 }
 
 func TestCore_SetOffsetStatus(t *testing.T) {
@@ -111,4 +130,21 @@ func TestCore_DeleteOffsetStatus(t *testing.T) {
 	err := core.DeleteOffsetStatus(ctx, oStatus)
 	assert.NoError(t, err)
 	assert.NotNil(t, oStatus)
+}
+
+func TestCore_RollBackOffset(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo)
+	offset := getDummyOffsetModel()
+	ctx := context.Background()
+	mockRepo.EXPECT().Exists(gomock.Any(), offset.Key()).Return(true, nil)
+	mockRepo.EXPECT().Get(gomock.Any(), offset.Key(), offset).DoAndReturn(
+		func(arg1 context.Context, arg2 string, arg3 *Model) *Model {
+			arg3.rollbackOffset = 1
+			return arg3
+		})
+	mockRepo.EXPECT().Save(gomock.Any(), offset)
+	err := core.RollBackOffset(ctx, offset)
+	assert.NoError(t, err)
 }

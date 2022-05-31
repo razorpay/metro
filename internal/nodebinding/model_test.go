@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package nodebinding
@@ -17,7 +18,7 @@ func TestModel_Prefix(t *testing.T) {
 
 func TestModel_Key(t *testing.T) {
 	nodebinding := getDummyNodeBindingModel()
-	assert.Equal(t, nodebinding.Key(), nodebinding.Prefix()+nodebinding.NodeID+"/"+nodebinding.SubscriptionID+"_"+nodebinding.ID[0:4])
+	assert.Equal(t, nodebinding.Key(), nodebinding.Prefix()+nodebinding.NodeID+"/"+nodebinding.SubscriptionID+"_"+"0"+"_"+nodebinding.ID[0:4])
 }
 
 func getDummyNodeBindingModel() *Model {
@@ -25,5 +26,6 @@ func getDummyNodeBindingModel() *Model {
 		ID:             uuid.New().String(),
 		NodeID:         "testID",
 		SubscriptionID: "TestSubID",
+		Partition:      0,
 	}
 }

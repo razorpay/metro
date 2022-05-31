@@ -154,7 +154,7 @@ func TestCore_DeleteNodeBinding(t *testing.T) {
 		mockRepo.EXPECT().Exists(ctx, nodebinding.Key()).Return(tt.exists, nil)
 		mockRepo.EXPECT().Delete(ctx, nodebinding).AnyTimes()
 
-		err = core.DeleteNodeBinding(ctx, nodebinding)
+		err = core.DeleteNodeBinding(ctx, nodebinding.Key(), nodebinding)
 		assert.Equal(t, tt.wantErr, err != nil)
 	}
 }

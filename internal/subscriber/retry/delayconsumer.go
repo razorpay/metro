@@ -5,7 +5,7 @@ import (
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
-	topicName "github.com/razorpay/metro/internal/topic"
+	topic "github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -31,14 +31,14 @@ type DelayConsumer struct {
 }
 
 // NewDelayConsumer inits a new delay-consumer with the pre-defined message handler
-func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, ch cache.ICache, errChan chan error) (*DelayConsumer, error) {
+func NewDelayConsumer(ctx context.Context, subscriberID, topicName string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, ch cache.ICache, errChan chan error) (*DelayConsumer, error) {
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
 	consumerOps := messagebroker.ConsumerClientOptions{
-		Topics:          []string{topic},
-		GroupID:         subs.GetDelayConsumerGroupID(topic),
-		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topic),
+		Topics:          []string{topicName},
+		GroupID:         subs.GetDelayConsumerGroupID(topicName),
+		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topicName),
 	}
 	consumer, err := bs.GetConsumer(ctx, consumerOps)
 	if err != nil {
@@ -47,13 +47,13 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 	}
 
 	// on init, make sure to call resume. This is done just to ensure any previously paused consumers get resumed on boot up.
-	consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: topic})
+	consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: topicName})
 
 	return &DelayConsumer{
 		subscriberID: subscriberID,
 		ctx:          delayCtx,
 		cancelFunc:   cancel,
-		topic:        topic,
+		topic:        topicName,
 		consumer:     consumer,
 		subs:         subs,
 		bs:           bs,
@@ -151,7 +151,7 @@ func (dc *DelayConsumer) processMsgs() {
 		if msg.CanProcessMessage() {
 			if dc.retryExhausted(msg) || (msg.CurrentRetryCount > msg.MaxRetryCount) {
 				// if the source topic is dlq-topic, message will be lost after exhausting max retries.
-				if !topicName.IsDLQTopic(dc.subs.GetTopic()) {
+				if !topic.IsDLQTopic(dc.subs.GetTopic()) {
 					// push to dead-letter topic directly in such cases
 					logger.Ctx(dc.ctx).Infow("delay-consumer: publishing to DLQ topic", dc.LogFields("messageID", msg.MessageID)...)
 					err := dc.pushToDeadLetter(&msg)

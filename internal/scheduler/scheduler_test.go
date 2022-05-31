@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package scheduler
@@ -16,6 +17,7 @@ func TestScheduler_Schedule(t *testing.T) {
 	tests := []struct {
 		algorithm Algorithm
 		nodeID    []string
+		partition int
 	}{
 		{
 			algorithm: Random,
@@ -23,12 +25,14 @@ func TestScheduler_Schedule(t *testing.T) {
 				"node01",
 				"node02",
 			},
+			partition: 0,
 		},
 		{
 			algorithm: LoadBalance,
 			nodeID: []string{
 				"node02",
 			},
+			partition: 1,
 		},
 	}
 
@@ -50,16 +54,16 @@ func TestScheduler_Schedule(t *testing.T) {
 			},
 		}
 
-		nodes := []*node.Model{
-			{
+		nodes := map[string]*node.Model{
+			"node01": {
 				ID: "node01",
 			},
-			{
+			"node02": {
 				ID: "node02",
 			},
 		}
 
-		nb, err := sch.Schedule(sub, nbs, nodes)
+		nb, err := sch.Schedule(sub, test.partition, nbs, nodes)
 		assert.Nil(t, err)
 		assert.NotNil(t, nb)
 		assert.Equal(t, nb.SubscriptionID, "sub2")

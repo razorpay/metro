@@ -13,7 +13,7 @@ import (
 type ICore interface {
 	CreateNodeBinding(ctx context.Context, m *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
-	DeleteNodeBinding(ctx context.Context, m *Model) error
+	DeleteNodeBinding(ctx context.Context, key string, m *Model) error
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 	List(ctx context.Context, prefix string) ([]*Model, error)
 }
@@ -56,7 +56,6 @@ func (c *Core) Exists(ctx context.Context, key string) (bool, error) {
 		nodeBindingOperationTimeTaken.WithLabelValues(env, "Exists").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
-	logger.Ctx(ctx).Infow("exists query on nodebinding", "key", key)
 	ok, err := c.repo.Exists(ctx, key)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error in executing exists", "msg", err.Error())
@@ -102,19 +101,19 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 }
 
 // DeleteNodeBinding deletes a nodebinding and all resources in it
-func (c *Core) DeleteNodeBinding(ctx context.Context, m *Model) error {
+func (c *Core) DeleteNodeBinding(ctx context.Context, key string, m *Model) error {
 	nodeBindingOperationCount.WithLabelValues(env, "DeleteNodeBinding").Inc()
 
 	startTime := time.Now()
 	defer func() {
-		nodeBindingOperationTimeTaken.WithLabelValues(env, "DeleteNodeBinding").Observe(time.Now().Sub(startTime).Seconds())
+		nodeBindingOperationTimeTaken.WithLabelValues(env, "DeleteNodeBinding").Observe(time.Since(startTime).Seconds())
 	}()
 
-	if ok, err := c.Exists(ctx, m.Key()); !ok {
+	if ok, err := c.Exists(ctx, key); !ok {
 		if err != nil {
 			return err
 		}
-		return merror.Newf(merror.NotFound, "nodebinding not found %s", m.Key())
+		return merror.Newf(merror.NotFound, "nodebinding not found %s", key)
 	}
 	return c.repo.Delete(ctx, m)
 }

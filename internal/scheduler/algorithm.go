@@ -31,7 +31,7 @@ var algorithmMap = map[Algorithm]IAlgoImpl{
 // IAlgoImpl defines interface for scheduling algorithm implementations
 type IAlgoImpl interface {
 	// GetNode method returns the selected node for scheduling
-	GetNode(nodebindings []*nodebinding.Model, nodes []*node.Model) (*node.Model, error)
+	GetNode(nodebindings []*nodebinding.Model, nodes map[string]*node.Model) (*node.Model, error)
 }
 
 // GetAlgorithmImpl is a factory method which returns the required impl of the algorithm

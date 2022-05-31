@@ -106,7 +106,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	}
 
 	// this creates the needed delay topics in the broker
-	err = createDelayTopics(ctx, m, c.topicCore)
+	err = createDelayTopics(ctx, m, c.topicCore, topicModel)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
 		return err
@@ -310,7 +310,7 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 }
 
 // createDelayTopics - creates needed delay topics for a subscription
-func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) error {
+func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, topicModel *topic.Model) error {
 	if m == nil || topicCore == nil {
 		return nil
 	}
@@ -318,13 +318,15 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) err
 	for _, delayTopic := range m.GetDelayTopics() {
 
 		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
-			Name: delayTopic,
+			Name:            delayTopic,
+			NumOfPartitions: int32(topicModel.NumPartitions),
 		})
 		if terr != nil {
 			logger.Ctx(ctx).Errorw("failed to create validated topic model", "delayTopic", delayTopic, "error", terr.Error())
 			return terr
 		}
 
+		logger.Ctx(ctx).Infow("topic model ", ":", tModel)
 		err := topicCore.CreateTopic(ctx, tModel)
 		if val, ok := err.(*merror.MError); ok {
 			// in-case users delete and re-create a subscription

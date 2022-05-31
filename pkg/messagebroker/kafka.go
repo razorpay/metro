@@ -54,10 +54,14 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
+	if options.AutoOffsetReset == "" {
+		options.AutoOffsetReset = "latest"
+	}
+
 	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
 		"socket.keepalive.enable": true,
-		"auto.offset.reset":       "latest",
+		"auto.offset.reset":       options.AutoOffsetReset,
 		"enable.auto.commit":      false,
 		"group.id":                options.GroupID,
 		"group.instance.id":       options.GroupInstanceID,

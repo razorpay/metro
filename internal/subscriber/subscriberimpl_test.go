@@ -292,6 +292,7 @@ func getMockConsumerManager(
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)

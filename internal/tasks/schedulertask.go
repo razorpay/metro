@@ -366,6 +366,9 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 		// If not assign missing ones
 		topic, ok := sm.topicCache[sub.Topic]
 		if ok {
+			if topic.NumPartitions == 0 {
+				topic.NumPartitions = 1
+			}
 			for i := 0; i < topic.NumPartitions; i++ {
 				subPart := sub.Name + "_" + strconv.Itoa(i)
 				if _, ok := validBindings[subPart]; !ok {

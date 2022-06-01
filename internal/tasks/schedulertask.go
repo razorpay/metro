@@ -361,6 +361,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 		validBindings[subPart] = nb
 	}
 
+	logger.Ctx(ctx).Infow("schedulertask: fetched valid bindings after removing invalid bindings", "validBindings", validBindings)
 	for _, sub := range sm.subCache {
 		//Fetch topic and see if all partitions are assigned.
 		// If not assign missing ones

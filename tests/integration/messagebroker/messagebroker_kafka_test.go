@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -219,7 +220,7 @@ func getKafkaBrokerConfig() *messagebroker.BrokerConfig {
 }
 
 func Test_ResetAutoOffsetForConsumer(t *testing.T) {
-	topicName := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+	topic := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
 
 	// since auto-create is disable we need to create a topic on kafka via the admin client
 	admin, err := messagebroker.NewAdminClient(context.Background(), "kafka", getKafkaBrokerConfig(), getAdminClientConfig())
@@ -227,7 +228,7 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 	assert.Nil(t, err)
 
 	aresp, err := admin.CreateTopic(context.Background(), messagebroker.CreateTopicRequest{
-		Name:          topicName,
+		Name:          topic,
 		NumPartitions: 1,
 	})
 
@@ -244,8 +245,8 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 	assert.NotNil(t, producer)
 
 	consumer, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
-		Topics:  []string{topic},
-		GroupID: "dummy-group-1",
+		Topics:          []string{topic},
+		GroupID:         "dummy-group-1",
 		AutoOffsetReset: "earliest",
 	})
 	assert.Nil(t, err)
@@ -263,12 +264,12 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 			msg := messagebroker.SendMessageToTopicRequest{
 				Topic:     topic,
 				Message:   msgbytes,
-				TimeoutMs: 300
+				TimeoutMs: 300,
 			}
 
 			// send the message
-			resp, rerr := producer.SendMessage(context.Background(), msg)
-			assert.Nil(t, rerr)
+			resp, err := producer.SendMessage(context.Background(), msg)
+			assert.Nil(t, err)
 			assert.NotNil(t, resp.MessageID)
 
 			// store the message ids received. these will be used in the consume stage to validate
@@ -276,7 +277,7 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 		}
 
 		// first receive without commit
-		resp, err := consumer1.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
+		resp, err := consumer.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
 			NumOfMessages: int32(msgsToSend),
 			TimeoutMs:     300,
 		})
@@ -288,18 +289,18 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 		var receivedMsgIds []string
 
 		var offsetToCommit int32
-	
+
 		for _, msg := range resp.Messages {
 			fmt.Printf("%v", msg.LogFields())
-			offsetToCommit := msg.Offset
+			offsetToCommit = msg.Offset
 			receivedMsgIds = append(receivedMsgIds, msg.MessageID)
 		}
 		assert.Equal(t, msgsToSend, len(resp.Messages))
 
-		_, err := messagebroker.CommitByPartitionAndOffset(context.Background(), messagebroker.CommitOnTopicRequest{
-			Topic: topic,
+		_, err = consumer.CommitByPartitionAndOffset(context.Background(), messagebroker.CommitOnTopicRequest{
+			Topic:     topic,
 			Partition: 0,
-			Offset: offsetToCommit + 1,
+			Offset:    offsetToCommit + 1,
 		})
 		assert.Nil(t, err)
 

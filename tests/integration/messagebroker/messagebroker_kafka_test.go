@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package messagebroker
@@ -214,5 +215,96 @@ func getKafkaBrokerConfig() *messagebroker.BrokerConfig {
 			OffsetReset:      "latest",
 			EnableAutoCommit: false,
 		},
+	}
+}
+
+func Test_ResetAutoOffsetForConsumer(t *testing.T) {
+	topicName := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+
+	// since auto-create is disable we need to create a topic on kafka via the admin client
+	admin, err := messagebroker.NewAdminClient(context.Background(), "kafka", getKafkaBrokerConfig(), getAdminClientConfig())
+	assert.NotNil(t, admin)
+	assert.Nil(t, err)
+
+	aresp, err := admin.CreateTopic(context.Background(), messagebroker.CreateTopicRequest{
+		Name:          topicName,
+		NumPartitions: 1,
+	})
+
+	assert.Nil(t, err)
+	assert.NotNil(t, aresp)
+
+	// init a producer on the topic created
+	producer, err := messagebroker.NewProducerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ProducerClientOptions{
+		Topic:     topic,
+		TimeoutMs: 300,
+	})
+
+	assert.Nil(t, err)
+	assert.NotNil(t, producer)
+
+	consumer, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+		Topics:  []string{topic},
+		GroupID: "dummy-group-1",
+		AutoOffsetReset: "earliest"
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, consumer)
+
+	batches := 2
+	for b := 0; b < batches; b++ {
+		msgsToSend := 2
+		var msgIds []string
+
+		fmt.Printf("\nmsg sent to topic : %v", topic)
+		for i := 0; i < msgsToSend; i++ {
+			newMsg := fmt.Sprintf("msg-%v", i)
+			msgbytes, _ := json.Marshal(newMsg)
+			msg := messagebroker.SendMessageToTopicRequest{
+				Topic:     topic,
+				Message:   msgbytes,
+				TimeoutMs: 300
+			}
+
+			// send the message
+			resp, rerr := producer.SendMessage(context.Background(), msg)
+			assert.Nil(t, rerr)
+			assert.NotNil(t, resp.MessageID)
+
+			// store the message ids received. these will be used in the consume stage to validate
+			msgIds = append(msgIds, resp.MessageID)
+		}
+
+		// first receive without commit
+		resp, err := consumer1.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
+			NumOfMessages: int32(msgsToSend),
+			TimeoutMs:     300,
+		})
+
+		assert.Nil(t, err)
+
+		fmt.Printf("\n\nmsg received from topic : %v", topic)
+
+		var receivedMsgIds []string
+
+		var offsetToCommit int32
+	
+		for _, msg := range resp.Messages {
+			fmt.Printf("%v", msg.LogFields())
+			offsetToCommit := msg.Offset
+			receivedMsgIds = append(receivedMsgIds, msg.MessageID)
+		}
+		assert.Equal(t, msgsToSend, len(resp.Messages))
+
+		_, err := messagebroker.CommitByPartitionAndOffset(context.Background(), messagebroker.CommitOnTopicRequest{
+			Topic: topic,
+			Partition: 0,
+			Offset: offsetToCommit + 1,
+		})
+		assert.Nil(t, err)
+
+		if !reflect.DeepEqual(receivedMsgIds, msgIds) {
+			t.Errorf("Messages got %v, want %v", receivedMsgIds, msgIds)
+		}
 	}
 }

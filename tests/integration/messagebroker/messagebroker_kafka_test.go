@@ -235,7 +235,6 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, aresp)
 
-	// init a producer on the topic created
 	producer, err := messagebroker.NewProducerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ProducerClientOptions{
 		Topic:     topic,
 		TimeoutMs: 300,
@@ -288,20 +287,16 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 
 		var receivedMsgIds []string
 
-		var offsetToCommit int32
-
 		for _, msg := range resp.Messages {
-			fmt.Printf("%v", msg.LogFields())
-			offsetToCommit = msg.Offset
+			fmt.Printf("\n\nreceived msg : %v", msg.LogFields())
 			receivedMsgIds = append(receivedMsgIds, msg.MessageID)
+			_, err = consumer.CommitByPartitionAndOffset(context.Background(), messagebroker.CommitOnTopicRequest{
+				Topic:     msg.Topic,
+				Partition: msg.Partition,
+				Offset:    msg.Offset + 1,
+			})
 		}
 		assert.Equal(t, msgsToSend, len(resp.Messages))
-
-		_, err = consumer.CommitByPartitionAndOffset(context.Background(), messagebroker.CommitOnTopicRequest{
-			Topic:     topic,
-			Partition: 0,
-			Offset:    offsetToCommit + 1,
-		})
 		assert.Nil(t, err)
 
 		if !reflect.DeepEqual(receivedMsgIds, msgIds) {

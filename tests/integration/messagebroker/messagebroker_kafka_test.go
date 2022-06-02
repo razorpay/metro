@@ -245,7 +245,7 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 
 	consumer, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
 		Topics:          []string{topic},
-		GroupID:         "dummy-group-1",
+		GroupID:         topic,
 		AutoOffsetReset: "earliest",
 	})
 	assert.Nil(t, err)

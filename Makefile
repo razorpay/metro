@@ -221,7 +221,7 @@ test-integration-ci: test-unit-prepare
 
 .PHONY: test-integration ## run integration tests locally (metro service needs to be up)
 test-integration: test-unit-prepare
-    @METRO_TEST_HOST=localhost KAFKA_TEST_HOST=localhost go test ./tests/integration/... --count=1 -tags=integration,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g')  -coverprofile=$(TMP_DIR)/$(INTG_COVERAGE_TMP_FILE)
+	@METRO_TEST_HOST=localhost go test --count=1 ./tests/integration/... -tags=integration,musl,dynamic
 
 .PHONY: test-compat-ci ## run compatibility tests on ci (github actions)
 test-compat-ci:

@@ -17,6 +17,7 @@ type Builder interface {
 	WithSubscription(subs *subscription.Model) Builder
 	WithMessageHandler(handler MessageHandler) Builder
 	WithSubscriberID(subscriberID string) Builder
+	WithErrChan(chan error) Builder
 	Build() IRetrier
 }
 
@@ -69,5 +70,11 @@ func (retrier *Retrier) WithMessageHandler(handler MessageHandler) Builder {
 // WithSubscriberID ...
 func (retrier *Retrier) WithSubscriberID(subscriberID string) Builder {
 	retrier.subscriberID = subscriberID
+	return retrier
+}
+
+// WithErrChan ...
+func (retrier *Retrier) WithErrChan(errChan chan error) Builder {
+	retrier.errChan = errChan
 	return retrier
 }

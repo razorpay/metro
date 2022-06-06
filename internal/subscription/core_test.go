@@ -232,9 +232,9 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 			args: args{
 				ctx: ctx,
 				topicModel: topic,
-				partition: 2,
-			}
-			wantErr: false
+				partitions: 2,
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -244,6 +244,7 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 				projectCore: tt.fields.projectCore,
 				topicCore:   tt.fields.topicCore,
 			}
+			mockRepo.EXPECT().List(gomock.Any(), gomock.Any())
 			if err := c.RescaleSubTopics(tt.args.ctx, tt.args.topicModel, tt.args.partitions); (err != nil) != tt.wantErr {
 				t.Errorf("Core.RescaleSubTopics() error = %v, wantErr %v", err, tt.wantErr)
 			}

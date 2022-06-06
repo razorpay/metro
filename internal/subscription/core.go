@@ -352,9 +352,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 	if err != nil {
 		return err
 	}
-	logger.Ctx(ctx).Info("Sublist: ", subList)
-	for index, m := range subList {
-		logger.Ctx(ctx).Info("At Index: ", (index), " | ", m)
+	for _, m := range subList {
 
 		retryModel := &topic.Model{
 			Name:               m.GetRetryTopic(),
@@ -362,9 +360,9 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 			ExtractedProjectID: m.ExtractedTopicProjectID,
 			NumPartitions:      partitions,
 		}
-		err1 := c.topicCore.UpdateTopic(ctx, retryModel)
-		if err1 != nil {
-			logger.Ctx(ctx).Error(err1.Error())
+		retry_topic_error := c.topicCore.UpdateTopic(ctx, retryModel)
+		if retry_topic_error != nil {
+			logger.Ctx(ctx).Errorw("Error in executing Retry Topic Rescaling: ",retry_topic_error.Error())
 		}
 		for _, delayTopic := range m.GetDelayTopics() {
 			delayModel := &topic.Model{
@@ -373,24 +371,21 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 				ExtractedProjectID: m.ExtractedTopicProjectID,
 				NumPartitions:      partitions,
 			}
-			err2 := c.topicCore.UpdateTopic(ctx, delayModel)
-			if err2 != nil {
-				logger.Ctx(ctx).Error(err2.Error())
+			delay_topic_error := c.topicCore.UpdateTopic(ctx, delayModel)
+			if delay_topic_error != nil {
+				logger.Ctx(ctx).Errorw("Error in executing Delay Topic Rescaling: ",delay_topic_error.Error())
 			}
 		}
-		if topicModel.IsDeadLetterTopic() {
-			m.Labels["isDLQSubscription"] = "true"
-		} else {
-			m.Labels["isDLQSubscription"] = "false"
+		if !topicModel.IsDeadLetterTopic() {
 			dlqModel := &topic.Model{
 				Name:               m.GetDeadLetterTopic(),
 				ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
 				ExtractedProjectID: m.ExtractedTopicProjectID,
 				NumPartitions:      partitions,
 			}
-			err3 := c.topicCore.UpdateTopic(ctx, dlqModel)
-			if err3 != nil {
-				logger.Ctx(ctx).Error(err3.Error())
+			dlq_topic_error := c.topicCore.UpdateTopic(ctx, dlqModel)
+			if dlq_topic_error != nil {
+				logger.Ctx(ctx).Errorw("Error in executing DLQ Topic Rescaling: ",dlq_topic_error.Error())
 			}
 		}
 	}

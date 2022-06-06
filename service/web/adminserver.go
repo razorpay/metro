@@ -104,17 +104,6 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 		return nil, merror.ToGRPCError(aerr)
 	}
 
-	existingTopic, eerr := s.topicCore.Get(ctx, m.Name)
-	if eerr != nil {
-		return nil, merror.ToGRPCError(eerr)
-	}
-	if int(req.NumPartitions) != existingTopic.NumPartitions {
-		err := s.subscriptionCore.RescaleSubTopics(ctx, existingTopic, int(req.NumPartitions))
-		if err != nil {
-			return &emptypb.Empty{}, err
-		}
-	}
-
 	// modify topic partitions
 	_, terr := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
 		Name:          req.GetName(),
@@ -128,6 +117,17 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 	m.NumPartitions = int(req.NumPartitions)
 	if uerr := s.topicCore.UpdateTopic(ctx, m); uerr != nil {
 		return nil, merror.ToGRPCError(uerr)
+	}
+
+	existingTopic, err := s.topicCore.Get(ctx, m.Name)
+	if err != nil {
+		return nil, merror.ToGRPCError(eerr)
+	}
+	if int(req.NumPartitions) != existingTopic.NumPartitions {
+		err := s.subscriptionCore.RescaleSubTopics(ctx, existingTopic, int(req.NumPartitions))
+		if err != nil {
+			return &emptypb.Empty{}, err
+		}
 	}
 
 	return &emptypb.Empty{}, nil

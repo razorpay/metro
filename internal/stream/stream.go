@@ -3,11 +3,8 @@ package stream
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
-	"time"
+	"sync/atomic"
 
 	"golang.org/x/sync/errgroup"
 
@@ -20,6 +17,8 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
+var pullBatchSize int = 10
+
 // PushStream provides reads from broker and publishes messages for the push subscription
 type PushStream struct {
 	ctx              context.Context
@@ -29,8 +28,12 @@ type PushStream struct {
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
+	fanoutChan       chan *metrov1.ReceivedMessage
+	statusChan       chan deliveryStatus
 	httpClient       *http.Client
+	processor        *processor
 	doneCh           chan struct{}
+	counter          int64
 	restartChan      chan bool
 	stopChan         chan bool
 }
@@ -75,7 +78,9 @@ func (ps *PushStream) Start() error {
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscription.Name, "error", err.Error())
 		return err
 	}
-
+	logger.Ctx(subscriberCtx).Infow("Setting up processor for delivering messages", "subscripiton", ps.subscription.Name, "subID", ps.subs.GetID())
+	ps.processor = newProcessor(subscriberCtx, pullBatchSize, ps.fanoutChan, ps.statusChan, ps.subs.GetID(), ps.subscription, ps.httpClient)
+	go ps.processor.start()
 	errGrp, gctx := errgroup.WithContext(ps.ctx)
 	errGrp.Go(func() error {
 		// Read from broker and publish to response channel in a go routine
@@ -102,6 +107,14 @@ func (ps *PushStream) Start() error {
 						return err
 					}
 				}
+			case ds := <-ps.statusChan:
+				logger.Ctx(ps.ctx).Infow("worker: Received response form processor for message", "msgId", ds.msg.Message.MessageId)
+				if !ds.status {
+					ps.nack(ps.ctx, ds.msg)
+				} else {
+					ps.ack(ps.ctx, ds.msg)
+				}
+				atomic.AddInt64(&ps.counter, -1)
 			default:
 				ps.processMessages()
 			}
@@ -133,18 +146,20 @@ func (ps *PushStream) processMessages() {
 	})
 	defer span.Finish()
 
-	pullBatchSize := 10
 	if ps.subscription.EnableMessageOrdering {
 		pullBatchSize = 1
 	}
 
 	// Send message pull request to subsriber request channel
 	// logger.Ctx(ctx).Debugw("worker: sending a subscriber pull request", "logFields", ps.getLogFields())
+	if ps.counter >= int64(pullBatchSize) {
+		return
+	}
 	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: int32(pullBatchSize)}).WithContext(ctx)
-
 	// wait for response data from subscriber response channel
 	// logger.Ctx(ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
 	data := <-ps.subs.GetResponseChannel()
+
 	if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
 		logger.Ctx(ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())
 		ps.processPushStreamResponse(ctx, ps.subscription, data)
@@ -195,6 +210,7 @@ func (ps *PushStream) stopSubscriber() {
 		logger.Ctx(ps.ctx).Infow("worker: stopping subscriber", "logFields", ps.getLogFields())
 		ps.subs.Stop()
 	}
+	ps.processor.Shutdown()
 }
 
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
@@ -208,87 +224,13 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 	defer span.Finish()
 
 	for _, message := range data.ReceivedMessages {
+		atomic.AddInt64(&ps.counter, 1)
 		if message.AckId == "" {
 			continue
 		}
-
-		success := ps.pushMessage(ctx, subModel, message)
-		if !success {
-			ps.nack(ctx, message)
-		} else {
-			ps.ack(ctx, message)
-		}
+		logger.Ctx(ctx).Infow("Dispacthing message to processor", "msgId", message.Message.MessageId, "subscription", ps.subscription.Name)
+		ps.fanoutChan <- message
 	}
-}
-
-func (ps *PushStream) pushMessage(ctx context.Context, subModel *subscription.Model, message *metrov1.ReceivedMessage) bool {
-	logger.Ctx(ctx).Infow("worker: publishing response data to subscription endpoint", "logFields", ps.getLogFields())
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.PushMessage", opentracing.Tags{
-		"subscriber":   ps.subs.GetID(),
-		"subscription": ps.subscription.Name,
-		"topic":        ps.subscription.Topic,
-		"message_id":   message.Message.MessageId,
-	})
-	defer span.Finish()
-
-	logFields := ps.getLogFields()
-	logFields["messageId"] = message.Message.MessageId
-	logFields["ackId"] = message.AckId
-
-	startTime := time.Now()
-	pushRequest := newPushEndpointRequest(message, subModel.Name)
-	postData := getRequestBytes(pushRequest)
-	req, err := http.NewRequest(http.MethodPost, subModel.PushConfig.PushEndpoint, postData)
-	req.Header.Set("Content-Type", "application/json")
-	if subModel.HasCredentials() {
-		req.SetBasicAuth(subModel.GetCredentials().GetUsername(), subModel.GetCredentials().GetPassword())
-	}
-
-	if span != nil {
-		opentracing.GlobalTracer().Inject(
-			span.Context(),
-			opentracing.HTTPHeaders,
-			opentracing.HTTPHeadersCarrier(req.Header))
-	}
-
-	logFields["endpoint"] = subModel.PushConfig.PushEndpoint
-	logger.Ctx(ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
-	resp, err := ps.httpClient.Do(req)
-
-	// log metrics
-	workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, ps.subs.GetID()).Inc()
-	workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
-
-	// Process responnse
-	if err != nil {
-		logger.Ctx(ctx).Errorw("worker: error posting messages to subscription url", "logFields", logFields, "error", err.Error())
-		return false
-	}
-
-	logger.Ctx(ps.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
-	workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
-
-	success := false
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		success = true
-	}
-
-	// discard response.Body after usage and ignore errors
-	if !success {
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			logger.Ctx(ps.ctx).Errorw("worker: push was unsuccessful and could not read response body", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
-		} else {
-			logger.Ctx(ps.ctx).Errorw("worker: push was unsuccessful", "status", resp.StatusCode, "body", string(bodyBytes), "logFields", logFields)
-		}
-	}
-	_, err = io.Copy(ioutil.Discard, resp.Body)
-	err = resp.Body.Close()
-	if err != nil {
-		logger.Ctx(ps.ctx).Errorw("worker: push response error on response io close()", "status", resp.StatusCode, "logFields", logFields, "error", err.Error())
-	}
-
-	return success
 }
 
 func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage) {
@@ -402,6 +344,9 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		})
 	}
 
+	doneCh := make(chan struct{})
+	fanoutChan := make(chan *metrov1.ReceivedMessage, pullBatchSize)
+	statusChan := make(chan deliveryStatus)
 	httpclient := httpclient.NewClient(config)
 
 	return &PushStream{
@@ -411,8 +356,11 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		subscription:     subModel,
 		subscriptionCore: subscriptionCore,
 		subscriberCore:   subscriberCore,
-		doneCh:           make(chan struct{}),
+		fanoutChan:       fanoutChan,
+		statusChan:       statusChan,
+		doneCh:           doneCh,
 		httpClient:       httpclient,
+		counter:          0,
 		restartChan:      make(chan bool),
 		stopChan:         make(chan bool),
 	}, nil

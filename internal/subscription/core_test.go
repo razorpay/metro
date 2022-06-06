@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/razorpay/metro/internal/project"
 	pCore "github.com/razorpay/metro/internal/project/mocks/core"
 	repo "github.com/razorpay/metro/internal/subscription/mocks/repo"
 	"github.com/razorpay/metro/internal/topic"
@@ -192,4 +193,60 @@ func getSubModel() Model {
 		Labels:             map[string]string{},
 	}
 	return sub
+}
+
+func TestCore_RescaleSubTopics(t *testing.T) {
+	type fields struct {
+		repo        IRepo
+		projectCore project.ICore
+		topicCore   topic.ICore
+	}
+	type args struct {
+		ctx        context.Context
+		topicModel *topic.Model
+		partitions int
+	}
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	topic := &topic.Model{
+		Name:          "topic",
+		NumPartitions: 2,
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Test1",
+			fields: fields{
+				repo: mockRepo,
+				projectCore: mockProjectCore,
+				topicCore: mockTopicCore,
+			},
+			args: args{
+				ctx: ctx,
+				topicModel: topic,
+				partition: 2,
+			}
+			wantErr: false
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Core{
+				repo:        tt.fields.repo,
+				projectCore: tt.fields.projectCore,
+				topicCore:   tt.fields.topicCore,
+			}
+			if err := c.RescaleSubTopics(tt.args.ctx, tt.args.topicModel, tt.args.partitions); (err != nil) != tt.wantErr {
+				t.Errorf("Core.RescaleSubTopics() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

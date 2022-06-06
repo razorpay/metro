@@ -119,7 +119,7 @@ build-info:
 
 .PHONY: go-build-metro ## Build the binary file for API server
 go-build-metro:
-	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
+	@CGO_ENABLED=1 GOOS=$(UNAME_OS) GOARCH=$(UNAME_ARCH) go build -tags musl,dynamic -v -o $(METRO_OUT) $(METRO_MAIN_FILE)
 
 .PHONY: clean ## Remove mocks, previous builds, protobuf files, and proto compiled code
 clean: mock-gen-clean proto-clean

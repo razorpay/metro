@@ -2,8 +2,8 @@ package subscription
 
 import (
 	"context"
-	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -348,12 +348,13 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, top
 
 // Get all the subs and rescale all the Retry/Delay/DLQ topics
 func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, partitions int) error {
-	subList, err := c.List(ctx, common.GetBasePrefix()+Prefix+topicModel.ExtractedProjectID)
+	subList, err := c.List(ctx, Prefix+topicModel.ExtractedProjectID)
 	if err != nil {
 		return err
 	}
+	logger.Ctx(ctx).Info("Sublist: ", subList)
 	for index, m := range subList {
-		fmt.Print("At Index: ", (index), " | ", m)
+		logger.Ctx(ctx).Info("At Index: ", (index), " | ", m)
 
 		retryModel := &topic.Model{
 			Name:               m.GetRetryTopic(),
@@ -363,21 +364,20 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 		}
 		err1 := c.topicCore.UpdateTopic(ctx, retryModel)
 		if err1 != nil {
-			return err1
+			logger.Ctx(ctx).Error(err1.Error())
 		}
 		for _, delayTopic := range m.GetDelayTopics() {
 			delayModel := &topic.Model{
 				Name:               delayTopic,
-				ExtractedTopicName: m.ExtractedTopicName,
+				ExtractedTopicName: strings.Split(delayTopic, "/")[3],
 				ExtractedProjectID: m.ExtractedTopicProjectID,
 				NumPartitions:      partitions,
 			}
 			err2 := c.topicCore.UpdateTopic(ctx, delayModel)
 			if err2 != nil {
-				return err2
+				logger.Ctx(ctx).Error(err2.Error())
 			}
 		}
-
 		if topicModel.IsDeadLetterTopic() {
 			m.Labels["isDLQSubscription"] = "true"
 		} else {
@@ -390,7 +390,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 			}
 			err3 := c.topicCore.UpdateTopic(ctx, dlqModel)
 			if err3 != nil {
-				return err3
+				logger.Ctx(ctx).Error(err3.Error())
 			}
 		}
 	}

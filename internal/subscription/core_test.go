@@ -223,7 +223,7 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Test1",
+			name: "Rescale without errors",
 			fields: fields{
 				repo: mockRepo,
 				projectCore: mockProjectCore,

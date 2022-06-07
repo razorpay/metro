@@ -361,7 +361,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 		}
 		retryTopicError := c.topicCore.UpdateTopic(ctx, retryModel)
 		if retryTopicError != nil {
-			logger.Ctx(ctx).Errorw("Error in executing Retry Topic Rescaling: ",retryTopicError.Error())
+			logger.Ctx(ctx).Error("Error in executing Retry Topic Rescaling: ",retryTopicError.Error())
 		}
 		for _, delayTopic := range m.GetDelayTopics() {
 			delayModel := &topic.Model{
@@ -372,7 +372,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 			}
 			delayTopicError := c.topicCore.UpdateTopic(ctx, delayModel)
 			if delayTopicError != nil {
-				logger.Ctx(ctx).Errorw("Error in executing Delay Topic Rescaling: ",delayTopicError.Error())
+				logger.Ctx(ctx).Error("Error in executing Delay Topic Rescaling: ",delayTopicError.Error())
 			}
 		}
 		if !topicModel.IsDeadLetterTopic() {
@@ -384,7 +384,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 			}
 			dlqTopicError := c.topicCore.UpdateTopic(ctx, dlqModel)
 			if dlqTopicError != nil {
-				logger.Ctx(ctx).Errorw("Error in executing DLQ Topic Rescaling: ",dlqTopicError.Error())
+				logger.Ctx(ctx).Error("Error in executing DLQ Topic Rescaling: ",dlqTopicError.Error())
 			}
 		}
 	}

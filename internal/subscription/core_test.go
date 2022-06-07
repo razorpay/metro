@@ -13,6 +13,7 @@ import (
 	"github.com/razorpay/metro/internal/topic"
 	tCore "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/stretchr/testify/assert"
+	"github.com/razorpay/metro/internal/common"
 )
 
 func TestSubscriptionCore_CreateSubscription(t *testing.T) {

@@ -3,7 +3,6 @@ package subscription
 import (
 	"context"
 	"strconv"
-	"strings"
 	"time"
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -367,7 +366,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 		for _, delayTopic := range m.GetDelayTopics() {
 			delayModel := &topic.Model{
 				Name:               delayTopic,
-				ExtractedTopicName: strings.Split(delayTopic, "/")[3],
+				ExtractedTopicName: topic.GetTopicNameOnly(delayTopic),
 				ExtractedProjectID: m.ExtractedTopicProjectID,
 				NumPartitions:      partitions,
 			}

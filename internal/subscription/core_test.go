@@ -211,9 +211,13 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 	mockProjectCore := pCore.NewMockICore(ctrl)
 	mockTopicCore := tCore.NewMockICore(ctrl)
 	mockRepo := repo.NewMockIRepo(ctrl)
+	sub := getSubModel()
+
 	topic := &topic.Model{
-		Name:          "topic",
-		NumPartitions: 2,
+		Name:               sub.GetSubscriptionTopic(),
+		ExtractedTopicName: sub.ExtractedSubscriptionName,
+		ExtractedProjectID: sub.ExtractedTopicProjectID,
+		NumPartitions:      1,
 	}
 
 	tests := []struct {
@@ -244,7 +248,11 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 				projectCore: tt.fields.projectCore,
 				topicCore:   tt.fields.topicCore,
 			}
-			mockRepo.EXPECT().List(gomock.Any(), gomock.Any())
+			expectedList := []common.IModel{
+				&sub,
+			}
+			mockRepo.EXPECT().List(gomock.Any(), gomock.Any()).Return(expectedList,nil)
+			mockTopicCore.EXPECT().UpdateTopic(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			if err := c.RescaleSubTopics(tt.args.ctx, tt.args.topicModel, tt.args.partitions); (err != nil) != tt.wantErr {
 				t.Errorf("Core.RescaleSubTopics() error = %v, wantErr %v", err, tt.wantErr)
 			}

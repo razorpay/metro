@@ -19,3 +19,8 @@ func GetTopicName(projectID string, name string) string {
 func IsDLQTopic(topicName string) bool {
 	return strings.HasSuffix(topicName, DeadLetterTopicSuffix)
 }
+
+// GetTopicNameOnly from the complete Topic Name
+func GetTopicNameOnly(topicName string) string {
+	return strings.Split(topicName, "/")[3]
+}

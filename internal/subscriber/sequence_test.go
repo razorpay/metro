@@ -183,7 +183,7 @@ func getMockSequenceManager(ctx context.Context, mockRepo offset.IRepo) Ordering
 
 func getMockSubModel() *subscription.Model {
 	return &subscription.Model{
-		Topic: topic,
+		Topic: topicName,
 		Name:  subName,
 	}
 }
@@ -210,7 +210,7 @@ func Test_offsetSequenceManager_GetOrderedSequenceNum(t *testing.T) {
 
 func getDummyReceivedMessage() messagebroker.ReceivedMessage {
 	return messagebroker.ReceivedMessage{
-		Topic:       topic,
+		Topic:       topicName,
 		Partition:   partition,
 		Offset:      2,
 		OrderingKey: orderingKey,
@@ -219,7 +219,7 @@ func getDummyReceivedMessage() messagebroker.ReceivedMessage {
 
 func getDummyOffsetModel() *offset.Model {
 	return &offset.Model{
-		Topic:        topic,
+		Topic:        topicName,
 		Subscription: subName,
 		Partition:    partition,
 		OrderingKey:  orderingKey,

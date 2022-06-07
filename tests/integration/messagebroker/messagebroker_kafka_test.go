@@ -243,20 +243,11 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, producer)
 
-	consumer, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
-		Topics:          []string{topic},
-		GroupID:         topic,
-		AutoOffsetReset: "earliest",
-	})
-	assert.Nil(t, err)
-	assert.NotNil(t, consumer)
-
 	batches := 2
 	for b := 0; b < batches; b++ {
 		msgsToSend := 2
 		var msgIds []string
 
-		fmt.Printf("\nmsg sent to topic : %v", topic)
 		for i := 0; i < msgsToSend; i++ {
 			newMsg := fmt.Sprintf("msg-%v", i)
 			msgbytes, _ := json.Marshal(newMsg)
@@ -275,12 +266,18 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 			msgIds = append(msgIds, resp.MessageID)
 		}
 
-		// first receive without commit
+		consumer, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+			Topics:          []string{topic},
+			GroupID:         topic,
+			AutoOffsetReset: "earliest",
+		})
+		assert.Nil(t, err)
+		assert.NotNil(t, consumer)
+
 		resp, err := consumer.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
 			NumOfMessages: int32(msgsToSend),
 			TimeoutMs:     300,
 		})
-
 		assert.Nil(t, err)
 
 		fmt.Printf("\n\nmsg received from topic : %v", topic)
@@ -302,5 +299,6 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 		if !reflect.DeepEqual(receivedMsgIds, msgIds) {
 			t.Errorf("Messages got %v, want %v", receivedMsgIds, msgIds)
 		}
+		consumer.Close(context.Background())
 	}
 }

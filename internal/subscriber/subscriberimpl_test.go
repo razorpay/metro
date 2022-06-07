@@ -25,7 +25,7 @@ var tickerTimeout = 2 * time.Second
 const (
 	subID      string = "subscriber-id"
 	subName    string = "subscription-name"
-	topic      string = "primary-topic"
+	topicName  string = "primary-topic"
 	retryTopic string = "retry-topic"
 	partition  int32  = 0
 )
@@ -135,7 +135,7 @@ func TestBasicImplementation_Acknowledge(t *testing.T) {
 		data, _ := proto.Marshal(&metrov1.PubsubMessage{Data: []byte(input.message)})
 		msgProto := messagebroker.ReceivedMessage{
 			Data:      data,
-			Topic:     topic,
+			Topic:     topicName,
 			Partition: partition,
 			Offset:    input.offset,
 		}
@@ -156,7 +156,7 @@ func TestBasicImplementation_Acknowledge(t *testing.T) {
 
 	select {
 	case resp := <-responseChan:
-		tp := NewTopicPartition(topic, partition)
+		tp := NewTopicPartition(topicName, partition)
 		assert.Equal(t, len(testInputs), len(resp.ReceivedMessages))
 		for index, msg := range resp.ReceivedMessages {
 			ackMsg, _ := ParseAckID(msg.AckId)
@@ -196,7 +196,7 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 		data, _ := proto.Marshal(&metrov1.PubsubMessage{Data: []byte(input.message)})
 		msgProto := messagebroker.ReceivedMessage{
 			Data:      data,
-			Topic:     topic,
+			Topic:     topicName,
 			Partition: partition,
 		}
 		msgProto.MessageID = input.messageID
@@ -232,7 +232,7 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 		return
 	}
 
-	tp := NewTopicPartition(topic, partition)
+	tp := NewTopicPartition(topicName, partition)
 	<-time.NewTimer(tickerTimeout).C
 	subscriber.cancelFunc()
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
@@ -242,7 +242,7 @@ func getMockSubscriber(ctx context.Context, subImpl *BasicImplementation) *Subsc
 	_, cancelFunc := context.WithCancel(ctx)
 	return &Subscriber{
 		subscription:   subImpl.GetSubscription(),
-		topic:          topic,
+		topic:          topicName,
 		subscriberID:   subID,
 		requestChan:    make(chan *PullRequest, 10),
 		responseChan:   make(chan *metrov1.PullResponse, 10),
@@ -267,14 +267,14 @@ func getMockBasicImplementation(ctx context.Context, consumer IConsumer, ctrl *g
 	return &BasicImplementation{
 		maxOutstandingMessages: 1,
 		maxOutstandingBytes:    100,
-		topic:                  topic,
+		topic:                  topicName,
 		ctx:                    ctx,
 		consumedMessageStats:   make(map[TopicPartition]*ConsumptionMetadata),
 		subscriberID:           subID,
 		consumer:               consumer,
 		subscription: &subscription.Model{
 			Name:  subName,
-			Topic: topic,
+			Topic: topicName,
 		},
 		offsetCore: offsetCore,
 	}
@@ -289,20 +289,20 @@ func getMockConsumerManager(
 	bs.EXPECT().GetConsumer(
 		ctx,
 		messagebroker.ConsumerClientOptions{
-			Topics:          []string{topic, retryTopic},
+			Topics:          []string{topicName, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
 			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
-	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
+	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topicName, retryTopic)
 	return consumer
 }
 
 func getMockConsumer(ctx context.Context, ctrl *gomock.Controller) *mockMB.MockConsumer {
 	cs := mockMB.NewMockConsumer(ctrl)
 	req := messagebroker.GetTopicMetadataRequest{
-		Topic:     topic,
+		Topic:     topicName,
 		Partition: partition,
 	}
 	cs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil).AnyTimes()
@@ -320,7 +320,7 @@ func getMockReceivedMessages(input []string) []messagebroker.ReceivedMessage {
 		data, _ := proto.Marshal(pubSub)
 		msgProto := messagebroker.ReceivedMessage{
 			Data:      data,
-			Topic:     topic,
+			Topic:     topicName,
 			Partition: partition,
 			Offset:    int32(index),
 		}

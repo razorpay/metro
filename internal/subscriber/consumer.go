@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/razorpay/metro/internal/brokerstore"
-	tp "github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
@@ -49,7 +49,7 @@ type consumerManager struct {
 func NewConsumerManager(ctx context.Context, bs brokerstore.IBrokerStore, brokerTimeout int, subscriberID string, subscriptionName,
 	topicName, retryTopicName string) (IConsumer, error) {
 	autoOffsetReset := "latest"
-	if tp.IsDLQTopic(topicName) {
+	if topic.IsDLQTopic(topicName) {
 		autoOffsetReset = "earliest"
 	}
 	consumer, err := bs.GetConsumer(

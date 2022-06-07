@@ -60,7 +60,7 @@ func TestOrderedImplementation_Acknowledge(t *testing.T) {
 	subImpl.Pull(ctx, pullRequest, responseChan, errChan)
 	select {
 	case resp := <-responseChan:
-		tp := NewTopicPartition(topic, partition)
+		tp := NewTopicPartition(topicName, partition)
 		for _, msg := range resp.ReceivedMessages {
 			ackMsg, _ := ParseAckID(msg.AckId)
 			subImpl.Acknowledge(ctx, ackMsg, errChan)
@@ -94,7 +94,7 @@ func TestOrderedImplementation_ModAckDeadline(t *testing.T) {
 		assert.FailNow(t, "Test case timed out")
 		return
 	}
-	tp := NewTopicPartition(topic, partition)
+	tp := NewTopicPartition(topicName, partition)
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
 }
 
@@ -108,14 +108,14 @@ func getMockOrderedImplementation(
 	return &OrderedImplementation{
 		maxOutstandingMessages: 1,
 		maxOutstandingBytes:    100,
-		topic:                  topic,
+		topic:                  topicName,
 		subscriberID:           subID,
 		consumer:               consumer,
 		offsetCore:             offsetCore,
 		ctx:                    ctx,
 		subscription: &subscription.Model{
 			Name:  subName,
-			Topic: topic,
+			Topic: topicName,
 			DeadLetterPolicy: &subscription.DeadLetterPolicy{
 				MaxDeliveryAttempts: 3,
 			},
@@ -131,7 +131,7 @@ func getDummyOrderedReceivedMessage() []messagebroker.ReceivedMessage {
 	data, _ := proto.Marshal(pubSub)
 	msgProto := messagebroker.ReceivedMessage{
 		Data:        data,
-		Topic:       topic,
+		Topic:       topicName,
 		Partition:   partition,
 		Offset:      mockOffset,
 		OrderingKey: orderingKey,

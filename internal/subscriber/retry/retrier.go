@@ -34,6 +34,7 @@ type Retrier struct {
 	finder         IntervalFinder
 	handler        MessageHandler
 	delayConsumers sync.Map
+	errChan        chan error
 }
 
 // Start starts a new retrier which internally takes care of spawning the needed delay-consumers.
@@ -56,7 +57,7 @@ func (r *Retrier) Start(ctx context.Context) error {
 	})
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
 		if uint(interval) <= uint(predefinedInterval) {
-			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch)
+			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch, r.errChan)
 			if err != nil {
 				return err
 			}

@@ -15,6 +15,7 @@ var (
 	workerPushEndpointTimeTaken      *prometheus.HistogramVec
 	workerSubscriberErrors           *prometheus.CounterVec
 	workerPushEndpointCallsCount     *prometheus.CounterVec
+	workerComponentRestartCount      *prometheus.CounterVec
 )
 
 func init() {
@@ -45,4 +46,8 @@ func init() {
 	workerPushEndpointCallsCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_worker_push_endpoint_http_calls",
 	}, []string{"env", "topic", "subscription", "endpoint", "subscriberId"})
+
+	workerComponentRestartCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_worker_component_restart_count",
+	}, []string{"env", "component", "topic", "subscription"})
 }

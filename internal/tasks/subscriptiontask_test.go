@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package tasks
@@ -191,7 +192,7 @@ func TestSubscriptionTask_handleNodeBindingUpdates(t *testing.T) {
 		gomock.Any(),
 		gomock.Any(),
 		gomock.Any(),
-		gomock.Any()).Return(subscriberMock, nil)
+		gomock.Any()).Return(subscriberMock, nil).AnyTimes()
 
 	// mock subscriber
 	reqCh := make(chan *subscriber.PullRequest)
@@ -202,7 +203,7 @@ func TestSubscriptionTask_handleNodeBindingUpdates(t *testing.T) {
 	subscriberMock.EXPECT().GetResponseChannel().Return(resCh).AnyTimes()
 	subscriberMock.EXPECT().Stop().Do(func() {
 		close(resCh)
-	})
+	}).AnyTimes()
 
 	doneCh := make(chan struct{})
 

@@ -23,7 +23,7 @@ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
         description: "protobuf definitions for metro"
     }
     schemes: HTTPS
-    host: "https://metro-web.razorpay.com"
+    host: "metro-web.razorpay.com"
     security_definitions: {
         security: {
             key: "basicAuth"

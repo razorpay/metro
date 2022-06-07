@@ -360,9 +360,9 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 			ExtractedProjectID: m.ExtractedTopicProjectID,
 			NumPartitions:      partitions,
 		}
-		retry_topic_error := c.topicCore.UpdateTopic(ctx, retryModel)
-		if retry_topic_error != nil {
-			logger.Ctx(ctx).Errorw("Error in executing Retry Topic Rescaling: ",retry_topic_error.Error())
+		retryTopicError := c.topicCore.UpdateTopic(ctx, retryModel)
+		if retryTopicError != nil {
+			logger.Ctx(ctx).Errorw("Error in executing Retry Topic Rescaling: ",retryTopicError.Error())
 		}
 		for _, delayTopic := range m.GetDelayTopics() {
 			delayModel := &topic.Model{
@@ -371,9 +371,9 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 				ExtractedProjectID: m.ExtractedTopicProjectID,
 				NumPartitions:      partitions,
 			}
-			delay_topic_error := c.topicCore.UpdateTopic(ctx, delayModel)
-			if delay_topic_error != nil {
-				logger.Ctx(ctx).Errorw("Error in executing Delay Topic Rescaling: ",delay_topic_error.Error())
+			delayTopicError := c.topicCore.UpdateTopic(ctx, delayModel)
+			if delayTopicError != nil {
+				logger.Ctx(ctx).Errorw("Error in executing Delay Topic Rescaling: ",delayTopicError.Error())
 			}
 		}
 		if !topicModel.IsDeadLetterTopic() {
@@ -383,9 +383,9 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 				ExtractedProjectID: m.ExtractedTopicProjectID,
 				NumPartitions:      partitions,
 			}
-			dlq_topic_error := c.topicCore.UpdateTopic(ctx, dlqModel)
-			if dlq_topic_error != nil {
-				logger.Ctx(ctx).Errorw("Error in executing DLQ Topic Rescaling: ",dlq_topic_error.Error())
+			dlqTopicError := c.topicCore.UpdateTopic(ctx, dlqModel)
+			if dlqTopicError != nil {
+				logger.Ctx(ctx).Errorw("Error in executing DLQ Topic Rescaling: ",dlqTopicError.Error())
 			}
 		}
 	}

@@ -351,6 +351,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 	if err != nil {
 		return err
 	}
+
 	for _, m := range subList {
 
 		retryModel := &topic.Model{
@@ -363,6 +364,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 		if retryTopicError != nil {
 			logger.Ctx(ctx).Error("Error in executing Retry Topic Rescaling: ",retryTopicError.Error())
 		}
+
 		for _, delayTopic := range m.GetDelayTopics() {
 			delayModel := &topic.Model{
 				Name:               delayTopic,
@@ -375,6 +377,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 				logger.Ctx(ctx).Error("Error in executing Delay Topic Rescaling: ",delayTopicError.Error())
 			}
 		}
+
 		if !topicModel.IsDeadLetterTopic() {
 			dlqModel := &topic.Model{
 				Name:               m.GetDeadLetterTopic(),

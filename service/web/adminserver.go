@@ -103,7 +103,7 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 	if aerr != nil {
 		return nil, merror.ToGRPCError(aerr)
 	}
-	
+
 	existingTopic, err := s.topicCore.Get(ctx, m.Name)
 	if err != nil {
 		return nil, merror.ToGRPCError(eerr)

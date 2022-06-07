@@ -103,6 +103,11 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 	if aerr != nil {
 		return nil, merror.ToGRPCError(aerr)
 	}
+	
+	existingTopic, err := s.topicCore.Get(ctx, m.Name)
+	if err != nil {
+		return nil, merror.ToGRPCError(eerr)
+	}
 
 	// modify topic partitions
 	_, terr := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
@@ -119,10 +124,6 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 		return nil, merror.ToGRPCError(uerr)
 	}
 
-	existingTopic, err := s.topicCore.Get(ctx, m.Name)
-	if err != nil {
-		return nil, merror.ToGRPCError(eerr)
-	}
 	if int(req.NumPartitions) != existingTopic.NumPartitions {
 		err := s.subscriptionCore.RescaleSubTopics(ctx, existingTopic, int(req.NumPartitions))
 		if err != nil {

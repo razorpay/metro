@@ -104,18 +104,21 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 		return nil, merror.ToGRPCError(aerr)
 	}
 
+	// Fetch existing topic before updating
 	existingTopic, err := s.topicCore.Get(ctx, m.Name)
 	if err != nil {
 		return nil, merror.ToGRPCError(eerr)
 	}
 
-	// modify topic partitions
-	_, terr := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
-		Name:          req.GetName(),
-		NumPartitions: m.NumPartitions,
-	})
-	if terr != nil {
-		return nil, merror.ToGRPCError(terr)
+	if int(req.NumPartitions) != existingTopic.NumPartitions {
+		// modify topic partitions
+		_, terr := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+			Name:          req.GetName(),
+			NumPartitions: m.NumPartitions,
+		})
+		if terr != nil {
+			return nil, merror.ToGRPCError(terr)
+		}
 	}
 
 	// finally update topic with the updated partition count
@@ -124,6 +127,7 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 		return nil, merror.ToGRPCError(uerr)
 	}
 
+	// Fetch Updated Topic
 	updatedTopic, err := s.topicCore.Get(ctx, m.Name)
 	if err != nil {
 		return nil, merror.ToGRPCError(eerr)

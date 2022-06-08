@@ -345,7 +345,7 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, top
 	return nil
 }
 
-// Get all the subs and rescale all the Retry/Delay/DLQ topics
+// RescaleSubTopics - Get all the subs and rescale all the Retry/Delay/DLQ topics
 func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, partitions int) error {
 	subList, err := c.List(ctx, Prefix+topicModel.ExtractedProjectID)
 	if err != nil {

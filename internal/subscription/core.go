@@ -398,7 +398,11 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 			}
 			dlqTopicError := c.topicCore.UpdateTopic(ctx, dlqModel)
 			if dlqTopicError != nil {
-				logger.Ctx(ctx).Error("Error in executing DLQ Topic Rescaling: ", dlqTopicError.Error(), "| TopicName: ", dlqModel.Name)
+				logger.Ctx(ctx).Error(
+					"Error in executing DLQ Topic Rescaling: ", 
+					dlqTopicError.Error(), 
+					"| TopicName: ", 
+					dlqModel.Name)
 			}
 		}
 	}

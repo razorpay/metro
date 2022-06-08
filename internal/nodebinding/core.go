@@ -29,6 +29,7 @@ func NewCore(repo IRepo) ICore {
 	return &Core{repo}
 }
 
+// TriggerNodeBindingRefresh enables devs to refresh nodebindings manually
 func (c *Core) TriggerNodeBindingRefresh(ctx context.Context) error {
 	var err error
 	startTime := time.Now()

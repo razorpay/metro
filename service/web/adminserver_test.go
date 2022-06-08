@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package web
@@ -14,6 +15,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	mocks4 "github.com/razorpay/metro/internal/credentials/mocks/core"
+	mocksnb "github.com/razorpay/metro/internal/nodebinding/mocks/core"
 	"github.com/razorpay/metro/internal/project"
 	mocks "github.com/razorpay/metro/internal/project/mocks/core"
 	mocks2 "github.com/razorpay/metro/internal/subscription/mocks/core"
@@ -28,6 +30,7 @@ func TestAdminServer_CreateProject(t *testing.T) {
 	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
 	mockTopicCore := mocks3.NewMockICore(ctrl)
 	mockCredentialsCore := mocks4.NewMockICore(ctrl)
+	mocknodeBindingCore := mocksnb.NewMockICore(ctrl)
 
 	projectProto := &metrov1.Project{
 		Name:      "test-project",
@@ -40,7 +43,7 @@ func TestAdminServer_CreateProject(t *testing.T) {
 		Password: "p",
 	}
 
-	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, nil)
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, mocknodeBindingCore, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForCreate(ctx, projectProto)
 	assert.Nil(t, err)
@@ -56,6 +59,7 @@ func TestAdminServer_CreateProjectValidationFailure(t *testing.T) {
 	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
 	mockTopicCOre := mocks3.NewMockICore(ctrl)
 	mockCredentialsCore := mocks4.NewMockICore(ctrl)
+	mocknodeBindingCore := mocksnb.NewMockICore(ctrl)
 
 	projectProto := &metrov1.Project{
 		Name:      "test-project",
@@ -68,7 +72,7 @@ func TestAdminServer_CreateProjectValidationFailure(t *testing.T) {
 		Password: "p",
 	}
 
-	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCOre, mockCredentialsCore, nil)
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCOre, mockCredentialsCore, mocknodeBindingCore, nil)
 	ctx := context.Background()
 	p, err := adminServer.CreateProject(ctx, projectProto)
 	assert.Nil(t, p)
@@ -81,6 +85,7 @@ func TestAdminServer_CreateProjectFailure(t *testing.T) {
 	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
 	mockTopicCOre := mocks3.NewMockICore(ctrl)
 	mockCredentialsCore := mocks4.NewMockICore(ctrl)
+	mocknodeBindingCore := mocksnb.NewMockICore(ctrl)
 
 	projectProto := &metrov1.Project{
 		Name:      "test-project",
@@ -93,7 +98,7 @@ func TestAdminServer_CreateProjectFailure(t *testing.T) {
 		Password: "p",
 	}
 
-	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCOre, mockCredentialsCore, nil)
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCOre, mockCredentialsCore, mocknodeBindingCore, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForCreate(ctx, projectProto)
 	assert.Nil(t, err)
@@ -109,7 +114,7 @@ func TestAdminServer_DeleteProject(t *testing.T) {
 	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
 	mockTopicCore := mocks3.NewMockICore(ctrl)
 	mockCredentialsCore := mocks4.NewMockICore(ctrl)
-
+	mocknodeBindingCore := mocksnb.NewMockICore(ctrl)
 	projectProto := &metrov1.Project{
 		ProjectId: "test-project-id",
 	}
@@ -119,7 +124,7 @@ func TestAdminServer_DeleteProject(t *testing.T) {
 		Password: "p",
 	}
 
-	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, nil)
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, mocknodeBindingCore, nil)
 	ctx := context.Background()
 	projectModel, err := project.GetValidatedModelForDelete(ctx, projectProto)
 	assert.Nil(t, err)
@@ -138,7 +143,7 @@ func TestAdminServer_DeleteProjectValidationFailure(t *testing.T) {
 	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
 	mockTopicCore := mocks3.NewMockICore(ctrl)
 	mockCredentialsCore := mocks4.NewMockICore(ctrl)
-
+	mocknodeBindingCore := mocksnb.NewMockICore(ctrl)
 	projectProto := &metrov1.Project{
 		ProjectId: "",
 	}
@@ -147,7 +152,7 @@ func TestAdminServer_DeleteProjectValidationFailure(t *testing.T) {
 		Username: "u",
 		Password: "p",
 	}
-	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, nil)
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, mocknodeBindingCore, nil)
 	ctx := context.Background()
 
 	p, err := adminServer.DeleteProject(ctx, projectProto)
@@ -161,7 +166,7 @@ func TestAdminServer_GetProjectCredentials(t *testing.T) {
 	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
 	mockTopicCore := mocks3.NewMockICore(ctrl)
 	mockCredentialsCore := mocks4.NewMockICore(ctrl)
-
+	mocknodeBindingCore := mocksnb.NewMockICore(ctrl)
 	projectCredProto := &metrov1.ProjectCredentials{
 		ProjectId: "test-project",
 		Username:  "test-project__00f790",
@@ -187,7 +192,7 @@ func TestAdminServer_GetProjectCredentials(t *testing.T) {
 		Password:  "password",
 	}
 
-	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, nil)
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, mocknodeBindingCore, nil)
 	ctx := context.Background()
 
 	mockCredentialsCore.EXPECT().
@@ -204,7 +209,7 @@ func TestAdminServer_ListProjectCredentials(t *testing.T) {
 	mockSubscriptionCore := mocks2.NewMockICore(ctrl)
 	mockTopicCore := mocks3.NewMockICore(ctrl)
 	mockCredentialsCore := mocks4.NewMockICore(ctrl)
-
+	mocknodeBindingCore := mocksnb.NewMockICore(ctrl)
 	projectCredProto := &metrov1.ProjectCredentials{
 		ProjectId: "test-project",
 		Username:  "test-project__00f790",
@@ -232,7 +237,7 @@ func TestAdminServer_ListProjectCredentials(t *testing.T) {
 		}},
 	}
 
-	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, nil)
+	adminServer := newAdminServer(admin, mockProjectCore, mockSubscriptionCore, mockTopicCore, mockCredentialsCore, mocknodeBindingCore, nil)
 	ctx := context.Background()
 
 	mockCredentialsCore.EXPECT().

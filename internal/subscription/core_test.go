@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/project"
 	pCore "github.com/razorpay/metro/internal/project/mocks/core"
 	repo "github.com/razorpay/metro/internal/subscription/mocks/repo"
 	"github.com/razorpay/metro/internal/topic"
 	tCore "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/stretchr/testify/assert"
-	"github.com/razorpay/metro/internal/common"
 )
 
 func TestSubscriptionCore_CreateSubscription(t *testing.T) {
@@ -230,12 +230,12 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 		{
 			name: "Rescale without errors",
 			fields: fields{
-				repo: mockRepo,
+				repo:        mockRepo,
 				projectCore: mockProjectCore,
-				topicCore: mockTopicCore,
+				topicCore:   mockTopicCore,
 			},
 			args: args{
-				ctx: ctx,
+				ctx:        ctx,
 				topicModel: topic,
 				partitions: 2,
 			},
@@ -252,7 +252,7 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 			expectedList := []common.IModel{
 				&sub,
 			}
-			mockRepo.EXPECT().List(gomock.Any(), gomock.Any()).Return(expectedList,nil)
+			mockRepo.EXPECT().List(gomock.Any(), gomock.Any()).Return(expectedList, nil)
 			mockTopicCore.EXPECT().UpdateTopic(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			if err := c.RescaleSubTopics(tt.args.ctx, tt.args.topicModel, tt.args.partitions); (err != nil) != tt.wantErr {
 				t.Errorf("Core.RescaleSubTopics() error = %v, wantErr %v", err, tt.wantErr)

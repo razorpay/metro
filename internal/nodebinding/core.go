@@ -16,6 +16,7 @@ type ICore interface {
 	DeleteNodeBinding(ctx context.Context, key string, m *Model) error
 	ListKeys(ctx context.Context, prefix string) ([]string, error)
 	List(ctx context.Context, prefix string) ([]*Model, error)
+	TriggerNodeBindingRefresh(ctx context.Context) error
 }
 
 // Core implements all business logic for nodebinding
@@ -26,6 +27,24 @@ type Core struct {
 // NewCore returns an instance of Core
 func NewCore(repo IRepo) ICore {
 	return &Core{repo}
+}
+
+// TriggerNodeBindingRefresh enables devs to refresh nodebindings manually
+func (c *Core) TriggerNodeBindingRefresh(ctx context.Context) error {
+	var err error
+	startTime := time.Now()
+	defer func() {
+		nodeBindingOperationTimeTaken.WithLabelValues(env, "TriggerNodeBindingRefresh").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	m := &Model{}
+	err = c.repo.DeleteTree(ctx, m.Prefix())
+	if err != nil {
+		logger.Ctx(ctx).Errorw("Failed to delete nodebinding tree", "error", err.Error())
+		return err
+	}
+	logger.Ctx(ctx).Infow("successfully cleared all nodebindings")
+	return err
 }
 
 // CreateNodeBinding creates a new nodebinding

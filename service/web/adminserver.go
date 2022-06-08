@@ -107,7 +107,7 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 	// Fetch existing topic before updating
 	existingTopic, err := s.topicCore.Get(ctx, m.Name)
 	if err != nil {
-		return nil, merror.ToGRPCError(eerr)
+		return nil, merror.ToGRPCError(err)
 	}
 
 	if int(req.NumPartitions) != existingTopic.NumPartitions {
@@ -130,7 +130,7 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 	// Fetch Updated Topic
 	updatedTopic, err := s.topicCore.Get(ctx, m.Name)
 	if err != nil {
-		return nil, merror.ToGRPCError(eerr)
+		return nil, merror.ToGRPCError(err)
 	}
 
 	if updatedTopic.NumPartitions != existingTopic.NumPartitions {

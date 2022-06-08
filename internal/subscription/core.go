@@ -366,9 +366,9 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 		retryTopicError := c.topicCore.UpdateTopic(ctx, retryModel)
 		if retryTopicError != nil {
 			logger.Ctx(ctx).Error(
-				"Error in executing Retry Topic Rescaling: ", 
-				retryTopicError.Error(), 
-				"| TopicName: ", 
+				"Error in executing Retry Topic Rescaling: ",
+				retryTopicError.Error(),
+				"| TopicName: ",
 				retryModel.Name)
 		}
 
@@ -382,9 +382,9 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 			delayTopicError := c.topicCore.UpdateTopic(ctx, delayModel)
 			if delayTopicError != nil {
 				logger.Ctx(ctx).Error(
-					"Error in executing Delay Topic Rescaling: ", 
-					delayTopicError.Error(), 
-					"| TopicName: ", 
+					"Error in executing Delay Topic Rescaling: ",
+					delayTopicError.Error(),
+					"| TopicName: ",
 					delayModel.Name)
 			}
 		}

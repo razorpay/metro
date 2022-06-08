@@ -250,7 +250,7 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 			expectedList := []common.IModel{
 				&sub,
 			}
-			mockProjectCore.EXPECT().GetAllProjects(gomock.Any()).Return([]string{"metro/projects/project123"},nil)
+			mockProjectCore.EXPECT().GetAllProjects(gomock.Any()).Return([]string{"metro/projects/project123"}, nil)
 			mockRepo.EXPECT().List(gomock.Any(), gomock.Any()).Return(expectedList, nil)
 			mockTopicCore.EXPECT().UpdateTopic(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			if err := c.RescaleSubTopics(tt.args.ctx, tt.args.topicModel); (err != nil) != tt.wantErr {

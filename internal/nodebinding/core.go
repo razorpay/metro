@@ -43,6 +43,11 @@ func (c *Core) TriggerNodeBindingRefresh(ctx context.Context) error {
 		logger.Ctx(ctx).Errorw("Failed to delete nodebinding tree", "error", err.Error())
 		return err
 	}
+	err = c.repo.DeleteTree(ctx, common.GetBasePrefix()+"leader/")
+	if err != nil {
+		logger.Ctx(ctx).Errorw("Filed to remove leader lock", "error", err.Error())
+		return err
+	}
 	logger.Ctx(ctx).Infow("successfully cleared all nodebindings")
 	return err
 }

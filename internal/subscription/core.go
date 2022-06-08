@@ -347,12 +347,21 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, top
 
 // RescaleSubTopics - Get all the subs and rescale all the Retry/Delay/DLQ topics
 func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) error {
-	subList, err := c.List(ctx, Prefix+topicModel.ExtractedProjectID)
+	projectList, err := c.projectCore.GetAllProjects(ctx)
 	if err != nil {
 		return err
 	}
+	var completeSubList []*Model
 
-	for _, m := range subList {
+	for _, projectKey := range projectList {
+		subList, err := c.List(ctx, Prefix+project.FetchProjectID(projectKey))
+		if err != nil {
+			return err
+		}
+		completeSubList = append(completeSubList, subList...)
+	}
+
+	for _, m := range completeSubList {
 		if m.ExtractedTopicName != topicModel.ExtractedTopicName {
 			logger.Ctx(ctx).Error("Subscription not part of the topic. Sub: ", m.Name)
 			continue
@@ -368,7 +377,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 			logger.Ctx(ctx).Error(
 				"Error in executing Retry Topic Rescaling: ",
 				retryTopicError.Error(),
-				"| TopicName: ",
+				" TopicName: ",
 				retryModel.Name)
 		}
 
@@ -384,7 +393,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 				logger.Ctx(ctx).Error(
 					"Error in executing Delay Topic Rescaling: ",
 					delayTopicError.Error(),
-					"| TopicName: ",
+					" TopicName: ",
 					delayModel.Name)
 			}
 		}
@@ -401,7 +410,7 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 				logger.Ctx(ctx).Error(
 					"Error in executing DLQ Topic Rescaling: ",
 					dlqTopicError.Error(),
-					"| TopicName: ",
+					" TopicName: ",
 					dlqModel.Name)
 			}
 		}

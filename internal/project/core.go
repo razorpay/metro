@@ -14,6 +14,7 @@ import (
 type ICore interface {
 	CreateProject(ctx context.Context, m *Model) error
 	Get(ctx context.Context, key string) (*Model, error)
+	GetAllProjects(ctx context.Context) ([]string, error)
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithID(ctx context.Context, id string) (bool, error)
 	DeleteProject(ctx context.Context, m *Model) error
@@ -93,6 +94,28 @@ func (c *Core) Get(ctx context.Context, projectID string) (*Model, error) {
 		return nil, err
 	}
 	return model, nil
+}
+
+// GetAllProjects returns project with the given key
+func (c *Core) GetAllProjects(ctx context.Context) ([]string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ProjectCore.GetAllProjects")
+	defer span.Finish()
+
+	projectOperationCount.WithLabelValues(env, "GetAllProjects").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		projectOperationTimeTaken.WithLabelValues(env, "GetAllProjects").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	prefix := common.GetBasePrefix() + Prefix
+	logger.Ctx(ctx).Info("fetching all projects keys...")
+
+	list, err := c.repo.ListKeys(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 // ExistsWithID to check if the project exists with the projectID

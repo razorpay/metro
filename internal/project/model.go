@@ -1,6 +1,8 @@
 package project
 
 import (
+	"strings"
+
 	"github.com/razorpay/metro/internal/common"
 )
 
@@ -25,4 +27,9 @@ func (m *Model) Key() string {
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
 	return common.GetBasePrefix() + Prefix
+}
+
+// FetchProjectID returns the key for storing in the registry
+func FetchProjectID(val string) string {
+	return strings.Split(val, "/")[2]
 }

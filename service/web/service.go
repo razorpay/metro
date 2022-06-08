@@ -11,6 +11,7 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/interceptors"
+	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
@@ -84,6 +85,8 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	projectCore := project.NewCore(project.NewRepo(r))
 
+	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(r))
+
 	topicCore := topic.NewCore(topic.NewRepo(r), projectCore, brokerStore)
 
 	subscriptionCore := subscription.NewCore(subscription.NewRepo(r), projectCore, topicCore)
@@ -106,7 +109,7 @@ func (svc *Service) Start(ctx context.Context) error {
 			func(server *grpc.Server) error {
 				metrov1.RegisterStatusCheckAPIServer(server, health.NewServer(healthCore))
 				metrov1.RegisterPublisherServer(server, newPublisherServer(projectCore, brokerStore, topicCore, credentialsCore, publisherCore))
-				metrov1.RegisterAdminServiceServer(server, newAdminServer(svc.admin, projectCore, subscriptionCore, topicCore, credentialsCore, brokerStore))
+				metrov1.RegisterAdminServiceServer(server, newAdminServer(svc.admin, projectCore, subscriptionCore, topicCore, credentialsCore, nodeBindingCore, brokerStore))
 				metrov1.RegisterSubscriberServer(server, newSubscriberServer(projectCore, brokerStore, subscriptionCore, credentialsCore, streamManager, ch))
 				return nil
 			},

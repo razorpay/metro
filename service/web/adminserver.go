@@ -124,8 +124,13 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 		return nil, merror.ToGRPCError(uerr)
 	}
 
-	if int(req.NumPartitions) != existingTopic.NumPartitions {
-		err := s.subscriptionCore.RescaleSubTopics(ctx, existingTopic, int(req.NumPartitions))
+	updatedTopic, err := s.topicCore.Get(ctx, m.Name)
+	if err != nil {
+		return nil, merror.ToGRPCError(eerr)
+	}
+
+	if updatedTopic.NumPartitions != existingTopic.NumPartitions {
+		err := s.subscriptionCore.RescaleSubTopics(ctx, updatedTopic)
 		if err != nil {
 			return &emptypb.Empty{}, err
 		}

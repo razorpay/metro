@@ -26,7 +26,7 @@ type ICore interface {
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
 	Migrate(ctx context.Context, names []string) error
-	RescaleSubTopics(ctx context.Context, topicModel *topic.Model, partitions int) error
+	RescaleSubTopics(ctx context.Context, topicModel *topic.Model) error
 }
 
 // Core implements all business logic for a subscription
@@ -346,23 +346,26 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, top
 }
 
 // RescaleSubTopics - Get all the subs and rescale all the Retry/Delay/DLQ topics
-func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, partitions int) error {
+func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) error {
 	subList, err := c.List(ctx, Prefix+topicModel.ExtractedProjectID)
 	if err != nil {
 		return err
 	}
 
 	for _, m := range subList {
-
+		if m.ExtractedTopicName != topicModel.ExtractedTopicName {
+			logger.Ctx(ctx).Error("Subscription not part of the topic. Sub: ", m.Name)
+			continue
+		}
 		retryModel := &topic.Model{
 			Name:               m.GetRetryTopic(),
 			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
 			ExtractedProjectID: m.ExtractedTopicProjectID,
-			NumPartitions:      partitions,
+			NumPartitions:      topicModel.NumPartitions,
 		}
 		retryTopicError := c.topicCore.UpdateTopic(ctx, retryModel)
 		if retryTopicError != nil {
-			logger.Ctx(ctx).Error("Error in executing Retry Topic Rescaling: ", retryTopicError.Error())
+			logger.Ctx(ctx).Error("Error in executing Retry Topic Rescaling: ", retryTopicError.Error(), "| TopicName: ", retryModel.Name)
 		}
 
 		for _, delayTopic := range m.GetDelayTopics() {
@@ -370,11 +373,11 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 				Name:               delayTopic,
 				ExtractedTopicName: topic.GetTopicNameOnly(delayTopic),
 				ExtractedProjectID: m.ExtractedTopicProjectID,
-				NumPartitions:      partitions,
+				NumPartitions:      topicModel.NumPartitions,
 			}
 			delayTopicError := c.topicCore.UpdateTopic(ctx, delayModel)
 			if delayTopicError != nil {
-				logger.Ctx(ctx).Error("Error in executing Delay Topic Rescaling: ", delayTopicError.Error())
+				logger.Ctx(ctx).Error("Error in executing Delay Topic Rescaling: ", delayTopicError.Error(), "| TopicName: ", delayModel.Name)
 			}
 		}
 
@@ -383,11 +386,11 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model, pa
 				Name:               m.GetDeadLetterTopic(),
 				ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
 				ExtractedProjectID: m.ExtractedTopicProjectID,
-				NumPartitions:      partitions,
+				NumPartitions:      topicModel.NumPartitions,
 			}
 			dlqTopicError := c.topicCore.UpdateTopic(ctx, dlqModel)
 			if dlqTopicError != nil {
-				logger.Ctx(ctx).Error("Error in executing DLQ Topic Rescaling: ", dlqTopicError.Error())
+				logger.Ctx(ctx).Error("Error in executing DLQ Topic Rescaling: ", dlqTopicError.Error(), "| TopicName: ", dlqModel.Name)
 			}
 		}
 	}

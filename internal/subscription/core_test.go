@@ -205,7 +205,6 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 	type args struct {
 		ctx        context.Context
 		topicModel *topic.Model
-		partitions int
 	}
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
@@ -237,7 +236,6 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 			args: args{
 				ctx:        ctx,
 				topicModel: topic,
-				partitions: 2,
 			},
 			wantErr: false,
 		},
@@ -254,7 +252,7 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 			}
 			mockRepo.EXPECT().List(gomock.Any(), gomock.Any()).Return(expectedList, nil)
 			mockTopicCore.EXPECT().UpdateTopic(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			if err := c.RescaleSubTopics(tt.args.ctx, tt.args.topicModel, tt.args.partitions); (err != nil) != tt.wantErr {
+			if err := c.RescaleSubTopics(tt.args.ctx, tt.args.topicModel); (err != nil) != tt.wantErr {
 				t.Errorf("Core.RescaleSubTopics() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

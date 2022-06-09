@@ -7,11 +7,13 @@ import (
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 
+	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
 // ICore is an interface over subscription core
@@ -34,11 +36,12 @@ type Core struct {
 	repo        IRepo
 	projectCore project.ICore
 	topicCore   topic.ICore
+	brokerStore brokerstore.IBrokerStore
 }
 
 // NewCore returns an instance of Core
-func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore) ICore {
-	return &Core{repo, projectCore, topicCore}
+func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore, brokerStore brokerstore.IBrokerStore) ICore {
+	return &Core{repo, projectCore, topicCore, brokerStore}
 }
 
 // CreateSubscription creates a subscription for a given topic
@@ -360,13 +363,26 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 		}
 		completeSubList = append(completeSubList, subList...)
 	}
+	admin, err := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if err != nil {
+		return merror.ToGRPCError(err)
+	}
 
 	for _, m := range completeSubList {
 		if m.ExtractedTopicName != topicModel.ExtractedTopicName {
 			continue
 		}
+		// modify topic partitions
+		retryTopicName := m.GetRetryTopic()
+		_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+			Name:          retryTopicName,
+			NumPartitions: topicModel.NumPartitions,
+		})
+		if err != nil {
+			return merror.ToGRPCError(err)
+		}
 		retryModel := &topic.Model{
-			Name:               m.GetRetryTopic(),
+			Name:               retryTopicName,
 			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
 			ExtractedProjectID: m.ExtractedTopicProjectID,
 			NumPartitions:      topicModel.NumPartitions,
@@ -381,6 +397,13 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 		}
 
 		for _, delayTopic := range m.GetDelayTopics() {
+			_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+				Name:          delayTopic,
+				NumPartitions: topicModel.NumPartitions,
+			})
+			if err != nil {
+				return merror.ToGRPCError(err)
+			}
 			delayModel := &topic.Model{
 				Name:               delayTopic,
 				ExtractedTopicName: topic.GetTopicNameOnly(delayTopic),
@@ -398,8 +421,16 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 		}
 
 		if !topicModel.IsDeadLetterTopic() {
+			dlqTopicName := m.GetDeadLetterTopic()
+			_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+				Name:          dlqTopicName,
+				NumPartitions: topicModel.NumPartitions,
+			})
+			if err != nil {
+				return merror.ToGRPCError(err)
+			}
 			dlqModel := &topic.Model{
-				Name:               m.GetDeadLetterTopic(),
+				Name:               dlqTopicName,
 				ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
 				ExtractedProjectID: m.ExtractedTopicProjectID,
 				NumPartitions:      topicModel.NumPartitions,

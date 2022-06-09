@@ -31,5 +31,7 @@ func (m *Model) Prefix() string {
 
 // FetchProjectID returns the key for storing in the registry
 func FetchProjectID(val string) string {
-	return strings.Split(val, "/")[2]
+	stringArr := strings.Split(val, "/")
+	len := len(stringArr)
+	return stringArr[len]
 }

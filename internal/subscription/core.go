@@ -347,7 +347,7 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, top
 
 // RescaleSubTopics - Get all the subs and rescale all the Retry/Delay/DLQ topics
 func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) error {
-	projectList, err := c.projectCore.GetAllProjects(ctx)
+	projectList, err := c.projectCore.ListKeys(ctx)
 	if err != nil {
 		return err
 	}
@@ -363,7 +363,6 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 
 	for _, m := range completeSubList {
 		if m.ExtractedTopicName != topicModel.ExtractedTopicName {
-			logger.Ctx(ctx).Error("Subscription not part of the topic. Sub: ", m.Name)
 			continue
 		}
 		retryModel := &topic.Model{

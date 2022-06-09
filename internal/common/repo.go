@@ -121,16 +121,3 @@ func (r BaseRepo) ListKeys(ctx context.Context, prefix string) ([]string, error)
 
 	return keys, nil
 }
-
-// List populates keys with key list corresponding to prefix
-func (r BaseRepo) List(ctx context.Context, prefix string) ([]registry.Pair, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.ListKeys")
-	defer span.Finish()
-
-	keys, err := r.Registry.List(ctx, prefix)
-	if err != nil {
-		return nil, err
-	}
-
-	return keys, nil
-}

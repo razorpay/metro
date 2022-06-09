@@ -33,5 +33,5 @@ func (m *Model) Prefix() string {
 func FetchProjectID(val string) string {
 	stringArr := strings.Split(val, "/")
 	len := len(stringArr)
-	return stringArr[len]
+	return stringArr[len-1]
 }

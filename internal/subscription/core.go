@@ -357,9 +357,9 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 	var completeSubList []*Model
 
 	for _, projectKey := range projectList {
-		subList, err := c.List(ctx, Prefix+project.FetchProjectID(projectKey))
-		if err != nil {
-			return err
+		subList, subErr := c.List(ctx, Prefix+project.FetchProjectID(projectKey))
+		if subErr != nil {
+			return subErr
 		}
 		completeSubList = append(completeSubList, subList...)
 	}

@@ -1,6 +1,7 @@
 package project
 
 import (
+	"log"
 	"strings"
 
 	"github.com/razorpay/metro/internal/common"
@@ -33,5 +34,9 @@ func (m *Model) Prefix() string {
 func FetchProjectID(val string) string {
 	stringArr := strings.Split(val, "/")
 	arrLen := len(stringArr)
+	if arrLen < 1 {
+		log.Fatalf("Invalid ProjectID given as input: [%v]", val)
+		return ""
+	}
 	return stringArr[arrLen-1]
 }

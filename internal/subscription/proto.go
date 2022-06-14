@@ -44,5 +44,9 @@ func ModelToSubscriptionProtoV1(m *Model) *metrov1.Subscription {
 		}
 	}
 
+	if m.FilterExpression != "" {
+		proto.Filter = m.FilterExpression
+	}
+
 	return proto
 }

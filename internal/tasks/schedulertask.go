@@ -276,7 +276,7 @@ func (sm *SchedulerTask) refreshCache(ctx context.Context) error {
 func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	err := sm.refreshCache(ctx)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("schedulertask: Filed to refresh cache for topic/subscripiton/nodes", "error", err.Error())
+		logger.Ctx(ctx).Errorw("schedulertask: Failed to refresh cache for topic/subscription/nodes", "error", err.Error())
 	}
 	// fetch all current node bindings across all nodes
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
@@ -284,10 +284,9 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
 		return err
-	}
 	nodeBindingKeys, err := sm.nodeBindingCore.ListKeys(ctx, nodebinding.Prefix)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
+		logger.Ctx(ctx).Errorw("error fetching node bindings keys", "error", err)
 		return err
 	}
 
@@ -364,19 +363,26 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	for _, sub := range sm.subCache {
 		//Fetch topic and see if all partitions are assigned.
 		// If not assign missing ones
-		topic := sm.topicCache[sub.Topic]
-
-		for i := 0; i < topic.NumPartitions; i++ {
-			subPart := sub.Name + "_" + strconv.Itoa(i)
-			if _, ok := validBindings[subPart]; !ok {
-				logger.Ctx(ctx).Infow("schedulertask: assigning nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
-				err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
-				if err != nil {
-					//TODO: Track status here and re-assign if possible
-					logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.ExtractedTopicName, "subscription", sub.Name, "partition", i)
+		topic, ok := sm.topicCache[sub.Topic]
+		if ok {
+			if topic.NumPartitions == 0 {
+				topic.NumPartitions = 1
+			}
+			for i := 0; i < topic.NumPartitions; i++ {
+				subPart := sub.Name + "_" + strconv.Itoa(i)
+				if _, ok := validBindings[subPart]; !ok {
+					logger.Ctx(ctx).Infow("schedulertask: assigning nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
+					err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
+					if err != nil {
+						//TODO: Track status here and re-assign if possible
+						logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.ExtractedTopicName, "subscription", sub.Name, "partition", i)
+					}
 				}
 			}
+		} else {
+			logger.Ctx(ctx).Errorw("schedulertask: Subscription found without a valid topic", "subscription", sub.Name, "topic", sub.Topic)
 		}
+
 	}
 
 	return nil

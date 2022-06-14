@@ -5,7 +5,7 @@ import (
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
-	"github.com/razorpay/metro/internal/topic"
+	topic "github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -27,17 +27,18 @@ type DelayConsumer struct {
 	// a paused consumer will not return new messages, so this cachedMsg will be used for lookups
 	// till the needed time elapses
 	cachedMsgs []messagebroker.ReceivedMessage
+	errChan    chan error
 }
 
 // NewDelayConsumer inits a new delay-consumer with the pre-defined message handler
-func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, ch cache.ICache) (*DelayConsumer, error) {
+func NewDelayConsumer(ctx context.Context, subscriberID, topicName string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, ch cache.ICache, errChan chan error) (*DelayConsumer, error) {
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
 	consumerOps := messagebroker.ConsumerClientOptions{
-		Topics:          []string{topic},
-		GroupID:         subs.GetDelayConsumerGroupID(topic),
-		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topic),
+		Topics:          []string{topicName},
+		GroupID:         subs.GetDelayConsumerGroupID(topicName),
+		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topicName),
 	}
 	consumer, err := bs.GetConsumer(ctx, consumerOps)
 	if err != nil {
@@ -46,13 +47,13 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 	}
 
 	// on init, make sure to call resume. This is done just to ensure any previously paused consumers get resumed on boot up.
-	consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: topic})
+	consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: topicName})
 
 	return &DelayConsumer{
 		subscriberID: subscriberID,
 		ctx:          delayCtx,
 		cancelFunc:   cancel,
-		topic:        topic,
+		topic:        topicName,
 		consumer:     consumer,
 		subs:         subs,
 		bs:           bs,
@@ -60,6 +61,7 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 		ch:           ch,
 		doneCh:       make(chan struct{}),
 		cachedMsgs:   make([]messagebroker.ReceivedMessage, 0),
+		errChan:      errChan,
 	}, nil
 }
 
@@ -80,6 +82,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			if err != nil {
 				if !messagebroker.IsErrorRecoverable(err) {
 					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in receiving messages", dc.LogFields("error", err.Error())...)
+					dc.errChan <- err
 					return
 				}
 			}

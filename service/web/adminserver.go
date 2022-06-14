@@ -8,6 +8,7 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/internal/merror"
+	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
@@ -23,11 +24,12 @@ type adminServer struct {
 	subscriptionCore subscription.ICore
 	topicCore        topic.ICore
 	credentialCore   credentials.ICore
+	nodeBindingCore  nodebinding.ICore
 	brokerStore      brokerstore.IBrokerStore
 }
 
-func newAdminServer(admin *credentials.Model, projectCore project.ICore, subscriptionCore subscription.ICore, topicCore topic.ICore, credentialCore credentials.ICore, brokerStore brokerstore.IBrokerStore) *adminServer {
-	return &adminServer{admin, projectCore, subscriptionCore, topicCore, credentialCore, brokerStore}
+func newAdminServer(admin *credentials.Model, projectCore project.ICore, subscriptionCore subscription.ICore, topicCore topic.ICore, credentialCore credentials.ICore, nodebindingCore nodebinding.ICore, brokerStore brokerstore.IBrokerStore) *adminServer {
+	return &adminServer{admin, projectCore, subscriptionCore, topicCore, credentialCore, nodebindingCore, brokerStore}
 }
 
 // CreateProject creates a new project
@@ -247,12 +249,16 @@ func (s adminServer) ListProjectCredentials(ctx context.Context, req *metrov1.Pr
 func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *metrov1.Subscriptions) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("received request to migrate subscriptions", "subscriptions", subscriptions.GetNames())
 
-	err := s.subscriptionCore.Migrate(ctx, subscriptions.GetNames())
+	err := s.nodeBindingCore.TriggerNodeBindingRefresh(ctx)
 	if err != nil {
-		return nil, merror.ToGRPCError(err)
+		return &emptypb.Empty{}, err
 	}
+	// err := s.subscriptionCore.Migrate(ctx, subscriptions.GetNames())
+	// if err != nil {
+	// 	return nil, merror.ToGRPCError(err)
+	// }
 
-	logger.Ctx(ctx).Infow("request to migrate subscriptions completed", "subscriptions", subscriptions.GetNames())
+	// logger.Ctx(ctx).Infow("request to migrate subscriptions completed", "subscriptions", subscriptions.GetNames())
 	return &emptypb.Empty{}, nil
 }
 

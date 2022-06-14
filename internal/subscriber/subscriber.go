@@ -133,13 +133,6 @@ func (s *Subscriber) Run(ctx context.Context) {
 			}
 			s.subscriberImpl.EvictUnackedMessagesPastDeadline(ctx, s.GetErrorChannel())
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
-		case err := <-s.errChan:
-			if ctx.Err() != nil {
-				continue
-			}
-			if err != nil {
-				logger.Ctx(ctx).Errorw("subscriber: got error on errCh channel", "logFields", s.getLogFields(), "error", err.Error())
-			}
 		case <-ctx.Done():
 			logger.Ctx(ctx).Infow("subscriber: <-ctx.Done() called", "logFields", s.getLogFields())
 
@@ -216,6 +209,7 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 	})
 	defer span.Finish()
 	s.subscriberImpl.Acknowledge(ctx, req, s.GetErrorChannel())
+	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name).SetToCurrentTime()
 }
 
 func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
@@ -236,6 +230,7 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 	)
 	defer span.Finish()
 	s.subscriberImpl.ModAckDeadline(ctx, req, s.GetErrorChannel())
+	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name).SetToCurrentTime()
 }
 
 func filterMessages(ctx context.Context, s Implementation, messages []*metrov1.ReceivedMessage, errChan chan error) []*metrov1.ReceivedMessage {

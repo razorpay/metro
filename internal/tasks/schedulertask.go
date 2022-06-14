@@ -284,6 +284,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
 		return err
+	}
 	nodeBindingKeys, err := sm.nodeBindingCore.ListKeys(ctx, nodebinding.Prefix)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error fetching node bindings keys", "error", err)

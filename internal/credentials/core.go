@@ -86,7 +86,7 @@ func (c *Core) Delete(ctx context.Context, m *Model) error {
 
 	err := c.repo.Delete(ctx, m)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("error in executing exists", "msg", err.Error())
+		logger.Ctx(ctx).Errorw("error in executing delete", "msg", err.Error())
 		return err
 	}
 	return nil
@@ -105,7 +105,7 @@ func (c *Core) Get(ctx context.Context, projectID, username string) (*Model, err
 	model := &Model{}
 	err := c.repo.Get(ctx, prefix, model)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("error in executing exists", "msg", err.Error(), "prefix", prefix)
+		logger.Ctx(ctx).Errorw("error in executing get", "msg", err.Error(), "prefix", prefix)
 		return nil, err
 	}
 	return model, nil

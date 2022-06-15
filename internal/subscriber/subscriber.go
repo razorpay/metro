@@ -123,7 +123,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			if modAckRequest == nil || ctx.Err() != nil {
 				continue
 			}
-			logger.Ctx(ctx).Infow("subscriber: received mod ack for msg", "modAckReq", modAckRequest)
+			logger.Ctx(ctx).Infow("subscriber: received mod ack for msg", "modAckReq", modAckRequest, "subscription", s.subscription.Name)
 			s.modifyAckDeadline(modAckRequest)
 			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-s.deadlineTicker.C:
@@ -221,13 +221,6 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 		"partition":    req.AckMessage.Partition,
 	})
 
-	logger.Ctx(ctx).Infow("subscriber: modAck request",
-		"subscriber", req.AckMessage.SubscriberID,
-		"topic", req.AckMessage.Topic,
-		"subscription", s.subscription.Name,
-		"message_id", req.AckMessage.MessageID,
-		"partition", req.AckMessage.Partition,
-	)
 	defer span.Finish()
 	s.subscriberImpl.ModAckDeadline(ctx, req, s.GetErrorChannel())
 	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name).SetToCurrentTime()

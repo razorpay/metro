@@ -537,7 +537,7 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 			logger.Ctx(ctx).Errorw(
 				"subscriber: could not update sequence offset",
 				"logFields", getLogFields(s),
-				"error", err,
+				"error", err.Error(),
 			)
 			return err
 		}
@@ -547,7 +547,7 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 		logger.Ctx(ctx).Errorw(
 			"subscriber: could not update sequence status",
 			"logFields", getLogFields(s),
-			"error", err,
+			"error", err.Error(),
 		)
 		return err
 	}

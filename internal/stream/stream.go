@@ -101,7 +101,7 @@ func (ps *PushStream) Start() error {
 				// if channel is closed, this can return with a nil error value
 				if err != nil {
 					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber, restarting", "logFields", ps.getLogFields(), "error", err.Error())
-					workerSubscriberErrors.WithLabelValues(env, ps.subscription.ExtractedTopicName, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
+					workerSubscriberErrors.WithLabelValues(env, ps.subscription.Topic, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 					if err = ps.restartSubsciber(); err != nil {
 						ps.restartChan <- true
 						return err
@@ -161,7 +161,6 @@ func (ps *PushStream) processMessages() {
 	data := <-ps.subs.GetResponseChannel()
 
 	if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-		logger.Ctx(ctx).Infow("worker: received response data from channel", "logFields", ps.getLogFields())
 		ps.processPushStreamResponse(ctx, ps.subscription, data)
 	}
 }
@@ -228,7 +227,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 		if message.AckId == "" {
 			continue
 		}
-		logger.Ctx(ctx).Infow("Dispacthing message to processor", "msgId", message.Message.MessageId, "subscription", ps.subscription.Name)
+		logger.Ctx(ctx).Infow("Dispatching message to processor", "msgId", message.Message.MessageId, "subscription", ps.subscription.Name)
 		ps.fanoutChan <- message
 	}
 }
@@ -244,8 +243,8 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 
 	workerMessagesNAckd.WithLabelValues(
 		env,
-		ps.subscription.ExtractedTopicName,
-		ps.subscription.ExtractedSubscriptionName,
+		ps.subscription.Topic,
+		ps.subscription.Name,
 		ps.subscription.PushConfig.PushEndpoint,
 		ps.subs.GetID(),
 	).Inc()
@@ -279,8 +278,8 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 
 	workerMessagesAckd.WithLabelValues(
 		env,
-		ps.subscription.ExtractedTopicName,
-		ps.subscription.ExtractedSubscriptionName,
+		ps.subscription.Topic,
+		ps.subscription.Name,
 		ps.subscription.PushConfig.PushEndpoint,
 		ps.subs.GetID(),
 	).Inc()
@@ -409,7 +408,7 @@ func (ps *PushStream) RunPushStreamManager(ctx context.Context) {
 				logger.Ctx(ctx).Infow("worker: stopping stream handler", "subscription", ps.subscription.Name)
 				err := ps.Stop()
 				if err != nil {
-					logger.Ctx(ctx).Infow("worker: stopping stream handler", "error", err)
+					logger.Ctx(ctx).Infow("worker: error in exiting stream handler ", "error", err.Error())
 				}
 				return
 			default:

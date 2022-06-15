@@ -81,7 +81,6 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	logFields["subscription"] = pr.subscription.Name
 	logFields["messageId"] = message.Message.MessageId
 	logFields["ackId"] = message.AckId
-	logger.Ctx(ctx).Infow("worker: publishing response data to subscription endpoint", "logFields", logFields)
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.PushMessage", opentracing.Tags{
 		"subscriber":   pr.subID,
 		"subscription": pr.subscription.Name,
@@ -114,8 +113,8 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	resp, err := pr.httpClient.Do(req)
 
 	// log metrics
-	workerPushEndpointCallsCount.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, pr.subID).Inc()
-	workerPushEndpointTimeTaken.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
+	workerPushEndpointCallsCount.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.PushConfig.PushEndpoint, pr.subID).Inc()
+	workerPushEndpointTimeTaken.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.PushConfig.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
 
 	// Process responnse
 	if err != nil {
@@ -124,7 +123,7 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	}
 
 	logger.Ctx(pr.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
-	workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.ExtractedTopicName, subModel.ExtractedSubscriptionName, subModel.PushConfig.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
+	workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.PushConfig.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
 
 	success := false
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {

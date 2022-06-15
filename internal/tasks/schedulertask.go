@@ -327,7 +327,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 		subVersion := sub.GetVersion()
 
 		if nb.SubscriptionVersion == subVersion {
-			logger.Ctx(ctx).Infow("schedulertask: existing subscription stream found", "subscription", nb.SubscriptionID, "topic", sub.ExtractedTopicName, "partition", nb.Partition)
+			logger.Ctx(ctx).Infow("schedulertask: existing subscription stream found", "subscription", nb.SubscriptionID, "topic", sub.Topic, "partition", nb.Partition)
 		} else {
 			// Remove bindings for subscriptions that have changed.
 			invalidBindings[nb.Key()] = nb
@@ -376,7 +376,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 					err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
 					if err != nil {
 						//TODO: Track status here and re-assign if possible
-						logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.ExtractedTopicName, "subscription", sub.Name, "partition", i)
+						logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
 					}
 				}
 			}

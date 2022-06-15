@@ -161,7 +161,6 @@ func (c *consumerManager) ResumeConsumer(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	subscriberPausedConsumersTotal.WithLabelValues(env, c.retryTopic, c.subscriptionName, c.subscriberID).Dec()
 
 	if c.pausePrimaryTopic {
 		// Retry consumer resumed, primary consumer not to be resumed
@@ -176,7 +175,6 @@ func (c *consumerManager) ResumeConsumer(ctx context.Context) error {
 
 	// Retry consumer resumed, primary consumer resumed
 	c.consumerPaused = false
-	subscriberPausedConsumersTotal.WithLabelValues(env, c.primaryTopic, c.subscriptionName, c.subscriberID).Dec()
 	return nil
 }
 

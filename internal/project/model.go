@@ -1,7 +1,11 @@
 package project
 
 import (
+	"context"
+	"strings"
+
 	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 const (
@@ -25,4 +29,15 @@ func (m *Model) Key() string {
 // Prefix returns the key prefix
 func (m *Model) Prefix() string {
 	return common.GetBasePrefix() + Prefix
+}
+
+// FetchProjectID returns the key for storing in the registry
+func FetchProjectID(ctx context.Context, val string) string {
+	stringArr := strings.Split(val, "/")
+	arrLen := len(stringArr)
+	if arrLen < 1 {
+		logger.Ctx(ctx).Fatalf("Invalid ProjectID given as input: [%v]", val)
+		return ""
+	}
+	return stringArr[arrLen-1]
 }

@@ -69,7 +69,8 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 	subscriptionCore := subscription.NewCore(
 		subscription.NewRepo(reg),
 		projectCore,
-		topicCore)
+		topicCore,
+		brokerStore)
 
 	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(reg))
 

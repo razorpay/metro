@@ -89,7 +89,7 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	topicCore := topic.NewCore(topic.NewRepo(r), projectCore, brokerStore)
 
-	subscriptionCore := subscription.NewCore(subscription.NewRepo(r), projectCore, topicCore)
+	subscriptionCore := subscription.NewCore(subscription.NewRepo(r), projectCore, topicCore, brokerStore)
 
 	credentialsCore := credentials.NewCore(credentials.NewRepo(r), projectCore)
 

@@ -336,7 +336,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
 
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "stats", stats, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack pre heap evaluation", "stats", stats, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic, "partition", msg.Partition)
 	if offsetToCommit == peek.Offset {
 		start := time.Now()
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
@@ -367,7 +367,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 		shouldCommit = true
 	}
 
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "stats", stats, "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack post heap evaluation", "stats", stats, "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic, "partition", msg.Partition)
 
 	if shouldCommit {
 		offsetUpdated := true
@@ -404,7 +404,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 		}
 		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
 		stats.maxCommittedOffset = offsetToCommit
-		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "logFields", logFields, "offsetToCommit", offsetToCommit, "topic-partition", tp)
+		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "logFields", logFields, "offsetToCommit", offsetToCommit, "topic", tp.topic, "partition", tp.partition)
 	}
 
 	s.removeMessageFromMemory(ctx, stats, msg.MessageID)

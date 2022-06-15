@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -209,7 +210,7 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 	})
 	defer span.Finish()
 	s.subscriberImpl.Acknowledge(ctx, req, s.GetErrorChannel())
-	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name).SetToCurrentTime()
+	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name, strconv.Itoa(int(req.Partition))).SetToCurrentTime()
 }
 
 func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
@@ -230,7 +231,7 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 	)
 	defer span.Finish()
 	s.subscriberImpl.ModAckDeadline(ctx, req, s.GetErrorChannel())
-	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name).SetToCurrentTime()
+	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name, strconv.Itoa(int(req.AckMessage.Partition))).SetToCurrentTime()
 }
 
 func filterMessages(ctx context.Context, s Implementation, messages []*metrov1.ReceivedMessage, errChan chan error) []*metrov1.ReceivedMessage {

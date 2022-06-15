@@ -296,24 +296,27 @@ func notifyPullMessageError(ctx context.Context, s Implementation, err error, re
 }
 
 func receiveMessages(ctx context.Context, s Implementation, consumer IConsumer, req *PullRequest) ([]messagebroker.ReceivedMessage, error) {
-	// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
-	if s.CanConsumeMore() == false {
-		logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "logFields", getLogFields(s))
-		// check if consumer is paused once maxOutstanding messages limit is hit
-		if consumer.IsPaused(ctx) == false {
-			consumer.PauseConsumer(ctx)
+	var msgs []messagebroker.ReceivedMessage
+	if s.CanConsumeMore() {
+		// 	logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "logFields", getLogFields(s))
+		// 	// check if consumer is paused once maxOutstanding messages limit is hit
+		// 	if consumer.IsPaused(ctx) == false {
+		// 		consumer.PauseConsumer(ctx)
+		// 	}
+		// } else {
+		// 	// resume consumer if paused and is allowed to consume more messages
+		// 	if consumer.IsPaused(ctx) {
+		// 		consumer.ResumeConsumer(ctx)
+		// 	}
+		// }
+		resp, err := consumer.ReceiveMessages(ctx, req.MaxNumOfMessages)
+		if err != nil {
+			return nil, err
 		}
-	} else {
-		// resume consumer if paused and is allowed to consume more messages
-		if consumer.IsPaused(ctx) {
-			consumer.ResumeConsumer(ctx)
-		}
+		return resp.Messages, nil
 	}
-	resp, err := consumer.ReceiveMessages(ctx, req.MaxNumOfMessages)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Messages, nil
+	return msgs, nil
+
 }
 
 func getLogFields(s Implementation) map[string]interface{} {

@@ -602,6 +602,7 @@ func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
 	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", s.GetConsumedMessagesStats())
 }
 
+// GetConsumedMessagesStats ...
 func (s *OrderedImplementation) GetConsumedMessagesStats() map[string]interface{} {
 	st := make(map[string]interface{})
 

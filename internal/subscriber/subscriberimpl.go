@@ -301,6 +301,11 @@ func (s *BasicImplementation) removeMessageFromMemory(ctx context.Context, stats
 }
 
 func (s *BasicImplementation) logInMemoryStats(ctx context.Context) {
+	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", s.GetConsumedMessagesStats())
+}
+
+// GetConsumedMessagesStats ...
+func (s *BasicImplementation) GetConsumedMessagesStats() map[string]interface{} {
 	st := make(map[string]interface{})
 
 	for tp, stats := range s.consumedMessageStats {
@@ -313,7 +318,7 @@ func (s *BasicImplementation) logInMemoryStats(ctx context.Context) {
 		}
 		st[tp.String()] = total
 	}
-	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
+	return st
 }
 
 func (s *BasicImplementation) retry(ctx context.Context, i Implementation, consumer IConsumer,

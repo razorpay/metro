@@ -599,6 +599,10 @@ func (s *OrderedImplementation) removeMessagesFromMemory(ctx context.Context, st
 }
 
 func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
+	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", s.GetConsumedMessagesStats())
+}
+
+func (s *OrderedImplementation) GetConsumedMessagesStats() map[string]interface{} {
 	st := make(map[string]interface{})
 
 	for tp, stats := range s.consumedMessageStats {
@@ -612,7 +616,7 @@ func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
 		}
 		st[tp.String()] = total
 	}
-	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
+	return st
 }
 
 func (s *OrderedImplementation) isPrimaryTopic(topic string) bool {

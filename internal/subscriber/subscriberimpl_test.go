@@ -241,19 +241,20 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 func getMockSubscriber(ctx context.Context, subImpl *BasicImplementation) *Subscriber {
 	_, cancelFunc := context.WithCancel(ctx)
 	return &Subscriber{
-		subscription:   subImpl.GetSubscription(),
-		topic:          topicName,
-		subscriberID:   subID,
-		requestChan:    make(chan *PullRequest, 10),
-		responseChan:   make(chan *metrov1.PullResponse, 10),
-		errChan:        make(chan error, 1000),
-		closeChan:      make(chan struct{}),
-		modAckChan:     make(chan *ModAckMessage, 10),
-		deadlineTicker: time.NewTicker(1 * time.Second),
-		consumer:       subImpl.consumer,
-		cancelFunc:     cancelFunc,
-		ctx:            ctx,
-		subscriberImpl: subImpl,
+		subscription:        subImpl.GetSubscription(),
+		topic:               topicName,
+		subscriberID:        subID,
+		requestChan:         make(chan *PullRequest, 10),
+		responseChan:        make(chan *metrov1.PullResponse, 10),
+		errChan:             make(chan error, 1000),
+		closeChan:           make(chan struct{}),
+		modAckChan:          make(chan *ModAckMessage, 10),
+		deadlineTicker:      time.NewTicker(1 * time.Second),
+		healthMonitorTicker: time.NewTicker(1 * time.Minute),
+		consumer:            subImpl.consumer,
+		cancelFunc:          cancelFunc,
+		ctx:                 ctx,
+		subscriberImpl:      subImpl,
 	}
 }
 

@@ -106,6 +106,8 @@ func (ps *PushStream) Start() error {
 						ps.restartChan <- true
 						return err
 					}
+				} else {
+					logger.Ctx(ps.ctx).Errorw("worker: nil error from subscriber", "logFields", ps.getLogFields())
 				}
 			case ds := <-ps.statusChan:
 				logger.Ctx(ps.ctx).Infow("worker: Received response form processor for message", "msgId", ds.msg.Message.MessageId)

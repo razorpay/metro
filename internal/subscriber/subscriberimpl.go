@@ -333,6 +333,7 @@ func (s *BasicImplementation) retry(ctx context.Context, i Implementation, consu
 
 func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg messagebroker.ReceivedMessage, errChan chan error) {
 	logFields := getLogFields(s)
+	logFields["parition"] = msg.Partition
 
 	tp := TopicPartition{topic: msg.Topic, partition: msg.Partition}
 	stats := s.consumedMessageStats[tp]
@@ -416,6 +417,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 
 	// add to eviction map only in case of any out of order eviction
 	if offsetToCommit > stats.maxCommittedOffset {
+		logger.Ctx(ctx).Infow("subscriber: storing offset in memory due to offset mismatch", "messageID", msg.MessageID, "topic", msg.Topic, "partition", msg.Partition, "offsetToCommit", offsetToCommit, "maxOffset", stats.maxCommittedOffset, "evictedButNotCommittedOffsets", len(stats.evictedButNotCommittedOffsets))
 		stats.evictedButNotCommittedOffsets[offsetToCommit] = true
 	}
 }

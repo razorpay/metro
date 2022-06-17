@@ -132,5 +132,5 @@ func init() {
 
 	subscriberLastMsgProcessingTime = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_identify_last_message_processing_time",
-	}, []string{"env", "topic", "subscription"})
+	}, []string{"env", "topic", "subscription", "partition"})
 }

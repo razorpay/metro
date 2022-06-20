@@ -37,6 +37,11 @@ type Service struct {
 	registry         registry.IRegistry
 	cache            cache.ICache
 	brokerStore      brokerstore.IBrokerStore
+	errChan          chan error
+}
+
+func (svc *Service) GetErrorChannel() chan error {
+	return svc.errChan
 }
 
 // NewService creates an instance of new worker

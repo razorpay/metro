@@ -7,4 +7,5 @@ type IService interface {
 	// Start the service, it should be implemented as a blocking call
 	// method should return gracefully when ctx is Done
 	Start(ctx context.Context) error
+	GetErrorChannel() chan error
 }

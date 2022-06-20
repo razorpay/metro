@@ -18,7 +18,8 @@ const metroAPIPrefix = "/v1"
 
 // Service for openapi-server
 type Service struct {
-	config *Config
+	config  *Config
+	errChan chan error
 }
 
 // NewService creates an instance of new producer service
@@ -31,6 +32,10 @@ func NewService(config *Config) (*Service, error) {
 // Start the OpenAPI server, shutdown on ctx.Done()
 func (svc *Service) Start(ctx context.Context) error {
 	return svc.runOpenAPIHandler(ctx)
+}
+
+func (svc *Service) GetErrorChannel() chan error {
+	return svc.errChan
 }
 
 // runOpenAPIHandler serves an OpenAPI UI.

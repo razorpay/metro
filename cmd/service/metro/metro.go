@@ -2,6 +2,7 @@ package metro
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -73,7 +74,7 @@ func Init(_ context.Context, env string, componentName string) {
 	}
 
 	// Init the requested componentName
-	component, err = NewComponent(componentName, appConfig)
+	component, err = NewComponent(componentName, appConfig, make(chan error))
 	if err != nil {
 		log.Fatalf("error in creating metro component : %v", err)
 	}
@@ -104,6 +105,7 @@ func Run(ctx context.Context) {
 	go func() {
 		sig := <-sigCh
 		logger.Ctx(ctx).Infow("received a signal, stopping metro", "signal", sig)
+		component.GracefulShutdown(fmt.Errorf("OS Signal error"))
 		cancel()
 	}()
 

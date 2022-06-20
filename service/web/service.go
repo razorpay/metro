@@ -39,14 +39,14 @@ type Service struct {
 }
 
 // NewService creates an instance of new producer service
-func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, openapiConfig *openapiserver.Config, cacheConfig *cache.Config, errChan chan error) (*Service, error) {
+func NewService(admin *credentials.Model, webConfig *Config, registryConfig *registry.Config, openapiConfig *openapiserver.Config, cacheConfig *cache.Config) (*Service, error) {
 	return &Service{
 		webConfig:      webConfig,
 		registryConfig: registryConfig,
 		openapiConfig:  openapiConfig,
 		cacheConfig:    cacheConfig,
 		admin:          admin,
-		errChan:        errChan,
+		errChan:        make(chan error),
 	}, nil
 }
 

@@ -41,7 +41,7 @@ type Service struct {
 }
 
 func (svc *Service) GetErrorChannel() chan error {
-	return svc.errChan
+	return nil
 }
 
 // NewService creates an instance of new worker

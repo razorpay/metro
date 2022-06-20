@@ -35,7 +35,7 @@ func (svc *Service) Start(ctx context.Context) error {
 }
 
 func (svc *Service) GetErrorChannel() chan error {
-	return svc.errChan
+	return nil
 }
 
 // runOpenAPIHandler serves an OpenAPI UI.

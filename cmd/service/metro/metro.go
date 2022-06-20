@@ -74,7 +74,7 @@ func Init(_ context.Context, env string, componentName string) {
 	}
 
 	// Init the requested componentName
-	component, err = NewComponent(componentName, appConfig, make(chan error))
+	component, err = NewComponent(componentName, appConfig)
 	if err != nil {
 		log.Fatalf("error in creating metro component : %v", err)
 	}

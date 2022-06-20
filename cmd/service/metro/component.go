@@ -18,13 +18,13 @@ type Component struct {
 }
 
 // NewComponent returns a new instance of a metro service component
-func NewComponent(component string, cfg config.Config, sigChan chan error) (*Component, error) {
+func NewComponent(component string, cfg config.Config) (*Component, error) {
 	var svc service.IService
 	var err error
 
 	switch component {
 	case Web:
-		svc, err = web.NewService(&cfg.Admin, &cfg.Web, &cfg.Registry, &cfg.OpenAPIServer, &cfg.Cache, sigChan)
+		svc, err = web.NewService(&cfg.Admin, &cfg.Web, &cfg.Registry, &cfg.OpenAPIServer, &cfg.Cache)
 	case Worker:
 		svc, err = worker.NewService(&cfg.Worker, &cfg.Registry, &cfg.Cache)
 	case OpenAPIServer:
@@ -49,5 +49,8 @@ func (c *Component) Run(ctx context.Context) error {
 
 // Gracefully shutting down a metro component
 func (c *Component) GracefulShutdown(err error) {
-	c.service.GetErrorChannel() <- err
+	errChan := c.service.GetErrorChannel()
+	if errChan != nil {
+		errChan <- err
+	}
 }

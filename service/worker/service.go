@@ -39,6 +39,7 @@ type Service struct {
 	brokerStore      brokerstore.IBrokerStore
 }
 
+// GetErrorChannel returns service error channel
 func (svc *Service) GetErrorChannel() chan error {
 	return nil
 }

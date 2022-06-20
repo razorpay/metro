@@ -50,6 +50,7 @@ func NewService(admin *credentials.Model, webConfig *Config, registryConfig *reg
 	}, nil
 }
 
+// GetErrorChannel returns service error channel
 func (svc *Service) GetErrorChannel() chan error {
 	return svc.errChan
 }

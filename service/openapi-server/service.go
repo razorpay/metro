@@ -33,6 +33,7 @@ func (svc *Service) Start(ctx context.Context) error {
 	return svc.runOpenAPIHandler(ctx)
 }
 
+// GetErrorChannel returns service error channel
 func (svc *Service) GetErrorChannel() chan error {
 	return nil
 }

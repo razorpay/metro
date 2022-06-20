@@ -18,8 +18,7 @@ const metroAPIPrefix = "/v1"
 
 // Service for openapi-server
 type Service struct {
-	config  *Config
-	errChan chan error
+	config *Config
 }
 
 // NewService creates an instance of new producer service

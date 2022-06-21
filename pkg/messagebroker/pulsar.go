@@ -326,6 +326,6 @@ func (p *PulsarBroker) IsClosed(_ context.Context) bool {
 }
 
 // Flush flushes the producer buffer
-func (k *PulsarBroker) Flush(timeoutMs int) {
+func (p *PulsarBroker) Flush(timeoutMs int) {
 	panic("implement this!")
 }

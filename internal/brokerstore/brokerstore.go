@@ -19,6 +19,8 @@ type Key struct {
 	id   string // unique id
 }
 
+const defaultFlushTimeoutMs int = 500
+
 // NewKey creates a new key for broker map
 func NewKey(name string, id string) *Key {
 	return &Key{
@@ -301,7 +303,7 @@ func findAllMatchingKeyPrefix(mp *sync.Map, prefix string) []interface{} {
 // FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
 func (b *BrokerStore) FlushAllProducers() {
 	b.producerMap.Range(func(key, producer interface{}) bool {
-		producer.(messagebroker.Producer).Flush(500)
+		producer.(messagebroker.Producer).Flush(defaultFlushTimeoutMs)
 		b.producerMap.Delete(key)
 		return true
 	})

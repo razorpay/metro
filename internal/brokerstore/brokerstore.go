@@ -78,7 +78,7 @@ type IBrokerStore interface {
 	GetAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
 
 	// FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
-	FlushAllProducers()
+	FlushAllProducers() bool
 }
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
@@ -301,10 +301,11 @@ func findAllMatchingKeyPrefix(mp *sync.Map, prefix string) []interface{} {
 }
 
 // FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
-func (b *BrokerStore) FlushAllProducers() {
+func (b *BrokerStore) FlushAllProducers() bool {
 	b.producerMap.Range(func(key, producer interface{}) bool {
 		producer.(messagebroker.Producer).Flush(defaultFlushTimeoutMs)
 		b.producerMap.Delete(key)
 		return true
 	})
+	return true
 }

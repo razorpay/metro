@@ -107,9 +107,10 @@ func (svc *Service) Start(ctx context.Context) error {
 	streamManager := stream.NewStreamManager(ctx, subscriptionCore, offsetCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
 
 	go func() {
-		err := <-svc.errChan
+		err = <-svc.errChan
 		logger.Ctx(ctx).Errorw("received an error signal on web service", "error", err.Error())
 		healthCore.MarkUnhealthy()
+		brokerStore.FlushAllProducers()
 	}()
 
 	// initiates a error group

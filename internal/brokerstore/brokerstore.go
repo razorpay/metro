@@ -74,6 +74,9 @@ type IBrokerStore interface {
 
 	// GetAdmin returns for an existing admin instance, if available returns that else creates as new instance
 	GetAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
+
+	// FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
+	FlushAllProducers()
 }
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
@@ -293,4 +296,13 @@ func findAllMatchingKeyPrefix(mp *sync.Map, prefix string) []interface{} {
 		return true
 	})
 	return values
+}
+
+// FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
+func (b *BrokerStore) FlushAllProducers() {
+	b.producerMap.Range(func(key, producer interface{}) bool {
+		producer.(messagebroker.Producer).Flush(500)
+		b.producerMap.Delete(key)
+		return true
+	})
 }

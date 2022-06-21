@@ -47,7 +47,7 @@ func (c *Component) Run(ctx context.Context) error {
 	return c.service.Start(ctx)
 }
 
-// Gracefully shutting down a metro component
+// GracefulShutdown gracefully shuts down a metro component
 func (c *Component) GracefulShutdown(err error) {
 	errChan := c.service.GetErrorChannel()
 	if errChan != nil {

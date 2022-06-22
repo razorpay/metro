@@ -421,8 +421,6 @@ func (ps *PushStream) RunPushStreamManager(ctx context.Context) {
 					logger.Ctx(ctx).Infow("worker: error in exiting stream handler ", "error", err.Error())
 				}
 				return
-			default:
-				continue
 			}
 		}
 	}()

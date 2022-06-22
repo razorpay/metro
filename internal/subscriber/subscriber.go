@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -14,8 +15,9 @@ import (
 )
 
 const (
-	deadlineTickerInterval = 200 * time.Millisecond
-	minAckDeadline         = 10 * time.Minute
+	deadlineTickerInterval      = 200 * time.Millisecond
+	minAckDeadline              = 10 * time.Minute
+	healthMonitorTickerInterval = 1 * time.Minute
 )
 
 // ISubscriber is interface over high level subscriber
@@ -35,6 +37,7 @@ type ISubscriber interface {
 type Implementation interface {
 	GetSubscription() *subscription.Model
 	GetSubscriberID() string
+	GetConsumedMessagesStats() map[string]interface{}
 
 	Pull(ctx context.Context, req *PullRequest, responseChan chan *metrov1.PullResponse, errChan chan error)
 	Acknowledge(ctx context.Context, req *AckMessage, errChan chan error)
@@ -46,21 +49,22 @@ type Implementation interface {
 
 // Subscriber consumes messages from a topic
 type Subscriber struct {
-	subscription   *subscription.Model
-	topic          string
-	subscriberID   string
-	requestChan    chan *PullRequest
-	responseChan   chan *metrov1.PullResponse
-	ackChan        chan *AckMessage
-	modAckChan     chan *ModAckMessage
-	deadlineTicker *time.Ticker
-	errChan        chan error
-	closeChan      chan struct{}
-	consumer       IConsumer // consume messages from primary topic and retry topic
-	cancelFunc     func()
-	ctx            context.Context
-	retrier        retry.IRetrier
-	subscriberImpl Implementation
+	subscription        *subscription.Model
+	topic               string
+	subscriberID        string
+	requestChan         chan *PullRequest
+	responseChan        chan *metrov1.PullResponse
+	ackChan             chan *AckMessage
+	modAckChan          chan *ModAckMessage
+	deadlineTicker      *time.Ticker
+	healthMonitorTicker *time.Ticker
+	errChan             chan error
+	closeChan           chan struct{}
+	consumer            IConsumer // consume messages from primary topic and retry topic
+	cancelFunc          func()
+	ctx                 context.Context
+	retrier             retry.IRetrier
+	subscriberImpl      Implementation
 }
 
 // GetID ...
@@ -123,7 +127,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 			if modAckRequest == nil || ctx.Err() != nil {
 				continue
 			}
-			logger.Ctx(ctx).Infow("subscriber: received mod ack for msg", "modAckReq", modAckRequest)
+			logger.Ctx(ctx).Infow("subscriber: received mod ack for msg", "modAckReq", modAckRequest, "subscription", s.subscription.Name)
 			s.modifyAckDeadline(modAckRequest)
 			subscriberTimeTakenInModAckChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-s.deadlineTicker.C:
@@ -133,13 +137,13 @@ func (s *Subscriber) Run(ctx context.Context) {
 			}
 			s.subscriberImpl.EvictUnackedMessagesPastDeadline(ctx, s.GetErrorChannel())
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
-		case err := <-s.errChan:
-			if ctx.Err() != nil {
-				continue
-			}
-			if err != nil {
-				logger.Ctx(ctx).Errorw("subscriber: got error on errCh channel", "logFields", s.getLogFields(), "error", err.Error())
-			}
+		case <-s.healthMonitorTicker.C:
+			logger.Ctx(ctx).Infow("subscriber: heath check monitoring logs",
+				"logFields", s.getLogFields(),
+				"consumerPaused", s.consumer.IsPaused(ctx),
+				"isPrimaryConsumerPaused", s.consumer.IsPrimaryPaused(ctx),
+				"stats", s.subscriberImpl.GetConsumedMessagesStats(),
+			)
 		case <-ctx.Done():
 			logger.Ctx(ctx).Infow("subscriber: <-ctx.Done() called", "logFields", s.getLogFields())
 
@@ -216,6 +220,7 @@ func (s *Subscriber) acknowledge(req *AckMessage) {
 	})
 	defer span.Finish()
 	s.subscriberImpl.Acknowledge(ctx, req, s.GetErrorChannel())
+	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name, strconv.Itoa(int(req.Partition))).SetToCurrentTime()
 }
 
 func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
@@ -227,15 +232,9 @@ func (s *Subscriber) modifyAckDeadline(req *ModAckMessage) {
 		"partition":    req.AckMessage.Partition,
 	})
 
-	logger.Ctx(ctx).Infow("subscriber: modAck request",
-		"subscriber", req.AckMessage.SubscriberID,
-		"topic", req.AckMessage.Topic,
-		"subscription", s.subscription.Name,
-		"message_id", req.AckMessage.MessageID,
-		"partition", req.AckMessage.Partition,
-	)
 	defer span.Finish()
 	s.subscriberImpl.ModAckDeadline(ctx, req, s.GetErrorChannel())
+	subscriberLastMsgProcessingTime.WithLabelValues(env, s.topic, s.subscription.Name, strconv.Itoa(int(req.AckMessage.Partition))).SetToCurrentTime()
 }
 
 func filterMessages(ctx context.Context, s Implementation, messages []*metrov1.ReceivedMessage, errChan chan error) []*metrov1.ReceivedMessage {
@@ -302,7 +301,10 @@ func notifyPullMessageError(ctx context.Context, s Implementation, err error, re
 func receiveMessages(ctx context.Context, s Implementation, consumer IConsumer, req *PullRequest) ([]messagebroker.ReceivedMessage, error) {
 	// wrapping this code block in an anonymous function so that defer on time-taken metric can be scoped
 	if s.CanConsumeMore() == false {
-		logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking", "logFields", getLogFields(s))
+		logger.Ctx(ctx).Infow("subscriber: cannot consume more messages before acking",
+			"logFields", getLogFields(s),
+			"stats", s.GetConsumedMessagesStats(),
+		)
 		// check if consumer is paused once maxOutstanding messages limit is hit
 		if consumer.IsPaused(ctx) == false {
 			consumer.PauseConsumer(ctx)

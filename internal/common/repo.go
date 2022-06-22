@@ -34,7 +34,7 @@ func (r BaseRepo) Save(ctx context.Context, m IModel) error {
 
 	b, err := json.Marshal(m)
 	if err != nil {
-		logger.Ctx(ctx).Error("error in json marshal", "msg", err.Error())
+		logger.Ctx(ctx).Error("error in json marshal in Save", "msg", err.Error())
 		return err
 	}
 
@@ -53,7 +53,7 @@ func (r BaseRepo) Acquire(ctx context.Context, m IModel, sessionID string) error
 
 	b, err := json.Marshal(m)
 	if err != nil {
-		logger.Ctx(ctx).Error("error in json marshal", "msg", err.Error())
+		logger.Ctx(ctx).Error("error in json marshal in Acquire", "msg", err.Error())
 		return err
 	}
 	acquired, err := r.Registry.Acquire(ctx, sessionID, m.Key(), b)

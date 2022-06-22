@@ -49,6 +49,32 @@ func TestValidation_GetValidatedModel(t *testing.T) {
 	assert.Equal(t, m.NumPartitions, DefaultNumPartitions)
 }
 
+func TestValidation_GetValidatedModel_ValidPartition(t *testing.T) {
+	ctx := context.Background()
+
+	topic := "projects/test-project/topics/test-topic"
+	m, err := GetValidatedModel(ctx, &metrov1.Topic{
+		Name:            topic,
+		Labels:          nil,
+		NumOfPartitions: 4,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, m.Name, topic)
+	assert.Equal(t, m.NumPartitions, 4)
+}
+
+func TestValidation_GetValidatedModel_InvalidPartition(t *testing.T) {
+	ctx := context.Background()
+
+	topic := "projects/test-project/topics/test-topic"
+	_, err := GetValidatedModel(ctx, &metrov1.Topic{
+		Name:            topic,
+		Labels:          nil,
+		NumOfPartitions: -2,
+	})
+	assert.NotNil(t, err)
+}
+
 func TestValidation_GetValidatedAdminModel(t *testing.T) {
 	ctx := context.Background()
 

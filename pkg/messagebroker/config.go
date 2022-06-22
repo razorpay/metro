@@ -57,6 +57,8 @@ type ConsumerClientOptions struct {
 	// Only non-empty strings are permitted. If set, the consumer is treated as a static member,
 	// which means that only one instance with this ID is allowed in the consumer group at any time
 	GroupInstanceID string
+	// Specify the auto offset reset value in case no offset is committed yet.
+	AutoOffsetReset string
 }
 
 // ProducerClientOptions holds client specific configuration for producer

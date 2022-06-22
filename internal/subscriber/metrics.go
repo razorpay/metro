@@ -28,6 +28,7 @@ var (
 	subscriberTimeTakenToPushToRetry           *prometheus.HistogramVec
 	subscriberNumberOfRetainedAckedMessages    *prometheus.GaugeVec
 	subscriberRetainedAckedMessagesSize        *prometheus.GaugeVec
+	subscriberLastMsgProcessingTime            *prometheus.GaugeVec
 )
 
 func init() {
@@ -128,4 +129,8 @@ func init() {
 	subscriberRetainedAckedMessagesSize = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_total_size_retained_acked_messages",
 	}, []string{"env", "topic", "subscription"})
+
+	subscriberLastMsgProcessingTime = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metro_subscriber_identify_last_message_processing_time",
+	}, []string{"env", "topic", "subscription", "partition"})
 }

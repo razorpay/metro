@@ -35,8 +35,8 @@ type Service struct {
 	subscriptionTask tasks.ITask
 	doneCh           chan struct{}
 	registry         registry.IRegistry
-	// cache            cache.ICache
-	brokerStore brokerstore.IBrokerStore
+	cache            cache.ICache
+	brokerStore      brokerstore.IBrokerStore
 }
 
 // NewService creates an instance of new worker
@@ -49,10 +49,10 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 		return nil, err
 	}
 
-	// cache, err := cache.NewCache(cacheConfig)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	ch, err := cache.NewCache(cacheConfig)
+	if err != nil {
+		return nil, err
+	}
 
 	// init broker store
 	brokerStore, err := brokerstore.NewBrokerStore(workerConfig.Broker.Variant, &workerConfig.Broker.BrokerConfig)
@@ -69,7 +69,8 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 	subscriptionCore := subscription.NewCore(
 		subscription.NewRepo(reg),
 		projectCore,
-		topicCore)
+		topicCore,
+		brokerStore)
 
 	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(reg))
 
@@ -80,7 +81,7 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 		return nil, err
 	}
 
-	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore, offsetCore)
+	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore, offsetCore, ch)
 
 	// Init scheduler task, this schedules the subscriptions on nodes
 	// Leader Task runs this task internally if node is elected as leader
@@ -118,11 +119,11 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 	}
 
 	return &Service{
-		id:           workerID,
-		doneCh:       make(chan struct{}),
-		workerConfig: workerConfig,
-		registry:     reg,
-		// cache:            cache,
+		id:               workerID,
+		doneCh:           make(chan struct{}),
+		workerConfig:     workerConfig,
+		registry:         reg,
+		cache:            ch,
 		brokerStore:      brokerStore,
 		leaderTask:       leaderTask,
 		subscriptionTask: subscriptionTask,

@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -20,7 +21,7 @@ import (
 
 // IManager ...
 type IManager interface {
-	CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest, errGroup *errgroup.Group) error
+	CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest, errGroup *errgroup.Group, ch cache.ICache) error
 	Acknowledge(ctx context.Context, parsedReq *ParsedStreamingPullRequest) error
 	ModifyAcknowledgement(ctx context.Context, req *ParsedStreamingPullRequest) error
 }
@@ -80,7 +81,7 @@ func (s *Manager) run() {
 }
 
 // CreateNewStream ...
-func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest, errGroup *errgroup.Group) error {
+func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer, req *ParsedStreamingPullRequest, errGroup *errgroup.Group, ch cache.ICache) error {
 	var (
 		// query allow concurrency for subscription from DB
 		allowedSubscriptionConcurrency uint32
@@ -103,7 +104,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 	pullStream, err := newPullStream(server,
 		req.ClientID,
 		subModel,
-		subscriber.NewCore(s.bs, s.subscriptionCore, s.offsetCore),
+		subscriber.NewCore(s.bs, s.subscriptionCore, s.offsetCore, ch),
 		errGroup,
 		s.cleanupCh,
 	)

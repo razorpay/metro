@@ -110,7 +110,7 @@ func (sm *LeaderTask) Run(ctx context.Context) error {
 	})
 
 	err = taskGroup.Wait()
-	logger.Ctx(ctx).Infow("exiting from worker leader task", "error", err)
+	logger.Ctx(ctx).Infow("exiting from worker leader task", "error", err.Error())
 	return err
 }
 

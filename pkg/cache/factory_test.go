@@ -16,6 +16,15 @@ func TestCreateConsulCache(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestCreateRedisCache(t *testing.T) {
+	config := Config{
+		Driver:      Redis,
+		RedisConfig: RedisConfig{},
+	}
+	reg, err := NewCache(&config)
+	assert.Nil(t, reg)
+	assert.NotNil(t, err)
+}
 func TestInvalidCacheDriver(t *testing.T) {
 	config := Config{
 		Driver: "invalid",

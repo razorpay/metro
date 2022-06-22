@@ -12,6 +12,7 @@ import (
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/razorpay/metro/service/web/stream"
@@ -25,10 +26,11 @@ type subscriberserver struct {
 	subscriptionCore subscription.ICore
 	credentialCore   credentials.ICore
 	psm              stream.IManager
+	ch               cache.ICache
 }
 
-func newSubscriberServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, credentialCore credentials.ICore, psm stream.IManager) *subscriberserver {
-	return &subscriberserver{projectCore, brokerStore, subscriptionCore, credentialCore, psm}
+func newSubscriberServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, subscriptionCore subscription.ICore, credentialCore credentials.ICore, psm stream.IManager, ch cache.ICache) *subscriberserver {
+	return &subscriberserver{projectCore, brokerStore, subscriptionCore, credentialCore, psm, ch}
 }
 
 // CreateSubscription to create a new subscription
@@ -155,7 +157,7 @@ func (s subscriberserver) StreamingPull(server metrov1.Subscriber_StreamingPullS
 
 	// request to init a new stream
 	if parsedReq.HasSubscription() {
-		err := s.psm.CreateNewStream(server, parsedReq, errGroup)
+		err := s.psm.CreateNewStream(server, parsedReq, errGroup, s.ch)
 		if err != nil {
 			return merror.ToGRPCError(err)
 		}

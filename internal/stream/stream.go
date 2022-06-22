@@ -109,6 +109,17 @@ func (ps *PushStream) Start() error {
 				} else {
 					logger.Ctx(ps.ctx).Errorw("worker: nil error from subscriber", "logFields", ps.getLogFields())
 				}
+			default:
+				ps.processMessages()
+			}
+		}
+	})
+
+	errGrp.Go(func() error {
+		for {
+			select {
+			case <-gctx.Done():
+				return nil
 			case ds := <-ps.statusChan:
 				logger.Ctx(ps.ctx).Infow("worker: Received response form processor for message", "msgId", ds.msg.Message.MessageId)
 				if !ds.status {
@@ -117,12 +128,9 @@ func (ps *PushStream) Start() error {
 					ps.ack(ps.ctx, ds.msg)
 				}
 				atomic.AddInt64(&ps.counter, -1)
-			default:
-				ps.processMessages()
 			}
 		}
 	})
-
 	return errGrp.Wait()
 }
 

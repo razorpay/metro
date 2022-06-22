@@ -12,6 +12,11 @@ import (
 	configreader "github.com/razorpay/metro/pkg/config"
 	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/razorpay/metro/pkg/logger"
+
+	"net/http"
+
+	// blank import added for testing.
+	_ "net/http/pprof"
 )
 
 const (
@@ -38,7 +43,7 @@ func isValidComponent(component string) bool {
 }
 
 // Init initializes all modules (logger, tracing, config, metro component)
-func Init(_ context.Context, env string, componentName string) {
+func Init(ctx context.Context, env string, componentName string) {
 	// componentName validation
 	ok := isValidComponent(componentName)
 	if !ok {
@@ -67,6 +72,8 @@ func Init(_ context.Context, env string, componentName string) {
 	encryption.RegisterEncryptionKey(appConfig.Encryption.Key)
 
 	err = boot.InitMonitoring(env, appConfig.App, appConfig.Sentry, appConfig.Tracing)
+
+	setPprofProfiles(ctx, componentName)
 
 	if err != nil {
 		log.Fatalf("error in setting up monitoring : %v", err)
@@ -113,4 +120,15 @@ func Run(ctx context.Context) {
 	}
 
 	logger.Ctx(ctx).Infow("stopped metro")
+}
+
+// sets up pprof profile for perfomance monitoring
+func setPprofProfiles(ctx context.Context, componentName string) {
+	logger.Ctx(ctx).Infow("initialising pprof profiles")
+	go func() {
+		myMux := http.DefaultServeMux
+		if err := http.ListenAndServe("localhost:8080", myMux); err != nil {
+			logger.Ctx(ctx).Fatalw("Error when starting or running %v pprof http server: %v", componentName, err)
+		}
+	}()
 }

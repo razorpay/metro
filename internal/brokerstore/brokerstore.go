@@ -19,6 +19,8 @@ type Key struct {
 	id   string // unique id
 }
 
+const defaultFlushTimeoutMs int = 500
+
 // NewKey creates a new key for broker map
 func NewKey(name string, id string) *Key {
 	return &Key{
@@ -74,6 +76,9 @@ type IBrokerStore interface {
 
 	// GetAdmin returns for an existing admin instance, if available returns that else creates as new instance
 	GetAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
+
+	// FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
+	FlushAllProducers() bool
 }
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
@@ -293,4 +298,14 @@ func findAllMatchingKeyPrefix(mp *sync.Map, prefix string) []interface{} {
 		return true
 	})
 	return values
+}
+
+// FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
+func (b *BrokerStore) FlushAllProducers() bool {
+	b.producerMap.Range(func(key, producer interface{}) bool {
+		producer.(messagebroker.Producer).Flush(defaultFlushTimeoutMs)
+		b.producerMap.Delete(key)
+		return true
+	})
+	return true
 }

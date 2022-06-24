@@ -764,6 +764,10 @@ func (k *KafkaBroker) IsClosed(_ context.Context) bool {
 }
 
 // Flush flushes the producer buffer
-func (k *KafkaBroker) Flush(timeoutMs int) {
+func (k *KafkaBroker) Flush(timeoutMs int) error {
+	if k.Producer == nil {
+		return errProducerUnavailable
+	}
 	k.Producer.Flush(timeoutMs)
+	return nil
 }

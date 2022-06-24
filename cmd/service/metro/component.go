@@ -46,11 +46,3 @@ func (c *Component) Run(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("starting metro component", "name", c.name)
 	return c.service.Start(ctx)
 }
-
-// GracefulShutdown gracefully shuts down a metro component
-func (c *Component) GracefulShutdown(err error) {
-	errChan := c.service.GetErrorChannel()
-	if errChan != nil {
-		errChan <- err
-	}
-}

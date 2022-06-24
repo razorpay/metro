@@ -36,7 +36,7 @@ type Producer interface {
 	Shutdown(context.Context)
 
 	// Flush flushes the producer buffer
-	Flush(timeoutMs int)
+	Flush(timeoutMs int) error
 }
 
 // Consumer interface for consuming messages

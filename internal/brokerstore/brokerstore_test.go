@@ -89,7 +89,7 @@ func TestBrokerStore_FlushAllProducers(t *testing.T) {
 	producer, err := bs.GetProducer(ctx, clientOptions)
 	assert.Nil(t, err)
 	assert.NotNil(t, producer)
-	assert.True(t, bs.FlushAllProducers())
+	assert.Nil(t, bs.FlushAllProducers(ctx))
 }
 
 func getValidBrokerConfig() *messagebroker.BrokerConfig {

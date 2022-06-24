@@ -78,7 +78,7 @@ type IBrokerStore interface {
 	GetAdmin(ctx context.Context, op messagebroker.AdminClientOptions) (messagebroker.Admin, error)
 
 	// FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
-	FlushAllProducers() bool
+	FlushAllProducers(ctx context.Context) error
 }
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
@@ -301,11 +301,25 @@ func findAllMatchingKeyPrefix(mp *sync.Map, prefix string) []interface{} {
 }
 
 // FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
-func (b *BrokerStore) FlushAllProducers() bool {
-	b.producerMap.Range(func(key, producer interface{}) bool {
-		producer.(messagebroker.Producer).Flush(defaultFlushTimeoutMs)
-		b.producerMap.Delete(key)
+func (b *BrokerStore) FlushAllProducers(ctx context.Context) error {
+	logger.Ctx(ctx).Infow("brokerstore: request to flush all producers")
+
+	wg := sync.WaitGroup{}
+	b.producerMap.Range(func(key, producerFromMap interface{}) bool {
+		wg.Add(1)
+		producer := producerFromMap.(messagebroker.Producer)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
+			err := producer.Flush(defaultFlushTimeoutMs)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("error flushing producer", "error", err.Error())
+				return
+			}
+			b.producerMap.Delete(key)
+			logger.Ctx(ctx).Infow("successfully flushed producer")
+		}(&wg)
 		return true
 	})
-	return true
+	wg.Wait()
+	return nil
 }

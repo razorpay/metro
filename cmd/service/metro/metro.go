@@ -105,7 +105,10 @@ func Run(ctx context.Context) {
 	go func() {
 		sig := <-sigCh
 		logger.Ctx(ctx).Infow("received a signal, stopping metro", "signal", sig)
-		component.GracefulShutdown(fmt.Errorf("OS Signal error"))
+		errChan := component.service.GetErrorChannel()
+		if errChan != nil {
+			errChan <- fmt.Errorf("OS Signal error")
+		}
 		cancel()
 	}()
 

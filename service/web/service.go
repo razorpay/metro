@@ -110,7 +110,7 @@ func (svc *Service) Start(ctx context.Context) error {
 		err = <-svc.errChan
 		logger.Ctx(ctx).Errorw("received an error signal on web service", "error", err.Error())
 		healthCore.MarkUnhealthy()
-		brokerStore.FlushAllProducers()
+		brokerStore.FlushAllProducers(ctx)
 	}()
 
 	// initiates a error group

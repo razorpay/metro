@@ -310,6 +310,7 @@ func (b *BrokerStore) FlushAllProducers(ctx context.Context) {
 		wg.Add(1)
 		producer := producerFromMap.(messagebroker.Producer)
 		go func(producer messagebroker.Producer, wg *sync.WaitGroup) {
+			logger.Ctx(ctx).Infow("brokerstore: flushing producer inside go routine")
 			defer wg.Done()
 			err := producer.Flush(defaultFlushTimeoutMs)
 			if err != nil {

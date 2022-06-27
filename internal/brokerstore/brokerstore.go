@@ -320,7 +320,7 @@ func (b *BrokerStore) FlushAllProducers(ctx context.Context) {
 				return
 			}
 			b.producerMap.Delete(key)
-			logger.Ctx(ctx).Infow("brokerstore: sucessfully flushed producer", "key", key)
+			logger.Ctx(ctx).Infow("brokerstore: successfully flushed producer", "key", key)
 		}(&wg)
 		return true
 	})

@@ -308,7 +308,7 @@ func (b *BrokerStore) FlushAllProducers(ctx context.Context) {
 	b.producerMap.Range(func(key, producerFromMap interface{}) bool {
 		wg.Add(1)
 		producer := producerFromMap.(messagebroker.Producer)
-		go func(wg *sync.WaitGroup) {
+		go func(producer messagebroker.Producer, wg *sync.WaitGroup) {
 			defer wg.Done()
 			err := producer.Flush(defaultFlushTimeoutMs)
 			if err != nil {
@@ -320,7 +320,7 @@ func (b *BrokerStore) FlushAllProducers(ctx context.Context) {
 			}
 			b.producerMap.Delete(key)
 			logger.Ctx(ctx).Infow("brokerstore: successfully flushed producer", "key", key)
-		}(&wg)
+		}(producer, &wg)
 		return true
 	})
 	wg.Wait()

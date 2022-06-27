@@ -313,11 +313,14 @@ func (b *BrokerStore) FlushAllProducers(ctx context.Context) {
 			defer wg.Done()
 			err := producer.Flush(defaultFlushTimeoutMs)
 			if err != nil {
-				logger.Ctx(ctx).Errorw("brokerstore: error flushing producer", "error", err.Error())
+				logger.Ctx(ctx).Errorw("brokerstore: error flushing producer",
+					"key", key,
+					"error", err.Error(),
+				)
 				return
 			}
 			b.producerMap.Delete(key)
-			logger.Ctx(ctx).Infow("brokerstore: successfully flushed producer")
+			logger.Ctx(ctx).Infow("brokerstore: sucessfully flushed producer", "key", key)
 		}(&wg)
 		return true
 	})

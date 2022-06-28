@@ -43,6 +43,16 @@ func (s *OrderedImplementation) GetSubscription() *subscription.Model {
 	return s.subscription
 }
 
+// GetConsumerLag returns preceived lag for the gievn Subscriber
+func (s *OrderedImplementation) GetConsumerLag() map[string]uint64 {
+
+	lag := make(map[string]uint64)
+
+	lag, _ = s.consumer.GetConsumerLag(s.ctx)
+
+	return lag
+}
+
 // CanConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
 func (s *OrderedImplementation) CanConsumeMore() bool {
 	totalConsumedMsgsForTopic := 0

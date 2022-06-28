@@ -330,3 +330,33 @@ func getMockReceivedMessages(input []string) []messagebroker.ReceivedMessage {
 	}
 	return messages
 }
+
+func TestBasicImplementation_GetConsumerLag(t *testing.T) {
+	_, cs, subImpl := setup(t)
+	pTopic := subImpl.topic
+	rTopic := subImpl.subscription.GetRetryTopic()
+	tests := []struct {
+		name string
+		want map[string]uint64
+	}{
+		{
+			name: "Fetch consumer lag for consumer",
+			want: map[string]uint64{
+				pTopic: 0,
+				rTopic: 0,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cs.EXPECT().FetchConsumerLag(gomock.Any()).Return(map[string]uint64{
+				pTopic: 0,
+				rTopic: 0,
+			}, nil).Times(1)
+			got := subImpl.GetConsumerLag()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BasicImplementation.GetConsumerLag() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

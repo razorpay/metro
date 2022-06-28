@@ -627,6 +627,7 @@ func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) er
 	return k.Consumer.Resume(tps)
 }
 
+// FetchConsumerLag calculates consumer lag for all assigned partitions
 func (k *KafkaBroker) FetchConsumerLag(ctx context.Context) (map[string]uint64, error) {
 	lag := make(map[string]uint64)
 

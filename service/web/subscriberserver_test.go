@@ -57,12 +57,14 @@ func TestSubscriberServer_UpdateSubscription(t *testing.T) {
 			PushEndpoint: "https://www.razorpay.com/api",
 		},
 		AckDeadlineSeconds: 10,
+		Tier:               subscription.P2Tier,
 	}
 
 	expected := &metrov1.Subscription{
 		Name:               "projects/project123/subscriptions/testsub",
 		Topic:              "projects/project123/topics/test-topic",
 		AckDeadlineSeconds: 10,
+		Tier:               metrov1.SubscriptionTier_P2,
 	}
 
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
@@ -107,12 +109,14 @@ func TestSubscriberServer_UpdateSubscriptionTestEmptyInRequest(t *testing.T) {
 			PushEndpoint: "https://www.razorpay.com/api",
 		},
 		AckDeadlineSeconds: 30,
+		Tier:               subscription.P2Tier,
 	}
 
 	expected := &metrov1.Subscription{
 		Name:               "projects/project123/subscriptions/testsub",
 		Topic:              "projects/project123/topics/test-topic",
 		AckDeadlineSeconds: 10,
+		Tier:               metrov1.SubscriptionTier_P2,
 	}
 
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
@@ -157,12 +161,14 @@ func TestSubscriberServer_UpdateSubscriptionTestEmptyInCurrent(t *testing.T) {
 			PushEndpoint: "https://www.razorpay.com/api",
 		},
 		AckDeadlineSeconds: 10,
+		Tier:               subscription.P1Tier,
 	}
 
 	expected := &metrov1.Subscription{
 		Name:               "projects/project123/subscriptions/testsub",
 		Topic:              "projects/project123/topics/test-topic",
 		AckDeadlineSeconds: 30,
+		Tier:               metrov1.SubscriptionTier_P1,
 	}
 
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
@@ -237,6 +243,7 @@ func TestSubscriberServer_UpdateSubscriptionRetryConfig(t *testing.T) {
 			PushEndpoint: "https://www.razorpay.com/api",
 		},
 		AckDeadlineSeconds: 10,
+		Tier:               subscription.P1Tier,
 	}
 
 	expected := &metrov1.Subscription{
@@ -250,6 +257,7 @@ func TestSubscriberServer_UpdateSubscriptionRetryConfig(t *testing.T) {
 			MinimumBackoff: &durationpb.Duration{Seconds: 30},
 			MaximumBackoff: &durationpb.Duration{Seconds: 300},
 		},
+		Tier: metrov1.SubscriptionTier_P1,
 	}
 
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
@@ -297,6 +305,7 @@ func TestSubscriberServer_UpdateSubscriptionDeadletterPolicy(t *testing.T) {
 			PushEndpoint: "https://www.razorpay.com/api",
 		},
 		AckDeadlineSeconds: 10,
+		Tier:               subscription.P0Tier,
 	}
 
 	expected := &metrov1.Subscription{
@@ -310,6 +319,7 @@ func TestSubscriberServer_UpdateSubscriptionDeadletterPolicy(t *testing.T) {
 			MaxDeliveryAttempts: 10,
 			DeadLetterTopic:     "projects/project123/topics/testsub-dlq",
 		},
+		Tier: metrov1.SubscriptionTier_P0,
 	}
 
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription.Name).Times(1).Return(current, nil)
@@ -339,6 +349,7 @@ func TestSubscriberServer_CreateSubscription(t *testing.T) {
 	req := &metrov1.Subscription{
 		Name:  "projects/project321/subscriptions/testsub",
 		Topic: "projects/project123/topics/test-topic",
+		Tier:  metrov1.SubscriptionTier_P1,
 	}
 
 	m, err := subscription.GetValidatedModelForCreate(ctx, req)
@@ -364,6 +375,7 @@ func TestSubscriberServer_CreateSubscriptionFailure(t *testing.T) {
 	req := &metrov1.Subscription{
 		Name:  "projects/project321/subscriptions/testsub",
 		Topic: "projects/project123/topics/test-topic",
+		Tier:  metrov1.SubscriptionTier_P2,
 	}
 
 	m, err := subscription.GetValidatedModelForCreate(ctx, req)

@@ -401,6 +401,6 @@ func validateTier(_ context.Context, m *Model, req *metrov1.Subscription) error 
 		return ErrInvalidTier
 	}
 
-	m.Tier = SubscriptionTier(tier.String())
+	m.Tier = Tier(tier.String())
 	return nil
 }

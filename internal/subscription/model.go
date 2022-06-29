@@ -21,17 +21,17 @@ const (
 )
 
 // SubscriptionTier indicates the tier of subscription
-type SubscriptionTier string
+type Tier string
 
 const (
 	// P0Tier ...
-	P0Tier SubscriptionTier = "P0"
+	P0Tier Tier = "P0"
 
 	// P1Tier ...
-	P1Tier SubscriptionTier = "P1"
+	P1Tier Tier = "P1"
 
 	// P2Tier ...
-	P2Tier SubscriptionTier = "P2"
+	P2Tier Tier = "P2"
 )
 
 // Model for a subscription
@@ -56,7 +56,7 @@ type Model struct {
 	ExtractedSubscriptionProjectID string            `json:"extracted_subscription_project_id"`
 	ExtractedTopicName             string            `json:"extracted_topic_name"`
 	ExtractedSubscriptionName      string            `json:"extracted_subscription_name"`
-	Tier                           SubscriptionTier  `json:"tier,omitempty"`
+	Tier                           Tier              `json:"tier,omitempty"`
 }
 
 // Filter defines the Filter criteria for messages

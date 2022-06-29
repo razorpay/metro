@@ -20,6 +20,14 @@ const (
 	SubscriptionTypePull = "Pull"
 )
 
+type SubscriptionTier string
+
+const (
+	P0Tier SubscriptionTier = "P0"
+	P1Tier SubscriptionTier = "P1"
+	P2Tier SubscriptionTier = "P2"
+)
+
 // Model for a subscription
 type Model struct {
 	common.BaseModel
@@ -42,6 +50,7 @@ type Model struct {
 	ExtractedSubscriptionProjectID string            `json:"extracted_subscription_project_id"`
 	ExtractedTopicName             string            `json:"extracted_topic_name"`
 	ExtractedSubscriptionName      string            `json:"extracted_subscription_name"`
+	Tier                           SubscriptionTier  `json:"tier,omitempty"`
 }
 
 // Filter defines the Filter criteria for messages

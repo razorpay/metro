@@ -88,6 +88,9 @@ var (
 
 	// ErrInvalidPushEndpointPassword ...
 	ErrInvalidPushEndpointPassword = errors.New("invalid push_endpoint password attribute")
+
+	// ErrInvalidTier ...
+	ErrInvalidTier = errors.New(fmt.Sprintf("invalid subscription tier"))
 )
 
 func init() {
@@ -139,6 +142,12 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 
 	// validate Filter Expression
 	err = validateFilterExpression(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
+	}
+
+	// validate Subscription Tier
+	err = validateTier(ctx, m, req)
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
@@ -383,4 +392,15 @@ func extractSubscriptionMetaAndValidate(_ context.Context, name string) (project
 	}
 
 	return projectID, subscriptionName, nil
+}
+
+func validateTier(_ context.Context, m *Model, req *metrov1.Subscription) error {
+	// TODO: add validations on labels
+	tier := req.GetTier()
+	if tier == metrov1.SubscriptionTier_UNKNOWN {
+		return ErrInvalidTier
+	}
+
+	m.Tier = SubscriptionTier(tier.String())
+	return nil
 }

@@ -48,5 +48,9 @@ func ModelToSubscriptionProtoV1(m *Model) *metrov1.Subscription {
 		proto.Filter = m.FilterExpression
 	}
 
+	if _, ok := metrov1.SubscriptionTier_value[string(m.Tier)]; ok {
+		proto.Tier = metrov1.SubscriptionTier(metrov1.SubscriptionTier_value[string(m.Tier)])
+	}
+
 	return proto
 }

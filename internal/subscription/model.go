@@ -20,7 +20,7 @@ const (
 	SubscriptionTypePull = "Pull"
 )
 
-// SubscriptionTier indicates the tier of subscription
+// Tier indicates the tier of subscription
 type Tier string
 
 const (

@@ -90,7 +90,7 @@ var (
 	ErrInvalidPushEndpointPassword = errors.New("invalid push_endpoint password attribute")
 
 	// ErrInvalidTier ...
-	ErrInvalidTier = errors.New(fmt.Sprintf("invalid subscription tier"))
+	ErrInvalidTier = errors.New("invalid subscription tier")
 )
 
 func init() {

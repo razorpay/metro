@@ -5,6 +5,8 @@ import (
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
+	topic "github.com/razorpay/metro/internal/topic"
+	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
@@ -21,20 +23,22 @@ type DelayConsumer struct {
 	consumer     messagebroker.Consumer
 	bs           brokerstore.IBrokerStore
 	handler      MessageHandler
+	ch           cache.ICache
 	// a paused consumer will not return new messages, so this cachedMsg will be used for lookups
 	// till the needed time elapses
 	cachedMsgs []messagebroker.ReceivedMessage
+	errChan    chan error
 }
 
 // NewDelayConsumer inits a new delay-consumer with the pre-defined message handler
-func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler) (*DelayConsumer, error) {
+func NewDelayConsumer(ctx context.Context, subscriberID, topicName string, subs *subscription.Model, bs brokerstore.IBrokerStore, handler MessageHandler, ch cache.ICache, errChan chan error) (*DelayConsumer, error) {
 
 	delayCtx, cancel := context.WithCancel(ctx)
 	// only delay-consumer will consume from a subscription specific delay-topic, so can use the same groupID and groupInstanceID
 	consumerOps := messagebroker.ConsumerClientOptions{
-		Topics:          []string{topic},
-		GroupID:         subs.GetDelayConsumerGroupID(topic),
-		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topic),
+		Topics:          []string{topicName},
+		GroupID:         subs.GetDelayConsumerGroupID(topicName),
+		GroupInstanceID: subs.GetDelayConsumerGroupInstanceID(subscriberID, topicName),
 	}
 	consumer, err := bs.GetConsumer(ctx, consumerOps)
 	if err != nil {
@@ -43,19 +47,21 @@ func NewDelayConsumer(ctx context.Context, subscriberID string, topic string, su
 	}
 
 	// on init, make sure to call resume. This is done just to ensure any previously paused consumers get resumed on boot up.
-	consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: topic})
+	consumer.Resume(ctx, messagebroker.ResumeOnTopicRequest{Topic: topicName})
 
 	return &DelayConsumer{
 		subscriberID: subscriberID,
 		ctx:          delayCtx,
 		cancelFunc:   cancel,
-		topic:        topic,
+		topic:        topicName,
 		consumer:     consumer,
 		subs:         subs,
 		bs:           bs,
 		handler:      handler,
+		ch:           ch,
 		doneCh:       make(chan struct{}),
 		cachedMsgs:   make([]messagebroker.ReceivedMessage, 0),
+		errChan:      errChan,
 	}, nil
 }
 
@@ -76,6 +82,7 @@ func (dc *DelayConsumer) Run(ctx context.Context) {
 			if err != nil {
 				if !messagebroker.IsErrorRecoverable(err) {
 					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in receiving messages", dc.LogFields("error", err.Error())...)
+					dc.errChan <- err
 					return
 				}
 			}
@@ -115,6 +122,10 @@ func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) er
 		return err
 	}
 
+	msg.MessageHeader.ClosestDelayInterval = 0
+	msg.MessageHeader.CurrentDelayInterval = 0
+	msg.MessageHeader.CurrentRetryCount = 0
+
 	_, err = dlProducer.SendMessage(dc.ctx, messagebroker.SendMessageToTopicRequest{
 		Topic:         msg.DeadLetterTopic,
 		Message:       msg.Data,
@@ -138,20 +149,28 @@ func (dc *DelayConsumer) processMsgs() {
 		msg := dc.cachedMsgs[0]
 
 		if msg.CanProcessMessage() {
-			if msg.HasReachedRetryThreshold() {
-				// push to dead-letter topic directly in such cases
-				logger.Ctx(dc.ctx).Infow("delay-consumer: publishing to DLQ topic", dc.LogFields("messageID", msg.MessageID)...)
-				err := dc.pushToDeadLetter(&msg)
-				if err != nil {
-					logger.Ctx(dc.ctx).Errorw("delay-consumer: failed to push to dead-letter topic",
-						dc.LogFields("messageID", msg.MessageID, "topic", msg.DeadLetterTopic, "error", err.Error())...,
-					)
-					return
+			if dc.retryExhausted(msg) || (msg.CurrentRetryCount > msg.MaxRetryCount) {
+				// if the source topic is dlq-topic, message will be lost after exhausting max retries.
+				if !topic.IsDLQTopic(dc.subs.GetTopic()) {
+					// push to dead-letter topic directly in such cases
+					logger.Ctx(dc.ctx).Infow("delay-consumer: publishing to DLQ topic", dc.LogFields("messageID", msg.MessageID)...)
+					err := dc.pushToDeadLetter(&msg)
+					if err != nil {
+						logger.Ctx(dc.ctx).Errorw("delay-consumer: failed to push to dead-letter topic",
+							dc.LogFields("messageID", msg.MessageID, "topic", msg.DeadLetterTopic, "error", err.Error())...,
+						)
+						return
+					}
 				}
 			} else {
 				// submit to
 				logger.Ctx(dc.ctx).Infow("delay-consumer: processing message", dc.LogFields("messageID", msg.MessageID)...)
-				err := dc.handler.Do(dc.ctx, msg)
+
+				err := dc.incrementRetryCount(msg)
+				if err != nil {
+					logger.Ctx(dc.ctx).Errorw("delayconsumer: failed to increment retry count", err.Error())
+				}
+				err = dc.handler.Do(dc.ctx, msg)
 				if err != nil {
 					logger.Ctx(dc.ctx).Errorw("delay-consumer: error in msg handler",
 						dc.LogFields("messageID", msg.MessageID, "error", err.Error())...)
@@ -202,4 +221,17 @@ func (dc *DelayConsumer) LogFields(kv ...interface{}) []interface{} {
 
 	fields = append(fields, kv...)
 	return fields
+}
+
+func (dc *DelayConsumer) retryExhausted(msg messagebroker.ReceivedMessage) bool {
+
+	count, err := dc.fetchRetryCount(msg)
+	if err != nil {
+		logger.Ctx(dc.ctx).Errorw("delayconsumer: error fetching retry count from cache", "error", err.Error())
+		return false
+	}
+	if count >= int(msg.MaxRetryCount) {
+		return true
+	}
+	return false
 }

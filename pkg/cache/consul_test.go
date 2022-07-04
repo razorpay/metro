@@ -38,7 +38,7 @@ func TestSetSuccess(t *testing.T) {
 	assert.Nil(t, err)
 
 	ctx := context.Background()
-	err = c.Set(ctx, "k1", []byte("v1"))
+	err = c.Set(ctx, "k1", []byte("v1"), 0)
 	assert.Nil(t, err)
 }
 
@@ -61,7 +61,7 @@ func TestSetFailure(t *testing.T) {
 	assert.Nil(t, err)
 
 	ctx := context.Background()
-	err = c.Set(ctx, "k1", []byte("v1"))
+	err = c.Set(ctx, "k1", []byte("v1"), 0)
 	assert.NotNil(t, err)
 }
 

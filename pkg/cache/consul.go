@@ -57,7 +57,7 @@ func (c *ConsulClient) Get(ctx context.Context, key string) ([]byte, error) {
 }
 
 // Set calls the PUT api to set a value in consul.
-func (c *ConsulClient) Set(ctx context.Context, key string, value []byte) error {
+func (c *ConsulClient) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, consulPutSpan)
 	defer span.Finish()
 

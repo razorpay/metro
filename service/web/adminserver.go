@@ -8,6 +8,7 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/internal/merror"
+	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
@@ -23,11 +24,12 @@ type adminServer struct {
 	subscriptionCore subscription.ICore
 	topicCore        topic.ICore
 	credentialCore   credentials.ICore
+	nodeBindingCore  nodebinding.ICore
 	brokerStore      brokerstore.IBrokerStore
 }
 
-func newAdminServer(admin *credentials.Model, projectCore project.ICore, subscriptionCore subscription.ICore, topicCore topic.ICore, credentialCore credentials.ICore, brokerStore brokerstore.IBrokerStore) *adminServer {
-	return &adminServer{admin, projectCore, subscriptionCore, topicCore, credentialCore, brokerStore}
+func newAdminServer(admin *credentials.Model, projectCore project.ICore, subscriptionCore subscription.ICore, topicCore topic.ICore, credentialCore credentials.ICore, nodebindingCore nodebinding.ICore, brokerStore brokerstore.IBrokerStore) *adminServer {
+	return &adminServer{admin, projectCore, subscriptionCore, topicCore, credentialCore, nodebindingCore, brokerStore}
 }
 
 // CreateProject creates a new project
@@ -104,19 +106,32 @@ func (s adminServer) ModifyTopic(ctx context.Context, req *metrov1.AdminTopic) (
 		return nil, merror.ToGRPCError(aerr)
 	}
 
-	// modify topic partitions
-	_, terr := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
-		Name:          req.GetName(),
-		NumPartitions: m.NumPartitions,
-	})
-	if terr != nil {
-		return nil, merror.ToGRPCError(terr)
+	// Fetch existing topic before updating
+	existingTopic, err := s.topicCore.Get(ctx, m.Name)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
 	}
 
-	// finally update topic with the updated partition count
-	m.NumPartitions = int(req.NumPartitions)
-	if uerr := s.topicCore.UpdateTopic(ctx, m); uerr != nil {
-		return nil, merror.ToGRPCError(uerr)
+	if int(req.NumPartitions) != existingTopic.NumPartitions {
+		// modify topic partitions
+		_, terr := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+			Name:          req.GetName(),
+			NumPartitions: m.NumPartitions,
+		})
+		if terr != nil {
+			return nil, merror.ToGRPCError(terr)
+		}
+
+		// finally update topic with the updated partition count
+		m.NumPartitions = int(req.NumPartitions)
+		if uerr := s.topicCore.UpdateTopic(ctx, m); uerr != nil {
+			return nil, merror.ToGRPCError(uerr)
+		}
+
+		err := s.subscriptionCore.RescaleSubTopics(ctx, m)
+		if err != nil {
+			return &emptypb.Empty{}, err
+		}
 	}
 
 	return &emptypb.Empty{}, nil
@@ -226,12 +241,16 @@ func (s adminServer) ListProjectCredentials(ctx context.Context, req *metrov1.Pr
 func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *metrov1.Subscriptions) (*emptypb.Empty, error) {
 	logger.Ctx(ctx).Infow("received request to migrate subscriptions", "subscriptions", subscriptions.GetNames())
 
-	err := s.subscriptionCore.Migrate(ctx, subscriptions.GetNames())
+	err := s.nodeBindingCore.TriggerNodeBindingRefresh(ctx)
 	if err != nil {
-		return nil, merror.ToGRPCError(err)
+		return &emptypb.Empty{}, err
 	}
+	// err := s.subscriptionCore.Migrate(ctx, subscriptions.GetNames())
+	// if err != nil {
+	// 	return nil, merror.ToGRPCError(err)
+	// }
 
-	logger.Ctx(ctx).Infow("request to migrate subscriptions completed", "subscriptions", subscriptions.GetNames())
+	// logger.Ctx(ctx).Infow("request to migrate subscriptions completed", "subscriptions", subscriptions.GetNames())
 	return &emptypb.Empty{}, nil
 }
 

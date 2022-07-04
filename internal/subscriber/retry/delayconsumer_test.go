@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package retry
@@ -13,6 +14,7 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	mocks3 "github.com/razorpay/metro/internal/subscriber/retry/mocks"
 	"github.com/razorpay/metro/internal/subscription"
+	cachemock "github.com/razorpay/metro/pkg/cache/mocks"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	mocks2 "github.com/razorpay/metro/pkg/messagebroker/mocks"
 	"github.com/stretchr/testify/assert"
@@ -27,6 +29,7 @@ func TestDelayConsumer_Run(t *testing.T) {
 	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
 	mockHandler := mocks3.NewMockMessageHandler(ctrl)
 	mockConsumer := mocks2.NewMockConsumer(ctrl)
+	cache := cachemock.NewMockICache(ctrl)
 
 	subs := &subscription.Model{
 		Name:                           "projects/test-project/subscriptions/test-subscription",
@@ -55,7 +58,7 @@ func TestDelayConsumer_Run(t *testing.T) {
 	mockConsumer.EXPECT().Resume(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
 
 	// initialize delay consumer
-	dc, err := NewDelayConsumer(ctx, subscriberID, "t1", subs, mockBrokerStore, mockHandler)
+	dc, err := NewDelayConsumer(ctx, subscriberID, "t1", subs, mockBrokerStore, mockHandler, cache, make(chan error))
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
@@ -64,7 +67,8 @@ func TestDelayConsumer_Run(t *testing.T) {
 	msgs = append(msgs, getDummyBrokerMessage())
 	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}
 	mockConsumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).Return(resp, nil).AnyTimes()
-
+	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
+	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	// on new message from broker
 	mockHandler.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockConsumer.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(messagebroker.CommitOnTopicResponse{}, nil).AnyTimes()

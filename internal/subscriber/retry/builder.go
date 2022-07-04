@@ -5,16 +5,19 @@ import (
 
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/pkg/cache"
 )
 
 // Builder ...
 type Builder interface {
 	WithBackoff(Backoff) Builder
+	WithCache(ch cache.ICache) Builder
 	WithIntervalFinder(finder IntervalFinder) Builder
 	WithBrokerStore(store brokerstore.IBrokerStore) Builder
 	WithSubscription(subs *subscription.Model) Builder
 	WithMessageHandler(handler MessageHandler) Builder
 	WithSubscriberID(subscriberID string) Builder
+	WithErrChan(chan error) Builder
 	Build() IRetrier
 }
 
@@ -31,6 +34,12 @@ func (retrier *Retrier) Build() IRetrier {
 // WithBackoff ...
 func (retrier *Retrier) WithBackoff(backoff Backoff) Builder {
 	retrier.backoff = backoff
+	return retrier
+}
+
+// WithCache ...
+func (retrier *Retrier) WithCache(ch cache.ICache) Builder {
+	retrier.ch = ch
 	return retrier
 }
 
@@ -61,5 +70,11 @@ func (retrier *Retrier) WithMessageHandler(handler MessageHandler) Builder {
 // WithSubscriberID ...
 func (retrier *Retrier) WithSubscriberID(subscriberID string) Builder {
 	retrier.subscriberID = subscriberID
+	return retrier
+}
+
+// WithErrChan ...
+func (retrier *Retrier) WithErrChan(errChan chan error) Builder {
+	retrier.errChan = errChan
 	return retrier
 }

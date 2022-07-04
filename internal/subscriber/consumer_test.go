@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var autoOffsetReset string = "latest"
+
 func TestConsumerManager_ResumeWithoutPause(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	bs := mockBS.NewMockIBrokerStore(ctrl)
@@ -28,6 +30,7 @@ func TestConsumerManager_ResumeWithoutPause(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
@@ -55,6 +58,7 @@ func TestConsumerManager_PauseConsumer(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
@@ -90,6 +94,7 @@ func TestConsumerManager_PausePrimaryConsumer(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
@@ -125,6 +130,7 @@ func TestConsumerManager_PausePrimaryAfterConsumer(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
@@ -164,6 +170,7 @@ func TestConsumerManager_PauseConsumerAfterPrimary(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
@@ -203,6 +210,7 @@ func TestConsumerManager_Commit(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
@@ -233,6 +241,7 @@ func TestConsumerManager_Receive(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
@@ -262,6 +271,7 @@ func TestConsumerManager_Metadata(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 	consumer, _ := NewConsumerManager(ctx, bs, 1000, subID, subName, topic, retryTopic)
@@ -292,6 +302,7 @@ func TestConsumerManager_Close(t *testing.T) {
 			Topics:          []string{topic, retryTopic},
 			GroupID:         subName,
 			GroupInstanceID: subID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	).Return(cs, nil)
 

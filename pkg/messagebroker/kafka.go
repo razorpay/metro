@@ -54,10 +54,14 @@ func newKafkaConsumerClient(ctx context.Context, bConfig *BrokerConfig, options 
 		return nil, err
 	}
 
+	if options.AutoOffsetReset == "" {
+		options.AutoOffsetReset = "latest"
+	}
+
 	configMap := &kafkapkg.ConfigMap{
 		"bootstrap.servers":       strings.Join(bConfig.Brokers, ","),
 		"socket.keepalive.enable": true,
-		"auto.offset.reset":       "latest",
+		"auto.offset.reset":       options.AutoOffsetReset,
 		"enable.auto.commit":      false,
 		"group.id":                options.GroupID,
 		"group.instance.id":       options.GroupInstanceID,
@@ -109,21 +113,20 @@ func newKafkaProducerClient(ctx context.Context, bConfig *BrokerConfig, options 
 	logger.Ctx(ctx).Infow("kafka producer: initializing new", "options", options)
 
 	configMap := &kafkapkg.ConfigMap{
-		"bootstrap.servers":            strings.Join(bConfig.Brokers, ","),
-		"socket.keepalive.enable":      true,
-		"acks":                         1,
-		"retries":                      3,
-		"go.batch.producer":            false,
-		"linger.ms":                    0,
-		"request.timeout.ms":           3000,
-		"delivery.timeout.ms":          10000,
-		"connections.max.idle.ms":      180000,
-		"log.queue":                    false,
-		"queue.buffering.max.messages": 1000,
-		"go.logs.channel.enable":       false,
-		"go.events.channel.size":       100,
-		"go.produce.channel.size":      1000,
-		"go.delivery.reports":          false,
+		"bootstrap.servers":          strings.Join(bConfig.Brokers, ","),
+		"socket.keepalive.enable":    true,
+		"retries":                    3,
+		"request.timeout.ms":         3000,
+		"delivery.timeout.ms":        2000,
+		"connections.max.idle.ms":    180000,
+		"batch.num.messages":         1,
+		"queue.buffering.max.kbytes": 4096, // Total message size sum allocated in buffer. Shared across topics/partitions
+		"queue.buffering.max.ms":     100,
+		"go.logs.channel.enable":     false, // Disable logs via channel
+		"go.produce.channel.size":    100,   // Allocated buffer size for the produce channel.
+		"go.delivery.reports":        true,  // Returns delivery acks
+		"go.batch.producer":          true,  // Disable batch producer since it clubs calls to librdkafka across topics. This causes memory bloat.
+		"debug":                      "broker,msg",
 	}
 
 	if bConfig.EnableTLS {
@@ -407,8 +410,37 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	var m *kafkapkg.Message
 
-	event := <-deliveryChan
-	m = event.(*kafkapkg.Message)
+	start := time.Now()
+
+	// This is a blocking call. At times due to broker downtimes/back-pressure this call could take a significant amount of time.
+	// During which the ELB/ALB could terminate the request. But the thread is still held in-memory until the pod restarts or ack is recieved.
+	// This causes memory bloat and results in OOM exceptions. To avoid this we explicitly need to manage the lifecycle of this callstack.
+	// 1. Maintain a ticker to ensure that after a certain time the producer gets flushed and the message is not held in buffer.
+	// 2. Watch the request context for ctx.Done() and terminate the synchronous wait for the ack event.
+	// 3. Ensure that the request throws an error after a certain time period if no ack is received.
+
+	ticker := time.NewTimer(5 * time.Second)
+
+	done := false
+	for {
+		select {
+		case event := <-deliveryChan:
+			m = event.(*kafkapkg.Message)
+			done = true
+		case <-ticker.C:
+			logger.Ctx(ctx).Errorw("Callback timeout expired while waiting for ack", "messageId", request.MessageID)
+			k.Producer.Flush(1000)
+			done = true
+		case <-ctx.Done():
+			logger.Ctx(ctx).Errorw("Request context was terminated", "messageId", request.MessageID)
+			done = true
+		}
+		if done {
+			break
+		}
+	}
+
+	logger.Ctx(ctx).Infow("successfully received callback", "msgId", request.MessageID, "time taken", time.Since(start).String())
 
 	if m != nil && m.TopicPartition.Error != nil {
 		logger.Ctx(ctx).Errorw("kafka: error in publishing messages", "error", m.TopicPartition.Error.Error())
@@ -718,6 +750,7 @@ func (k *KafkaBroker) Shutdown(ctx context.Context) {
 	logger.Ctx(ctx).Infow("kafka: request to close the producer", "topic", k.COptions.Topics)
 
 	if k.Producer != nil {
+		k.Producer.Flush(500)
 		k.Producer.Close()
 		logger.Ctx(ctx).Infow("kafka: producer closed", "topic", k.COptions.Topics)
 	}
@@ -728,4 +761,13 @@ func (k *KafkaBroker) Shutdown(ctx context.Context) {
 // IsClosed checks if producer has been closed
 func (k *KafkaBroker) IsClosed(_ context.Context) bool {
 	return k.isProducerClosed
+}
+
+// Flush flushes the producer buffer
+func (k *KafkaBroker) Flush(timeoutMs int) error {
+	if k.Producer == nil {
+		return errProducerUnavailable
+	}
+	k.Producer.Flush(timeoutMs)
+	return nil
 }

@@ -61,7 +61,7 @@
             caPem              = ""
 
 [cache]
-    driver                    = "consul"
+    driver                    = "redis"
     [cache.consulconfig]
         [cache.consulconfig.config]
             address            = "localhost:8500"

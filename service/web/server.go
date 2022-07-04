@@ -74,6 +74,8 @@ func getResourceNameFromRequest(ctx context.Context, req interface{}) (string, e
 		return req.(*metrov1.ModifyAckDeadlineRequest).Subscription, nil
 	case *metrov1.ListTopicSubscriptionsRequest:
 		return req.(*metrov1.ListTopicSubscriptionsRequest).Topic, nil
+	case *metrov1.GetSubscriptionRequest:
+		return req.(*metrov1.GetSubscriptionRequest).Name, nil
 	default:
 		logger.Ctx(ctx).Infof("unknown request type: %v", t)
 		return "", unknownResourceError

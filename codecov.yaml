@@ -8,3 +8,16 @@ coverage:
       default:
         target: 80%
         threshold: 1%
+
+flag_management:
+  individual_flags:
+    - name: unittests
+      statuses:
+        - type: project
+          target: 60%
+          threshold: 2%
+    - name: frontend
+      statuses:
+        - type: integration
+          target: auto
+          threshold: 1%

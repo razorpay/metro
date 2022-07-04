@@ -1,6 +1,6 @@
 name: PR Workflow
 
-on: [push]
+on: [push, pull_request]
 jobs:
   # Job to cancel the previous jobs before running the subsequent jobs
   cancel:

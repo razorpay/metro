@@ -684,3 +684,53 @@ func TestSubscriberServer_ListProjectSubscriptionsFailure(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, res)
 }
+
+func TestSubscriberServer_GetSubscriptionWithExistingName(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
+	ctx := context.Background()
+	req := &metrov1.GetSubscriptionRequest{
+		Name: "projects/project123/subscriptions/testsub",
+	}
+	sub := &subscription.Model{
+		Name:  "projects/project123/subscriptions/testsub",
+		Topic: "projects/project123/topics/test-topic",
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+		},
+		AckDeadlineSeconds:  10,
+		RetainAckedMessages: false,
+		Labels: map[string]string{
+			"isDLQSubscription": "false",
+		},
+	}
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(sub, nil)
+	res, err := server.GetSubscription(ctx, req)
+	assert.NotNil(t, res)
+	assert.Nil(t, err)
+}
+
+func TestSubscriberServer_GetSubscriptionWithoutExistingName(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
+	ctx := context.Background()
+	req := &metrov1.GetSubscriptionRequest{
+		Name: "projects/project123/subscriptions/testsub",
+	}
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(nil, fmt.Errorf("error"))
+	res, err := server.GetSubscription(ctx, req)
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+}

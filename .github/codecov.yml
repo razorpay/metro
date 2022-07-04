@@ -13,11 +13,11 @@ flag_management:
   individual_flags:
     - name: unittests
       statuses:
-        - type: project
+        - type: patch
           target: 60%
           threshold: 2%
-    - name: frontend
+    - name: integration
       statuses:
-        - type: integration
+        - type: patch
           target: auto
           threshold: 1%

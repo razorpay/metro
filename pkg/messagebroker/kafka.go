@@ -797,3 +797,12 @@ func (k *KafkaBroker) Shutdown(ctx context.Context) {
 func (k *KafkaBroker) IsClosed(_ context.Context) bool {
 	return k.isProducerClosed
 }
+
+// Flush flushes the producer buffer
+func (k *KafkaBroker) Flush(timeoutMs int) error {
+	if k.Producer == nil {
+		return errProducerUnavailable
+	}
+	k.Producer.Flush(timeoutMs)
+	return nil
+}

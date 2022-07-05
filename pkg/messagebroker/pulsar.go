@@ -331,3 +331,8 @@ func (p *PulsarBroker) Shutdown(ctx context.Context) {
 func (p *PulsarBroker) IsClosed(_ context.Context) bool {
 	panic("implement this!")
 }
+
+// Flush flushes the producer buffer
+func (p *PulsarBroker) Flush(timeoutMs int) error {
+	panic("implement this!")
+}

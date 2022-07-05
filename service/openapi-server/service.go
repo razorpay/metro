@@ -33,6 +33,11 @@ func (svc *Service) Start(ctx context.Context) error {
 	return svc.runOpenAPIHandler(ctx)
 }
 
+// GetErrorChannel returns service error channel
+func (svc *Service) GetErrorChannel() chan error {
+	return nil
+}
+
 // runOpenAPIHandler serves an OpenAPI UI.
 // Adapted from https://github.com/philips/grpc-gateway-example/blob/a269bcb5931ca92be0ceae6130ac27ae89582ecc/cmd/serve.go#L63
 func (svc *Service) runOpenAPIHandler(ctx context.Context) error {

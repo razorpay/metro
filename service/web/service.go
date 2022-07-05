@@ -35,6 +35,7 @@ type Service struct {
 	openapiConfig  *openapiserver.Config
 	cacheConfig    *cache.Config
 	admin          *credentials.Model
+	errChan        chan error
 }
 
 // NewService creates an instance of new producer service
@@ -45,7 +46,13 @@ func NewService(admin *credentials.Model, webConfig *Config, registryConfig *reg
 		openapiConfig:  openapiConfig,
 		cacheConfig:    cacheConfig,
 		admin:          admin,
+		errChan:        make(chan error),
 	}, nil
+}
+
+// GetErrorChannel returns service error channel
+func (svc *Service) GetErrorChannel() chan error {
+	return svc.errChan
 }
 
 // Start the service
@@ -98,6 +105,13 @@ func (svc *Service) Start(ctx context.Context) error {
 	offsetCore := offset.NewCore(offset.NewRepo(r))
 
 	streamManager := stream.NewStreamManager(ctx, subscriptionCore, offsetCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
+
+	go func() {
+		err = <-svc.errChan
+		logger.Ctx(ctx).Errorw("received an error signal on web service", "error", err.Error())
+		healthCore.MarkUnhealthy()
+		brokerStore.FlushAllProducers(ctx)
+	}()
 
 	// initiates a error group
 	grp, gctx := errgroup.WithContext(ctx)

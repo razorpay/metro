@@ -3,6 +3,7 @@ package subscriber
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -140,6 +141,15 @@ func (s *Subscriber) Run(ctx context.Context) {
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-s.healthMonitorTicker.C:
 			lag := s.subscriberImpl.GetConsumerLag()
+			for topic, offset := range lag {
+				tp := strings.Split(topic, "-")
+				if len(tp) != 2 {
+					logger.Ctx(ctx).Errorw("subscriber: failed to parse topic and partition for consumer lag", "topic", topic)
+					continue
+				}
+				subscriberPartitionConsumerLag.WithLabelValues(env, tp[0], s.subscription.Name, tp[1]).Set(float64(offset))
+			}
+
 			logger.Ctx(ctx).Infow("subscriber: heath check monitoring logs",
 				"logFields", s.getLogFields(),
 				"consumerPaused", s.consumer.IsPaused(ctx),

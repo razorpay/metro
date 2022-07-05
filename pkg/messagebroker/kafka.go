@@ -642,15 +642,16 @@ func (k *KafkaBroker) FetchConsumerLag(ctx context.Context) (map[string]uint64, 
 	}
 
 	for _, tp := range committed {
+		topicPart := *tp.Topic + "-" + strconv.Itoa(int(tp.Partition))
 		low, high, err := k.Consumer.QueryWatermarkOffsets(*tp.Topic, tp.Partition, kafkaMetadataTimeout)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("kafka: failed to fetch watermark offsets", "error", err.Error(), "topic", tp.Topic, "partition", tp.Partition)
 			continue
 		}
 		if tp.Offset == kafkapkg.OffsetInvalid {
-			lag[*tp.Topic] = uint64(high - low)
+			lag[topicPart] = uint64(high - low)
 		} else {
-			lag[*tp.Topic] = uint64(high - int64(tp.Offset))
+			lag[topicPart] = uint64(high - int64(tp.Offset))
 		}
 
 	}

@@ -63,6 +63,9 @@ type Consumer interface {
 	// Resume resume the consumer
 	Resume(context.Context, ResumeOnTopicRequest) error
 
+	// FetchConsumerLag returns the watermark and current offset for a consumer
+	FetchConsumerLag(context.Context) (map[string]uint64, error)
+
 	// Close closes the consumer
 	Close(context.Context) error
 }

@@ -203,6 +203,90 @@ func Test_IsHealthy(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func Test_FetchConsumerLag(t *testing.T) {
+	ctx := context.Background()
+
+	topic := fmt.Sprintf("dummytopic-%v", uuid.New())
+	admin, err := messagebroker.NewAdminClient(context.Background(), "kafka", getKafkaBrokerConfig(), getAdminClientConfig())
+	assert.NotNil(t, admin)
+	assert.Nil(t, err)
+
+	aresp, err := admin.CreateTopic(context.Background(), messagebroker.CreateTopicRequest{
+		Name:          topic,
+		NumPartitions: 1,
+	})
+
+	assert.Nil(t, err)
+	assert.NotNil(t, aresp)
+	consumer, err := messagebroker.NewConsumerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ConsumerClientOptions{
+		Topics:          []string{topic},
+		GroupID:         topic,
+		AutoOffsetReset: "earliest",
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, consumer)
+
+	lag, err := consumer.FetchConsumerLag(ctx)
+
+	assert.Nil(t, err)
+	for _, offset := range lag {
+		assert.Equal(t, int(offset), 0)
+	}
+
+	producer, err := messagebroker.NewProducerClient(context.Background(), "kafka", getKafkaBrokerConfig(), &messagebroker.ProducerClientOptions{
+		Topic:     topic,
+		TimeoutMs: 300,
+	})
+
+	assert.Nil(t, err)
+	assert.NotNil(t, producer)
+	msgsToSend := 5
+	for i := 0; i < msgsToSend; i++ {
+		newMsg := fmt.Sprintf("msg-%v", i)
+		msgbytes, _ := json.Marshal(newMsg)
+		msg := messagebroker.SendMessageToTopicRequest{
+			Topic:     topic,
+			Message:   msgbytes,
+			TimeoutMs: 300,
+		}
+
+		// send the message
+		resp, err := producer.SendMessage(context.Background(), msg)
+		assert.Nil(t, err)
+		assert.NotNil(t, resp.MessageID)
+
+	}
+	lag, oerr := consumer.FetchConsumerLag(ctx)
+
+	assert.Nil(t, oerr)
+	// Ensure that the consumer lag reflects the total outstanding messages
+	for _, offset := range lag {
+		assert.Equal(t, int(offset), msgsToSend)
+	}
+
+	msgsToFetch := 3
+	resp, rerr := consumer.ReceiveMessages(context.Background(), messagebroker.GetMessagesFromTopicRequest{
+		NumOfMessages: int32(msgsToFetch),
+		TimeoutMs:     300,
+	})
+	assert.Nil(t, rerr)
+	for _, msg := range resp.Messages {
+		fmt.Printf("\n\nreceived msg : %v", msg.LogFields())
+		_, err = consumer.CommitByPartitionAndOffset(context.Background(), messagebroker.CommitOnTopicRequest{
+			Topic:     msg.Topic,
+			Partition: msg.Partition,
+			Offset:    msg.Offset + 1,
+		})
+		assert.Nil(t, err)
+	}
+	lag, oerr = consumer.FetchConsumerLag(ctx)
+
+	assert.Nil(t, oerr)
+	// Ensure that the consumer lag reflects the total pending messages
+	for _, offset := range lag {
+		assert.Equal(t, int(offset), msgsToSend-msgsToFetch)
+	}
+}
 func getAdminClientConfig() *messagebroker.AdminClientOptions {
 	return &messagebroker.AdminClientOptions{}
 }

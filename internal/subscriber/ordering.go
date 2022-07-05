@@ -43,12 +43,10 @@ func (s *OrderedImplementation) GetSubscription() *subscription.Model {
 	return s.subscription
 }
 
-// GetConsumerLag returns preceived lag for the gievn Subscriber
+// GetConsumerLag returns perceived lag for the gievn Subscriber
 func (s *OrderedImplementation) GetConsumerLag() map[string]uint64 {
 
-	lag := make(map[string]uint64)
-
-	lag, _ = s.consumer.GetConsumerLag(s.ctx)
+	lag, _ := s.consumer.GetConsumerLag(s.ctx)
 
 	return lag
 }

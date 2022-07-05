@@ -3,6 +3,7 @@ package subscriber
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -38,6 +39,7 @@ type Implementation interface {
 	GetSubscription() *subscription.Model
 	GetSubscriberID() string
 	GetConsumedMessagesStats() map[string]interface{}
+	GetConsumerLag() map[string]uint64
 
 	Pull(ctx context.Context, req *PullRequest, responseChan chan *metrov1.PullResponse, errChan chan error)
 	Acknowledge(ctx context.Context, req *AckMessage, errChan chan error)
@@ -138,10 +140,21 @@ func (s *Subscriber) Run(ctx context.Context) {
 			s.subscriberImpl.EvictUnackedMessagesPastDeadline(ctx, s.GetErrorChannel())
 			subscriberTimeTakenInDeadlineChannelCase.WithLabelValues(env, s.topic, s.subscription.Name).Observe(time.Now().Sub(caseStartTime).Seconds())
 		case <-s.healthMonitorTicker.C:
+			lag := s.subscriberImpl.GetConsumerLag()
+			for topic, offset := range lag {
+				tp := strings.Split(topic, "-")
+				if len(tp) == 1 {
+					logger.Ctx(ctx).Errorw("subscriber: failed to parse topic and partition for consumer lag", "topic", topic)
+					continue
+				}
+				subscriberPartitionConsumerLag.WithLabelValues(env, tp[0], s.subscription.Name, tp[1]).Set(float64(offset))
+			}
+
 			logger.Ctx(ctx).Infow("subscriber: heath check monitoring logs",
 				"logFields", s.getLogFields(),
 				"consumerPaused", s.consumer.IsPaused(ctx),
 				"isPrimaryConsumerPaused", s.consumer.IsPrimaryPaused(ctx),
+				"consumerLag", lag,
 				"stats", s.subscriberImpl.GetConsumedMessagesStats(),
 			)
 		case <-ctx.Done():

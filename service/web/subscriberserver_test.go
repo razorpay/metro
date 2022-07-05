@@ -6,6 +6,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"github.com/razorpay/metro/internal/credentials"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -681,6 +682,88 @@ func TestSubscriberServer_ListProjectSubscriptionsFailure(t *testing.T) {
 
 	subscriptionCore.EXPECT().List(gomock.Any(), subscription.Prefix+req.ProjectId).Return(nil, fmt.Errorf("error"))
 	res, err := server.ListProjectSubscriptions(ctx, req)
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+}
+
+func TestSubscriberServer_GetSubscriptionWithExistingName(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
+	ctx := context.Background()
+	req := &metrov1.GetSubscriptionRequest{
+		Name: "projects/project123/subscriptions/testsub",
+	}
+	sub := &subscription.Model{
+		Name:  "projects/project123/subscriptions/testsub",
+		Topic: "projects/project123/topics/test-topic",
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+			Attributes: map[string]string{
+				"test_key": "test_value",
+			},
+			Credentials: &credentials.Model{
+				Username:  "test_user",
+				Password:  "test_pass",
+				ProjectID: "project123",
+			},
+		},
+		AckDeadlineSeconds: 10,
+		DeadLetterPolicy: &subscription.DeadLetterPolicy{
+			DeadLetterTopic:     "test_dlq",
+			MaxDeliveryAttempts: 1,
+		},
+		RetryPolicy: &subscription.RetryPolicy{
+			MinimumBackoff: 20,
+			MaximumBackoff: 300,
+		},
+	}
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(sub, nil)
+	res, err := server.GetSubscription(ctx, req)
+	assert.NotNil(t, res)
+	assert.Nil(t, err)
+	assert.Equal(t, sub.Name, res.Name)
+	assert.Equal(t, sub.Topic, res.Topic)
+	assert.NotNil(t, res.PushConfig)
+	assert.Equal(t, res.PushConfig.PushEndpoint, sub.PushConfig.PushEndpoint)
+	assert.Equal(t, len(res.PushConfig.Attributes), len(res.PushConfig.Attributes))
+	assert.NotNil(t, res.PushConfig.AuthenticationMethod)
+	assert.Equal(t, res.PushConfig.AuthenticationMethod, &metrov1.PushConfig_BasicAuth_{
+		BasicAuth: &metrov1.PushConfig_BasicAuth{
+			Username: sub.GetCredentials().GetUsername(),
+			Password: sub.GetCredentials().GetPassword(),
+		},
+	})
+	assert.Equal(t, res.PushConfig.Attributes["test_key"], sub.PushConfig.Attributes["test_key"])
+	assert.Equal(t, res.AckDeadlineSeconds, res.AckDeadlineSeconds)
+	assert.NotNil(t, res.RetryPolicy)
+	assert.Equal(t, res.RetryPolicy.MinimumBackoff, &durationpb.Duration{Seconds: int64(sub.RetryPolicy.MinimumBackoff)})
+	assert.Equal(t, res.RetryPolicy.MaximumBackoff, &durationpb.Duration{Seconds: int64(sub.RetryPolicy.MaximumBackoff)})
+	assert.NotNil(t, res.DeadLetterPolicy)
+	assert.Equal(t, res.DeadLetterPolicy.DeadLetterTopic, sub.DeadLetterPolicy.DeadLetterTopic)
+	assert.Equal(t, res.DeadLetterPolicy.MaxDeliveryAttempts, sub.DeadLetterPolicy.MaxDeliveryAttempts)
+}
+
+func TestSubscriberServer_GetSubscriptionWithoutExistingName(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
+	ctx := context.Background()
+	req := &metrov1.GetSubscriptionRequest{
+		Name: "projects/project123/subscriptions/testsub",
+	}
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(nil, fmt.Errorf("error"))
+	res, err := server.GetSubscription(ctx, req)
 	assert.NotNil(t, err)
 	assert.Nil(t, res)
 }

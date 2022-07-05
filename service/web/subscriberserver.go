@@ -289,3 +289,14 @@ func (s subscriberserver) ListProjectSubscriptions(ctx context.Context,
 func (s subscriberserver) AuthFuncOverride(ctx context.Context, fullMethodName string, req interface{}) (context.Context, error) {
 	return authRequest(ctx, s.credentialCore, fullMethodName, req)
 }
+
+// GetSubscription get subscription details by name
+func (s subscriberserver) GetSubscription(ctx context.Context, req *metrov1.GetSubscriptionRequest) (*metrov1.Subscription, error) {
+	logger.Ctx(ctx).Infow("subscriberserver: received request to get subscription details", "subscription name", req.GetName())
+	subs, err := s.subscriptionCore.Get(ctx, req.GetName())
+	if err != nil {
+		logger.Ctx(ctx).Errorw("error while getting subscription details from subscription core", "subsname", req.GetName())
+		return nil, err
+	}
+	return subscription.ModelToSubscriptionProtoV1(subs), nil
+}

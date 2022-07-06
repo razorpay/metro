@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/razorpay/metro/internal/merror"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -100,6 +101,35 @@ func TestGetProjectIDFromRequest(t *testing.T) {
 	for _, tst := range tests {
 		pid, err := getProjectIDFromRequest(ctx, tst.request)
 		assert.Equal(t, tst.pid, pid)
+		assert.Equal(t, tst.err, err)
+	}
+}
+
+func Test_getResourceNameFromRequest(t *testing.T) {
+	type test struct {
+		request interface{}
+		name    string
+		err     error
+	}
+	type testReq struct {
+	}
+	tests := []test{
+		{
+			request: &metrov1.GetSubscriptionRequest{
+				Name: "projects/project123/subscriptions/testsub",
+			},
+			name: "projects/project123/subscriptions/testsub",
+		},
+		{
+			request: &testReq{},
+			name:    "",
+			err:     merror.New(merror.InvalidArgument, "unknown resource type"),
+		},
+	}
+	ctx := context.Background()
+	for _, tst := range tests {
+		name, err := getResourceNameFromRequest(ctx, tst.request)
+		assert.Equal(t, tst.name, name)
 		assert.Equal(t, tst.err, err)
 	}
 }

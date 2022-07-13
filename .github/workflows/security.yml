@@ -17,7 +17,7 @@ jobs:
     with:
       TRIVY_IMAGE_REF: c.rzp.io/razorpay/metro:api
       BU: payments
-      IMAGE_TYPE: ${{ github.sha }}
+      IMAGE_TYPE: api
     secrets:
       HARBOR_DOCKER_USERNAME: ${{ secrets.HARBOR_DOCKER_USERNAME }}
       HARBOR_DOCKER_PASSWORD: ${{ secrets.HARBOR_DOCKER_PASSWORD }}

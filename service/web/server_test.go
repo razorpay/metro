@@ -6,7 +6,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/razorpay/metro/internal/merror"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -106,30 +105,47 @@ func TestGetProjectIDFromRequest(t *testing.T) {
 }
 
 func Test_getResourceNameFromRequest(t *testing.T) {
-	type test struct {
-		request interface{}
-		name    string
-		err     error
-	}
-	type testReq struct {
-	}
-	tests := []test{
-		{
-			request: &metrov1.GetSubscriptionRequest{
-				Name: "projects/project123/subscriptions/testsub",
-			},
-			name: "projects/project123/subscriptions/testsub",
-		},
-		{
-			request: &testReq{},
-			name:    "",
-			err:     merror.New(merror.InvalidArgument, "unknown resource type"),
-		},
+	type args struct {
+		ctx context.Context
+		req interface{}
 	}
 	ctx := context.Background()
-	for _, tst := range tests {
-		name, err := getResourceNameFromRequest(ctx, tst.request)
-		assert.Equal(t, tst.name, name)
-		assert.Equal(t, tst.err, err)
+	type UnknownRequest struct{}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "Get resourceName from GetSubscriptionRequest successfully",
+			args: args{
+				ctx: ctx,
+				req: &metrov1.GetSubscriptionRequest{Name: "projects/project123/subscriptions/testsub"},
+			},
+			want:    "projects/project123/subscriptions/testsub",
+			wantErr: false,
+		},
+		{
+			name: "Throw error as unknown request type",
+			args: args{
+				ctx: ctx,
+				req: &UnknownRequest{},
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getResourceNameFromRequest(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getResourceNameFromRequest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("getResourceNameFromRequest() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

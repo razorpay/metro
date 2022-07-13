@@ -17,12 +17,12 @@ jobs:
     with:
       TRIVY_IMAGE_REF: c.rzp.io/razorpay/metro:api
       BU: payments
-      IMAGE_TYPE: image
+      IMAGE_TYPE: ${{ github.sha }}
     secrets:
       HARBOR_DOCKER_USERNAME: ${{ secrets.HARBOR_DOCKER_USERNAME }}
       HARBOR_DOCKER_PASSWORD: ${{ secrets.HARBOR_DOCKER_PASSWORD }}
       BHADRA_TOKEN: ${{ secrets.BHADRA_TOKEN }}
-      DOCKER_IMAGE_INIT_COMMAND: c.rzp.io/razorpay/metro:image --build-arg GIT_COMMIT_HASH=${{ github.sha }} --build-arg GIT_TOKEN=${{ secrets.GIT_TOKEN }} --build-arg GIT_USERNAME=rzp -f build/docker/Dockerfile
+      DOCKER_IMAGE_INIT_COMMAND: c.rzp.io/razorpay/metro:${{ github.sha }} --build-arg GIT_COMMIT_HASH=${{ github.sha }} --build-arg GIT_TOKEN=${{ secrets.GIT_TOKEN }} --build-arg GIT_USERNAME=rzp -f build/docker/Dockerfile
       GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
       SLACK_HOOK: ${{ secrets.SLACK_HOOK }}
 

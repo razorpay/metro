@@ -6,6 +6,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -686,6 +687,7 @@ func TestSubscriberServer_ListProjectSubscriptionsFailure(t *testing.T) {
 	assert.Nil(t, res)
 }
 
+// TestSubscriberServer_GetSubscriptionWithExistingName: test the GetSubscription given subscription exist
 func TestSubscriberServer_GetSubscriptionWithExistingName(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockProjectCore := mocks4.NewMockICore(ctrl)
@@ -708,9 +710,8 @@ func TestSubscriberServer_GetSubscriptionWithExistingName(t *testing.T) {
 				"test_key": "test_value",
 			},
 			Credentials: &credentials.Model{
-				Username:  "test_user",
-				Password:  "test_pass",
-				ProjectID: "project123",
+				Username: "test_user",
+				Password: "",
 			},
 		},
 		AckDeadlineSeconds: 10,
@@ -725,30 +726,13 @@ func TestSubscriberServer_GetSubscriptionWithExistingName(t *testing.T) {
 	}
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(sub, nil)
 	res, err := server.GetSubscription(ctx, req)
-	assert.NotNil(t, res)
+	pSub := subscription.ModelToSubscriptionProtoV1(sub)
 	assert.Nil(t, err)
-	assert.Equal(t, sub.Name, res.Name)
-	assert.Equal(t, sub.Topic, res.Topic)
-	assert.NotNil(t, res.PushConfig)
-	assert.Equal(t, res.PushConfig.PushEndpoint, sub.PushConfig.PushEndpoint)
-	assert.Equal(t, len(res.PushConfig.Attributes), len(res.PushConfig.Attributes))
-	assert.NotNil(t, res.PushConfig.AuthenticationMethod)
-	assert.Equal(t, res.PushConfig.AuthenticationMethod, &metrov1.PushConfig_BasicAuth_{
-		BasicAuth: &metrov1.PushConfig_BasicAuth{
-			Username: sub.GetCredentials().GetUsername(),
-			Password: sub.GetCredentials().GetPassword(),
-		},
-	})
-	assert.Equal(t, res.PushConfig.Attributes["test_key"], sub.PushConfig.Attributes["test_key"])
-	assert.Equal(t, res.AckDeadlineSeconds, res.AckDeadlineSeconds)
-	assert.NotNil(t, res.RetryPolicy)
-	assert.Equal(t, res.RetryPolicy.MinimumBackoff, &durationpb.Duration{Seconds: int64(sub.RetryPolicy.MinimumBackoff)})
-	assert.Equal(t, res.RetryPolicy.MaximumBackoff, &durationpb.Duration{Seconds: int64(sub.RetryPolicy.MaximumBackoff)})
-	assert.NotNil(t, res.DeadLetterPolicy)
-	assert.Equal(t, res.DeadLetterPolicy.DeadLetterTopic, sub.DeadLetterPolicy.DeadLetterTopic)
-	assert.Equal(t, res.DeadLetterPolicy.MaxDeliveryAttempts, sub.DeadLetterPolicy.MaxDeliveryAttempts)
+	assert.NotNil(t, res)
+	assert.True(t, reflect.DeepEqual(res, pSub))
 }
 
+// TestSubscriberServer_GetSubscriptionWithoutExistingName : test the GetSubscription given subscription does not exist
 func TestSubscriberServer_GetSubscriptionWithoutExistingName(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockProjectCore := mocks4.NewMockICore(ctrl)

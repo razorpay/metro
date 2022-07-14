@@ -93,6 +93,11 @@ func TestGetProjectIDFromRequest(t *testing.T) {
 				ProjectId: "project-p001",
 			},
 			pid: "project-p001",
+		}, {
+			request: &metrov1.GetSubscriptionRequest{
+				Name: "projects/project123/subscriptions/testsub",
+			},
+			pid: "project123",
 		},
 	}
 
@@ -101,51 +106,5 @@ func TestGetProjectIDFromRequest(t *testing.T) {
 		pid, err := getProjectIDFromRequest(ctx, tst.request)
 		assert.Equal(t, tst.pid, pid)
 		assert.Equal(t, tst.err, err)
-	}
-}
-
-func Test_getResourceNameFromRequest(t *testing.T) {
-	type args struct {
-		ctx context.Context
-		req interface{}
-	}
-	ctx := context.Background()
-	type UnknownRequest struct{}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			name: "Get resourceName from GetSubscriptionRequest successfully",
-			args: args{
-				ctx: ctx,
-				req: &metrov1.GetSubscriptionRequest{Name: "projects/project123/subscriptions/testsub"},
-			},
-			want:    "projects/project123/subscriptions/testsub",
-			wantErr: false,
-		},
-		{
-			name: "Throw error as unknown request type",
-			args: args{
-				ctx: ctx,
-				req: &UnknownRequest{},
-			},
-			want:    "",
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getResourceNameFromRequest(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getResourceNameFromRequest() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("getResourceNameFromRequest() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }

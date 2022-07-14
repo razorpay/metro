@@ -295,7 +295,7 @@ func (s subscriberserver) GetSubscription(ctx context.Context, req *metrov1.GetS
 	logger.Ctx(ctx).Infow("subscriberserver: received request to get subscription details", "subscription_name", req.GetName())
 	subs, err := s.subscriptionCore.Get(ctx, req.GetName())
 	if err != nil {
-		logger.Ctx(ctx).Errorw("error while getting subscription details from subscription core", "subscription_name", req.GetName())
+		logger.Ctx(ctx).Errorw("subscriberserver: error while getting subscription details from subscription core", "subscription_name", req.GetName())
 		return nil, err
 	}
 	// set password to empty since password should not be present in the response

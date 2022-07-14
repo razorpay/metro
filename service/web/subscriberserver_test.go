@@ -746,7 +746,7 @@ func TestSubscriberServer_GetSubscriptionWithoutExistingName(t *testing.T) {
 	req := &metrov1.GetSubscriptionRequest{
 		Name: "projects/project123/subscriptions/testsub",
 	}
-	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(nil, fmt.Errorf("error"))
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(nil, fmt.Errorf("subscription does not exist"))
 	res, err := server.GetSubscription(ctx, req)
 	assert.NotNil(t, err)
 	assert.Nil(t, res)

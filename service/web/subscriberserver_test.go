@@ -687,8 +687,8 @@ func TestSubscriberServer_ListProjectSubscriptionsFailure(t *testing.T) {
 	assert.Nil(t, res)
 }
 
-// TestSubscriberServer_GetSubscriptionWithExistingName: test the GetSubscription given subscription exist
-func TestSubscriberServer_GetSubscriptionWithExistingName(t *testing.T) {
+// TestSubscriberServer_GetSubscription: test the GetSubscription given subscription exist
+func TestSubscriberServer_GetSubscription(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)
@@ -716,7 +716,7 @@ func TestSubscriberServer_GetSubscriptionWithExistingName(t *testing.T) {
 		},
 		AckDeadlineSeconds: 10,
 		DeadLetterPolicy: &subscription.DeadLetterPolicy{
-			DeadLetterTopic:     "test_dlq",
+			DeadLetterTopic:     "testsub-dlq",
 			MaxDeliveryAttempts: 1,
 		},
 		RetryPolicy: &subscription.RetryPolicy{
@@ -732,8 +732,8 @@ func TestSubscriberServer_GetSubscriptionWithExistingName(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(res, pSub))
 }
 
-// TestSubscriberServer_GetSubscriptionWithoutExistingName : test the GetSubscription given subscription does not exist
-func TestSubscriberServer_GetSubscriptionWithoutExistingName(t *testing.T) {
+// TestSubscriberServer_GetSubscriptionFailure : test the GetSubscription given subscription does not exist
+func TestSubscriberServer_GetSubscriptionFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockProjectCore := mocks4.NewMockICore(ctrl)
 	brokerStore := mocks.NewMockIBrokerStore(ctrl)

@@ -1,9 +1,9 @@
-name: SecurityChecks
+name: Securitychecks
 on:
   workflow_dispatch:
-  pull_request: { }
+  pull_request: {}
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   schedule:
     - cron: '30 20 * * *'
 jobs:
@@ -18,20 +18,6 @@ jobs:
       PROGRAMMING_LANGUAGE: GO
     secrets:
       GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
-
-  security-imagescan-api:
-    uses: razorpay/security-action/.github/workflows/image_scan.yml@master
-    with:
-      TRIVY_IMAGE_REF: c.rzp.io/razorpay/metro:api
-      BU: payments
-      IMAGE_TYPE: api
-    secrets:
-      HARBOR_DOCKER_USERNAME: ${{ secrets.HARBOR_DOCKER_USERNAME }}
-      HARBOR_DOCKER_PASSWORD: ${{ secrets.HARBOR_DOCKER_PASSWORD }}
-      BHADRA_TOKEN: ${{ secrets.BHADRA_TOKEN }}
-      DOCKER_IMAGE_INIT_COMMAND: c.rzp.io/razorpay/metro:api --build-arg GIT_COMMIT_HASH=${{ github.sha }} --build-arg GIT_TOKEN=${{ secrets.GIT_TOKEN }} --build-arg GIT_USERNAME=rzp -f build/docker/Dockerfile
-      GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
-      SLACK_HOOK: ${{ secrets.SLACK_HOOK }}
 
   security-statuscheck:
     needs: [ security-sast ]

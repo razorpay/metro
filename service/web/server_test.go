@@ -93,6 +93,11 @@ func TestGetProjectIDFromRequest(t *testing.T) {
 				ProjectId: "project-p001",
 			},
 			pid: "project-p001",
+		}, {
+			request: &metrov1.GetSubscriptionRequest{
+				Name: "projects/project123/subscriptions/testsub",
+			},
+			pid: "project123",
 		},
 	}
 

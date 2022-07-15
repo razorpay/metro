@@ -29,6 +29,7 @@ var (
 	subscriberNumberOfRetainedAckedMessages    *prometheus.GaugeVec
 	subscriberRetainedAckedMessagesSize        *prometheus.GaugeVec
 	subscriberLastMsgProcessingTime            *prometheus.GaugeVec
+	subscriberPartitionConsumerLag             *prometheus.GaugeVec
 )
 
 func init() {
@@ -132,5 +133,9 @@ func init() {
 
 	subscriberLastMsgProcessingTime = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metro_subscriber_identify_last_message_processing_time",
+	}, []string{"env", "topic", "subscription", "partition"})
+
+	subscriberPartitionConsumerLag = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "metro_subscriber_calculated_partition_consumer_lag",
 	}, []string{"env", "topic", "subscription", "partition"})
 }

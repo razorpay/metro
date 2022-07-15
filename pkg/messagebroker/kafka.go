@@ -16,6 +16,7 @@ import (
 
 var (
 	errProducerUnavailable = errors.New("producer unavailable")
+	kafkaMetadataTimeout   = 1000
 )
 
 // KafkaBroker for kafka
@@ -624,6 +625,40 @@ func (k *KafkaBroker) Resume(_ context.Context, request ResumeOnTopicRequest) er
 	tps = append(tps, tp)
 
 	return k.Consumer.Resume(tps)
+}
+
+// FetchConsumerLag calculates consumer lag for all assigned partitions
+func (k *KafkaBroker) FetchConsumerLag(ctx context.Context) (map[string]uint64, error) {
+	lag := make(map[string]uint64)
+
+	assigned, err := k.Consumer.Assignment()
+	if err != nil {
+		return lag, err
+	}
+
+	committed, err := k.Consumer.Committed(assigned, kafkaMetadataTimeout)
+	if err != nil {
+		return lag, err
+	}
+
+	for _, tp := range committed {
+		topicPart := *tp.Topic + "=" + strconv.Itoa(int(tp.Partition))
+		low, high, err := k.Consumer.QueryWatermarkOffsets(*tp.Topic, tp.Partition, kafkaMetadataTimeout)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("kafka: failed to fetch watermark offsets",
+				"error", err.Error(),
+				"topic", tp.Topic,
+				"partition", tp.Partition,
+			)
+			continue
+		}
+		if tp.Offset == kafkapkg.OffsetInvalid {
+			lag[topicPart] = uint64(high - low)
+		} else {
+			lag[topicPart] = uint64(high - int64(tp.Offset))
+		}
+	}
+	return lag, nil
 }
 
 // Close closes the consumer

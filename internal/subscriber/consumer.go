@@ -27,6 +27,7 @@ type IConsumer interface {
 	ReceiveMessages(ctx context.Context, maxMessages int32) (*messagebroker.GetMessagesFromTopicResponse, error)
 	GetTopicMetadata(ctx context.Context, req messagebroker.GetTopicMetadataRequest) (messagebroker.GetTopicMetadataResponse, error)
 	CommitByPartitionAndOffset(ctx context.Context, req messagebroker.CommitOnTopicRequest) (messagebroker.CommitOnTopicResponse, error)
+	GetConsumerLag(ctx context.Context) (map[string]uint64, error)
 
 	Close(ctx context.Context) error
 }
@@ -85,6 +86,15 @@ func (c *consumerManager) getLogFields() map[string]interface{} {
 	}
 }
 
+func (c *consumerManager) GetConsumerLag(ctx context.Context) (map[string]uint64, error) {
+
+	lag, err := c.consumer.FetchConsumerLag(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("consumer: failed to fetch consumer lag", "subscription", c.subscriptionName, "error", err.Error())
+	}
+	return lag, err
+
+}
 func (c *consumerManager) pausePrimaryConsumer(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("consumer manager: pausing primary consumer", "logFields", c.getLogFields(), "topic", c.primaryTopic)
 	err := c.consumer.Pause(ctx, messagebroker.PauseOnTopicRequest{Topic: c.primaryTopic})

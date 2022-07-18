@@ -157,6 +157,10 @@ dev-docker-emulator-down:
 docker-build-metro:
 	@docker build . -f build/docker/Dockerfile --build-arg GIT_TOKEN=${GIT_TOKEN} -t razorpay/metro:latest
 
+.PHONY: dev-up # Run metro component without docker
+dev-up: go-build-metro
+	APP_ENV=dev ./bin/metro --component $(app)
+
 .PHONY: mock-gen ## Generates mocks
 mock-gen:
 	@go generate ./...

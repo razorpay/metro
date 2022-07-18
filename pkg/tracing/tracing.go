@@ -38,8 +38,8 @@ func Init(env string, cnf Config, zlog *zap.Logger) error {
 	config := &jaegerconfig.Configuration{
 		ServiceName: fmt.Sprintf("%s-%s", cnf.ServiceName, env),
 		Sampler: &jaegerconfig.SamplerConfig{
-			Type:  jaeger.SamplerTypeConst,
-			Param: 1,
+			Type:  jaeger.SamplerTypeProbabilistic,
+			Param: 0.05,
 		},
 		Reporter: &jaegerconfig.ReporterConfig{
 			LogSpans:           cnf.LogSpans,

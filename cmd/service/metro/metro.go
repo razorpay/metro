@@ -2,6 +2,7 @@ package metro
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -111,6 +112,10 @@ func Run(ctx context.Context) {
 	go func() {
 		sig := <-sigCh
 		logger.Ctx(ctx).Infow("received a signal, stopping metro", "signal", sig)
+		errChan := component.service.GetErrorChannel()
+		if errChan != nil {
+			errChan <- fmt.Errorf("OS Signal error")
+		}
 		cancel()
 	}()
 

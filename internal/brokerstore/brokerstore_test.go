@@ -82,6 +82,16 @@ func TestBrokerStore_GetAdmin(t *testing.T) {
 	assert.NotNil(t, admin)
 }
 
+func TestBrokerStore_FlushAllProducers(t *testing.T) {
+	ctx := context.Background()
+	bs, _ := NewBrokerStore("kafka", getValidBrokerConfig())
+	clientOptions := getValidProducerClientOptions()
+	producer, err := bs.GetProducer(ctx, clientOptions)
+	assert.Nil(t, err)
+	assert.NotNil(t, producer)
+	bs.FlushAllProducers(ctx)
+}
+
 func getValidBrokerConfig() *messagebroker.BrokerConfig {
 	return &messagebroker.BrokerConfig{
 		Brokers:             []string{"b1", "b2"},

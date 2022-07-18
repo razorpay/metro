@@ -34,6 +34,9 @@ type Producer interface {
 
 	// Shutdown closes the producer
 	Shutdown(context.Context)
+
+	// Flush flushes the producer buffer
+	Flush(timeoutMs int) error
 }
 
 // Consumer interface for consuming messages
@@ -59,6 +62,9 @@ type Consumer interface {
 
 	// Resume resume the consumer
 	Resume(context.Context, ResumeOnTopicRequest) error
+
+	// FetchConsumerLag returns the watermark and current offset for a consumer
+	FetchConsumerLag(context.Context) (map[string]uint64, error)
 
 	// Close closes the consumer
 	Close(context.Context) error

@@ -39,6 +39,11 @@ type Service struct {
 	brokerStore      brokerstore.IBrokerStore
 }
 
+// GetErrorChannel returns service error channel
+func (svc *Service) GetErrorChannel() chan error {
+	return nil
+}
+
 // NewService creates an instance of new worker
 func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConfig *cache.Config) (*Service, error) {
 	workerID := uuid.New().String()

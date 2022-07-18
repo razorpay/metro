@@ -6,6 +6,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -15,6 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
+	"github.com/razorpay/metro/internal/credentials"
 	mocks5 "github.com/razorpay/metro/internal/credentials/mocks/core"
 	mocks4 "github.com/razorpay/metro/internal/project/mocks/core"
 	"github.com/razorpay/metro/internal/subscription"
@@ -681,6 +683,71 @@ func TestSubscriberServer_ListProjectSubscriptionsFailure(t *testing.T) {
 
 	subscriptionCore.EXPECT().List(gomock.Any(), subscription.Prefix+req.ProjectId).Return(nil, fmt.Errorf("error"))
 	res, err := server.ListProjectSubscriptions(ctx, req)
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+}
+
+// TestSubscriberServer_GetSubscription: test the GetSubscription given subscription exist
+func TestSubscriberServer_GetSubscription(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
+	ctx := context.Background()
+	req := &metrov1.GetSubscriptionRequest{
+		Name: "projects/project123/subscriptions/testsub",
+	}
+	sub := &subscription.Model{
+		Name:  "projects/project123/subscriptions/testsub",
+		Topic: "projects/project123/topics/test-topic",
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+			Attributes: map[string]string{
+				"test_key": "test_value",
+			},
+			Credentials: &credentials.Model{
+				Username: "test_user",
+				Password: "",
+			},
+		},
+		AckDeadlineSeconds: 10,
+		DeadLetterPolicy: &subscription.DeadLetterPolicy{
+			DeadLetterTopic:     "testsub-dlq",
+			MaxDeliveryAttempts: 1,
+		},
+		RetryPolicy: &subscription.RetryPolicy{
+			MinimumBackoff: 20,
+			MaximumBackoff: 300,
+		},
+	}
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(sub, nil)
+	res, err := server.GetSubscription(ctx, req)
+	pSub := subscription.ModelToSubscriptionProtoV1(sub)
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	assert.True(t, reflect.DeepEqual(res, pSub))
+}
+
+// TestSubscriberServer_GetSubscriptionFailure : test the GetSubscription given subscription does not exist
+func TestSubscriberServer_GetSubscriptionFailure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	cache := cachemock.NewMockICache(ctrl)
+	server := newSubscriberServer(mockProjectCore, brokerStore, subscriptionCore, mockCredentialsCore, manager, cache)
+	ctx := context.Background()
+	req := &metrov1.GetSubscriptionRequest{
+		Name: "projects/project123/subscriptions/testsub",
+	}
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.GetName()).Times(1).Return(nil, fmt.Errorf("subscription does not exist"))
+	res, err := server.GetSubscription(ctx, req)
 	assert.NotNil(t, err)
 	assert.Nil(t, res)
 }

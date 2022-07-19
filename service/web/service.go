@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"net/http"
-	"os"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/sync/errgroup"
@@ -161,7 +160,7 @@ func (svc *Service) Start(ctx context.Context) error {
 				}
 
 				err = mux.HandlePath("GET", "/commit.txt", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-					w.Write([]byte(os.Getenv("GIT_COMMIT_HASH")))
+					http.ServeFile(w, r, "./public/commit.txt")
 				})
 				if err != nil {
 					return err

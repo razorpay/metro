@@ -76,7 +76,8 @@ ENV COMPONENT=${COMPONENT}
 WORKDIR /app
 
 RUN apk add --update --no-cache dumb-init su-exec ca-certificates curl
-RUN mkdir -p /app/public
+RUN mkdir -p /app/public && \
+    echo "${GIT_COMMIT_HASH}" > /app/public/commit.txt
 
 EXPOSE 8081 8082 8083 8084 3000
 

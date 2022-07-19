@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/sync/errgroup"
@@ -142,7 +143,6 @@ func (svc *Service) Start(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-
 				err = metrov1.RegisterPublisherHandlerFromEndpoint(gctx, mux, svc.webConfig.Interfaces.API.GrpcServerAddress, []grpc.DialOption{grpc.WithInsecure()})
 				if err != nil {
 					return err
@@ -157,6 +157,9 @@ func (svc *Service) Start(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
+
+				err = mux.HandlePath("GET", "/commit.txt", http.FileServer(http.Dir("public/")))
+				})
 				return nil
 			})
 

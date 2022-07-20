@@ -142,7 +142,7 @@ func (s *Subscriber) Run(ctx context.Context) {
 		case <-s.healthMonitorTicker.C:
 			lag := s.subscriberImpl.GetConsumerLag()
 			for topic, offset := range lag {
-				tp := strings.Split(topic, "-")
+				tp := strings.Split(topic, "=")
 				if len(tp) == 1 {
 					logger.Ctx(ctx).Errorw("subscriber: failed to parse topic and partition for consumer lag", "topic", topic)
 					continue

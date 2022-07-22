@@ -86,6 +86,25 @@ To rebuild
  ```sh
  make dev-docker-rebuild
  ```
+ ### Running `metro` components WITHOUT docker
+
+Make sure dependents datastores(consul, kafka, zookeeper) are running and accessible via localhost.
+Refer above section on how to bring up datastores using docker. 
+
+
+Copy dev.toml.sample to dev.toml 
+```sh
+ cp config/dev.toml.sample config/dev.toml
+ ```
+
+Run metro web 
+```sh
+ make dev-up app=web
+ ```
+Run metro worker 
+ ```sh
+ make dev-up app=worker 
+ ```
 ## Contributing guidelines
 
 ### Style checking and unit tests

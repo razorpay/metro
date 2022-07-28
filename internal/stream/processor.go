@@ -46,7 +46,7 @@ func newProcessor(ctx context.Context, poolSize int, msgChan chan msgContext, st
 		httpClient:   httpClient,
 	}
 	pool, err := ants.NewPoolWithFunc(poolSize, func(i interface{}) {
-		data := i.(*msgContext)
+		data := i.(msgContext)
 		success := pr.pushMessage(data.ctx, data.msg)
 		pr.statusChan <- deliveryStatus{
 			data.msg,

@@ -28,7 +28,7 @@ type PushStream struct {
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
-	fanoutChan       chan *metrov1.ReceivedMessage
+	fanoutChan       chan msgContext
 	statusChan       chan deliveryStatus
 	httpClient       *http.Client
 	processor        *processor
@@ -238,7 +238,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 			continue
 		}
 		logger.Ctx(ctx).Infow("Dispatching message to processor", "msgId", message.Message.MessageId, "subscription", ps.subscription.Name)
-		ps.fanoutChan <- message
+		ps.fanoutChan <- msgContext{msg: message, ctx: ctx}
 	}
 }
 
@@ -354,7 +354,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	}
 
 	doneCh := make(chan struct{})
-	fanoutChan := make(chan *metrov1.ReceivedMessage, pullBatchSize)
+	fanoutChan := make(chan msgContext, pullBatchSize)
 	statusChan := make(chan deliveryStatus)
 	httpclient := httpclient.NewClient(config)
 

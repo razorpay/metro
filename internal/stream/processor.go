@@ -19,9 +19,13 @@ type deliveryStatus struct {
 	msg    *metrov1.ReceivedMessage
 	status bool
 }
+type msgContext struct {
+	msg *metrov1.ReceivedMessage
+	ctx context.Context
+}
 type processor struct {
 	ctx          context.Context
-	msgChan      chan *metrov1.ReceivedMessage
+	msgChan      chan msgContext
 	statusChan   chan deliveryStatus
 	subID        string
 	subscription *subscription.Model
@@ -32,7 +36,7 @@ type processor struct {
 func (pr *processor) Printf(log string, args ...interface{}) {
 	logger.Ctx(pr.ctx).Infow(log, args)
 }
-func newProcessor(ctx context.Context, poolSize int, msgChan chan *metrov1.ReceivedMessage, statusChan chan deliveryStatus, subID string, sub *subscription.Model, httpClient *http.Client) *processor {
+func newProcessor(ctx context.Context, poolSize int, msgChan chan msgContext, statusChan chan deliveryStatus, subID string, sub *subscription.Model, httpClient *http.Client) *processor {
 	pr := &processor{
 		ctx:          ctx,
 		msgChan:      msgChan,
@@ -42,10 +46,10 @@ func newProcessor(ctx context.Context, poolSize int, msgChan chan *metrov1.Recei
 		httpClient:   httpClient,
 	}
 	pool, err := ants.NewPoolWithFunc(poolSize, func(i interface{}) {
-		msg := i.(*metrov1.ReceivedMessage)
-		success := pr.pushMessage(pr.ctx, msg)
+		data := i.(*msgContext)
+		success := pr.pushMessage(data.ctx, data.msg)
 		pr.statusChan <- deliveryStatus{
-			msg,
+			data.msg,
 			success,
 		}
 	},
@@ -62,11 +66,11 @@ func (pr *processor) start() {
 	logger.Ctx(pr.ctx).Infow("processor:  Running processor witth threads", "subscripiton", pr.subscription.Name, "threads", pr.pool.Cap())
 	for {
 		select {
-		case msg := <-pr.msgChan:
-			logger.Ctx(pr.ctx).Infow("Received message at processor", "msgId", msg.Message.MessageId)
-			err := pr.pool.Invoke(msg)
+		case data := <-pr.msgChan:
+			logger.Ctx(pr.ctx).Infow("Received message at processor", "msgId", data.msg.Message.MessageId)
+			err := pr.pool.Invoke(data)
 			if err != nil {
-				logger.Ctx(pr.ctx).Errorw("processor: Error invoking thread for message", "error", err.Error(), "subscripiton", pr.subscription.Name, "msgID", msg.Message.MessageId)
+				logger.Ctx(pr.ctx).Errorw("processor: Error invoking thread for message", "error", err.Error(), "subscripiton", pr.subscription.Name, "msgID", data.msg.Message.MessageId)
 			}
 		case <-pr.ctx.Done():
 			return

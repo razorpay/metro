@@ -384,7 +384,6 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	// Adds the span context in the headers of message
 	// This header data will be used by consumer to resume the current context
 	carrier := kafkaHeadersCarrier(kHeaders)
-	fmt.Println("parent span**********", span.Context())
 	injectErr := opentracing.GlobalTracer().Inject(span.Context(), opentracing.TextMap, &carrier)
 	if injectErr != nil {
 		logger.Ctx(ctx).Warnw("error injecting span context in message headers", "error", injectErr.Error())
@@ -465,6 +464,8 @@ func (r kafkaConsumerOption) Apply(o *opentracing.StartSpanOptions) {
 	ext.SpanKindConsumer.Apply(o)
 }
 
+// KafkaConsumerOption returns a StartSpanOption appropriate for a Kafka Consumer span
+// with `messageContext` representing the metadata for the producer Span if available. otherwise it will be a root span
 func KafkaConsumerOption(messageContext opentracing.SpanContext) opentracing.StartSpanOption {
 	return kafkaConsumerOption{messageContext}
 }
@@ -499,7 +500,6 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
 			}
 
-			fmt.Println("sendMessage span**********", spanContext)
 			messageSpan, _ := opentracing.StartSpanFromContext(
 				ctx,
 				"Kafka:MessageReceived",

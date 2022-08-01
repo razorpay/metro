@@ -9,6 +9,7 @@ import (
 
 	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
 
 	"github.com/razorpay/metro/pkg/logger"
@@ -383,6 +384,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	// Adds the span context in the headers of message
 	// This header data will be used by consumer to resume the current context
 	carrier := kafkaHeadersCarrier(kHeaders)
+	fmt.Println("parent span**********", span.Context())
 	injectErr := opentracing.GlobalTracer().Inject(span.Context(), opentracing.TextMap, &carrier)
 	if injectErr != nil {
 		logger.Ctx(ctx).Warnw("error injecting span context in message headers", "error", injectErr.Error())
@@ -452,6 +454,21 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	return &SendMessageToTopicResponse{MessageID: request.MessageID}, nil
 }
 
+type kafkaConsumerOption struct {
+	messageContext opentracing.SpanContext
+}
+
+func (r kafkaConsumerOption) Apply(o *opentracing.StartSpanOptions) {
+	if r.messageContext != nil {
+		opentracing.ChildOf(r.messageContext).Apply(o)
+	}
+	ext.SpanKindConsumer.Apply(o)
+}
+
+func KafkaConsumerOption(messageContext opentracing.SpanContext) opentracing.StartSpanOption {
+	return kafkaConsumerOption{messageContext}
+}
+
 //ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
@@ -482,10 +499,11 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
 			}
 
+			fmt.Println("sendMessage span**********", spanContext)
 			messageSpan, _ := opentracing.StartSpanFromContext(
 				ctx,
 				"Kafka:MessageReceived",
-				opentracing.FollowsFrom(spanContext),
+				KafkaConsumerOption(spanContext),
 				opentracing.Tags{
 					"message_id": receivedMessage.MessageID,
 					"topic":      msg.TopicPartition.Topic,

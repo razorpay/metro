@@ -39,7 +39,7 @@ type PushStream struct {
 }
 
 const (
-	defaultTimeoutMs          int   = 100
+	defaultTimeoutMs          int   = 1000
 	defaultMaxOutstandingMsgs int64 = 2
 	defaultMaxOuttandingBytes int64 = 0
 )

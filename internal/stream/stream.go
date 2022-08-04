@@ -148,14 +148,6 @@ func (ps *PushStream) restartSubsciber() error {
 }
 
 func (ps *PushStream) processMessages() {
-	ctx := context.Background()
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessMessages", opentracing.Tags{
-		"subscriber":   ps.subs.GetID(),
-		"subscription": ps.subscription.Name,
-		"topic":        ps.subscription.Topic,
-	})
-	defer span.Finish()
-
 	if ps.subscription.EnableMessageOrdering {
 		pullBatchSize = 1
 	}

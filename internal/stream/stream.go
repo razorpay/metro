@@ -148,14 +148,6 @@ func (ps *PushStream) restartSubsciber() error {
 }
 
 func (ps *PushStream) processMessages() {
-	ctx := context.Background()
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessMessages", opentracing.Tags{
-		"subscriber":   ps.subs.GetID(),
-		"subscription": ps.subscription.Name,
-		"topic":        ps.subscription.Topic,
-	})
-	defer span.Finish()
-
 	if ps.subscription.EnableMessageOrdering {
 		pullBatchSize = 1
 	}
@@ -165,13 +157,13 @@ func (ps *PushStream) processMessages() {
 	if ps.counter >= int64(pullBatchSize) {
 		return
 	}
-	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: int32(pullBatchSize)}).WithContext(ctx)
+	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: int32(pullBatchSize)}).WithContext(ps.ctx)
 	// wait for response data from subscriber response channel
 	// logger.Ctx(ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
 	data := <-ps.subs.GetResponseChannel()
 
 	if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-		ps.processPushStreamResponse(ctx, ps.subscription, data)
+		ps.processPushStreamResponse(ps.ctx, ps.subscription, data)
 	}
 }
 

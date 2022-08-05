@@ -474,26 +474,6 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			// extract the message headers and set in the response struct
 			receivedMessage := convertKafkaHeadersToResponse(msg.Headers)
 			receivedMessage.OrderingKey = string(msg.Key)
-
-			// Get span context from headers
-			carrier := kafkaHeadersCarrier(msg.Headers)
-			spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
-			if extractErr != nil {
-				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
-			}
-
-			messageSpan, _ := opentracing.StartSpanFromContext(
-				ctx,
-				"Kafka:MessageReceived",
-				opentracing.FollowsFrom(spanContext),
-				opentracing.Tags{
-					"message_id": receivedMessage.MessageID,
-					"topic":      msg.TopicPartition.Topic,
-					"partition":  msg.TopicPartition.Partition,
-					"offset":     msg.TopicPartition.Offset,
-				})
-			messageSpan.Finish()
-
 			receivedMessage.Data = msg.Value
 			receivedMessage.Topic = *msg.TopicPartition.Topic
 			receivedMessage.Partition = msg.TopicPartition.Partition

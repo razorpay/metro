@@ -6,6 +6,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 )
 
+// KafkaHeadersCarrier is map of string,string that contains tracing headers
 type KafkaHeadersCarrier []kafka.Header
 
 // ForeachKey conforms to the TextMapReader interface.
@@ -35,6 +36,8 @@ func (r kafkaConsumerOption) Apply(o *opentracing.StartSpanOptions) {
 	ext.SpanKindConsumer.Apply(o)
 }
 
+// KafkaConsumerOption returns a StartSpanOption appropriate for a Kafka Consumer span
+// with `messageContext` representing the metadata for the producer Span if available. otherwise it will be a root span
 func KafkaConsumerOption(messageContext opentracing.SpanContext) opentracing.StartSpanOption {
 	return kafkaConsumerOption{messageContext}
 }

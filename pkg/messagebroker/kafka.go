@@ -382,7 +382,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	// Adds the span context in the headers of message
 	// This header data will be used by consumer to resume the current context
-	carrier := kafkaHeadersCarrier(kHeaders)
+	carrier := KafkaHeadersCarrier(kHeaders)
 	injectErr := opentracing.GlobalTracer().Inject(span.Context(), opentracing.TextMap, &carrier)
 	if injectErr != nil {
 		logger.Ctx(ctx).Warnw("error injecting span context in message headers", "error", injectErr.Error())
@@ -474,6 +474,13 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			// extract the message headers and set in the response struct
 			receivedMessage := convertKafkaHeadersToResponse(msg.Headers)
 			receivedMessage.OrderingKey = string(msg.Key)
+
+			carrier := KafkaHeadersCarrier(msg.Headers)
+			_, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
+			if extractErr != nil {
+				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
+			}
+
 			receivedMessage.Data = msg.Value
 			receivedMessage.Topic = *msg.TopicPartition.Topic
 			receivedMessage.Partition = msg.TopicPartition.Partition

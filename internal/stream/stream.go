@@ -28,7 +28,7 @@ type PushStream struct {
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
-	fanoutChan       chan msgContext
+	fanoutChan       chan *metrov1.ReceivedMessage
 	statusChan       chan deliveryStatus
 	httpClient       *http.Client
 	processor        *processor
@@ -217,20 +217,13 @@ func (ps *PushStream) stopSubscriber() {
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
 	logger.Ctx(ctx).Infow("worker: response", "len(data)", len(data.ReceivedMessages), "logFields", ps.getLogFields())
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessWebhooks", opentracing.Tags{
-		"subscriber":   ps.subs.GetID(),
-		"subscription": ps.subscription.Name,
-		"topic":        ps.subscription.Topic,
-	})
-	defer span.Finish()
-
 	for _, message := range data.ReceivedMessages {
 		atomic.AddInt64(&ps.counter, 1)
 		if message.AckId == "" {
 			continue
 		}
 		logger.Ctx(ctx).Infow("Dispatching message to processor", "msgId", message.Message.MessageId, "subscription", ps.subscription.Name)
-		ps.fanoutChan <- msgContext{msg: message, ctx: ctx}
+		ps.fanoutChan <- message
 	}
 }
 
@@ -346,7 +339,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	}
 
 	doneCh := make(chan struct{})
-	fanoutChan := make(chan msgContext, pullBatchSize)
+	fanoutChan := make(chan *metrov1.ReceivedMessage, pullBatchSize)
 	statusChan := make(chan deliveryStatus)
 	httpclient := httpclient.NewClient(config)
 

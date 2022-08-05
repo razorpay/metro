@@ -500,7 +500,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
 			}
 
-			messageSpan, _ := opentracing.StartSpanFromContext(
+			messageSpan, msgContext := opentracing.StartSpanFromContext(
 				ctx,
 				"Kafka:MessageReceived",
 				KafkaConsumerOption(spanContext),
@@ -511,6 +511,7 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 					"offset":     msg.TopicPartition.Offset,
 				})
 			messageSpan.Finish()
+			ctx = msgContext
 
 			receivedMessage.Data = msg.Value
 			receivedMessage.Topic = *msg.TopicPartition.Topic

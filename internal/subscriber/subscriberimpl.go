@@ -97,6 +97,13 @@ func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, respon
 		ts.Seconds = msg.PublishTime.Unix()
 		protoMsg.PublishTime = ts
 
+		protoMsg.Attributes = make(map[string]string, len(msg.Attributes))
+		for _, attribute := range msg.Attributes {
+			for key, value := range attribute {
+				protoMsg.Attributes[key] = string(value)
+			}
+		}
+
 		// store the processed r1 in a map for limit checks
 		tp := NewTopicPartition(msg.Topic, msg.Partition)
 		if _, ok := s.consumedMessageStats[tp]; !ok {

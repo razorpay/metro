@@ -163,9 +163,12 @@ func (pr *processor) Shutdown() {
 }
 
 func (pr *processor) getSpanContext(message *metrov1.ReceivedMessage) opentracing.SpanContext {
-	carrierMap := make([]kafka.Header, 0, len(message.Message.Attributes))
-	for key, val := range message.Message.Attributes {
-		carrierMap = append(carrierMap, kafka.Header{Key: key, Value: []byte(val)})
+	carrierMap := make([]kafka.Header, 1)
+	if val, ok := message.Message.Attributes[messagebroker.UberTraceID]; ok {
+		carrierMap = []kafka.Header{{Key: messagebroker.UberTraceID, Value: []byte(val)}}
+		delete(message.Message.Attributes, messagebroker.UberTraceID)
+	} else {
+		return nil
 	}
 
 	carrier := messagebroker.KafkaHeadersCarrier(carrierMap)

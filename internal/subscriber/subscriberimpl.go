@@ -100,9 +100,10 @@ func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, respon
 		if len(protoMsg.Attributes) == 0 {
 			protoMsg.Attributes = make(map[string]string, len(msg.Attributes))
 		}
+
 		for _, attribute := range msg.Attributes {
-			for key, value := range attribute {
-				protoMsg.Attributes[key] = string(value)
+			if val, ok := attribute[messagebroker.UberTraceID]; ok {
+				protoMsg.Attributes[messagebroker.UberTraceID] = string(val)
 			}
 		}
 

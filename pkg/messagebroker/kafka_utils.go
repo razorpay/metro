@@ -26,6 +26,7 @@ const (
 	nextDeliveryTimeHeader     = "nextDeliveryTime"
 	currentSequenceHeader      = "currentSequence"
 	prevSequenceHeader         = "prevSequence"
+	UberTraceID                = "uber-trace-id" // it contains tracing information of the publisher span
 )
 
 // extracts the message headers from a given SendMessageToTopicRequest and converts to the equivalent broker headers

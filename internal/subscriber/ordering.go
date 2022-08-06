@@ -136,8 +136,8 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 			protoMsg.Attributes = make(map[string]string, len(msg.Attributes))
 		}
 		for _, attribute := range msg.Attributes {
-			for key, value := range attribute {
-				protoMsg.Attributes[key] = string(value)
+			if val, ok := attribute[messagebroker.UberTraceID]; ok {
+				protoMsg.Attributes[messagebroker.UberTraceID] = string(val)
 			}
 		}
 

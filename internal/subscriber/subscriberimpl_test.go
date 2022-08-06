@@ -23,12 +23,11 @@ import (
 var tickerTimeout = 2 * time.Second
 
 const (
-	subID       string = "subscriber-id"
-	subName     string = "subscription-name"
-	topicName   string = "primary-topic"
-	retryTopic  string = "retry-topic"
-	partition   int32  = 0
-	uberTraceID string = "uber-trace_id"
+	subID      string = "subscriber-id"
+	subName    string = "subscription-name"
+	topicName  string = "primary-topic"
+	retryTopic string = "retry-topic"
+	partition  int32  = 0
 )
 
 func setup(t *testing.T) (
@@ -329,7 +328,7 @@ func getMockReceivedMessages(input []string) []messagebroker.ReceivedMessage {
 		}
 		msgProto.MessageID = strconv.Itoa(index)
 		msgProto.Attributes = append(msgProto.Attributes, map[string][]byte{
-			uberTraceID: []byte("1f9a3064b9adbfef:74f7e093c1eaac41:759efc8483a32b97:0"),
+			messagebroker.UberTraceID: []byte("1f9a3064b9adbfef:74f7e093c1eaac41:759efc8483a32b97:0"),
 		})
 		messages = append(messages, msgProto)
 	}

@@ -163,20 +163,18 @@ func (pr *processor) Shutdown() {
 }
 
 func (pr *processor) getSpanContext(message *metrov1.ReceivedMessage) opentracing.SpanContext {
-	carrierMap := make([]kafka.Header, 1)
 	if val, ok := message.Message.Attributes[messagebroker.UberTraceID]; ok {
-		carrierMap = []kafka.Header{{Key: messagebroker.UberTraceID, Value: []byte(val)}}
+		carrier := messagebroker.KafkaHeadersCarrier(
+			[]kafka.Header{{Key: messagebroker.UberTraceID, Value: []byte(val)}}
+		)
 		delete(message.Message.Attributes, messagebroker.UberTraceID)
-	} else {
-		return nil
-	}
+		spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
+		if extractErr != nil {
+			logger.Ctx(pr.ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
+			return nil
+		}
 
-	carrier := messagebroker.KafkaHeadersCarrier(carrierMap)
-	spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
-	if extractErr != nil {
-		logger.Ctx(pr.ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
-		return nil
+		return spanContext
 	}
-
-	return spanContext
+	return nil
 }

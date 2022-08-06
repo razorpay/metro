@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	subID      string = "subscriber-id"
-	subName    string = "subscription-name"
-	topic      string = "primary-topic"
-	retryTopic string = "retry-topic"
-	partition  int32  = 0
+	subID       string = "subscriber-id"
+	subName     string = "subscription-name"
+	topic       string = "primary-topic"
+	retryTopic  string = "retry-topic"
+	partition   int32  = 0
+	uberTraceID string = "uber-trace-id"
 )
 
 var msgData = []struct {
@@ -240,9 +241,11 @@ func getMockSubscriber(ctx context.Context, ctrl *gomock.Controller) *mocks3.Moc
 
 func getMockResponseMessages() []*metrov1.ReceivedMessage {
 	messages := make([]*metrov1.ReceivedMessage, 0, 2)
+	attributes := make(map[string]string, 1)
+	attributes[uberTraceID] = "1f9a3064b9adbfef:74f7e093c1eaac41:759efc8483a32b97:0"
 	for _, msg := range msgData {
 		messages = append(messages, &metrov1.ReceivedMessage{
-			Message: &metrov1.PubsubMessage{Data: []byte(msg.data)},
+			Message: &metrov1.PubsubMessage{Data: []byte(msg.data), Attributes: attributes},
 			AckId:   msg.ackID,
 		})
 	}

@@ -10,7 +10,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-	"github.com/google/uuid"
 	mockBS "github.com/razorpay/metro/internal/brokerstore/mocks"
 	mocks "github.com/razorpay/metro/internal/node/mocks/repo"
 	"github.com/razorpay/metro/internal/offset"
@@ -330,7 +329,7 @@ func getMockReceivedMessages(input []string) []messagebroker.ReceivedMessage {
 		}
 		msgProto.MessageID = strconv.Itoa(index)
 		msgProto.Attributes = append(msgProto.Attributes, map[string][]byte{
-			uberTraceID: []byte(uuid.New().String()),
+			uberTraceID: []byte("1f9a3064b9adbfef:74f7e093c1eaac41:759efc8483a32b97:0"),
 		})
 		messages = append(messages, msgProto)
 	}

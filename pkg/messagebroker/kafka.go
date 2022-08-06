@@ -474,13 +474,6 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			// extract the message headers and set in the response struct
 			receivedMessage := convertKafkaHeadersToResponse(msg.Headers)
 			receivedMessage.OrderingKey = string(msg.Key)
-
-			carrier := KafkaHeadersCarrier(msg.Headers)
-			_, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
-			if extractErr != nil {
-				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
-			}
-
 			receivedMessage.Data = msg.Value
 			receivedMessage.Topic = *msg.TopicPartition.Topic
 			receivedMessage.Partition = msg.TopicPartition.Partition

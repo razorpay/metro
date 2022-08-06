@@ -190,6 +190,7 @@ func Test_Ordering_Filtered(t *testing.T) {
 					Attributes: map[string]string{
 						"order": msgNo,
 						"x":     attributes[i],
+						"uber-trace-id": "1f9a3064b9adbfef:74f7e093c1eaac41:759efc8483a32b97:0"
 					},
 				},
 			).Get(ctx)

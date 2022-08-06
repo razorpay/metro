@@ -159,7 +159,7 @@ func (pr *processor) pushMessage(message *metrov1.ReceivedMessage) bool {
 func (pr *processor) getSpanContext(message *metrov1.ReceivedMessage) opentracing.SpanContext {
 	carrierMap := make([]kafka.Header, 0, len(message.Message.Attributes))
 	for key, val := range message.Message.Attributes {
-		carrierMap = append(carrierMap, kafka.Header{key, []byte(val)})
+		carrierMap = append(carrierMap, kafka.Header{Key: key, Value: []byte(val)})
 	}
 
 	carrier := messagebroker.KafkaHeadersCarrier(carrierMap)

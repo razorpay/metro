@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/uuid"
 	mockBS "github.com/razorpay/metro/internal/brokerstore/mocks"
 	mocks "github.com/razorpay/metro/internal/node/mocks/repo"
 	"github.com/razorpay/metro/internal/offset"
@@ -23,11 +24,12 @@ import (
 var tickerTimeout = 2 * time.Second
 
 const (
-	subID      string = "subscriber-id"
-	subName    string = "subscription-name"
-	topicName  string = "primary-topic"
-	retryTopic string = "retry-topic"
-	partition  int32  = 0
+	subID       string = "subscriber-id"
+	subName     string = "subscription-name"
+	topicName   string = "primary-topic"
+	retryTopic  string = "retry-topic"
+	partition   int32  = 0
+	uberTraceId string = "uber-trace_id"
 )
 
 func setup(t *testing.T) (
@@ -320,12 +322,16 @@ func getMockReceivedMessages(input []string) []messagebroker.ReceivedMessage {
 		pubSub := &metrov1.PubsubMessage{Data: []byte(msg)}
 		data, _ := proto.Marshal(pubSub)
 		msgProto := messagebroker.ReceivedMessage{
-			Data:      data,
-			Topic:     topicName,
-			Partition: partition,
-			Offset:    int32(index),
+			Data:       data,
+			Topic:      topicName,
+			Partition:  partition,
+			Offset:     int32(index),
+			Attributes: make([]map[string][]byte, 0, 1),
 		}
 		msgProto.MessageID = strconv.Itoa(index)
+		msgProto.Attributes = append(msgProto.Attributes, map[string][]byte{
+			uberTraceId: []byte(uuid.New().String()),
+		})
 		messages = append(messages, msgProto)
 	}
 	return messages

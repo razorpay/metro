@@ -29,7 +29,7 @@ const (
 	topicName   string = "primary-topic"
 	retryTopic  string = "retry-topic"
 	partition   int32  = 0
-	uberTraceId string = "uber-trace_id"
+	uberTraceID string = "uber-trace_id"
 )
 
 func setup(t *testing.T) (
@@ -330,7 +330,7 @@ func getMockReceivedMessages(input []string) []messagebroker.ReceivedMessage {
 		}
 		msgProto.MessageID = strconv.Itoa(index)
 		msgProto.Attributes = append(msgProto.Attributes, map[string][]byte{
-			uberTraceId: []byte(uuid.New().String()),
+			uberTraceID: []byte(uuid.New().String()),
 		})
 		messages = append(messages, msgProto)
 	}

@@ -138,7 +138,11 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 			Topic:     topic,
 			Message:   msgbytes,
 			TimeoutMs: 300,
+			Attributes: make([]map[string][]byte, 0, 1),
 		}
+		msgProto.Attributes = append(msgProto.Attributes, map[string][]byte{
+			"test-attribute": []byte("test-attribute-value"),
+		})
 
 		// send the message
 		resp, rerr := producer.SendMessage(context.Background(), msg)
@@ -339,6 +343,7 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 				Topic:     topic,
 				Message:   msgbytes,
 				TimeoutMs: 300,
+				Attributes: map[string]string{
 			}
 
 			// send the message

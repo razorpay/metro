@@ -135,9 +135,9 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 		newMsg := fmt.Sprintf("msg-%v", i)
 		msgbytes, _ := json.Marshal(newMsg)
 		msg := messagebroker.SendMessageToTopicRequest{
-			Topic:     topic,
-			Message:   msgbytes,
-			TimeoutMs: 300,
+			Topic:      topic,
+			Message:    msgbytes,
+			TimeoutMs:  300,
 			Attributes: make([]map[string][]byte, 0, 1),
 		}
 		msgProto.Attributes = append(msgProto.Attributes, map[string][]byte{
@@ -343,7 +343,6 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 				Topic:     topic,
 				Message:   msgbytes,
 				TimeoutMs: 300,
-				Attributes: map[string]string{
 			}
 
 			// send the message

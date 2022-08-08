@@ -255,13 +255,3 @@ func getMockResponseMessages() []*metrov1.ReceivedMessage {
 	}
 	return messages
 }
-
-func TestPushStream_Stop(t *testing.T) {
-	ctx := context.Background()
-	ctrl := gomock.NewController(t)
-
-	ps := getMockPushStream(ctx, ctrl, "")
-	go ps.Start()
-	err := ps.Stop()
-	assert.Nil(t, err)
-}

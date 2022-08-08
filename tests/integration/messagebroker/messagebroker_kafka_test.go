@@ -140,7 +140,7 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 			TimeoutMs:  300,
 			Attributes: make([]map[string][]byte, 0, 1),
 		}
-		msg.Attributes = append(msgProto.Attributes, map[string][]byte{
+		msg.Attributes = append(msg.Attributes, map[string][]byte{
 			"test-attribute": []byte("test-attribute-value"),
 		})
 

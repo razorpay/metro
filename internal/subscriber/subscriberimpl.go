@@ -97,6 +97,16 @@ func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, respon
 		ts.Seconds = msg.PublishTime.Unix()
 		protoMsg.PublishTime = ts
 
+		if len(protoMsg.Attributes) == 0 {
+			protoMsg.Attributes = make(map[string]string, len(msg.Attributes))
+		}
+
+		for _, attribute := range msg.Attributes {
+			if val, ok := attribute[messagebroker.UberTraceID]; ok {
+				protoMsg.Attributes[messagebroker.UberTraceID] = string(val)
+			}
+		}
+
 		// store the processed r1 in a map for limit checks
 		tp := NewTopicPartition(msg.Topic, msg.Partition)
 		if _, ok := s.consumedMessageStats[tp]; !ok {

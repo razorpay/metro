@@ -320,12 +320,16 @@ func getMockReceivedMessages(input []string) []messagebroker.ReceivedMessage {
 		pubSub := &metrov1.PubsubMessage{Data: []byte(msg)}
 		data, _ := proto.Marshal(pubSub)
 		msgProto := messagebroker.ReceivedMessage{
-			Data:      data,
-			Topic:     topicName,
-			Partition: partition,
-			Offset:    int32(index),
+			Data:       data,
+			Topic:      topicName,
+			Partition:  partition,
+			Offset:     int32(index),
+			Attributes: make([]map[string][]byte, 0, 1),
 		}
 		msgProto.MessageID = strconv.Itoa(index)
+		msgProto.Attributes = append(msgProto.Attributes, map[string][]byte{
+			messagebroker.UberTraceID: []byte("1f9a3064b9adbfef:74f7e093c1eaac41:759efc8483a32b97:0"),
+		})
 		messages = append(messages, msgProto)
 	}
 	return messages

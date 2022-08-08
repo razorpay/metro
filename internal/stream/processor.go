@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/opentracing/opentracing-go"
 	"github.com/panjf2000/ants/v2"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -85,12 +87,16 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	logFields["subscription"] = pr.subscription.Name
 	logFields["messageId"] = message.Message.MessageId
 	logFields["ackId"] = message.AckId
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.PushMessage", opentracing.Tags{
-		"subscriber":   pr.subID,
-		"subscription": pr.subscription.Name,
-		"topic":        pr.subscription.Topic,
-		"message_id":   message.Message.MessageId,
-	})
+	span, ctx := opentracing.StartSpanFromContext(
+		ctx,
+		"PushStream.PushMessage",
+		messagebroker.KafkaConsumerOption(pr.getSpanContext(message)),
+		opentracing.Tags{
+			"subscriber":   pr.subID,
+			"subscription": pr.subscription.Name,
+			"topic":        pr.subscription.Topic,
+			"message_id":   message.Message.MessageId,
+		})
 	defer span.Finish()
 
 	startTime := time.Now()
@@ -154,4 +160,21 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 
 func (pr *processor) Shutdown() {
 	ants.Release()
+}
+
+func (pr *processor) getSpanContext(message *metrov1.ReceivedMessage) opentracing.SpanContext {
+	if val, ok := message.Message.Attributes[messagebroker.UberTraceID]; ok {
+		carrier := messagebroker.KafkaHeadersCarrier(
+			[]kafka.Header{{Key: messagebroker.UberTraceID, Value: []byte(val)}},
+		)
+		delete(message.Message.Attributes, messagebroker.UberTraceID)
+		spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
+		if extractErr != nil {
+			logger.Ctx(pr.ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
+			return nil
+		}
+
+		return spanContext
+	}
+	return nil
 }

@@ -135,14 +135,10 @@ func Test_ProduceAndConsumeMessagesInDetail(t *testing.T) {
 		newMsg := fmt.Sprintf("msg-%v", i)
 		msgbytes, _ := json.Marshal(newMsg)
 		msg := messagebroker.SendMessageToTopicRequest{
-			Topic:      topic,
-			Message:    msgbytes,
-			TimeoutMs:  300,
-			Attributes: make([]map[string][]byte, 0, 1),
+			Topic:     topic,
+			Message:   msgbytes,
+			TimeoutMs: 300,
 		}
-		msg.Attributes = append(msg.Attributes, map[string][]byte{
-			"test-attribute": []byte("test-attribute-value"),
-		})
 
 		// send the message
 		resp, rerr := producer.SendMessage(context.Background(), msg)

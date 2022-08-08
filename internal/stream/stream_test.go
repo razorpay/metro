@@ -134,10 +134,6 @@ func TestPushStream_Start(t *testing.T) {
 			endpoint:  "",
 			isSuccess: false,
 		},
-		{
-			endpoint:  "",
-			isSuccess: false,
-		},
 	}
 
 	for _, test := range tests {

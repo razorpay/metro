@@ -216,6 +216,14 @@ func (ps *PushStream) stopSubscriber() {
 
 func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *subscription.Model, data *metrov1.PullResponse) {
 	logger.Ctx(ctx).Infow("worker: response", "len(data)", len(data.ReceivedMessages), "logFields", ps.getLogFields())
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessWebhooks", opentracing.Tags{
+		"subscriber":   ps.subs.GetID(),
+		"subscription": ps.subscription.Name,
+		"topic":        ps.subscription.Topic,
+	})
+	defer span.Finish()
+
 	for _, message := range data.ReceivedMessages {
 		atomic.AddInt64(&ps.counter, 1)
 		if message.AckId == "" {

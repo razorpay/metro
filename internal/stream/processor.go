@@ -89,7 +89,7 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	span, ctx := opentracing.StartSpanFromContext(
 		ctx,
 		"PushStream.PushMessage",
-		messagebroker.SpanContextOption(pr.getSpanContext(message)),
+		opentracing.FollowsFrom(pr.getSpanContext(message)),
 		opentracing.Tags{
 			"subscriber":   pr.subID,
 			"subscription": pr.subscription.Name,

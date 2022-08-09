@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	kafkapkg "github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
@@ -382,7 +383,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 
 	// Adds the span context in the headers of message
 	// This header data will be used by consumer to resume the current context
-	carrier := KafkaHeadersCarrier(kHeaders)
+	carrier := kafkaHeadersCarrier(kHeaders)
 	injectErr := opentracing.GlobalTracer().Inject(span.Context(), opentracing.TextMap, &carrier)
 	if injectErr != nil {
 		logger.Ctx(ctx).Warnw("error injecting span context in message headers", "error", injectErr.Error())
@@ -784,5 +785,21 @@ func (k *KafkaBroker) Flush(timeoutMs int) error {
 		return errProducerUnavailable
 	}
 	k.Producer.Flush(timeoutMs)
+	return nil
+}
+
+func (k *KafkaBroker) FetchSpanContextFromMessageAttributes(ctx context.Context, attributes map[string]string) opentracing.SpanContext {
+	if val, ok := attributes[UberTraceID]; ok {
+		carrier := kafkaHeadersCarrier(
+			[]kafka.Header{{Key: UberTraceID, Value: []byte(val)}},
+		)
+		spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
+		if extractErr != nil {
+			logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
+			return nil
+		}
+
+		return spanContext
+	}
 	return nil
 }

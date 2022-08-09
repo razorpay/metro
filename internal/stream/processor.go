@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/opentracing/opentracing-go"
 	"github.com/panjf2000/ants/v2"
 	"github.com/razorpay/metro/internal/subscription"
@@ -90,7 +89,7 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	span, ctx := opentracing.StartSpanFromContext(
 		ctx,
 		"PushStream.PushMessage",
-		messagebroker.KafkaConsumerOption(pr.getSpanContext(message)),
+		opentracing.ChildOf(pr.getSpanContext(message)),
 		opentracing.Tags{
 			"subscriber":   pr.subID,
 			"subscription": pr.subscription.Name,
@@ -163,18 +162,11 @@ func (pr *processor) Shutdown() {
 }
 
 func (pr *processor) getSpanContext(message *metrov1.ReceivedMessage) opentracing.SpanContext {
-	if val, ok := message.Message.Attributes[messagebroker.UberTraceID]; ok {
-		carrier := messagebroker.KafkaHeadersCarrier(
-			[]kafka.Header{{Key: messagebroker.UberTraceID, Value: []byte(val)}},
-		)
-		delete(message.Message.Attributes, messagebroker.UberTraceID)
-		spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
-		if extractErr != nil {
-			logger.Ctx(pr.ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
-			return nil
-		}
-
-		return spanContext
+	spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, opentracing.TextMapCarrier(message.Message.Attributes))
+	if extractErr != nil {
+		logger.Ctx(pr.ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
+		return nil
 	}
-	return nil
+	delete(message.Message.Attributes, messagebroker.UberTraceID)
+	return spanContext
 }

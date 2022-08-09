@@ -4,7 +4,6 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
-// KafkaHeadersCarrier is map of string,string that contains tracing headers
 type kafkaHeadersCarrier []kafka.Header
 
 // ForeachKey conforms to the TextMapReader interface.

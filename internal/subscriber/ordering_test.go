@@ -135,12 +135,8 @@ func getDummyOrderedReceivedMessage() []messagebroker.ReceivedMessage {
 		Partition:   partition,
 		Offset:      mockOffset,
 		OrderingKey: orderingKey,
-		Attributes:  make([]map[string][]byte, 0, 1),
 	}
 	msgProto.MessageID = "1"
-	msgProto.Attributes = append(msgProto.Attributes, map[string][]byte{
-		messagebroker.UberTraceID: []byte("1f9a3064b9adbfef:74f7e093c1eaac41:759efc8483a32b97:0"),
-	})
 	return []messagebroker.ReceivedMessage{msgProto}
 }
 

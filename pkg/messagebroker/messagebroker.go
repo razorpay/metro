@@ -1,8 +1,6 @@
 package messagebroker
 
-import (
-	"context"
-)
+import "context"
 
 // Broker interface for all types of ops
 type Broker interface {

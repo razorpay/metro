@@ -98,6 +98,14 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 		})
 	defer span.Finish()
 
+	testSpan, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.TestSpan", opentracing.Tags{
+		"subscriber":   pr.subID,
+		"subscription": pr.subscription.Name,
+		"topic":        pr.subscription.Topic,
+		"message_id":   message.Message.MessageId,
+	})
+	testSpan.Finish()
+
 	startTime := time.Now()
 	pushRequest := newPushEndpointRequest(message, subModel.Name)
 	postData := getRequestBytes(pushRequest)

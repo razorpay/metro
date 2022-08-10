@@ -83,7 +83,7 @@ func TestDelayConsumer_Pause_Resume(t *testing.T) {
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
-	tFut := time.Now().Add(time.Second * 10)
+	tFut := time.Now().Add(time.Second * 1)
 	msgs := make([]messagebroker.ReceivedMessage, 0)
 	msg := getDummyBrokerMessage()
 	msg.NextDeliveryTime = tFut
@@ -125,7 +125,7 @@ func TestDelayConsumer_Pause_Resume(t *testing.T) {
 				if !tt.wantErr {
 					t.Errorf("Got Error : %v", err)
 				}
-			case <-time.NewTicker(time.Second * 1).C:
+			case <-time.NewTicker(time.Second * 2).C:
 				assert.Equal(t, len(dc.cachedMsgs), 0)
 				cancel()
 				<-time.NewTicker(time.Second * 1).C

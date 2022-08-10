@@ -133,7 +133,7 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 		protoMsg.PublishTime = ts
 
 		if len(protoMsg.Attributes) == 0 {
-			protoMsg.Attributes = make(map[string]string, len(msg.Attributes))
+			protoMsg.Attributes = make(map[string]string, 1)
 		}
 		for _, attribute := range msg.Attributes {
 			if val, ok := attribute[messagebroker.UberTraceID]; ok {

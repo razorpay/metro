@@ -226,3 +226,14 @@ func getMessageID(messageID string) string {
 func normalizeTopicName(name string) string {
 	return strings.ReplaceAll(name, "/", "_")
 }
+
+// flattenMapSlice flattens the given map slice and returns a map[string]string
+func flattenMapSlice(attributes []map[string][]byte) map[string]string {
+	attributeMap := make(map[string]string, len(attributes))
+	for _, attribute := range attributes {
+		for key, value := range attribute {
+			attributeMap[key] = string(value)
+		}
+	}
+	return attributeMap
+}

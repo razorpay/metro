@@ -98,7 +98,7 @@ func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, respon
 		protoMsg.PublishTime = ts
 
 		if len(protoMsg.Attributes) == 0 {
-			protoMsg.Attributes = make(map[string]string, len(msg.Attributes))
+			protoMsg.Attributes = make(map[string]string, 1)
 		}
 
 		for _, attribute := range msg.Attributes {

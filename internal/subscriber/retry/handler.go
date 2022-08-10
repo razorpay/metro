@@ -40,6 +40,7 @@ func (s *PushToPrimaryRetryTopic) Do(ctx context.Context, msg messagebroker.Rece
 		OrderingKey:   msg.OrderingKey,
 		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
 		MessageHeader: msg.MessageHeader,
+		Attributes:    msg.Attributes,
 	})
 	logger.Ctx(ctx).Infow("retryhandler: send to retry topic response", "logFields", msg.LogFields(), "topic", msg.RetryTopic)
 	if err != nil {

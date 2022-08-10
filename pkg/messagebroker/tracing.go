@@ -1,9 +1,12 @@
 package messagebroker
 
 import (
+	"context"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 type kafkaHeadersCarrier []kafka.Header
@@ -39,4 +42,14 @@ func (r spanContextOption) Apply(o *opentracing.StartSpanOptions) {
 // with `messageContext` representing the metadata for the producer Span if available. otherwise it will be a root span
 func SpanContextOption(messageContext opentracing.SpanContext) opentracing.StartSpanOption {
 	return spanContextOption{messageContext}
+}
+
+// GetSpanContext will extract information from attributes and return a SpanContext
+func GetSpanContext(ctx context.Context, attributes map[string]string) opentracing.SpanContext {
+	spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, opentracing.TextMapCarrier(attributes))
+	if extractErr != nil {
+		logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
+		return nil
+	}
+	return spanContext
 }

@@ -202,6 +202,7 @@ func (pu *PublisherTask) refreshNodeBindings(ctx context.Context) error {
 	return nil
 }
 
+// FetchTopicsCache is to fetch topic pre-warmup cache
 func (pu *PublisherTask) FetchTopicsCache(ctx context.Context) error {
 	// Get Topic Cache and perform if any function required
 	topicData := pu.topicCache

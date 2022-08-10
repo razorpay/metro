@@ -13,7 +13,7 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
-// PublisherTask implements the Watcher and maintians a pre-warmup.
+// PublisherTask implements the Watcher and maintains a pre-warmup.
 type PublisherTask struct {
 	id              string
 	registry        registry.IRegistry

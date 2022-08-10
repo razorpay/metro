@@ -375,7 +375,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	span, ctx := opentracing.StartSpanFromContext(
 		ctx,
 		"Kafka.SendMessage",
-		SpanContextOption(GetSpanContext(ctx, flattenMapSlice(request.Attributes))),
+		opentracing.ChildOf(GetSpanContext(ctx, flattenMapSlice(request.Attributes))),
 		opentracing.Tags{
 			"topic":      request.Topic,
 			"message_id": request.MessageID,

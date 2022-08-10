@@ -46,7 +46,10 @@ func SpanContextOption(messageContext opentracing.SpanContext) opentracing.Start
 
 // GetSpanContext will extract information from attributes and return a SpanContext
 func GetSpanContext(ctx context.Context, attributes map[string]string) opentracing.SpanContext {
-	spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, opentracing.TextMapCarrier(attributes))
+	spanContext, extractErr := opentracing.GlobalTracer().Extract(
+		opentracing.TextMap,
+		opentracing.TextMapCarrier(attributes),
+	)
 	if extractErr != nil {
 		logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
 		return nil

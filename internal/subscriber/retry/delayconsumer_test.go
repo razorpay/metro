@@ -83,7 +83,7 @@ func TestDelayConsumer_Pause_Resume(t *testing.T) {
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
-	tFut := time.Now().Add(time.Second * 1)
+	tFut := time.Now().Add(time.Second * 10)
 	msgs := make([]messagebroker.ReceivedMessage, 0)
 	msg := getDummyBrokerMessage()
 	msg.NextDeliveryTime = tFut
@@ -155,7 +155,7 @@ func TestDelayConsumer_deadLetter(t *testing.T) {
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
-	tFut := time.Now().Add(time.Second * 1)
+	tFut := time.Now().Add(time.Second * 10)
 	msgs := make([]messagebroker.ReceivedMessage, 0)
 	msg := getDummyBrokerMessageDLQ()
 	msg.NextDeliveryTime = tFut

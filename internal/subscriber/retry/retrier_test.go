@@ -109,7 +109,7 @@ func TestRetrier_Start(t *testing.T) {
 	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
 	mockCache := mocks2.NewMockICache(ctrl)
 	ctx := context.Background()
-	ctxWt, cancel := context.WithTimeout(ctx, time.Second*10)
+	ctxWt, cancel := context.WithTimeout(ctx, time.Second*1)
 	defer cancel()
 	dcs := getMockDelayConsumerCore(ctx, ctrl)
 	producer := getMockProducer(ctx, ctrl)
@@ -173,7 +173,6 @@ func TestRetrier_Start(t *testing.T) {
 				errChan:        tt.fields.errChan,
 			}
 			err := r.Start(tt.args.ctx)
-			<-time.NewTicker(time.Second * 1).C
 			if !tt.wantErr && err != nil {
 				t.Errorf("Error while starting : %v", err)
 			}

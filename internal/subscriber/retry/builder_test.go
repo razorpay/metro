@@ -1,6 +1,9 @@
 package retry
 
 import (
+	"sync"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
@@ -9,8 +12,6 @@ import (
 	"github.com/razorpay/metro/pkg/cache"
 	mocks2 "github.com/razorpay/metro/pkg/cache/mocks"
 	"github.com/stretchr/testify/assert"
-	"sync"
-	"testing"
 )
 
 func TestRetrier_Build(t *testing.T) {

@@ -75,3 +75,75 @@ func TestModel_NewAckMessage_InvalidDeadline(t *testing.T) {
 	assert.Nil(t, ackMessage)
 	assert.Equal(t, ErrIllegalDeadlineValue, err)
 }
+
+func TestModifyAckDeadlineRequest_IsEmpty(t *testing.T) {
+	type fields struct {
+		ModifyDeadlineSeconds []int32
+		ModifyDeadlineAckIDs  []string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{
+			name: "test Empty ModifyDeadlineAckIDs",
+			fields: fields{
+				ModifyDeadlineSeconds: []int32{},
+				ModifyDeadlineAckIDs:  []string{},
+			},
+			want: true,
+		},
+		{
+			name: "test Non-Empty ModifyDeadlineAckIDs",
+			fields: fields{
+				ModifyDeadlineSeconds: []int32{20},
+				ModifyDeadlineAckIDs:  []string{"test-ack-id"},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mr := &ModifyAckDeadlineRequest{
+				ModifyDeadlineSeconds: tt.fields.ModifyDeadlineSeconds,
+				ModifyDeadlineAckIDs:  tt.fields.ModifyDeadlineAckIDs,
+			}
+			assert.Equalf(t, tt.want, mr.IsEmpty(), "IsEmpty()")
+		})
+	}
+}
+
+func TestAcknowledgeRequest_IsEmpty(t *testing.T) {
+	type fields struct {
+		AckIDs []string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{
+			name: "test Empty AckIDs",
+			fields: fields{
+				AckIDs: []string{},
+			},
+			want: true,
+		},
+		{
+			name: "test Non-Empty AckIDs",
+			fields: fields{
+				AckIDs: []string{"test-ack-id"},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ar := &AcknowledgeRequest{
+				AckIDs: tt.fields.AckIDs,
+			}
+			assert.Equalf(t, tt.want, ar.IsEmpty(), "IsEmpty()")
+		})
+	}
+}

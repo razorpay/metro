@@ -3,9 +3,14 @@
 package retry
 
 import (
+	"bytes"
 	"context"
+	"sort"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/subscription"
@@ -14,11 +19,7 @@ import (
 	mocks2 "github.com/razorpay/metro/pkg/cache/mocks"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	mocks3 "github.com/razorpay/metro/pkg/messagebroker/mocks"
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
-	"sync"
-	"testing"
-	"time"
 )
 
 type intervalTest struct {
@@ -34,10 +35,6 @@ const (
 	retryTopic string = "retry-topic"
 	partition  int32  = 0
 )
-
-func Test_Retrier(t *testing.T) {
-
-}
 
 func Test_Interval_Calculator(t *testing.T) {
 
@@ -112,9 +109,10 @@ func TestRetrier_Start(t *testing.T) {
 	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
 	mockCache := mocks2.NewMockICache(ctrl)
 	ctx := context.Background()
-	ctxWt, cancel := context.WithTimeout(ctx, time.Second*2)
+	ctxWt, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 	dcs := getMockDelayConsumerCore(ctx, ctrl)
+	producer := getMockProducer(ctx, ctrl)
 	type fields struct {
 		subscriberID   string
 		subs           *subscription.Model
@@ -130,9 +128,11 @@ func TestRetrier_Start(t *testing.T) {
 		ctx context.Context
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name     string
+		fields   fields
+		expected []string
+		args     args
+		wantErr  bool
 	}{
 		{
 			name: "Start a Retrier",
@@ -147,7 +147,9 @@ func TestRetrier_Start(t *testing.T) {
 				delayConsumers: sync.Map{},
 				errChan:        make(chan error),
 			},
-			args: args{ctxWt},
+			expected: []string{"projects/test-project/topics/test-subscription.delay.30.seconds", "projects/test-project/topics/test-subscription.delay.5.seconds"},
+			args:     args{ctxWt},
+			wantErr:  false,
 		},
 	}
 	for _, tt := range tests {
@@ -156,6 +158,9 @@ func TestRetrier_Start(t *testing.T) {
 				gomock.Any(),
 				gomock.Any(),
 			).Return(dcs, nil).AnyTimes()
+			mockBrokerStore.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).AnyTimes()
+			mockBrokerStore.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
+			mockCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 			r := &Retrier{
 				subscriberID:   tt.fields.subscriberID,
 				subs:           tt.fields.subs,
@@ -168,7 +173,23 @@ func TestRetrier_Start(t *testing.T) {
 				errChan:        tt.fields.errChan,
 			}
 			err := r.Start(tt.args.ctx)
-			assert.Nil(t, err)
+			<-time.NewTicker(time.Second * 1).C
+			if !tt.wantErr && err != nil {
+				t.Errorf("Error while starting : %v", err)
+			}
+			dcTopics := []string{}
+			r.delayConsumers.Range(func(key, value interface{}) bool {
+				dc := value.(*DelayConsumer)
+				dcTopics = append(dcTopics, dc.topic)
+				return true
+			})
+			sort.Strings(dcTopics)
+			assert.Equal(t, dcTopics, tt.expected)
+			err = r.Handle(ctx, getMockBrokerMessage())
+			if !tt.wantErr && err != nil {
+				t.Errorf("Error while Handelling : %v", err)
+			}
+			r.Stop(ctx)
 		})
 	}
 }
@@ -180,24 +201,98 @@ func getMockDelayConsumerCore(ctx context.Context, ctrl *gomock.Controller) *moc
 		Partition: partition,
 	}
 	dcs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil).AnyTimes()
-	dcs.EXPECT().Pause(ctx, gomock.Any()).AnyTimes().Return(nil)
+	dcs.EXPECT().Pause(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	dcs.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(
 		messagebroker.CommitOnTopicResponse{}, nil,
 	).AnyTimes()
+	dcs.EXPECT().Close(gomock.Any()).Return(nil).AnyTimes()
 	dcs.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	messages := make([]messagebroker.ReceivedMessage, 0, 3)
-	data, _ := proto.Marshal(&metrov1.PubsubMessage{Data: []byte("test")})
-	msgProto := messagebroker.ReceivedMessage{
-		Data:      data,
-		Topic:     topicName,
+	msgs := make([]messagebroker.ReceivedMessage, 0)
+	msg := getMockBrokerMessage()
+	msg.NextDeliveryTime = time.Now().Add(time.Second * 3)
+	msgs = append(msgs, msg)
+	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}
+	dcs.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).Return(resp, nil).AnyTimes()
+	return dcs
+}
+func getMockDelayConsumerDLQ(ctx context.Context, ctrl *gomock.Controller) *mocks3.MockConsumer {
+	dcs := mocks3.NewMockConsumer(ctrl)
+	req := messagebroker.GetTopicMetadataRequest{
+		Topic:     delayTopic,
 		Partition: partition,
 	}
-	msgProto.MessageID = "1"
-	messages = append(messages, msgProto)
-	dcs.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).Return(
-		&messagebroker.GetMessagesFromTopicResponse{
-			Messages: messages,
-		}, nil,
+	dcs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil).AnyTimes()
+	dcs.EXPECT().Pause(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	dcs.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(
+		messagebroker.CommitOnTopicResponse{}, nil,
 	).AnyTimes()
+	dcs.EXPECT().Close(gomock.Any()).Return(nil).AnyTimes()
+	dcs.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	msgs := make([]messagebroker.ReceivedMessage, 0)
+	msg := getMockBrokerMessageDLQ()
+	msg.NextDeliveryTime = time.Now().Add(time.Second * 3)
+	msgs = append(msgs, msg)
+	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}
+	dcs.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).Return(resp, nil).AnyTimes()
 	return dcs
+}
+
+func getMockBrokerMessageDLQ() messagebroker.ReceivedMessage {
+	tNow := time.Now()
+	tPast := tNow.Add(time.Second * 100 * -1)
+	return messagebroker.ReceivedMessage{
+		Data:       bytes.NewBufferString("abc").Bytes(),
+		Topic:      "t1",
+		Partition:  10,
+		Offset:     0,
+		Attributes: nil,
+		MessageHeader: messagebroker.MessageHeader{
+			MessageID:            "m1",
+			PublishTime:          tNow,
+			SourceTopic:          "st1",
+			RetryTopic:           "rt1",
+			Subscription:         "s1",
+			CurrentRetryCount:    2,
+			MaxRetryCount:        10,
+			CurrentTopic:         "ct1",
+			InitialDelayInterval: 10,
+			CurrentDelayInterval: 90,
+			ClosestDelayInterval: 150,
+			DeadLetterTopic:      "dlt1",
+			NextDeliveryTime:     tPast,
+		},
+	}
+}
+
+func getMockBrokerMessage() messagebroker.ReceivedMessage {
+	tNow := time.Now()
+	tPast := tNow.Add(time.Second * 100 * -1)
+	return messagebroker.ReceivedMessage{
+		Data:       bytes.NewBufferString("abc").Bytes(),
+		Topic:      "t1",
+		Partition:  10,
+		Offset:     0,
+		Attributes: nil,
+		MessageHeader: messagebroker.MessageHeader{
+			MessageID:            "m1",
+			PublishTime:          tNow,
+			SourceTopic:          "st1",
+			RetryTopic:           "rt1",
+			Subscription:         "s1",
+			CurrentRetryCount:    2,
+			MaxRetryCount:        10,
+			CurrentTopic:         "ct1",
+			InitialDelayInterval: 10,
+			CurrentDelayInterval: 90,
+			ClosestDelayInterval: 150,
+			DeadLetterTopic:      "dlt1",
+			NextDeliveryTime:     tPast,
+		},
+	}
+}
+
+func getMockProducer(ctx context.Context, ctrl *gomock.Controller) *mocks3.MockProducer {
+	producer := mocks3.NewMockProducer(ctrl)
+	producer.EXPECT().SendMessage(ctx, gomock.Any()).Return(&messagebroker.SendMessageToTopicResponse{MessageID: "m1"}, nil)
+	return producer
 }

@@ -34,7 +34,7 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 		"topic": req.Topic,
 	})
 	defer span.Finish()
-
+	// TODO: Replace this function with the Watcher cache read implementation
 	if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
 		return nil, merror.ToGRPCError(err)
 	} else if !ok {

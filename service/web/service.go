@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -11,12 +12,14 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/interceptors"
+	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
@@ -57,6 +60,7 @@ func (svc *Service) GetErrorChannel() chan error {
 
 // Start the service
 func (svc *Service) Start(ctx context.Context) error {
+	id := uuid.New().String()
 	// Define server handlers
 	r, err := registry.NewRegistry(svc.registryConfig)
 	if err != nil {
@@ -101,6 +105,24 @@ func (svc *Service) Start(ctx context.Context) error {
 	credentialsCore := credentials.NewCore(credentials.NewRepo(r), projectCore)
 
 	publisherCore := publisher.NewCore(brokerStore)
+
+	nodeCore := node.NewCore(node.NewRepo(r))
+
+	// Init Publisher task, this run the watchers on Registry
+	// Leader Task runs this task internally if node is elected as leader
+	publisherTask, err := tasks.NewPublisherTask(
+		id,
+		r,
+		topicCore,
+		nodeBindingCore,
+	)
+	if err != nil {
+		return err
+	}
+	_, errLeadTask := tasks.NewLeaderTask(id, r, nodeCore, publisherTask)
+	if errLeadTask != nil {
+		return errLeadTask
+	}
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))
 

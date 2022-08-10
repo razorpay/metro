@@ -372,15 +372,28 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	// generate the needed headers to be sent on the broker
 	kHeaders := convertRequestToKafkaHeaders(request)
 
-	span, ctx := opentracing.StartSpanFromContext(
-		ctx,
-		"Kafka.SendMessage",
-		SpanContextOption(GetSpanContext(ctx, flattenMapSlice(request.Attributes))),
-		opentracing.Tags{
-			"topic":      request.Topic,
-			"message_id": request.MessageID,
-		},
-	)
+	spanCtx := GetSpanContext(ctx, flattenMapSlice(request.Attributes))
+	var span opentracing.Span
+	if spanCtx == nil {
+		span, ctx = opentracing.StartSpanFromContext(
+			ctx,
+			"Kafka.SendMessage",
+			opentracing.Tags{
+				"topic":      request.Topic,
+				"message_id": request.MessageID,
+			},
+		)
+	} else {
+		span, ctx = opentracing.StartSpanFromContext(
+			ctx,
+			"Kafka.SendMessage",
+			SpanContextOption(spanCtx),
+			opentracing.Tags{
+				"topic":      request.Topic,
+				"message_id": request.MessageID,
+			},
+		)
+	}
 	defer span.Finish()
 
 	logger.Ctx(ctx).Infow("kafka: send message appending headers to request completed", "request", request.Topic, "kHeaders", kHeaders)

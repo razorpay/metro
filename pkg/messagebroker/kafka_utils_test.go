@@ -69,3 +69,17 @@ func Test_convertRequestToKafkaHeaders(t *testing.T) {
 	assert.Equal(t, request.MessageHeader.DeadLetterTopic, convertedRequest.MessageHeader.DeadLetterTopic)
 	assert.Equal(t, request.MessageHeader.NextDeliveryTime.Unix(), convertedRequest.MessageHeader.NextDeliveryTime.Unix())
 }
+
+func Test_flattenMapSlice(t *testing.T) {
+	attributes := make([]map[string][]byte, 1)
+	attributes = append(attributes, map[string][]byte{
+		"test-attribute": []byte("test-attribute-value"),
+	})
+	flattenedMap := flattenMapSlice(attributes)
+	for _, attribute := range attributes {
+		for key, value := range attribute {
+			assert.NotNil(t, flattenedMap[key])
+			assert.Equal(t, flattenedMap[key], string(value))
+		}
+	}
+}

@@ -26,6 +26,8 @@ const (
 	nextDeliveryTimeHeader     = "nextDeliveryTime"
 	currentSequenceHeader      = "currentSequence"
 	prevSequenceHeader         = "prevSequence"
+	// UberTraceID contains tracing information of the publisher span
+	UberTraceID = "uber-trace-id"
 )
 
 // extracts the message headers from a given SendMessageToTopicRequest and converts to the equivalent broker headers
@@ -223,4 +225,15 @@ func getMessageID(messageID string) string {
 // normalizeTopicName returns the actual topic name used in message broker
 func normalizeTopicName(name string) string {
 	return strings.ReplaceAll(name, "/", "_")
+}
+
+// flattenMapSlice flattens the given map slice and returns a map[string]string
+func flattenMapSlice(attributes []map[string][]byte) map[string]string {
+	attributeMap := make(map[string]string, len(attributes))
+	for _, attribute := range attributes {
+		for key, value := range attribute {
+			attributeMap[key] = string(value)
+		}
+	}
+	return attributeMap
 }

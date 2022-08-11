@@ -3,6 +3,7 @@ package stream
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync/atomic"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -385,11 +387,31 @@ func getRequestBytes(pushRequest *metrov1.PushEndpointRequest) *bytes.Buffer {
 		AnyResolver:  nil,
 	}
 
-	var b []byte
-	byteBuffer := bytes.NewBuffer(b)
+	byteBuffer := bytes.NewBuffer([]byte{})
 	marshaler.Marshal(byteBuffer, pushRequest)
 
-	return byteBuffer
+	var jsonMap interface{}
+	if err := json.Unmarshal(byteBuffer.Bytes(), &jsonMap); err != nil {
+		return nil
+	}
+
+	if m, ok := jsonMap.(map[string]interface{}); ok {
+		if message, ok := m["message"]; ok {
+			if data, ok := message.(map[string]interface{}); ok {
+				if attributes, ok := data["attributes"]; ok {
+					if attributeMap, ok := attributes.(map[string]interface{}); ok {
+						delete(attributeMap, messagebroker.UberTraceID)
+					}
+				}
+			}
+		}
+	}
+
+	b, err := json.Marshal(jsonMap)
+	if err != nil {
+		return nil
+	}
+	return bytes.NewBuffer(b)
 }
 
 // RunPushStreamManager return a runs a push stream manager used to handle restart/stop requests

@@ -137,6 +137,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		Message:       msg.Data,
 		OrderingKey:   msg.OrderingKey,
 		MessageHeader: newMessageHeaders,
+		Attributes:    msg.Attributes,
 	}
 
 	// given a message, produce to the correct topic

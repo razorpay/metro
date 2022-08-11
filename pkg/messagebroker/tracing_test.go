@@ -8,7 +8,7 @@ import (
 )
 
 func Test_kafkaHeadersCarrier(t *testing.T) {
-	headers := []kafkapkg.Header{
+	input := []kafkapkg.Header{
 		{
 			Key:   "k1",
 			Value: []byte("v1"),
@@ -19,10 +19,10 @@ func Test_kafkaHeadersCarrier(t *testing.T) {
 		},
 	}
 
-	kafkaHeaders := kafkaHeadersCarrier(headers)
+	kafkaHeaders := kafkaHeadersCarrier(input)
+	assert.Equal(t, len(kafkaHeaders), len(input))
 	for index, got := range kafkaHeaders {
-		assert.Equal(t, got.Key, headers[index].Key)
-		assert.Equal(t, got.Value, headers[index].Value)
+		assert.Equal(t, got.Key, input[index].Key)
+		assert.Equal(t, got.Value, input[index].Value)
 	}
-
 }

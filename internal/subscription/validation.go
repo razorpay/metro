@@ -149,7 +149,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	}
 
 	// check push endpoint is reachable
-	err = validatePushEndpoint(ctx, req, getHttpClient(1000))
+	err = validatePushEndpoint(ctx, req, getHTTPClient(1000))
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
@@ -387,12 +387,9 @@ func validatePushEndpoint(_ context.Context, req *metrov1.Subscription, client *
 	}
 	_, err := client.Get(req.GetPushConfig().PushEndpoint)
 	if err != nil {
-		fmt.Println(req.GetPushConfig().PushEndpoint)
-		fmt.Println(err)
 		return ErrPushEndpointNotReachable
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func extractSubscriptionMetaAndValidate(_ context.Context, name string) (projectID string, subscriptionName string, err error) {
@@ -410,7 +407,7 @@ func extractSubscriptionMetaAndValidate(_ context.Context, name string) (project
 	return projectID, subscriptionName, nil
 }
 
-func getHttpClient(timeout int) *http.Client {
+func getHTTPClient(timeout int) *http.Client {
 	config := &httpclient.Config{ConnectTimeoutMS: timeout}
 	return httpclient.NewClient(config)
 }

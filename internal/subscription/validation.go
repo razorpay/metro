@@ -58,6 +58,8 @@ const (
 	MaxDeliveryAttempts = 100
 	// DefaultDeliveryAttempts sDefault delivery attempts before deadlettering
 	DefaultDeliveryAttempts = 5
+	// Timeout to check the push endpoint is reachable or not
+	TimeoutInMs = 1000
 )
 
 var (
@@ -149,7 +151,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	}
 
 	// check push endpoint is reachable
-	err = validatePushEndpoint(ctx, req, getHTTPClient(1000))
+	err = validatePushEndpoint(ctx, req, getHTTPClient(TimeoutInMs))
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
@@ -385,7 +387,13 @@ func validatePushEndpoint(_ context.Context, req *metrov1.Subscription, client *
 	if req.GetPushConfig() == nil {
 		return ErrPushEndpointNotReachable
 	}
-	_, err := client.Get(req.GetPushConfig().PushEndpoint)
+
+	resp, err := client.Get(req.GetPushConfig().PushEndpoint)
+
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+
 	if err != nil {
 		return ErrPushEndpointNotReachable
 	}

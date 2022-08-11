@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/razorpay/metro/internal/credentials"
+	"github.com/razorpay/metro/pkg/httpclient"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -443,5 +445,45 @@ func Test_validateFilterExpression(t *testing.T) {
 			assert.Equal(t, test.err, err)
 		}
 		assert.Equal(t, test.filterExpression, m.FilterExpression)
+	}
+}
+
+func Test_validatePushEndpoint(t *testing.T) {
+	ctx := context.Background()
+	client := httpclient.NewClient(&httpclient.Config{ConnectTimeoutMS: 100000})
+
+	httpmock.ActivateNonDefault(client)
+	defer httpmock.DeactivateAndReset()
+
+	type testCase struct {
+		inputConfig *metrov1.PushConfig
+		err         error
+		reachable   bool
+	}
+
+	tests := [2]testCase{
+		{
+			&metrov1.PushConfig{
+				PushEndpoint: "https://randomReachableUrl.com",
+			},
+			nil,
+			true,
+		},
+		{
+			&metrov1.PushConfig{
+				PushEndpoint: "https://randomNotReachableUrl.com",
+			},
+			ErrPushEndpointNotReachable,
+			false,
+		},
+	}
+
+	for _, test := range tests {
+		if test.reachable {
+			httpmock.RegisterResponder("GET", test.inputConfig.PushEndpoint,
+				httpmock.NewStringResponder(200, "This endpoint is reachable"))
+		}
+		err := validatePushEndpoint(ctx, &metrov1.Subscription{PushConfig: test.inputConfig}, client)
+		assert.Equal(t, test.err, err)
 	}
 }

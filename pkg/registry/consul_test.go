@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package registry
@@ -606,4 +607,32 @@ func TestWatchKeyPrefixSuccess(t *testing.T) {
 
 	assert.NotNil(t, w)
 	assert.Nil(t, err)
+}
+
+func TestConsulClient_Delete(t *testing.T) {
+	type fields struct {
+		client *api.Client
+	}
+	type args struct {
+		ctx context.Context
+		key string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &ConsulClient{
+				client: tt.fields.client,
+			}
+			if err := c.Delete(tt.args.ctx, tt.args.key); (err != nil) != tt.wantErr {
+				t.Errorf("ConsulClient.Delete() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

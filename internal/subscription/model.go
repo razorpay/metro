@@ -20,7 +20,8 @@ const (
 	SubscriptionTypePull = "Pull"
 )
 
-type SubscriptionList []*Model
+// List of subscription model
+type List []*Model
 
 // Model for a subscription
 type Model struct {

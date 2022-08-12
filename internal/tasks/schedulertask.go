@@ -2,7 +2,9 @@ package tasks
 
 import (
 	"context"
+	"math/rand"
 	"strconv"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -361,7 +363,20 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 		validBindings[subPart] = nb
 	}
 
+	validSubscriptions := subscription.SubscriptionList{}
 	for _, sub := range sm.subCache {
+		validSubscriptions = append(validSubscriptions, sub)
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(
+		len(validSubscriptions),
+		func(i, j int) {
+			validSubscriptions[i], validSubscriptions[j] = validSubscriptions[j], validSubscriptions[i]
+		},
+	)
+
+	for _, sub := range validSubscriptions {
 		//Fetch topic and see if all partitions are assigned.
 		// If not assign missing ones
 		topic, ok := sm.topicCache[sub.Topic]

@@ -20,6 +20,8 @@ const (
 	SubscriptionTypePull = "Pull"
 )
 
+type SubscriptionList []*Model
+
 // Model for a subscription
 type Model struct {
 	common.BaseModel

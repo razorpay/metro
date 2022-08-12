@@ -3,17 +3,17 @@ package subscription
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/topic"
-	"github.com/razorpay/metro/pkg/httpclient"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -59,7 +59,7 @@ const (
 	// DefaultDeliveryAttempts sDefault delivery attempts before deadlettering
 	DefaultDeliveryAttempts = 5
 	// Timeout to check the push endpoint is reachable or not
-	TimeoutInMs = 1000
+	URLValidationTimeout = 1 * time.Second
 )
 
 var (
@@ -151,7 +151,7 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 	}
 
 	// check push endpoint is reachable
-	err = validatePushEndpoint(ctx, req, getHTTPClient(TimeoutInMs))
+	err = validatePushEndpoint(ctx, req)
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
@@ -383,19 +383,21 @@ func validateDeadLetterPolicy(_ context.Context, m *Model, req *metrov1.Subscrip
 	return nil
 }
 
-func validatePushEndpoint(_ context.Context, req *metrov1.Subscription, client *http.Client) error {
+func validatePushEndpoint(_ context.Context, req *metrov1.Subscription) error {
 	if req.GetPushConfig() != nil {
-		resp, err := client.Get(req.GetPushConfig().PushEndpoint)
-
-		if resp != nil {
-			defer resp.Body.Close()
+		u, err := url.Parse(req.GetPushConfig().PushEndpoint)
+		if err != nil {
+			return ErrInvalidPushEndpointURL
 		}
+
+		// eg: DialTimeout("tcp", "golang.org:http", timeout)
+		networkAddress := u.Hostname() + ":" + u.Scheme
+		_, err = net.DialTimeout("tcp", networkAddress, URLValidationTimeout)
 
 		if err != nil {
 			return ErrPushEndpointNotReachable
 		}
 	}
-
 	return nil
 }
 
@@ -412,9 +414,4 @@ func extractSubscriptionMetaAndValidate(_ context.Context, name string) (project
 	}
 
 	return projectID, subscriptionName, nil
-}
-
-func getHTTPClient(timeout int) *http.Client {
-	config := &httpclient.Config{ConnectTimeoutMS: timeout}
-	return httpclient.NewClient(config)
 }

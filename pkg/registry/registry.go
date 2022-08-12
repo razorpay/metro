@@ -63,6 +63,9 @@ type IRegistry interface {
 	// Exists checks the existence of a key
 	Exists(ctx context.Context, key string) (bool, error)
 
+	// Delete removes the model for a single key form registry
+	Delete(ctx context.Context, key string) error
+
 	// DeleteTree deletes all keys under a prefix
 	DeleteTree(ctx context.Context, key string) error
 

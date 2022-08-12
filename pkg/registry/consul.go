@@ -343,6 +343,25 @@ func (c *ConsulClient) Exists(ctx context.Context, key string) (bool, error) {
 	return true, nil
 }
 
+// Delete removes the model for a single key form registry
+func (c *ConsulClient) Delete(ctx context.Context, key string) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.Delete")
+	defer span.Finish()
+
+	registryOperationCount.WithLabelValues(env, "Delete").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		registryOperationTimeTaken.WithLabelValues(env, "Delete").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	_, err := c.client.KV().Delete(key, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // DeleteTree deletes all keys under a prefix
 func (c *ConsulClient) DeleteTree(ctx context.Context, key string) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.DeleteTree")

@@ -81,7 +81,7 @@ func (r BaseRepo) Delete(ctx context.Context, m IModel) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "BaseRepository.Delete")
 	defer span.Finish()
 
-	return r.Registry.DeleteTree(ctx, m.Key())
+	return r.Registry.Delete(ctx, m.Key())
 }
 
 // DeleteTree deletes all keys under a prefix

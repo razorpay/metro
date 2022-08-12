@@ -372,10 +372,28 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	// generate the needed headers to be sent on the broker
 	kHeaders := convertRequestToKafkaHeaders(request)
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.SendMessage", opentracing.Tags{
-		"topic":      request.Topic,
-		"message_id": request.MessageID,
-	})
+	spanCtx := GetSpanContext(ctx, flattenMapSlice(request.Attributes))
+	var span opentracing.Span
+	if spanCtx == nil {
+		span, ctx = opentracing.StartSpanFromContext(
+			ctx,
+			"Kafka.SendMessage",
+			opentracing.Tags{
+				"topic":      request.Topic,
+				"message_id": request.MessageID,
+			},
+		)
+	} else {
+		span, ctx = opentracing.StartSpanFromContext(
+			ctx,
+			"Kafka.SendMessage",
+			SpanContextOption(spanCtx),
+			opentracing.Tags{
+				"topic":      request.Topic,
+				"message_id": request.MessageID,
+			},
+		)
+	}
 	defer span.Finish()
 
 	logger.Ctx(ctx).Infow("kafka: send message appending headers to request completed", "request", request.Topic, "kHeaders", kHeaders)
@@ -474,26 +492,6 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 			// extract the message headers and set in the response struct
 			receivedMessage := convertKafkaHeadersToResponse(msg.Headers)
 			receivedMessage.OrderingKey = string(msg.Key)
-
-			// Get span context from headers
-			carrier := kafkaHeadersCarrier(msg.Headers)
-			spanContext, extractErr := opentracing.GlobalTracer().Extract(opentracing.TextMap, &carrier)
-			if extractErr != nil {
-				logger.Ctx(ctx).Errorw("failed to get span context from message", "error", extractErr.Error())
-			}
-
-			messageSpan, _ := opentracing.StartSpanFromContext(
-				ctx,
-				"Kafka:MessageReceived",
-				opentracing.FollowsFrom(spanContext),
-				opentracing.Tags{
-					"message_id": receivedMessage.MessageID,
-					"topic":      msg.TopicPartition.Topic,
-					"partition":  msg.TopicPartition.Partition,
-					"offset":     msg.TopicPartition.Offset,
-				})
-			messageSpan.Finish()
-
 			receivedMessage.Data = msg.Value
 			receivedMessage.Topic = *msg.TopicPartition.Topic
 			receivedMessage.Partition = msg.TopicPartition.Partition

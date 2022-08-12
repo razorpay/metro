@@ -3,6 +3,7 @@ package stream
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync/atomic"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
@@ -28,7 +30,7 @@ type PushStream struct {
 	subscriptionCore subscription.ICore
 	subscriberCore   subscriber.ICore
 	subs             subscriber.ISubscriber
-	fanoutChan       chan *metrov1.ReceivedMessage
+	fanoutChan       chan msgContext
 	statusChan       chan deliveryStatus
 	httpClient       *http.Client
 	processor        *processor
@@ -148,14 +150,6 @@ func (ps *PushStream) restartSubsciber() error {
 }
 
 func (ps *PushStream) processMessages() {
-	ctx := context.Background()
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PushStream.ProcessMessages", opentracing.Tags{
-		"subscriber":   ps.subs.GetID(),
-		"subscription": ps.subscription.Name,
-		"topic":        ps.subscription.Topic,
-	})
-	defer span.Finish()
-
 	if ps.subscription.EnableMessageOrdering {
 		pullBatchSize = 1
 	}
@@ -165,13 +159,13 @@ func (ps *PushStream) processMessages() {
 	if ps.counter >= int64(pullBatchSize) {
 		return
 	}
-	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: int32(pullBatchSize)}).WithContext(ctx)
+	ps.subs.GetRequestChannel() <- (&subscriber.PullRequest{MaxNumOfMessages: int32(pullBatchSize)}).WithContext(ps.ctx)
 	// wait for response data from subscriber response channel
 	// logger.Ctx(ctx).Debugw("worker: waiting for subscriber data response", "logFields", ps.getLogFields())
 	data := <-ps.subs.GetResponseChannel()
 
 	if data != nil && data.ReceivedMessages != nil && len(data.ReceivedMessages) > 0 {
-		ps.processPushStreamResponse(ctx, ps.subscription, data)
+		ps.processPushStreamResponse(ps.ctx, ps.subscription, data)
 	}
 }
 
@@ -238,7 +232,7 @@ func (ps *PushStream) processPushStreamResponse(ctx context.Context, subModel *s
 			continue
 		}
 		logger.Ctx(ctx).Infow("Dispatching message to processor", "msgId", message.Message.MessageId, "subscription", ps.subscription.Name)
-		ps.fanoutChan <- message
+		ps.fanoutChan <- msgContext{msg: message, ctx: ctx}
 	}
 }
 
@@ -354,7 +348,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 	}
 
 	doneCh := make(chan struct{})
-	fanoutChan := make(chan *metrov1.ReceivedMessage, pullBatchSize)
+	fanoutChan := make(chan msgContext, pullBatchSize)
 	statusChan := make(chan deliveryStatus)
 	httpclient := httpclient.NewClient(config)
 
@@ -393,11 +387,31 @@ func getRequestBytes(pushRequest *metrov1.PushEndpointRequest) *bytes.Buffer {
 		AnyResolver:  nil,
 	}
 
-	var b []byte
-	byteBuffer := bytes.NewBuffer(b)
+	byteBuffer := bytes.NewBuffer([]byte{})
 	marshaler.Marshal(byteBuffer, pushRequest)
 
-	return byteBuffer
+	var jsonMap interface{}
+	if err := json.Unmarshal(byteBuffer.Bytes(), &jsonMap); err != nil {
+		return nil
+	}
+
+	if m, ok := jsonMap.(map[string]interface{}); ok {
+		if message, ok := m["message"]; ok {
+			if data, ok := message.(map[string]interface{}); ok {
+				if attributes, ok := data["attributes"]; ok {
+					if attributeMap, ok := attributes.(map[string]interface{}); ok {
+						delete(attributeMap, messagebroker.UberTraceID)
+					}
+				}
+			}
+		}
+	}
+
+	b, err := json.Marshal(jsonMap)
+	if err != nil {
+		return nil
+	}
+	return bytes.NewBuffer(b)
 }
 
 // RunPushStreamManager return a runs a push stream manager used to handle restart/stop requests

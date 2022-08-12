@@ -132,6 +132,7 @@ func (dc *DelayConsumer) pushToDeadLetter(msg *messagebroker.ReceivedMessage) er
 		OrderingKey:   msg.OrderingKey,
 		TimeoutMs:     int(defaultBrokerOperationsTimeoutMs),
 		MessageHeader: msg.MessageHeader,
+		Attributes:    msg.Attributes,
 	})
 	if err != nil {
 		return err

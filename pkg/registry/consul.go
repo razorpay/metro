@@ -343,7 +343,7 @@ func (c *ConsulClient) Exists(ctx context.Context, key string) (bool, error) {
 	return true, nil
 }
 
-// Delete removes the model for a single key form registry
+// Delete removes the model for a single key from the registry
 func (c *ConsulClient) Delete(ctx context.Context, key string) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "ConsulClient.Delete")
 	defer span.Finish()

@@ -202,10 +202,13 @@ func (pu *PublisherTask) refreshNodeBindings(ctx context.Context) error {
 	return nil
 }
 
-// FetchTopicsCache is to fetch topic pre-warmup cache
-func (pu *PublisherTask) FetchTopicsCache(ctx context.Context) error {
-	// Get Topic Cache and perform if any function required
+// CheckIfTopicExists is to check if topic exists inside the cache
+func (pu *PublisherTask) CheckIfTopicExists(ctx context.Context, topic string) bool {
+	// Get Topic Cache and check in topic exists
 	topicData := pu.topicCache
-	println("Topic Date: ", topicData)
-	return nil
+	if val, ok := topicData[topic]; ok {
+		println("Topic Object with topic name: ", topic, "| Object: ", val)
+		return true
+	}
+	return false
 }

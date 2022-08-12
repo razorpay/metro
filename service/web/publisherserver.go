@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"log"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -9,6 +10,7 @@ import (
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
+	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -21,6 +23,7 @@ type publisherServer struct {
 	topicCore       topic.ICore
 	credentialsCore credentials.ICore
 	publisher       publisher.IPublisher
+	pubTask         tasks.PublisherTask
 }
 
 func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, topicCore topic.ICore, credentialsCore credentials.ICore, publisher publisher.IPublisher) *publisherServer {
@@ -35,11 +38,17 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 	})
 	defer span.Finish()
 	// TODO: Replace this function with the Watcher cache read implementation
-	if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
-		return nil, merror.ToGRPCError(err)
-	} else if !ok {
-		return nil, merror.New(merror.NotFound, "topic not found").ToGRPCError()
+	if s.pubTask.CheckIfTopicExists(ctx, req.Topic) {
+		log.Printf("Topic exists inside the cache..")
+		// Do Nothing
+	} else {
+		return nil, merror.New(merror.NotFound, "Topic not found inside the cache..").ToGRPCError()
 	}
+	// if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
+	// 	return nil, merror.ToGRPCError(err)
+	// } else if !ok {
+	// 	return nil, merror.New(merror.NotFound, "topic not found").ToGRPCError()
+	// }
 
 	if err := publisher.ValidatePublishRequest(ctx, req); err != nil {
 		return nil, merror.ToGRPCError(err)

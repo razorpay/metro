@@ -35,9 +35,9 @@ func TestLoadBalanceAlgoImpl_GetNode(t *testing.T) {
 
 	excludedNodes := []string{"node01", "node05"}
 
-	node, err := ai.GetNode(nbs, nodes)
+	schedulingNode, err := ai.GetNode(nbs, nodes)
 	assert.Nil(t, err)
-	assert.NotNil(t, node)
-	assert.NotContains(t, excludedNodes, node.ID)
-	assert.Contains(t, nodeNames, node.ID)
+	assert.NotNil(t, schedulingNode)
+	assert.NotContains(t, excludedNodes, schedulingNode.ID)
+	assert.Contains(t, nodeNames, schedulingNode.ID)
 }

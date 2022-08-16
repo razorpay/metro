@@ -21,6 +21,11 @@ Please describe the tests that you ran to verify your changes. Please also note 
 - [ ] Test A
 - [ ] Test B
 
+# Is it a breaking change?
+
+How do we intend to rollback or handle backward compatibility in case something breaks?
+Can this change be tested effectively via canary?
+
 ## Screenshots:
 
 Include a screenshot of the changes, if applicable.
@@ -28,6 +33,7 @@ Include a screenshot of the changes, if applicable.
 # Checklist Exception
 
 - [ ] My change doesn't require the below checklist to be updated.
+Please add a description on why it is not applicable.
 
 # Checklist:
 

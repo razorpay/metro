@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package common
@@ -71,7 +72,7 @@ func TestBaseRepo_Delete(t *testing.T) {
 	mockRegistry := mocks.NewMockIRegistry(ctrl)
 	repo := &BaseRepo{mockRegistry}
 	ctx := context.Background()
-	mockRegistry.EXPECT().DeleteTree(gomock.Any(), "sample-key")
+	mockRegistry.EXPECT().Delete(gomock.Any(), "sample-key")
 	err := repo.Delete(ctx, &sampleModel{})
 	assert.Nil(t, err)
 }

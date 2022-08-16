@@ -22,6 +22,7 @@ Please describe the tests that you ran to verify your changes. Please also note 
 - [ ] Test B
 
 ## Screenshots:
+
 Include a screenshot of the changes, if applicable.
 
 # Checklist Exception

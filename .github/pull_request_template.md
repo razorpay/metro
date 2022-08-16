@@ -21,10 +21,19 @@ Please describe the tests that you ran to verify your changes. Please also note 
 - [ ] Test A
 - [ ] Test B
 
+## Screenshots:
+Include a screenshot of the changes, if applicable.
+
+# Checklist Exception
+
+- [ ] My change doesn't require the below checklist to be updated.
+
 # Checklist:
 
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation
 - [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] I have added unit tests that prove my fix is effective or that my feature works (if applicable)
+- [ ] I have added integration tests for the new feature (if applicable)
+- [ ] I have manually tested my code to the best of my abilities.

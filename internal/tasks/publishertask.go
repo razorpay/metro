@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"log"
 	"strconv"
 
 	"golang.org/x/sync/errgroup"
@@ -50,7 +51,6 @@ func NewPublisherTask(
 // Run the task
 func (pu *PublisherTask) Run(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("running publisher task", "workerID", pu.id)
-
 	var err error
 	var topicWatcher registry.IWatcher
 
@@ -91,6 +91,8 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 				terr := pu.refreshNodeBindings(gctx)
 				if terr != nil {
 					logger.Ctx(gctx).Infow("error processing topic updates", "error", terr)
+				} else {
+					logger.Ctx(gctx).Infow("Node bindings refreshed")
 				}
 			}
 		}
@@ -206,6 +208,7 @@ func (pu *PublisherTask) refreshNodeBindings(ctx context.Context) error {
 func (pu *PublisherTask) CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
 	topicData := pu.topicCache
+	log.Println("TopicData: ", topicData)
 	if val, ok := topicData[topic]; ok {
 		println("Topic Object with topic name: ", topic, "| Object: ", val)
 		return true

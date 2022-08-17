@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -12,7 +13,6 @@ import (
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/health"
 	"github.com/razorpay/metro/internal/interceptors"
-	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/project"
@@ -60,6 +60,7 @@ func (svc *Service) GetErrorChannel() chan error {
 
 // Start the service
 func (svc *Service) Start(ctx context.Context) error {
+	log.Printf("////// inside service start //////")
 	id := uuid.New().String()
 	// Define server handlers
 	r, err := registry.NewRegistry(svc.registryConfig)
@@ -106,8 +107,6 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	publisherCore := publisher.NewCore(brokerStore)
 
-	nodeCore := node.NewCore(node.NewRepo(r))
-
 	// Init Publisher task, this run the watchers on Registry
 	// Leader Task runs this task internally if node is elected as leader
 	publisherTask, err := tasks.NewPublisherTask(
@@ -119,10 +118,11 @@ func (svc *Service) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	_, errLeadTask := tasks.NewLeaderTask(id, r, nodeCore, publisherTask)
-	if errLeadTask != nil {
-		return errLeadTask
-	}
+	// Run the Publisher task
+	go func() error {
+		err := publisherTask.Run(ctx)
+		return err
+	}()
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))
 

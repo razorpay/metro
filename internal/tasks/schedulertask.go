@@ -363,7 +363,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 		validBindings[subPart] = nb
 	}
 
-	validSubscriptions := subscription.List{}
+	validSubscriptions := make([]*subscription.Model, 0, len(validBindings))
 	for _, sub := range sm.subCache {
 		validSubscriptions = append(validSubscriptions, sub)
 	}

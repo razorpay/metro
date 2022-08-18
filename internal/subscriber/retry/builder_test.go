@@ -33,12 +33,12 @@ func TestRetrier_Build(t *testing.T) {
 	errCh := make(chan error)
 	tests := []struct {
 		name   string
-		fields fields
+		fields *fields
 		want   IRetrier
 	}{
 		{
 			name: "Test Retrier Builder",
-			fields: fields{
+			fields: &fields{
 				subscriberID:   "subscription-id",
 				subs:           subs,
 				bs:             bs,

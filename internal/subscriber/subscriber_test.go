@@ -121,22 +121,25 @@ func TestSubscriber_Run(t *testing.T) {
 	cs := getMockConsumer(ctx, ctrl)
 	consumer := getMockConsumerManager(ctx, ctrl, cs)
 	type fields struct {
-		subscription        *subscription.Model
-		topic               string
-		subscriberID        string
-		requestChan         chan *PullRequest
-		responseChan        chan *metrov1.PullResponse
-		ackChan             chan *AckMessage
-		modAckChan          chan *ModAckMessage
-		deadlineTicker      *time.Ticker
-		healthMonitorTicker *time.Ticker
-		errChan             chan error
-		closeChan           chan struct{}
-		consumer            IConsumer
-		cancelFunc          func()
-		ctx                 context.Context
-		retrier             retry.IRetrier
-		subscriberImpl      Implementation
+		subscriber *Subscriber
+	}
+	subs := &Subscriber{
+		subscription:        getMockSubscription(),
+		topic:               topicName,
+		subscriberID:        subID,
+		requestChan:         requestChan,
+		responseChan:        responseChan,
+		ackChan:             make(chan *AckMessage, 10),
+		modAckChan:          make(chan *ModAckMessage, 10),
+		deadlineTicker:      time.NewTicker(1 * time.Second),
+		healthMonitorTicker: time.NewTicker(1 * time.Minute),
+		errChan:             errChan,
+		closeChan:           closeChan,
+		consumer:            consumer,
+		cancelFunc:          cancelFunc,
+		ctx:                 ctx,
+		retrier:             &retry.Retrier{},
+		subscriberImpl:      getMockBasicImplementation(ctx, consumer, ctrl),
 	}
 	type args struct {
 		ctx context.Context
@@ -151,22 +154,7 @@ func TestSubscriber_Run(t *testing.T) {
 		{
 			name: "Test Subscriber Run",
 			fields: fields{
-				subscription:        getMockSubscription(),
-				topic:               topicName,
-				subscriberID:        subID,
-				requestChan:         requestChan,
-				responseChan:        responseChan,
-				ackChan:             make(chan *AckMessage, 10),
-				modAckChan:          make(chan *ModAckMessage, 10),
-				deadlineTicker:      time.NewTicker(1 * time.Second),
-				healthMonitorTicker: time.NewTicker(1 * time.Minute),
-				errChan:             errChan,
-				closeChan:           closeChan,
-				consumer:            consumer,
-				cancelFunc:          cancelFunc,
-				ctx:                 ctx,
-				retrier:             &retry.Retrier{},
-				subscriberImpl:      getMockBasicImplementation(ctx, consumer, ctrl),
+				subscriber: subs,
 			},
 			maxNumOfMessages: 1,
 			expectedMsg:      []string{"a", "b"},
@@ -179,26 +167,8 @@ func TestSubscriber_Run(t *testing.T) {
 				&messagebroker.GetMessagesFromTopicResponse{
 					Messages: getMockReceivedMessages(tt.expectedMsg),
 				}, nil)
-			s := &Subscriber{
-				subscription:        tt.fields.subscription,
-				topic:               tt.fields.topic,
-				subscriberID:        tt.fields.subscriberID,
-				requestChan:         tt.fields.requestChan,
-				responseChan:        tt.fields.responseChan,
-				ackChan:             tt.fields.ackChan,
-				modAckChan:          tt.fields.modAckChan,
-				deadlineTicker:      tt.fields.deadlineTicker,
-				healthMonitorTicker: tt.fields.healthMonitorTicker,
-				errChan:             tt.fields.errChan,
-				closeChan:           tt.fields.closeChan,
-				consumer:            tt.fields.consumer,
-				cancelFunc:          tt.fields.cancelFunc,
-				ctx:                 tt.fields.ctx,
-				retrier:             tt.fields.retrier,
-				subscriberImpl:      tt.fields.subscriberImpl,
-			}
-
-			go s.Run(tt.args.ctx)
+			sub := tt.fields.subscriber
+			go sub.Run(tt.args.ctx)
 			<-time.NewTicker(time.Second * 2).C
 			requestChan <- &PullRequest{
 				ctx:              ctx,
@@ -211,12 +181,7 @@ func TestSubscriber_Run(t *testing.T) {
 				for _, msg := range res.ReceivedMessages {
 					ackMessage, _ := ParseAckID(msg.AckId)
 					ackMessage.ctx = ctx
-					s.ackChan <- ackMessage
-				}
-				for _, msg := range res.ReceivedMessages {
-					ackMessage, _ := ParseAckID(msg.AckId)
-					ackMessage.ctx = ctx
-					s.ackChan <- ackMessage
+					sub.ackChan <- ackMessage
 				}
 			case err := <-errChan:
 				t.Errorf("Error Test_Subscriber %v", err)

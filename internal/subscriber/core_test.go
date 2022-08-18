@@ -2,8 +2,11 @@ package subscriber
 
 import (
 	"context"
+	"reflect"
+	"unsafe"
 
 	"github.com/golang/mock/gomock"
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/credentials"
@@ -31,33 +34,10 @@ func TestCore_NewSubscriber(t *testing.T) {
 	modAckCh := make(chan *ModAckMessage)
 	requestCh := make(chan *PullRequest)
 	ctx := context.Background()
-	sub := subscription.Model{
-		Name:  subName,
-		Topic: topicName,
-		PushConfig: &subscription.PushConfig{
-			PushEndpoint: "https://www.razorpay.com/api",
-			Attributes: map[string]string{
-				"test_key": "test_value",
-			},
-			Credentials: &credentials.Model{
-				Username: "test_user",
-				Password: "",
-			},
-		},
-		DeadLetterPolicy:               nil,
-		RetryPolicy:                    nil,
-		AckDeadlineSeconds:             10,
-		ExtractedTopicProjectID:        "project123",
-		ExtractedTopicName:             topicName,
-		ExtractedSubscriptionName:      subName,
-		ExtractedSubscriptionProjectID: "project123",
-	}
+	sub := getDummySubscription()
 	cs := getMockConsumerCore(ctx, ctrl)
 	type fields struct {
-		bs               brokerstore.IBrokerStore
-		subscriptionCore subscription.ICore
-		offsetCore       offset.ICore
-		ch               cache.ICache
+		core *Core
 	}
 	type args struct {
 		ctx                    context.Context
@@ -71,18 +51,16 @@ func TestCore_NewSubscriber(t *testing.T) {
 		modAckCh               chan *ModAckMessage
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name     string
+		fields   fields
+		args     args
+		expected *Subscriber
+		wantErr  bool
 	}{
 		{
 			name: "Create new subscriber basicImpl",
 			fields: fields{
-				bs:               mockBrokerStoreCore,
-				subscriptionCore: mockSubscriptionCore,
-				offsetCore:       mockOffsetCore,
-				ch:               ch,
+				core: getCore(mockBrokerStoreCore, mockSubscriptionCore, mockOffsetCore, ch),
 			},
 			args: args{
 				ctx:                    ctx,
@@ -95,25 +73,53 @@ func TestCore_NewSubscriber(t *testing.T) {
 				ackCh:                  ackCh,
 				modAckCh:               modAckCh,
 			},
+			expected: &Subscriber{
+				subscription: &sub,
+				topic:        topicName,
+				subscriberID: subID,
+				requestChan:  requestCh,
+				ackChan:      ackCh,
+				modAckChan:   modAckCh,
+			},
 			wantErr: false,
+		},
+		{
+			name: "Create new subscriber basicImpl Failure",
+			fields: fields{
+				core: getCore(mockBrokerStoreCore, mockSubscriptionCore, mockOffsetCore, ch),
+			},
+			args: args{
+				ctx:                    ctx,
+				subscriberID:           subID,
+				subscription:           &sub,
+				timeoutInMs:            1000,
+				maxOutstandingMessages: 1000,
+				maxOutstandingBytes:    1000,
+				requestCh:              requestCh,
+				ackCh:                  ackCh,
+				modAckCh:               modAckCh,
+			},
+			expected: nil,
+			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockBrokerStoreCore.EXPECT().GetConsumer(
-				gomock.Any(),
-				gomock.Any(),
-			).Return(cs, nil)
+			mockBrokerStoreCore.EXPECT().GetConsumer(gomock.Any(), gomock.Any()).
+				DoAndReturn(func(arg0 context.Context, arg1 messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
+					if tt.wantErr {
+						return nil, errors.New("Test Error")
+					} else {
+						return cs, nil
+					}
+				})
 			mockMessageBroker.EXPECT().Resume(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			ch.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 			ch.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			c := &Core{
-				bs:               tt.fields.bs,
-				subscriptionCore: tt.fields.subscriptionCore,
-				offsetCore:       tt.fields.offsetCore,
-				ch:               tt.fields.ch,
+			sub, err := tt.fields.core.NewSubscriber(tt.args.ctx, tt.args.subscriberID, tt.args.subscription, tt.args.timeoutInMs, tt.args.maxOutstandingMessages, tt.args.maxOutstandingBytes, tt.args.requestCh, tt.args.ackCh, tt.args.modAckCh)
+			if err == nil {
+				assert.True(t, EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
 			}
-			_, err := c.NewSubscriber(tt.args.ctx, tt.args.subscriberID, tt.args.subscription, tt.args.timeoutInMs, tt.args.maxOutstandingMessages, tt.args.maxOutstandingBytes, tt.args.requestCh, tt.args.ackCh, tt.args.modAckCh)
 			if err != nil && !tt.wantErr {
 				t.Errorf("NewSubscriber Error %v", err)
 			}
@@ -174,4 +180,65 @@ func getMockConsumerCore(ctx context.Context, ctrl *gomock.Controller) *mockMB.M
 		messagebroker.CommitOnTopicResponse{}, nil,
 	).AnyTimes()
 	return cs
+}
+
+func getDummySubscription() subscription.Model {
+	return subscription.Model{
+		Name:  subName,
+		Topic: topicName,
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api",
+			Attributes: map[string]string{
+				"test_key": "test_value",
+			},
+			Credentials: &credentials.Model{
+				Username: "test_user",
+				Password: "",
+			},
+		},
+		DeadLetterPolicy:               nil,
+		RetryPolicy:                    nil,
+		AckDeadlineSeconds:             10,
+		ExtractedTopicProjectID:        "project123",
+		ExtractedTopicName:             topicName,
+		ExtractedSubscriptionName:      subName,
+		ExtractedSubscriptionProjectID: "project123",
+	}
+}
+
+func EqualOnly(sub1 interface{}, sub2 interface{}, ExceptField []string) bool {
+	val1 := reflect.ValueOf(sub1).Elem()
+	val2 := reflect.ValueOf(sub2).Elem()
+	for i := 0; i < val1.NumField(); i++ {
+		typeField := val1.Type().Field(i)
+		if !contains(typeField.Name, ExceptField) {
+			continue
+		}
+		value1 := val1.Field(i)
+		value2 := val2.Field(i)
+		value1 = reflect.NewAt(value1.Type(), unsafe.Pointer(value1.UnsafeAddr())).Elem()
+		value2 = reflect.NewAt(value2.Type(), unsafe.Pointer(value2.UnsafeAddr())).Elem()
+		if value1.Interface() != value2.Interface() {
+			return false
+		}
+	}
+	return true
+}
+
+func contains(name string, fields []string) bool {
+	for _, field := range fields {
+		if field == name {
+			return true
+		}
+	}
+	return false
+}
+
+func getCore(bs *mocks.MockIBrokerStore, subscriptionCore *sCore.MockICore, core *oCore.MockICore, ch *mCache.MockICache) *Core {
+	return &Core{
+		bs:               bs,
+		subscriptionCore: subscriptionCore,
+		offsetCore:       core,
+		ch:               ch,
+	}
 }

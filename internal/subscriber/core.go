@@ -107,7 +107,7 @@ func (c *Core) NewSubscriber(ctx context.Context,
 		}
 		logger.Ctx(ctx).Infow("subscriber: subscriber impl is basic", "logFields", getLogFields(subImpl))
 	}
-
+	logger.Ctx(ctx).Infow("completed basic implementation")
 	s := &Subscriber{
 		subscription:        subscription,
 		topic:               subscription.Topic,

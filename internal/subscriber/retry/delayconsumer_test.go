@@ -83,11 +83,12 @@ func TestDelayConsumer_Pause_Resume(t *testing.T) {
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
-	tFut := time.Now().Add(time.Second * 1)
 	msgs := make([]messagebroker.ReceivedMessage, 0)
-	msg := getDummyBrokerMessage()
-	msg.NextDeliveryTime = tFut
-	msgs = append(msgs, msg)
+	msg1 := getDummyBrokerMessage()
+	msg1.NextDeliveryTime = time.Now().Add(time.Second * 1)
+	msg2 := getDummyBrokerMessage()
+	msg2.NextDeliveryTime = time.Now().Add(time.Second * 10)
+	msgs = append(msgs, msg1, msg2)
 	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}
 	count := 0
 	mockConsumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -113,7 +114,7 @@ func TestDelayConsumer_Pause_Resume(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "Test Delay Consumer Run Pause Resume",
+			name:    "Test Delay Consumer one message counsume out of 2",
 			wantErr: false,
 		},
 	}
@@ -126,7 +127,7 @@ func TestDelayConsumer_Pause_Resume(t *testing.T) {
 					t.Errorf("Got Error : %v", err)
 				}
 			case <-time.NewTicker(time.Second * 2).C:
-				assert.Equal(t, len(dc.cachedMsgs), 0)
+				assert.Equal(t, len(dc.cachedMsgs), 1)
 				cancel()
 				<-time.NewTicker(time.Second * 1).C
 			}

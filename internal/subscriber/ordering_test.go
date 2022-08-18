@@ -2,7 +2,6 @@ package subscriber
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/pkg/messagebroker"
-	mockMB "github.com/razorpay/metro/pkg/messagebroker/mocks"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,11 +22,10 @@ var mockOffset int32 = 3
 func orderedSetup(t *testing.T, lastStatus string) (
 	ctx context.Context,
 	subImpl *OrderedImplementation,
-	cs *mockMB.MockConsumer,
 ) {
 	ctrl := gomock.NewController(t)
 	ctx = context.Background()
-	cs = getMockConsumer(ctx, ctrl)
+	cs := getMockConsumer(ctx, ctrl)
 	cs.EXPECT().ReceiveMessages(ctx, messagebroker.GetMessagesFromTopicRequest{NumOfMessages: mockBatchSize, TimeoutMs: 1000}).Return(
 		&messagebroker.GetMessagesFromTopicResponse{
 			Messages: getDummyOrderedReceivedMessage(),
@@ -41,7 +38,7 @@ func orderedSetup(t *testing.T, lastStatus string) (
 }
 
 func TestOrderedImplementation_Pull(t *testing.T) {
-	ctx, subImpl, _ := orderedSetup(t, string(sequenceFailure))
+	ctx, subImpl := orderedSetup(t, string(sequenceFailure))
 	pullRequest := &PullRequest{ctx: ctx, MaxNumOfMessages: mockBatchSize}
 	responseChan := make(chan *metrov1.PullResponse, 10)
 	errChan := make(chan error, 10)
@@ -57,7 +54,7 @@ func TestOrderedImplementation_Pull(t *testing.T) {
 }
 
 func TestOrderedImplementation_Acknowledge(t *testing.T) {
-	ctx, subImpl, _ := orderedSetup(t, string(sequenceSuccess))
+	ctx, subImpl := orderedSetup(t, string(sequenceSuccess))
 	pullRequest := &PullRequest{ctx: ctx, MaxNumOfMessages: mockBatchSize}
 	responseChan := make(chan *metrov1.PullResponse, 10)
 	errChan := make(chan error, 10)
@@ -76,7 +73,7 @@ func TestOrderedImplementation_Acknowledge(t *testing.T) {
 }
 
 func TestOrderedImplementation_ModAckDeadline(t *testing.T) {
-	ctx, subImpl, _ := orderedSetup(t, string(sequenceSuccess))
+	ctx, subImpl := orderedSetup(t, string(sequenceSuccess))
 	pullRequest := &PullRequest{ctx: ctx, MaxNumOfMessages: mockBatchSize}
 	responseChan := make(chan *metrov1.PullResponse, 10)
 	errChan := make(chan error, 10)
@@ -122,13 +119,17 @@ func TestOrderedImplementation_GetConsumerLag(t *testing.T) {
 				rTopic: 0,
 			},
 		},
+		{
+			name: "Get Positive Consumer Lag for Ordered Implementation",
+			want: map[string]uint64{
+				pTopic: 1,
+				rTopic: 1,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cs.EXPECT().FetchConsumerLag(gomock.Any()).Return(map[string]uint64{
-				pTopic: 0,
-				rTopic: 0,
-			}, nil).Times(1)
+			cs.EXPECT().FetchConsumerLag(gomock.Any()).Return(tt.want, nil).Times(1)
 			got := subImpl.GetConsumerLag()
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BasicImplementation.GetConsumerLag() = %v, want %v", got, tt.want)
@@ -173,7 +174,6 @@ func TestOrderedImplementation_EvictUnackedMessagesPastDeadline(t *testing.T) {
 					t.Errorf("Got Error while Evicting : %v", err)
 				}
 			case <-time.NewTicker(time.Second * 1).C:
-				fmt.Println(subImpl.consumedMessageStats)
 				assert.Equal(t, len(subImpl.consumedMessageStats[NewTopicPartition(topicName, partition)].ConsumptionMetadata.consumedMessages), 0)
 			}
 		})

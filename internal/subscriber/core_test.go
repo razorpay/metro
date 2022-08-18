@@ -109,9 +109,8 @@ func TestCore_NewSubscriber(t *testing.T) {
 				DoAndReturn(func(arg0 context.Context, arg1 messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
 					if tt.wantErr {
 						return nil, errors.New("Test Error")
-					} else {
-						return cs, nil
 					}
+					return cs, nil
 				})
 			mockMessageBroker.EXPECT().Resume(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			ch.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()

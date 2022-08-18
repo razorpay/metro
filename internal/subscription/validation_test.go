@@ -454,7 +454,7 @@ func Test_validatePushEndpoint(t *testing.T) {
 		err         error
 	}
 
-	tests := [2]testCase{
+	tests := [3]testCase{
 		{
 			&metrov1.PushConfig{
 				PushEndpoint: "https://razorpay.com",
@@ -466,6 +466,12 @@ func Test_validatePushEndpoint(t *testing.T) {
 				PushEndpoint: "https://randomNotReachableUrl.com",
 			},
 			ErrPushEndpointNotReachable,
+		},
+		{
+			&metrov1.PushConfig{
+				PushEndpoint: "invalidurl.com/test",
+			},
+			ErrInvalidPushEndpointURL,
 		},
 	}
 

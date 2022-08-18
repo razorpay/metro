@@ -385,7 +385,7 @@ func validateDeadLetterPolicy(_ context.Context, m *Model, req *metrov1.Subscrip
 
 func validatePushEndpoint(_ context.Context, req *metrov1.Subscription) error {
 	if req.GetPushConfig() != nil {
-		u, err := url.Parse(req.GetPushConfig().PushEndpoint)
+		u, err := url.ParseRequestURI(req.GetPushConfig().PushEndpoint)
 		if err != nil {
 			return ErrInvalidPushEndpointURL
 		}

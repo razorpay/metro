@@ -2,7 +2,9 @@ package scheduler
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
+	"time"
 
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
@@ -48,6 +50,14 @@ func (algo *LoadBalanceAlgoImpl) GetNode(nodebindings []*nodebinding.Model, node
 			Count: v,
 		})
 	}
+
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(
+		len(nodeCountList),
+		func(i, j int) {
+			nodeCountList[i], nodeCountList[j] = nodeCountList[j], nodeCountList[i]
+		},
+	)
 
 	sort.Sort(nodeCountList)
 

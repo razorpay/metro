@@ -18,6 +18,10 @@ require (
 	github.com/gtank/cryptopasta v0.0.0-20170601214702-1f550f6f2f69
 	github.com/hashicorp/consul/api v1.8.1
 	github.com/imdario/mergo v0.3.12
+	github.com/jarcoal/httpmock v1.2.0 // indirect
+	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6 // indirect
+	github.com/klauspost/compress v1.12.3 // indirect
+	github.com/kris-nova/lolgopher v0.0.0-20210112022122-73f0047e8b65 // indirect
 	github.com/magiconair/properties v1.8.5
 	github.com/mennanov/fmutils v0.1.1
 	github.com/opentracing/opentracing-go v1.2.0

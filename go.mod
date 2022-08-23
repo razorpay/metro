@@ -29,7 +29,6 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.12
-	github.com/jarcoal/httpmock v1.2.0 // indirect
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/kris-nova/lolgopher v0.0.0-20210112022122-73f0047e8b65 // indirect

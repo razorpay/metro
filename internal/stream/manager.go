@@ -20,12 +20,8 @@ type PushStreamManager struct {
 
 // NewPushStreamManager return a push stream manager obj which is used to manage push stream
 func NewPushStreamManager(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) (*PushStreamManager, error) {
-	ps, err := NewPushStream(ctx, nodeID, subName, subscriptionCore, subscriberCore, config)
+	ps, err := newPushStream(ctx, nodeID, subName, subscriptionCore, subscriberCore, config)
 	if err != nil {
-		logger.Ctx(ctx).Errorw("push stream manager: Failed to setup push stream for subscription", "logFields", map[string]interface{}{
-			"subscription": subName,
-			"nodeID":       nodeID,
-		})
 		return nil, err
 	}
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -43,18 +39,7 @@ func (psm *PushStreamManager) Run() {
 	defer close(psm.doneCh)
 
 	logger.Ctx(psm.ctx).Infow("push stream manager: started running stream manager", "subscription", psm.ps.subscription.Name)
-
-	// run the stream in a separate go routine, this go routine is not part of the worker error group
-	// as the worker should continue to run if a single subscription stream exists with error
-	go func(ctx context.Context) {
-		err := psm.ps.Start()
-		if err != nil {
-			logger.Ctx(ctx).Infow("push stream manager: stream exited",
-				"subscription", psm.ps.subscription.Name,
-				"error", err.Error(),
-			)
-		}
-	}(psm.ctx)
+	psm.startPushStream()
 
 	go func() {
 		for {
@@ -79,13 +64,23 @@ func (psm *PushStreamManager) Stop() {
 	<-psm.doneCh
 }
 
-func (psm *PushStreamManager) restartPushStream() {
-	psm.ps.Stop()
+func newPushStream(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) (*PushStream, error) {
+	ps, err := NewPushStream(ctx, nodeID, subName, subscriptionCore, subscriberCore, config)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("push stream manager: Failed to setup push stream for subscription", "logFields", map[string]interface{}{
+			"subscription": subName,
+			"nodeID":       nodeID,
+		})
+		return nil, err
+	}
+	return ps, nil
+}
 
-	var err error
-	psm.ps, err = NewPushStream(psm.ctx, psm.ps.nodeID, psm.ps.subscription.Name, psm.ps.subscriptionCore, psm.ps.subscriberCore, psm.config)
+func (psm *PushStreamManager) startPushStream() {
+	// run the stream in a separate go routine, this go routine is not part of the worker error group
+	// as the worker should continue to run if a single subscription stream exists with error
 	go func(ctx context.Context) {
-		err = psm.ps.Start()
+		err := psm.ps.Start()
 		if err != nil {
 			logger.Ctx(ctx).Errorw(
 				"push stream manager: stream restart error",
@@ -94,5 +89,11 @@ func (psm *PushStreamManager) restartPushStream() {
 			)
 		}
 	}(psm.ctx)
+}
+
+func (psm *PushStreamManager) restartPushStream() {
+	psm.ps.Stop()
+	psm.ps, _ = newPushStream(psm.ctx, psm.ps.nodeID, psm.ps.subscription.Name, psm.ps.subscriptionCore, psm.ps.subscriberCore, psm.config)
+	psm.startPushStream()
 	workerComponentRestartCount.WithLabelValues(env, "stream", psm.ps.subscription.Topic, psm.ps.subscription.Name).Inc()
 }

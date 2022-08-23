@@ -17,6 +17,7 @@ import (
 
 func TestNewPushStreamManager(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	ctx := context.Background()
 
 	tests := []struct {
 		wantErr bool
@@ -30,7 +31,14 @@ func TestNewPushStreamManager(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := getMockPushStreamManager(ctrl, test.wantErr)
+		got, err := NewPushStreamManager(
+			ctx,
+			uuid.New().String(),
+			subName,
+			getSubscriptionCoreMock(ctrl, test.wantErr),
+			getSubscriberCoreMock(ctx, ctrl),
+			&httpclient.Config{},
+		)
 		assert.Equal(t, test.wantErr, err != nil)
 		assert.Equal(t, got == nil, test.wantErr)
 	}
@@ -38,12 +46,19 @@ func TestNewPushStreamManager(t *testing.T) {
 
 func TestPushStreamManager_Run(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	psm, err := getMockPushStreamManager(ctrl, false)
+	ctx := context.Background()
+
+	psm, err := NewPushStreamManager(
+		ctx,
+		uuid.New().String(),
+		subName,
+		getSubscriptionCoreMock(ctrl, false),
+		getSubscriberCoreMock(ctx, ctrl),
+		&httpclient.Config{},
+	)
 	assert.NoError(t, err)
 	assert.NotNil(t, psm)
 	psm.Run()
-
-	// Push an error to errChan of stream and it should still be running
 	psm.ps.GetErrorChannel() <- fmt.Errorf("Something went wrong")
 	<-time.NewTicker(1 * time.Second).C
 	assert.NotNil(t, psm.ps)
@@ -51,7 +66,16 @@ func TestPushStreamManager_Run(t *testing.T) {
 
 func TestPushStreamManager_Stop(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	psm, err := getMockPushStreamManager(ctrl, false)
+	ctx := context.Background()
+
+	psm, err := NewPushStreamManager(
+		ctx,
+		uuid.New().String(),
+		subName,
+		getSubscriptionCoreMock(ctrl, false),
+		getSubscriberCoreMock(ctx, ctrl),
+		&httpclient.Config{},
+	)
 	assert.NoError(t, err)
 	assert.NotNil(t, psm)
 	psm.Run()
@@ -62,22 +86,12 @@ func TestPushStreamManager_Stop(t *testing.T) {
 	assert.Equal(t, psm.ctx.Err(), context.Canceled)
 }
 
-func getMockPushStreamManager(ctrl *gomock.Controller, wantErr bool) (*PushStreamManager, error) {
-	ctx := context.Background()
-	subscriptionCoreMock := mocks1.NewMockICore(ctrl)
+func getSubscriberCoreMock(ctx context.Context, ctrl *gomock.Controller) *mocks2.MockICore {
 	subscriberCoreMock := mocks2.NewMockICore(ctrl)
-	workerID := uuid.New().String()
-	httpConfig := &httpclient.Config{}
 	subModel := getMockSubModel("")
-
-	if wantErr {
-		subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).AnyTimes().Return(nil, fmt.Errorf("Something went wrong"))
-	} else {
-		subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).AnyTimes().Return(getMockSubModel(""), nil)
-	}
 	subscriberCoreMock.EXPECT().NewSubscriber(
 		ctx,
-		workerID,
+		gomock.Any(),
 		subModel,
 		defaultTimeoutMs,
 		defaultMaxOutstandingMsgs,
@@ -85,5 +99,15 @@ func getMockPushStreamManager(ctrl *gomock.Controller, wantErr bool) (*PushStrea
 		gomock.AssignableToTypeOf(make(chan *subscriber.PullRequest)),
 		gomock.AssignableToTypeOf(make(chan *subscriber.AckMessage)),
 		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).AnyTimes().Return(getMockSubscriber(ctx, ctrl), nil)
-	return NewPushStreamManager(ctx, workerID, subName, subscriptionCoreMock, subscriberCoreMock, httpConfig)
+	return subscriberCoreMock
+}
+
+func getSubscriptionCoreMock(ctrl *gomock.Controller, wantErr bool) *mocks1.MockICore {
+	subscriptionCoreMock := mocks1.NewMockICore(ctrl)
+	if wantErr {
+		subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).AnyTimes().Return(nil, fmt.Errorf("Something went wrong"))
+	} else {
+		subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).AnyTimes().Return(getMockSubModel(""), nil)
+	}
+	return subscriptionCoreMock
 }

@@ -193,7 +193,7 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 			logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
 			if handler, ok := sm.pushHandlers.Load(oldKey); ok && handler != nil {
 				logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
-				handler.(*stream.PushStream).GetStopChannel() <- true
+				handler.(*stream.PushStreamManager).Stop()
 				logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
 				sm.pushHandlers.Delete(oldKey)
 			}
@@ -215,7 +215,7 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 				"subscription": newBinding.SubscriptionID,
 				"nodeID":       newBinding.NodeID,
 			})
-			handler, err := stream.NewPushStream(ctx, newBinding.ID, newBinding.SubscriptionID, sm.subscriptionCore, sm.subscriber, sm.httpConfig)
+			handler, err := stream.NewPushStreamManager(ctx, newBinding.ID, newBinding.SubscriptionID, sm.subscriptionCore, sm.subscriber, sm.httpConfig)
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriptionstask: Failed to setup handler for subscription", "logFields", map[string]interface{}{
 					"subscription": newBinding.SubscriptionID,
@@ -223,18 +223,7 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 				})
 			}
 
-			handler.RunPushStreamManager(ctx)
-
-			// run the stream in a separate go routine, this go routine is not part of the worker error group
-			// as the worker should continue to run if a single subscription stream exists with error
-			go func(ctx context.Context) {
-				err := handler.Start()
-				if err != nil {
-					logger.Ctx(ctx).Errorw("[worker]: push stream handler exited",
-						"subscription", newBinding.SubscriptionID,
-						"error", err.Error())
-				}
-			}(ctx)
+			handler.Run()
 
 			// store the handler
 			sm.pushHandlers.Store(newBinding.Key(), handler)
@@ -251,17 +240,17 @@ func (sm *SubscriptionTask) stopPushHandlers(ctx context.Context) {
 	wg := sync.WaitGroup{}
 	sm.pushHandlers.Range(func(_, handler interface{}) bool {
 		wg.Add(1)
-		ps := handler.(*stream.PushStream)
-		go func(ps *stream.PushStream, wg *sync.WaitGroup) {
+		psm := handler.(*stream.PushStreamManager)
+		go func(psm *stream.PushStreamManager, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			err := ps.Stop()
+			err := psm.Stop()
 			if err != nil {
 				logger.Ctx(ctx).Errorw("error stopping stream handler", "error", err)
 				return
 			}
 			logger.Ctx(ctx).Infow("successfully stopped stream handler")
-		}(ps, &wg)
+		}(psm, &wg)
 		return true
 	})
 	wg.Wait()

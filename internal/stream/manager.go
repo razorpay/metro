@@ -9,6 +9,7 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 )
 
+// PushStreamManager manages push stream
 type PushStreamManager struct {
 	ctx        context.Context
 	cancelFunc func()
@@ -17,6 +18,7 @@ type PushStreamManager struct {
 	ps         *PushStream
 }
 
+// NewPushStreamManager return a push stream manager obj which is used to manage push stream
 func NewPushStreamManager(ctx context.Context, nodeID string, subName string, subscriptionCore subscription.ICore, subscriberCore subscriber.ICore, config *httpclient.Config) (*PushStreamManager, error) {
 	ps, err := NewPushStream(ctx, nodeID, subName, subscriptionCore, subscriberCore, config)
 	if err != nil {
@@ -70,7 +72,7 @@ func (psm *PushStreamManager) Run() {
 	}()
 }
 
-// StopPushStream stops the stream manager along with the underlying stream
+// Stop stops the stream manager along with the underlying stream
 func (psm *PushStreamManager) Stop() error {
 	logger.Ctx(psm.ctx).Infow("push stream manager: stop invoked", "subscription", psm.ps.subscription.Name)
 	psm.cancelFunc()

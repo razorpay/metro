@@ -193,8 +193,15 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 			logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
 			if handler, ok := sm.pushHandlers.Load(oldKey); ok && handler != nil {
 				logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
-				handler.(*stream.PushStreamManager).Stop()
-				logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
+				if err := handler.(*stream.PushStreamManager).Stop(); err != nil {
+					logger.Ctx(ctx).Errorw(
+						"handler stop errored",
+						"key", oldKey,
+						"error", err.Error(),
+					)
+				} else {
+					logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
+				}
 				sm.pushHandlers.Delete(oldKey)
 			}
 		}

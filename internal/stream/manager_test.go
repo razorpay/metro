@@ -59,9 +59,11 @@ func TestPushStreamManager_Run(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, psm)
 	psm.Run()
+	streamObj := psm.ps
 	psm.ps.GetErrorChannel() <- fmt.Errorf("Something went wrong")
 	<-time.NewTicker(1 * time.Second).C
 	assert.NotNil(t, psm.ps)
+	assert.NotEqual(t, psm.ps, streamObj)
 }
 
 func TestPushStreamManager_Stop(t *testing.T) {

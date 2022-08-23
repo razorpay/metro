@@ -193,15 +193,10 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 			logger.Ctx(ctx).Infow("binding removed", "key", oldKey)
 			if handler, ok := sm.pushHandlers.Load(oldKey); ok && handler != nil {
 				logger.Ctx(ctx).Infow("handler found, calling stop", "key", oldKey)
-				if err := handler.(*stream.PushStreamManager).Stop(); err != nil {
-					logger.Ctx(ctx).Errorw(
-						"handler stop errored",
-						"key", oldKey,
-						"error", err.Error(),
-					)
-				} else {
+				go func(ctx context.Context) {
+					handler.(*stream.PushStreamManager).Stop()
 					logger.Ctx(ctx).Infow("handler stopped", "key", oldKey)
-				}
+				}(ctx)
 				sm.pushHandlers.Delete(oldKey)
 			}
 		}
@@ -226,7 +221,7 @@ func (sm *SubscriptionTask) handleNodeBindingUpdates(ctx context.Context, newBin
 			if err != nil {
 				logger.Ctx(ctx).Errorw("subscriptionstask: Failed to setup handler for subscription", "logFields", map[string]interface{}{
 					"subscription": newBinding.SubscriptionID,
-					"bindingKey":   newBinding.Key,
+					"bindingKey":   newBinding.Key(),
 				})
 			}
 
@@ -251,11 +246,7 @@ func (sm *SubscriptionTask) stopPushHandlers(ctx context.Context) {
 		go func(psm *stream.PushStreamManager, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			err := psm.Stop()
-			if err != nil {
-				logger.Ctx(ctx).Errorw("error stopping stream handler", "error", err)
-				return
-			}
+			psm.Stop()
 			logger.Ctx(ctx).Infow("successfully stopped stream handler")
 		}(psm, &wg)
 		return true

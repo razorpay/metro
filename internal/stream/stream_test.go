@@ -247,6 +247,6 @@ func TestPushStream_Stop(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ps := getMockPushStream(ctx, ctrl, "")
 	go ps.Start()
-	err := ps.Stop()
-	assert.Nil(t, err)
+	ps.Stop()
+	assert.NotNil(t, ps.ctx.Err())
 }

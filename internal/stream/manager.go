@@ -73,22 +73,14 @@ func (psm *PushStreamManager) Run() {
 }
 
 // Stop stops the stream manager along with the underlying stream
-func (psm *PushStreamManager) Stop() error {
+func (psm *PushStreamManager) Stop() {
 	logger.Ctx(psm.ctx).Infow("push stream manager: stop invoked", "subscription", psm.ps.subscription.Name)
 	psm.cancelFunc()
 	<-psm.doneCh
-	return nil
 }
 
 func (psm *PushStreamManager) restartPushStream() {
-	if err := psm.ps.Stop(); err != nil {
-		logger.Ctx(psm.ctx).Errorw(
-			"push stream manager: stream stop error",
-			"subscription", psm.ps.subscription.Name,
-			"error", err.Error(),
-		)
-		return
-	}
+	psm.ps.Stop()
 
 	var err error
 	psm.ps, err = NewPushStream(psm.ctx, psm.ps.nodeID, psm.ps.subscription.Name, psm.ps.subscriptionCore, psm.ps.subscriberCore, psm.config)

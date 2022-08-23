@@ -57,8 +57,8 @@ func TestPushStreamManager_Stop(t *testing.T) {
 	psm.Run()
 
 	// Stop the stream manager and it should be stopped without any error
-	err = psm.Stop()
-	assert.NoError(t, err)
+	psm.Stop()
+	assert.NotNil(t, psm.ctx.Err())
 }
 
 func getMockPushStreamManager(ctrl *gomock.Controller, wantErr bool) (*PushStreamManager, error) {

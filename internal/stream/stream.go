@@ -164,7 +164,7 @@ func (ps *PushStream) processMessages() {
 }
 
 // Stop is used to terminate the push subscription processing
-func (ps *PushStream) Stop() {
+func (ps *PushStream) Stop() error {
 	logger.Ctx(ps.ctx).Infow("worker: push stream stop invoked", "subscription", ps.subscription.Name)
 
 	// signal to stop all go routines
@@ -172,6 +172,8 @@ func (ps *PushStream) Stop() {
 
 	// wait for stop to complete
 	<-ps.doneCh
+
+	return nil
 }
 
 func (ps *PushStream) stopSubscriber() {

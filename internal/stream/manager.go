@@ -57,12 +57,12 @@ func (psm *PushStreamManager) Run() {
 	}(psm.ctx)
 
 	go func() {
-		defer logger.Ctx(psm.ctx).Infow("push stream manager: exiting stream manager", "subscription", psm.ps.subscription.Name)
-
 		for {
 			select {
 			case <-psm.ctx.Done():
-				psm.ps.Stop()
+				if err := psm.ps.Stop(); err != nil {
+					logger.Ctx(psm.ctx).Infow("push stream manager: error stopping stream", "subscription", psm.ps.subscription.Name, "error", err.Error())
+				}
 				return
 			case <-psm.ps.GetErrorChannel():
 				logger.Ctx(psm.ctx).Infow("push stream manager: restarting stream handler", "subscription", psm.ps.subscription.Name)

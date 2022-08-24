@@ -2,6 +2,8 @@ package subscriber
 
 import (
 	"context"
+	"reflect"
+	"unsafe"
 
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
@@ -16,7 +18,6 @@ import (
 	mCache "github.com/razorpay/metro/pkg/cache/mocks"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	mockMB "github.com/razorpay/metro/pkg/messagebroker/mocks"
-	"github.com/razorpay/metro/pkg/utils"
 	"github.com/stretchr/testify/assert"
 
 	"testing"
@@ -131,7 +132,7 @@ func TestCore_NewSubscriber(t *testing.T) {
 			sub, err := tt.fields.core.NewSubscriber(tt.args.ctx, tt.args.subscriberID, tt.args.subscription, tt.args.timeoutInMs,
 				tt.args.maxOutstandingMessages, tt.args.maxOutstandingBytes, tt.args.requestCh, tt.args.ackCh, tt.args.modAckCh)
 			if err == nil {
-				assert.True(t, utils.EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
+				assert.True(t, EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
 			}
 			if (err != nil && !tt.wantErr) || (err == nil && tt.wantErr) {
 				t.Errorf("NewSubscriber wantErr: %v Error: %v", tt.wantErr, err)
@@ -220,7 +221,7 @@ func TestCore_NewSubscriber_WithRetry(t *testing.T) {
 			sub, err := tt.fields.core.NewSubscriber(tt.args.ctx, tt.args.subscriberID, tt.args.subscription, tt.args.timeoutInMs,
 				tt.args.maxOutstandingMessages, tt.args.maxOutstandingBytes, tt.args.requestCh, tt.args.ackCh, tt.args.modAckCh)
 			if err == nil {
-				assert.True(t, utils.EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
+				assert.True(t, EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
 			}
 			if (err != nil && !tt.wantErr) || (err == nil && tt.wantErr) {
 				t.Errorf("NewSubscriber wantErr: %v Error: %v", tt.wantErr, err)
@@ -331,4 +332,33 @@ func getMockProducer(ctrl *gomock.Controller) *mockMB.MockProducer {
 	producer := mockMB.NewMockProducer(ctrl)
 	producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(&messagebroker.SendMessageToTopicResponse{MessageID: "m1"}, nil).AnyTimes()
 	return producer
+}
+
+// EqualOnly compares fields defined in the fields array
+func EqualOnly(sub1, sub2 interface{}, fields []string) bool {
+	val1 := reflect.ValueOf(sub1).Elem()
+	val2 := reflect.ValueOf(sub2).Elem()
+	for i := 0; i < val1.NumField(); i++ {
+		typeField := val1.Type().Field(i)
+		if !contains(typeField.Name, fields) {
+			continue
+		}
+		value1 := val1.Field(i)
+		value2 := val2.Field(i)
+		value1 = reflect.NewAt(value1.Type(), unsafe.Pointer(value1.UnsafeAddr())).Elem()
+		value2 = reflect.NewAt(value2.Type(), unsafe.Pointer(value2.UnsafeAddr())).Elem()
+		if value1.Interface() != value2.Interface() {
+			return false
+		}
+	}
+	return true
+}
+
+func contains(name string, fields []string) bool {
+	for _, field := range fields {
+		if field == name {
+			return true
+		}
+	}
+	return false
 }

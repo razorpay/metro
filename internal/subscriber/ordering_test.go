@@ -222,20 +222,6 @@ func getDummyOrderedReceivedMessage() []messagebroker.ReceivedMessage {
 	return []messagebroker.ReceivedMessage{msgProto}
 }
 
-func getReceivedMessage() messagebroker.ReceivedMessage {
-	pubSub := &metrov1.PubsubMessage{Data: []byte("a")}
-	data, _ := proto.Marshal(pubSub)
-	msgProto := messagebroker.ReceivedMessage{
-		Data:        data,
-		Topic:       topicName,
-		Partition:   partition,
-		Offset:      1,
-		OrderingKey: orderingKey,
-	}
-	msgProto.MessageID = "1"
-	return msgProto
-}
-
 func getMockOffsetRepo(ctrl *gomock.Controller, status string) *mocks.MockIRepo {
 	offsetRepo := mocks.NewMockIRepo(ctrl)
 

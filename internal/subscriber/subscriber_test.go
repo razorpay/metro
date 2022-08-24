@@ -132,7 +132,7 @@ func TestSubscriber_Run(t *testing.T) {
 		ackChan:             make(chan *AckMessage, 10),
 		modAckChan:          make(chan *ModAckMessage, 10),
 		deadlineTicker:      time.NewTicker(1 * time.Second),
-		healthMonitorTicker: time.NewTicker(1 * time.Minute),
+		healthMonitorTicker: time.NewTicker(500 * time.Millisecond),
 		errChan:             errChan,
 		closeChan:           closeChan,
 		consumer:            consumer,
@@ -167,9 +167,13 @@ func TestSubscriber_Run(t *testing.T) {
 				&messagebroker.GetMessagesFromTopicResponse{
 					Messages: getMockReceivedMessages(tt.expectedMsg),
 				}, nil)
+			cs.EXPECT().FetchConsumerLag(gomock.Any()).Return(map[string]uint64{
+				"primary-topic=0": 0,
+				"retry-topic=0":   0,
+			}, nil).AnyTimes()
 			sub := tt.fields.subscriber
 			go sub.Run(tt.args.ctx)
-			<-time.NewTicker(time.Second * 2).C
+			<-time.NewTicker(time.Nanosecond * 1000).C
 			requestChan <- &PullRequest{
 				ctx:              ctx,
 				MaxNumOfMessages: 1,
@@ -185,7 +189,7 @@ func TestSubscriber_Run(t *testing.T) {
 				}
 			case err := <-errChan:
 				t.Errorf("Error Test_Subscriber %v", err)
-			case <-time.NewTicker(time.Second * 2).C:
+			case <-time.NewTicker(time.Second * 1).C:
 				ctx.Done()
 				assert.FailNow(t, "Test case timed out")
 			}

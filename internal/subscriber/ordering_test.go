@@ -146,7 +146,7 @@ func TestOrderedImplementation_EvictUnackedMessagesPastDeadline(t *testing.T) {
 	offsetRepo := getMockOffsetRepo(ctrl, string(sequenceSuccess))
 	subImpl := getMockOrderedImplementation(ctx, consumer, offsetRepo)
 	orderedConsumptionMetadata := NewOrderedConsumptionMetadata()
-	orderedConsumptionMetadata.Store(getReceivedMessage(), time.Now().Add(time.Second*(-1)).Unix())
+	orderedConsumptionMetadata.Store(getDummyOrderedReceivedMessage()[0], time.Now().Add(time.Second*(-1)).Unix())
 	subImpl.consumedMessageStats[NewTopicPartition(topicName, partition)] = orderedConsumptionMetadata
 	pTopic := subImpl.topic
 	rTopic := subImpl.subscription.GetRetryTopic()

@@ -20,6 +20,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func setupDC(t *testing.T) (
+	ctx context.Context,
+	subCtx context.Context,
+	cancel context.CancelFunc,
+	store *mocks.MockIBrokerStore,
+	handler *mocks3.MockMessageHandler,
+	consumer *mocks2.MockConsumer,
+	cache *cachemock.MockICache,
+) {
+	ctx = context.Background()
+	subCtx, cancel = context.WithCancel(ctx)
+	ctrl := gomock.NewController(t)
+	store = mocks.NewMockIBrokerStore(ctrl)
+	handler = mocks3.NewMockMessageHandler(ctrl)
+	consumer = mocks2.NewMockConsumer(ctrl)
+	cache = cachemock.NewMockICache(ctrl)
+	producer := buildMockProducer(ctx, ctrl)
+	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
+	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	handler.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	consumer.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(messagebroker.CommitOnTopicResponse{}, nil).AnyTimes()
+	consumer.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	consumer.EXPECT().Resume(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(nil).AnyTimes()
+	consumer.EXPECT().Pause(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	consumer.EXPECT().Close(gomock.Any()).Return(nil)
+	store.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true)
+	store.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
+	store.EXPECT().GetConsumer(gomock.Any(), gomock.Any()).Return(consumer, nil)
+	return
+}
 func TestDelayConsumer_Run(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
@@ -61,98 +91,70 @@ func TestDelayConsumer_Run(t *testing.T) {
 	dc.Run(ctx)
 }
 
-func TestDelayConsumer_Pause_Resume(t *testing.T) {
-	ctx := context.Background()
-	subCtx, cancel := context.WithCancel(ctx)
-
-	ctrl := gomock.NewController(t)
-	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
-	mockHandler := mocks3.NewMockMessageHandler(ctrl)
-	mockConsumer := mocks2.NewMockConsumer(ctrl)
-	cache := cachemock.NewMockICache(ctrl)
-
+func TestDelayConsumer_Run_Consume(t *testing.T) {
+	ctx, subCtx, cancel, store, handler, consumer, cache := setupDC(t)
 	subs := getDummySubscriptionModel()
 	subscriberID := "subscriber-id"
-	mockBrokerStore.EXPECT().GetConsumer(gomock.Any(), gomock.Any()).Return(mockConsumer, nil)
-	mockConsumer.EXPECT().Resume(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(nil).AnyTimes()
-	mockConsumer.EXPECT().Pause(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	// initialize delay consumer
 	errCh := make(chan error)
-	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1", subs, mockBrokerStore, mockHandler, cache, errCh)
-	producer := buildMockProducer(ctx, ctrl)
+	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1", subs, store, handler, cache, errCh)
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
 	msgs := make([]messagebroker.ReceivedMessage, 0)
 	msg1 := getDummyBrokerMessage()
-	msg1.NextDeliveryTime = time.Now().Add(time.Second * 1)
+	msg1.NextDeliveryTime = time.Now().Add(time.Nanosecond * 1000)
 	msg2 := getDummyBrokerMessage()
-	msg2.NextDeliveryTime = time.Now().Add(time.Second * 10)
+	msg2.NextDeliveryTime = time.Now().Add(time.Second * 2)
 	msgs = append(msgs, msg1, msg2)
-	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}
-	count := 0
-	mockConsumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
-			if count == 0 {
-				count++
-				return resp, nil
-			} else {
-				return &messagebroker.GetMessagesFromTopicResponse{}, nil
-			}
-		}).AnyTimes()
-	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
-	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	// on new message from broker
-	mockHandler.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	mockConsumer.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(messagebroker.CommitOnTopicResponse{}, nil).AnyTimes()
-	mockConsumer.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	mockBrokerStore.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true)
-	mockBrokerStore.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
-	mockConsumer.EXPECT().Close(gomock.Any()).Return(nil)
+	type args struct {
+		messages []messagebroker.ReceivedMessage
+	}
 	tests := []struct {
 		name    string
+		args    args
 		wantErr bool
 	}{
 		{
 			name:    "Test Delay Consumer one message counsume out of 2",
 			wantErr: false,
+			args: args{
+				messages: msgs,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			count := 0
+			consumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).DoAndReturn(
+				func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
+					if count == 0 {
+						count++
+						return &messagebroker.GetMessagesFromTopicResponse{Messages: tt.args.messages}, nil
+					} else {
+						return &messagebroker.GetMessagesFromTopicResponse{}, nil
+					}
+				}).AnyTimes()
 			go dc.Run(ctx)
 			select {
 			case err := <-errCh:
 				if !tt.wantErr {
 					t.Errorf("Got Error : %v", err)
 				}
-			case <-time.NewTicker(time.Second * 2).C:
+			case <-time.NewTicker(time.Millisecond * 500).C:
 				assert.Equal(t, len(dc.cachedMsgs), 1)
 				cancel()
-				<-time.NewTicker(time.Second * 1).C
+				<-time.NewTicker(time.Millisecond * 1).C
 			}
 		})
 	}
 }
 
-func TestDelayConsumer_deadLetter(t *testing.T) {
-	ctx := context.Background()
-	subCtx, cancel := context.WithCancel(ctx)
-	ctrl := gomock.NewController(t)
-	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
-	mockHandler := mocks3.NewMockMessageHandler(ctrl)
-	mockConsumer := mocks2.NewMockConsumer(ctrl)
-	cache := cachemock.NewMockICache(ctrl)
-
+func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
+	ctx, subCtx, cancel, store, handler, consumer, cache := setupDC(t)
 	subs := getDummySubscriptionModel()
 	subscriberID := "subscriber-dl-id"
-	mockBrokerStore.EXPECT().GetConsumer(gomock.Any(), gomock.Any()).Return(mockConsumer, nil)
-	mockConsumer.EXPECT().Resume(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(nil).AnyTimes()
-	mockConsumer.EXPECT().Pause(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	// initialize delay consumer
 	errCh := make(chan error)
-	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1-dl", subs, mockBrokerStore, mockHandler, cache, errCh)
-	producer := buildMockProducer(ctx, ctrl)
+	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1-dl", subs, store, handler, cache, errCh)
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
@@ -161,43 +163,41 @@ func TestDelayConsumer_deadLetter(t *testing.T) {
 	msg := getDummyBrokerMessageDLQ()
 	msg.NextDeliveryTime = tFut
 	msgs = append(msgs, msg)
-	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}
 	count := 0
-	mockConsumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
-			if count == 0 {
-				count++
-				return resp, nil
-			} else {
-				return &messagebroker.GetMessagesFromTopicResponse{}, nil
-			}
-		}).AnyTimes()
-	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
-	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	// on new message from broker
-	mockHandler.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	mockConsumer.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(messagebroker.CommitOnTopicResponse{}, nil).AnyTimes()
-	mockBrokerStore.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true)
-	mockBrokerStore.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
-	mockConsumer.EXPECT().Close(gomock.Any()).Return(nil)
+	type args struct {
+		messages []messagebroker.ReceivedMessage
+	}
 	tests := []struct {
 		name    string
 		wantErr bool
+		args    args
 	}{
 		{
-			name:    "Test Delay Consumer Run Pause Resume",
+			name: "Test Delay Consumer msg pushed to DLQ success",
+			args: args{
+				messages: msgs,
+			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			consumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).DoAndReturn(
+				func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
+					if count == 0 {
+						count++
+						return &messagebroker.GetMessagesFromTopicResponse{Messages: tt.args.messages}, nil
+					} else {
+						return &messagebroker.GetMessagesFromTopicResponse{}, nil
+					}
+				}).AnyTimes()
 			go dc.Run(ctx)
 			select {
 			case err := <-errCh:
 				t.Errorf("Got Error : %v", err)
-			case <-time.NewTicker(time.Second * 2).C:
+			case <-time.NewTicker(time.Millisecond * 500).C:
 				cancel()
-				<-time.NewTicker(time.Second * 1).C
+				<-time.NewTicker(time.Millisecond * 1).C
 			}
 		})
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/razorpay/metro/internal/brokerstore"
+	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
@@ -26,6 +27,7 @@ type IConsumer interface {
 	ReceiveMessages(ctx context.Context, maxMessages int32) (*messagebroker.GetMessagesFromTopicResponse, error)
 	GetTopicMetadata(ctx context.Context, req messagebroker.GetTopicMetadataRequest) (messagebroker.GetTopicMetadataResponse, error)
 	CommitByPartitionAndOffset(ctx context.Context, req messagebroker.CommitOnTopicRequest) (messagebroker.CommitOnTopicResponse, error)
+	GetConsumerLag(ctx context.Context) (map[string]uint64, error)
 
 	Close(ctx context.Context) error
 }
@@ -47,12 +49,17 @@ type consumerManager struct {
 // NewConsumerManager ...
 func NewConsumerManager(ctx context.Context, bs brokerstore.IBrokerStore, brokerTimeout int, subscriberID string, subscriptionName,
 	topicName, retryTopicName string) (IConsumer, error) {
+	autoOffsetReset := "latest"
+	if topic.IsDLQTopic(topicName) {
+		autoOffsetReset = "earliest"
+	}
 	consumer, err := bs.GetConsumer(
 		ctx,
 		messagebroker.ConsumerClientOptions{
 			Topics:          []string{topicName, retryTopicName},
 			GroupID:         subscriptionName,
 			GroupInstanceID: subscriberID,
+			AutoOffsetReset: autoOffsetReset,
 		},
 	)
 	if err != nil {
@@ -79,6 +86,15 @@ func (c *consumerManager) getLogFields() map[string]interface{} {
 	}
 }
 
+func (c *consumerManager) GetConsumerLag(ctx context.Context) (map[string]uint64, error) {
+
+	lag, err := c.consumer.FetchConsumerLag(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("consumer: failed to fetch consumer lag", "subscription", c.subscriptionName, "error", err.Error())
+	}
+	return lag, err
+
+}
 func (c *consumerManager) pausePrimaryConsumer(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("consumer manager: pausing primary consumer", "logFields", c.getLogFields(), "topic", c.primaryTopic)
 	err := c.consumer.Pause(ctx, messagebroker.PauseOnTopicRequest{Topic: c.primaryTopic})
@@ -155,7 +171,6 @@ func (c *consumerManager) ResumeConsumer(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	subscriberPausedConsumersTotal.WithLabelValues(env, c.retryTopic, c.subscriptionName, c.subscriberID).Dec()
 
 	if c.pausePrimaryTopic {
 		// Retry consumer resumed, primary consumer not to be resumed
@@ -170,7 +185,6 @@ func (c *consumerManager) ResumeConsumer(ctx context.Context) error {
 
 	// Retry consumer resumed, primary consumer resumed
 	c.consumerPaused = false
-	subscriberPausedConsumersTotal.WithLabelValues(env, c.primaryTopic, c.subscriptionName, c.subscriberID).Dec()
 	return nil
 }
 

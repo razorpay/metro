@@ -2,7 +2,9 @@ package scheduler
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
+	"time"
 
 	"github.com/razorpay/metro/internal/node"
 	"github.com/razorpay/metro/internal/nodebinding"
@@ -26,7 +28,7 @@ type LoadBalanceAlgoImpl struct {
 }
 
 // GetNode method returns the selected node for scheduling based on current load
-func (algo *LoadBalanceAlgoImpl) GetNode(nodebindings []*nodebinding.Model, nodes []*node.Model) (*node.Model, error) {
+func (algo *LoadBalanceAlgoImpl) GetNode(nodebindings []*nodebinding.Model, nodes map[string]*node.Model) (*node.Model, error) {
 	if len(nodes) <= 0 {
 		return nil, fmt.Errorf("no node available for scheduling")
 	}
@@ -48,6 +50,14 @@ func (algo *LoadBalanceAlgoImpl) GetNode(nodebindings []*nodebinding.Model, node
 			Count: v,
 		})
 	}
+
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(
+		len(nodeCountList),
+		func(i, j int) {
+			nodeCountList[i], nodeCountList[j] = nodeCountList[j], nodeCountList[i]
+		},
+	)
 
 	sort.Sort(nodeCountList)
 

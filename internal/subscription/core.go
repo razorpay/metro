@@ -7,11 +7,13 @@ import (
 
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 
+	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/messagebroker"
 )
 
 // ICore is an interface over subscription core
@@ -26,6 +28,7 @@ type ICore interface {
 	List(ctx context.Context, prefix string) ([]*Model, error)
 	Get(ctx context.Context, key string) (*Model, error)
 	Migrate(ctx context.Context, names []string) error
+	RescaleSubTopics(ctx context.Context, topicModel *topic.Model) error
 }
 
 // Core implements all business logic for a subscription
@@ -33,11 +36,12 @@ type Core struct {
 	repo        IRepo
 	projectCore project.ICore
 	topicCore   topic.ICore
+	brokerStore brokerstore.IBrokerStore
 }
 
 // NewCore returns an instance of Core
-func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore) ICore {
-	return &Core{repo, projectCore, topicCore}
+func NewCore(repo IRepo, projectCore project.ICore, topicCore topic.ICore, brokerStore brokerstore.IBrokerStore) ICore {
+	return &Core{repo, projectCore, topicCore, brokerStore}
 }
 
 // CreateSubscription creates a subscription for a given topic
@@ -106,7 +110,7 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	}
 
 	// this creates the needed delay topics in the broker
-	err = createDelayTopics(ctx, m, c.topicCore)
+	err = createDelayTopics(ctx, m, c.topicCore, topicModel)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
 		return err
@@ -310,7 +314,7 @@ func (c *Core) Get(ctx context.Context, key string) (*Model, error) {
 }
 
 // createDelayTopics - creates needed delay topics for a subscription
-func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) error {
+func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, topicModel *topic.Model) error {
 	if m == nil || topicCore == nil {
 		return nil
 	}
@@ -318,13 +322,15 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) err
 	for _, delayTopic := range m.GetDelayTopics() {
 
 		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
-			Name: delayTopic,
+			Name:            delayTopic,
+			NumOfPartitions: int32(topicModel.NumPartitions),
 		})
 		if terr != nil {
 			logger.Ctx(ctx).Errorw("failed to create validated topic model", "delayTopic", delayTopic, "error", terr.Error())
 			return terr
 		}
 
+		logger.Ctx(ctx).Infow("topic model ", ":", tModel)
 		err := topicCore.CreateTopic(ctx, tModel)
 		if val, ok := err.(*merror.MError); ok {
 			// in-case users delete and re-create a subscription
@@ -339,6 +345,106 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore) err
 		}
 	}
 
+	return nil
+}
+
+// RescaleSubTopics - Get all the subs and rescale all the Retry/Delay/DLQ topics
+func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) error {
+	projectList, err := c.projectCore.ListKeys(ctx)
+	if err != nil {
+		return err
+	}
+	var completeSubList []*Model
+
+	for _, projectKey := range projectList {
+		subList, subErr := c.List(ctx, Prefix+project.FetchProjectID(ctx, projectKey))
+		if subErr != nil {
+			return subErr
+		}
+		completeSubList = append(completeSubList, subList...)
+	}
+	admin, err := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if err != nil {
+		return merror.ToGRPCError(err)
+	}
+
+	for _, m := range completeSubList {
+		if m.Topic != topicModel.Name {
+			continue
+		}
+		// modify topic partitions
+		retryTopicName := m.GetRetryTopic()
+		_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+			Name:          retryTopicName,
+			NumPartitions: topicModel.NumPartitions,
+		})
+		if err != nil {
+			return merror.ToGRPCError(err)
+		}
+		retryModel := &topic.Model{
+			Name:               retryTopicName,
+			ExtractedTopicName: m.ExtractedSubscriptionName + topic.RetryTopicSuffix,
+			ExtractedProjectID: m.ExtractedTopicProjectID,
+			NumPartitions:      topicModel.NumPartitions,
+		}
+		retryTopicError := c.topicCore.UpdateTopic(ctx, retryModel)
+		if retryTopicError != nil {
+			logger.Ctx(ctx).Error(
+				"Error in executing Retry Topic Rescaling: ",
+				retryTopicError.Error(),
+				" TopicName: ",
+				retryModel.Name)
+		}
+
+		for _, delayTopic := range m.GetDelayTopics() {
+			_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+				Name:          delayTopic,
+				NumPartitions: topicModel.NumPartitions,
+			})
+			if err != nil {
+				return merror.ToGRPCError(err)
+			}
+			delayModel := &topic.Model{
+				Name:               delayTopic,
+				ExtractedTopicName: topic.GetTopicNameOnly(delayTopic),
+				ExtractedProjectID: m.ExtractedTopicProjectID,
+				NumPartitions:      topicModel.NumPartitions,
+			}
+			delayTopicError := c.topicCore.UpdateTopic(ctx, delayModel)
+			if delayTopicError != nil {
+				logger.Ctx(ctx).Error(
+					"Error in executing Delay Topic Rescaling: ",
+					delayTopicError.Error(),
+					" TopicName: ",
+					delayModel.Name)
+			}
+		}
+
+		if !topicModel.IsDeadLetterTopic() {
+			dlqTopicName := m.GetDeadLetterTopic()
+			_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+				Name:          dlqTopicName,
+				NumPartitions: topicModel.NumPartitions,
+			})
+			if err != nil {
+				return merror.ToGRPCError(err)
+			}
+			dlqModel := &topic.Model{
+				Name:               dlqTopicName,
+				ExtractedTopicName: m.ExtractedSubscriptionName + topic.DeadLetterTopicSuffix,
+				ExtractedProjectID: m.ExtractedTopicProjectID,
+				NumPartitions:      topicModel.NumPartitions,
+			}
+			dlqTopicError := c.topicCore.UpdateTopic(ctx, dlqModel)
+			if dlqTopicError != nil {
+				logger.Ctx(ctx).Error(
+					"Error in executing DLQ Topic Rescaling: ",
+					dlqTopicError.Error(),
+					" TopicName: ",
+					dlqModel.Name)
+			}
+		}
+	}
 	return nil
 }
 

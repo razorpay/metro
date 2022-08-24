@@ -1,3 +1,4 @@
+//go:build unit
 // +build unit
 
 package tasks
@@ -52,13 +53,13 @@ func TestSchedulerTask_Run(t *testing.T) {
 	doneCh := make(chan struct{})
 
 	// mock registry
-	registryMock.EXPECT().Watch(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(watcherMock, nil).Times(2)
+	registryMock.EXPECT().Watch(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(watcherMock, nil).AnyTimes()
 
 	// mock watcher
 	watcherMock.EXPECT().StartWatch().Do(func() {
 		<-ctx.Done()
-	}).Return(nil).Times(2)
-	watcherMock.EXPECT().StopWatch().Times(2)
+	}).Return(nil).Times(3)
+	watcherMock.EXPECT().StopWatch().Times(3)
 
 	// mock subscription Core
 	sub := subscription.Model{
@@ -78,7 +79,7 @@ func TestSchedulerTask_Run(t *testing.T) {
 	}
 	sub.SetVersion("1")
 	subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(
-		[]*subscription.Model{&sub}, nil)
+		[]*subscription.Model{&sub}, nil).AnyTimes()
 
 	// mock nodes core
 	nodeCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodes/").Return(
@@ -86,7 +87,7 @@ func TestSchedulerTask_Run(t *testing.T) {
 			{
 				ID: workerID,
 			},
-		}, nil)
+		}, nil).AnyTimes()
 
 	// mock nodebindings core
 	nb := &nodebinding.Model{
@@ -97,24 +98,28 @@ func TestSchedulerTask_Run(t *testing.T) {
 	}
 
 	nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
-		[]*nodebinding.Model{}, nil)
-	nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
-		[]*nodebinding.Model{}, nil)
+		[]*nodebinding.Model{}, nil).AnyTimes()
 
-	nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).Times(2)
+	nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+		[]string{}, nil).AnyTimes()
 
-	// mock Topic Get
-	topicCoreMock.EXPECT().Get(gomock.AssignableToTypeOf(ctx), "projects/test-project/topics/test").Return(
-		&topic.Model{
+	nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
+
+	dummyTopicModels := []*topic.Model{
+		{
 			Name:               "projects/test-project/topics/test",
-			NumPartitions:      1,
+			NumPartitions:      2,
 			ExtractedTopicName: "test",
 			ExtractedProjectID: "test-project",
 			Labels:             map[string]string{},
-		}, nil).Times(2)
+		},
+	}
+	// mock Topic Get
+	topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(
+		dummyTopicModels, nil).AnyTimes()
 
 	// mock scheduler
-	schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any()).Return(nb, nil).Times(2)
+	schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).AnyTimes()
 
 	go func() {
 		err = task.Run(ctx)
@@ -125,10 +130,12 @@ func TestSchedulerTask_Run(t *testing.T) {
 	// test signals on channels
 	task.(*SchedulerTask).subWatchData <- &struct{}{}
 	task.(*SchedulerTask).nodeWatchData <- &struct{}{}
+	task.(*SchedulerTask).topicWatchData <- &struct{}{}
 
 	// test nils
 	task.(*SchedulerTask).subWatchData <- nil
 	task.(*SchedulerTask).nodeWatchData <- nil
+	task.(*SchedulerTask).topicWatchData <- nil
 
 	cancel()
 	<-doneCh

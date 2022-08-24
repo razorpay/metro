@@ -15,6 +15,7 @@ var (
 	workerPushEndpointTimeTaken      *prometheus.HistogramVec
 	workerSubscriberErrors           *prometheus.CounterVec
 	workerPushEndpointCallsCount     *prometheus.CounterVec
+	workerComponentRestartCount      *prometheus.CounterVec
 )
 
 func init() {
@@ -35,7 +36,7 @@ func init() {
 	workerPushEndpointTimeTaken = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "metro_worker_push_endpoint_time_taken_seconds",
 		Help:    "Time taken to get response from push endpoint",
-		Buckets: prometheus.LinearBuckets(0.001, 0.005, 300),
+		Buckets: prometheus.ExponentialBuckets(0.001, 1.25, 300),
 	}, []string{"env", "topic", "subscription", "endpoint"})
 
 	workerSubscriberErrors = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -45,4 +46,8 @@ func init() {
 	workerPushEndpointCallsCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "metro_worker_push_endpoint_http_calls",
 	}, []string{"env", "topic", "subscription", "endpoint", "subscriberId"})
+
+	workerComponentRestartCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "metro_worker_component_restart_count",
+	}, []string{"env", "component", "topic", "subscription"})
 }

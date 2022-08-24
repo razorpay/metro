@@ -43,6 +43,14 @@ func (s *OrderedImplementation) GetSubscription() *subscription.Model {
 	return s.subscription
 }
 
+// GetConsumerLag returns perceived lag for the given Subscriber
+func (s *OrderedImplementation) GetConsumerLag() map[string]uint64 {
+
+	lag, _ := s.consumer.GetConsumerLag(s.ctx)
+
+	return lag
+}
+
 // CanConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
 func (s *OrderedImplementation) CanConsumeMore() bool {
 	totalConsumedMsgsForTopic := 0
@@ -123,6 +131,15 @@ func (s *OrderedImplementation) Pull(ctx context.Context, req *PullRequest, resp
 		ts := &timestamppb.Timestamp{}
 		ts.Seconds = msg.PublishTime.Unix()
 		protoMsg.PublishTime = ts
+
+		if len(protoMsg.Attributes) == 0 {
+			protoMsg.Attributes = make(map[string]string, 1)
+		}
+		for _, attribute := range msg.Attributes {
+			if val, ok := attribute[messagebroker.UberTraceID]; ok {
+				protoMsg.Attributes[messagebroker.UberTraceID] = string(val)
+			}
+		}
 
 		// store the processed r1 in a map for limit checks
 		tp := NewTopicPartition(msg.Topic, msg.Partition)
@@ -537,7 +554,7 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 			logger.Ctx(ctx).Errorw(
 				"subscriber: could not update sequence offset",
 				"logFields", getLogFields(s),
-				"error", err,
+				"error", err.Error(),
 			)
 			return err
 		}
@@ -547,7 +564,7 @@ func (s *OrderedImplementation) evictMessages(ctx context.Context, tp TopicParti
 		logger.Ctx(ctx).Errorw(
 			"subscriber: could not update sequence status",
 			"logFields", getLogFields(s),
-			"error", err,
+			"error", err.Error(),
 		)
 		return err
 	}
@@ -599,6 +616,11 @@ func (s *OrderedImplementation) removeMessagesFromMemory(ctx context.Context, st
 }
 
 func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
+	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", s.GetConsumedMessagesStats())
+}
+
+// GetConsumedMessagesStats ...
+func (s *OrderedImplementation) GetConsumedMessagesStats() map[string]interface{} {
 	st := make(map[string]interface{})
 
 	for tp, stats := range s.consumedMessageStats {
@@ -612,7 +634,7 @@ func (s *OrderedImplementation) logInMemoryStats(ctx context.Context) {
 		}
 		st[tp.String()] = total
 	}
-	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
+	return st
 }
 
 func (s *OrderedImplementation) isPrimaryTopic(topic string) bool {

@@ -29,6 +29,7 @@ const (
 	ackDeadlineSecPath   = "ack_deadline_seconds"
 	retryConfigPath      = "retry_policy"
 	deadLetterConfigPath = "dead_letter_policy"
+	filterPath           = "filter"
 )
 
 // Config validations related values
@@ -169,7 +170,7 @@ func ValidateUpdateSubscriptionRequest(_ context.Context, req *metrov1.UpdateSub
 	for _, path := range req.UpdateMask.Paths {
 		switch path {
 		// valid paths
-		case pushConfigPath, ackDeadlineSecPath, retryConfigPath, deadLetterConfigPath:
+		case pushConfigPath, ackDeadlineSecPath, retryConfigPath, deadLetterConfigPath, filterPath:
 			continue
 		default:
 			return merror.Newf(merror.InvalidArgument, "invalid update_mask provided. '%s' is not a known update_mask", path)

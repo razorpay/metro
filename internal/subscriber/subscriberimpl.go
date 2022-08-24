@@ -40,6 +40,14 @@ func (s *BasicImplementation) GetSubscription() *subscription.Model {
 	return s.subscription
 }
 
+// GetConsumerLag returns perceived lag for the gievn Subscriber
+func (s *BasicImplementation) GetConsumerLag() map[string]uint64 {
+
+	lag, _ := s.consumer.GetConsumerLag(s.ctx)
+
+	return lag
+}
+
 // CanConsumeMore looks at sum of all consumed messages in all the active topic partitions and checks threshold
 func (s *BasicImplementation) CanConsumeMore() bool {
 	totalConsumedMsgsForTopic := 0
@@ -88,6 +96,16 @@ func (s *BasicImplementation) Pull(ctx context.Context, req *PullRequest, respon
 		ts := &timestamppb.Timestamp{}
 		ts.Seconds = msg.PublishTime.Unix()
 		protoMsg.PublishTime = ts
+
+		if len(protoMsg.Attributes) == 0 {
+			protoMsg.Attributes = make(map[string]string, 1)
+		}
+
+		for _, attribute := range msg.Attributes {
+			if val, ok := attribute[messagebroker.UberTraceID]; ok {
+				protoMsg.Attributes[messagebroker.UberTraceID] = string(val)
+			}
+		}
 
 		// store the processed r1 in a map for limit checks
 		tp := NewTopicPartition(msg.Topic, msg.Partition)
@@ -301,6 +319,11 @@ func (s *BasicImplementation) removeMessageFromMemory(ctx context.Context, stats
 }
 
 func (s *BasicImplementation) logInMemoryStats(ctx context.Context) {
+	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", s.GetConsumedMessagesStats())
+}
+
+// GetConsumedMessagesStats ...
+func (s *BasicImplementation) GetConsumedMessagesStats() map[string]interface{} {
 	st := make(map[string]interface{})
 
 	for tp, stats := range s.consumedMessageStats {
@@ -313,7 +336,7 @@ func (s *BasicImplementation) logInMemoryStats(ctx context.Context) {
 		}
 		st[tp.String()] = total
 	}
-	logger.Ctx(ctx).Infow("subscriber: in-memory stats", "logFields", getLogFields(s), "stats", st)
+	return st
 }
 
 func (s *BasicImplementation) retry(ctx context.Context, i Implementation, consumer IConsumer,
@@ -328,6 +351,7 @@ func (s *BasicImplementation) retry(ctx context.Context, i Implementation, consu
 
 func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg messagebroker.ReceivedMessage, errChan chan error) {
 	logFields := getLogFields(s)
+	logFields["parition"] = msg.Partition
 
 	tp := TopicPartition{topic: msg.Topic, partition: msg.Partition}
 	stats := s.consumedMessageStats[tp]
@@ -336,7 +360,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 	shouldCommit := false
 	peek := stats.offsetBasedMinHeap.Indices[0]
 
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "stats", stats, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack pre heap evaluation", "stats", stats, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic, "partition", msg.Partition)
 	if offsetToCommit == peek.Offset {
 		start := time.Now()
 		// NOTE: attempt a commit to broker only if the head of the offsetBasedMinHeap changes
@@ -367,7 +391,7 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 		shouldCommit = true
 	}
 
-	logger.Ctx(ctx).Infow("subscriber: offsets in ack", "stats", stats, "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic)
+	logger.Ctx(ctx).Infow("subscriber: offsets in ack post heap evaluation", "stats", stats, "shouldCommit", shouldCommit, "logFields", logFields, "req offset", msg.Offset, "peek offset", peek.Offset, "msgId", msg.MessageID, "topic", msg.CurrentTopic, "partition", msg.Partition)
 
 	if shouldCommit {
 		offsetUpdated := true
@@ -404,13 +428,14 @@ func (s *BasicImplementation) commitAndRemoveFromMemory(ctx context.Context, msg
 		}
 		// after successful commit to broker, make sure to re-init the maxCommittedOffset in subscriber
 		stats.maxCommittedOffset = offsetToCommit
-		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "logFields", logFields, "offsetToCommit", offsetToCommit, "topic-partition", tp)
+		logger.Ctx(ctx).Infow("subscriber: max committed offset new value", "logFields", logFields, "offsetToCommit", offsetToCommit, "topic", tp.topic, "partition", tp.partition)
 	}
 
 	s.removeMessageFromMemory(ctx, stats, msg.MessageID)
 
 	// add to eviction map only in case of any out of order eviction
 	if offsetToCommit > stats.maxCommittedOffset {
+		logger.Ctx(ctx).Infow("subscriber: storing offset in memory due to offset mismatch", "messageID", msg.MessageID, "topic", msg.Topic, "partition", msg.Partition, "offsetToCommit", offsetToCommit, "maxOffset", stats.maxCommittedOffset, "evictedButNotCommittedOffsets", len(stats.evictedButNotCommittedOffsets))
 		stats.evictedButNotCommittedOffsets[offsetToCommit] = true
 	}
 }

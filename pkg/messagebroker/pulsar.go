@@ -135,6 +135,13 @@ func newPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *A
 	}, nil
 }
 
+//FetchConsumerLag ...
+func (p *PulsarBroker) FetchConsumerLag(ctx context.Context) (map[string]uint64, error) {
+	lag := make(map[string]uint64)
+
+	return lag, nil
+}
+
 // CreateTopic creates a new topic if not available
 func (p *PulsarBroker) CreateTopic(ctx context.Context, request CreateTopicRequest) (CreateTopicResponse, error) {
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "CreateTopic").Inc()
@@ -322,5 +329,10 @@ func (p *PulsarBroker) Shutdown(ctx context.Context) {
 
 // IsClosed checks if producer has been closed
 func (p *PulsarBroker) IsClosed(_ context.Context) bool {
+	panic("implement this!")
+}
+
+// Flush flushes the producer buffer
+func (p *PulsarBroker) Flush(timeoutMs int) error {
 	panic("implement this!")
 }

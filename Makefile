@@ -134,11 +134,12 @@ dev-docker-up:
 
 .PHONY: dev-docker-datastores-up ## Bring up datastore containers
 dev-docker-datastores-up:
-	docker compose -f deployment/dev/docker-compose-datastores.yml up -d
+	docker compose -f deployment/dev/docker-compose-datastores.yml up -d --build
 
 .PHONY: dev-docker-datastores-down ## Shut down datastore containers
 dev-docker-datastores-down:
 	docker compose -f deployment/dev/docker-compose-datastores.yml down
+	docker volume rm dev_consul-volume
 
 .PHONY: dev-docker-down ## Shutdown docker-compose for local dev-setup
 dev-docker-down:

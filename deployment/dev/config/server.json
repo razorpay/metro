@@ -1,0 +1,9 @@
+{
+    "node_name": "consul-server",
+    "server": true,
+    "ui": true,
+    "data_dir": "/consul/data",
+    "addresses": {
+      "http" : "0.0.0.0"
+    }
+}

@@ -61,9 +61,16 @@ services:
       CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
 
   consul:
-    image: consul:1.9.0
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      CONSUL_HTTP_ADDR: "consul:8500"
+    command: "agent -server --bootstrap -data-dir=/consul/data"
     hostname: consul
     container_name: metro-consul
+    volumes:
+      - consul-volume:/consul/data
     networks:
       - app-network
     ports:
@@ -75,6 +82,7 @@ services:
       retries: 5
 
 volumes:
+  consul-volume:
   cache:
     driver: local
 networks:

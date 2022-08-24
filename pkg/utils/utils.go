@@ -1,8 +1,6 @@
 package utils
 
-import (
-	"encoding/base64"
-)
+import "encoding/base64"
 
 // Encode given a string, returns a base64 encoded version of it
 func Encode(input string) string {

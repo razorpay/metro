@@ -182,11 +182,6 @@ func TestSubscriber_Run(t *testing.T) {
 			case res := <-responseChan:
 				assert.NotEmpty(t, res.ReceivedMessages)
 				assert.Equal(t, len(tt.expectedMsg), len(res.ReceivedMessages))
-				for _, msg := range res.ReceivedMessages {
-					ackMessage, _ := ParseAckID(msg.AckId)
-					ackMessage.ctx = ctx
-					sub.ackChan <- ackMessage
-				}
 			case err := <-errChan:
 				t.Errorf("Error Test_Subscriber %v", err)
 			case <-time.NewTicker(time.Second * 1).C:

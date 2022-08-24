@@ -61,16 +61,9 @@ services:
       CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
 
   consul:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-    environment:
-      CONSUL_HTTP_ADDR: "consul:8500"
-    command: "agent -server --bootstrap -data-dir=/consul/data"
+    image: consul:1.9.0
     hostname: consul
     container_name: metro-consul
-    volumes:
-      - consul-volume:/consul/data
     networks:
       - app-network
     ports:
@@ -81,8 +74,19 @@ services:
       timeout: 10s
       retries: 5
 
+  consul-seeder:
+    image: consul:1.9.0
+    environment:
+      CONSUL_HTTP_ADDR: "consul:8500"
+    command: consul kv import @/seeder/data.json
+    volumes:
+      - ./config/data.json:/seeder/data.json
+    networks:
+      - app-network
+    depends_on:
+      - consul
+
 volumes:
-  consul-volume:
   cache:
     driver: local
 networks:

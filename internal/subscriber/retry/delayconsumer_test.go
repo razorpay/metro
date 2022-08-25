@@ -6,6 +6,7 @@ package retry
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 
 func setupDC(t *testing.T) (
 	ctx context.Context,
+	ctrl *gomock.Controller,
 	subCtx context.Context,
 	cancel context.CancelFunc,
 	store *mocks.MockIBrokerStore,
@@ -31,12 +33,11 @@ func setupDC(t *testing.T) (
 ) {
 	ctx = context.Background()
 	subCtx, cancel = context.WithCancel(ctx)
-	ctrl := gomock.NewController(t)
+	ctrl = gomock.NewController(t)
 	store = mocks.NewMockIBrokerStore(ctrl)
 	handler = mocks3.NewMockMessageHandler(ctrl)
 	consumer = mocks2.NewMockConsumer(ctrl)
 	cache = cachemock.NewMockICache(ctrl)
-	producer := buildMockProducer(ctx, ctrl)
 	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	handler.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -46,7 +47,6 @@ func setupDC(t *testing.T) (
 	consumer.EXPECT().Pause(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	consumer.EXPECT().Close(gomock.Any()).Return(nil)
 	store.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true)
-	store.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
 	store.EXPECT().GetConsumer(gomock.Any(), gomock.Any()).Return(consumer, nil)
 	return
 }
@@ -92,11 +92,13 @@ func TestDelayConsumer_Run(t *testing.T) {
 }
 
 func TestDelayConsumer_Run_Consume(t *testing.T) {
-	ctx, subCtx, cancel, store, handler, consumer, cache := setupDC(t)
+	ctx, ctrl, subCtx, cancel, store, handler, consumer, cache := setupDC(t)
 	subs := getDummySubscriptionModel()
 	subscriberID := "subscriber-id"
 	errCh := make(chan error)
 	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1", subs, store, handler, cache, errCh)
+	producer := buildMockProducer(ctx, ctrl)
+	store.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
@@ -140,6 +142,8 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 				if !tt.wantErr {
 					t.Errorf("Got Error : %v", err)
 				}
+				cancel()
+				<-time.NewTicker(time.Millisecond * 1).C
 			case <-time.NewTicker(time.Millisecond * 500).C:
 				assert.Equal(t, len(dc.cachedMsgs), 1)
 				cancel()
@@ -150,10 +154,13 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 }
 
 func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
-	ctx, subCtx, cancel, store, handler, consumer, cache := setupDC(t)
+	ctx, ctrl, subCtx, cancel, store, handler, consumer, cache := setupDC(t)
 	subs := getDummySubscriptionModel()
 	subscriberID := "subscriber-dl-id"
 	errCh := make(chan error)
+	dlqTopicChan := make(chan *messagebroker.SendMessageToTopicRequest)
+	producer := buildMockDLQProducer(ctx, ctrl, dlqTopicChan)
+	store.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
 	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1-dl", subs, store, handler, cache, errCh)
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
@@ -168,16 +175,18 @@ func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
 		messages []messagebroker.ReceivedMessage
 	}
 	tests := []struct {
-		name    string
-		wantErr bool
-		args    args
+		name     string
+		wantErr  bool
+		expected *messagebroker.SendMessageToTopicRequest
+		args     args
 	}{
 		{
 			name: "Test Delay Consumer msg pushed to DLQ success",
 			args: args{
 				messages: msgs,
 			},
-			wantErr: false,
+			expected: getMockSendMessageToTopicRequest(),
+			wantErr:  false,
 		},
 	}
 	for _, tt := range tests {
@@ -192,12 +201,17 @@ func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
 					}
 				}).AnyTimes()
 			go dc.Run(ctx)
-			select {
-			case err := <-errCh:
-				t.Errorf("Got Error : %v", err)
-			case <-time.NewTicker(time.Millisecond * 500).C:
-				cancel()
-				<-time.NewTicker(time.Millisecond * 1).C
+			for {
+				select {
+				case err := <-errCh:
+					t.Errorf("Got Error : %v", err)
+				case req := <-dlqTopicChan:
+					assert.Equal(t, req, tt.expected)
+				case <-time.NewTicker(time.Millisecond * 500).C:
+					cancel()
+					<-time.NewTicker(time.Millisecond * 1).C
+					return
+				}
 			}
 		})
 	}
@@ -339,4 +353,23 @@ func buildMockProducer(ctx context.Context, ctrl *gomock.Controller) *mocks2.Moc
 	producer := mocks2.NewMockProducer(ctrl)
 	producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(&messagebroker.SendMessageToTopicResponse{MessageID: "m1"}, nil).AnyTimes()
 	return producer
+}
+
+func buildMockDLQProducer(ctx context.Context, ctrl *gomock.Controller, dlqTopicChan chan *messagebroker.SendMessageToTopicRequest) *mocks2.MockProducer {
+	producer := mocks2.NewMockProducer(ctrl)
+	producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(arg0 context.Context, arg1 messagebroker.SendMessageToTopicRequest) (*messagebroker.SendMessageToTopicResponse, error) {
+			dlqTopicChan <- getMockSendMessageToTopicRequest()
+			return &messagebroker.SendMessageToTopicResponse{MessageID: "m1"}, nil
+		})
+	return producer
+}
+
+func getMockSendMessageToTopicRequest() *messagebroker.SendMessageToTopicRequest {
+	byteMsg, _ := json.Marshal("msg-1")
+	return &messagebroker.SendMessageToTopicRequest{
+		Topic:     "topic-dlq",
+		Message:   byteMsg,
+		TimeoutMs: 300,
+	}
 }

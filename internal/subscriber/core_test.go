@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
-	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/offset"
 	oCore "github.com/razorpay/metro/internal/offset/mocks/core"
 	"github.com/razorpay/metro/internal/subscription"
@@ -21,6 +20,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"testing"
+)
+
+const (
+	timeoutInMs            = 1000
+	maxOutstandingMessages = 1000
+	maxOutstandingBytes    = 1000
 )
 
 func setupCore(t *testing.T) (
@@ -43,106 +48,14 @@ func setupCore(t *testing.T) (
 	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	store.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(getMockProducer(ctrl), nil).AnyTimes()
+	broker.EXPECT().Resume(gomock.Any(), gomock.Any()).AnyTimes().Return(nil).AnyTimes()
+	cs.EXPECT().Close(gomock.Any()).Return(nil).AnyTimes()
+	store.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 	return
 }
 
 func TestCore_NewSubscriber(t *testing.T) {
-	ctx, cs, mockBrokerStore, mockMessageBroker, mockSubscriptionCore, mockOffsetCore, ch := setupCore(t)
-	ackCh := make(chan *AckMessage)
-	modAckCh := make(chan *ModAckMessage)
-	requestCh := make(chan *PullRequest)
-	sub := getDummySubscription()
-	type fields struct {
-		core *Core
-	}
-	type args struct {
-		ctx                    context.Context
-		subscriberID           string
-		subscription           *subscription.Model
-		timeoutInMs            int
-		maxOutstandingMessages int64
-		maxOutstandingBytes    int64
-		requestCh              chan *PullRequest
-		ackCh                  chan *AckMessage
-		modAckCh               chan *ModAckMessage
-	}
-	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		expected *Subscriber
-		wantErr  bool
-	}{
-		{
-			name: "Create new subscriber basicImpl",
-			fields: fields{
-				core: getCore(mockBrokerStore, mockSubscriptionCore, mockOffsetCore, ch),
-			},
-			args: args{
-				ctx:                    ctx,
-				subscriberID:           subID,
-				subscription:           &sub,
-				timeoutInMs:            1000,
-				maxOutstandingMessages: 1000,
-				maxOutstandingBytes:    1000,
-				requestCh:              requestCh,
-				ackCh:                  ackCh,
-				modAckCh:               modAckCh,
-			},
-			expected: &Subscriber{
-				subscription: &sub,
-				topic:        topicName,
-				subscriberID: subID,
-				requestChan:  requestCh,
-				ackChan:      ackCh,
-				modAckChan:   modAckCh,
-			},
-			wantErr: false,
-		},
-		{
-			name: "Create new subscriber basicImpl Failure",
-			fields: fields{
-				core: getCore(mockBrokerStore, mockSubscriptionCore, mockOffsetCore, ch),
-			},
-			args: args{
-				ctx:                    ctx,
-				subscriberID:           subID,
-				subscription:           &sub,
-				timeoutInMs:            1000,
-				maxOutstandingMessages: 1000,
-				maxOutstandingBytes:    1000,
-				requestCh:              requestCh,
-				ackCh:                  ackCh,
-				modAckCh:               modAckCh,
-			},
-			expected: nil,
-			wantErr:  true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockBrokerStore.EXPECT().GetConsumer(gomock.Any(), gomock.Any()).
-				DoAndReturn(func(arg0 context.Context, arg1 messagebroker.ConsumerClientOptions) (messagebroker.Consumer, error) {
-					if tt.wantErr {
-						return nil, errors.New("Test Error")
-					}
-					return cs, nil
-				})
-			mockMessageBroker.EXPECT().Resume(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-			sub, err := tt.fields.core.NewSubscriber(tt.args.ctx, tt.args.subscriberID, tt.args.subscription, tt.args.timeoutInMs,
-				tt.args.maxOutstandingMessages, tt.args.maxOutstandingBytes, tt.args.requestCh, tt.args.ackCh, tt.args.modAckCh)
-			if err == nil {
-				assert.True(t, EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
-			}
-			if (err != nil && !tt.wantErr) || (err == nil && tt.wantErr) {
-				t.Errorf("NewSubscriber wantErr: %v Error: %v", tt.wantErr, err)
-			}
-		})
-	}
-}
-
-func TestCore_NewSubscriber_WithRetry(t *testing.T) {
-	ctx, cs, store, broker, core, offsetCore, ch := setupCore(t)
+	ctx, cs, store, _, core, offsetCore, ch := setupCore(t)
 	ackCh := make(chan *AckMessage)
 	modAckCh := make(chan *ModAckMessage)
 	requestCh := make(chan *PullRequest)
@@ -151,39 +64,33 @@ func TestCore_NewSubscriber_WithRetry(t *testing.T) {
 		core *Core
 	}
 	type args struct {
-		ctx                    context.Context
-		subscriberID           string
-		subscription           *subscription.Model
-		timeoutInMs            int
-		maxOutstandingMessages int64
-		maxOutstandingBytes    int64
-		requestCh              chan *PullRequest
-		ackCh                  chan *AckMessage
-		modAckCh               chan *ModAckMessage
+		ctx          context.Context
+		subscriberID string
+		subscription *subscription.Model
+		requestCh    chan *PullRequest
+		ackCh        chan *AckMessage
+		modAckCh     chan *ModAckMessage
 	}
 	tests := []struct {
-		name        string
-		fields      fields
-		args        args
-		expected    *Subscriber
-		expectedMsg []string
-		wantErr     bool
+		name     string
+		fields   fields
+		args     args
+		expected *Subscriber
+		msgs     []string
+		wantErr  bool
 	}{
 		{
-			name: "Create new subscriber with retry policy",
+			name: "Create new subscriber and run with retry policy",
 			fields: fields{
 				core: getCore(store, core, offsetCore, ch),
 			},
 			args: args{
-				ctx:                    ctx,
-				subscriberID:           subID,
-				subscription:           &subscrption,
-				timeoutInMs:            1000,
-				maxOutstandingMessages: 1000,
-				maxOutstandingBytes:    1000,
-				requestCh:              requestCh,
-				ackCh:                  ackCh,
-				modAckCh:               modAckCh,
+				ctx:          ctx,
+				subscriberID: subID,
+				subscription: &subscrption,
+				requestCh:    requestCh,
+				ackCh:        ackCh,
+				modAckCh:     modAckCh,
 			},
 			expected: &Subscriber{
 				subscription: &subscrption,
@@ -193,8 +100,22 @@ func TestCore_NewSubscriber_WithRetry(t *testing.T) {
 				ackChan:      ackCh,
 				modAckChan:   modAckCh,
 			},
-			expectedMsg: []string{"a", "b"},
-			wantErr:     false,
+			msgs: []string{"a", "b"},
+		},
+		{
+			name: "Create new subscriber with getConsumer error Failure",
+			fields: fields{
+				core: getCore(store, core, offsetCore, ch),
+			},
+			args: args{
+				ctx:          ctx,
+				subscriberID: subID,
+				subscription: &subscrption,
+				requestCh:    requestCh,
+				ackCh:        ackCh,
+				modAckCh:     modAckCh,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -211,22 +132,20 @@ func TestCore_NewSubscriber_WithRetry(t *testing.T) {
 				func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
 					if count == 0 {
 						count++
-						return &messagebroker.GetMessagesFromTopicResponse{Messages: getMockReceivedMessages(tt.expectedMsg)}, nil
+						return &messagebroker.GetMessagesFromTopicResponse{Messages: getMockReceivedMessages(tt.msgs)}, nil
 					}
 					return &messagebroker.GetMessagesFromTopicResponse{}, nil
 				}).AnyTimes()
-			broker.EXPECT().Resume(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-			cs.EXPECT().Close(gomock.Any()).Return(nil).AnyTimes()
-			store.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
-			sub, err := tt.fields.core.NewSubscriber(tt.args.ctx, tt.args.subscriberID, tt.args.subscription, tt.args.timeoutInMs,
-				tt.args.maxOutstandingMessages, tt.args.maxOutstandingBytes, tt.args.requestCh, tt.args.ackCh, tt.args.modAckCh)
+			sub, err := tt.fields.core.NewSubscriber(tt.args.ctx, tt.args.subscriberID, tt.args.subscription, timeoutInMs,
+				maxOutstandingMessages, maxOutstandingBytes, tt.args.requestCh, tt.args.ackCh, tt.args.modAckCh)
 			if err == nil {
 				assert.True(t, EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
 			}
-			if (err != nil && !tt.wantErr) || (err == nil && tt.wantErr) {
-				t.Errorf("NewSubscriber wantErr: %v Error: %v", tt.wantErr, err)
+			assert.Equal(t, err != nil, tt.wantErr)
+			assert.Equal(t, sub == nil, tt.wantErr)
+			if err == nil {
+				sub.Stop()
 			}
-			sub.Stop()
 		})
 	}
 }
@@ -267,7 +186,8 @@ func TestNewCore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, NewCore(tt.args.bs, tt.args.subscriptionCore, tt.args.offsetCore, tt.args.ch), "NewCore(%v, %v, %v, %v)", tt.args.bs, tt.args.subscriptionCore, tt.args.offsetCore, tt.args.ch)
+			got := NewCore(tt.args.bs, tt.args.subscriptionCore, tt.args.offsetCore, tt.args.ch)
+			assert.Equalf(t, tt.want, got, "NewCore(%v, %v, %v, %v)", tt.args.bs, tt.args.subscriptionCore, tt.args.offsetCore, tt.args.ch)
 		})
 	}
 }
@@ -285,23 +205,6 @@ func getMockConsumerCore(ctx context.Context, ctrl *gomock.Controller) *mockMB.M
 	).AnyTimes()
 	cs.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	return cs
-}
-
-func getDummySubscription() subscription.Model {
-	return subscription.Model{
-		Name:  subName,
-		Topic: topicName,
-		PushConfig: &subscription.PushConfig{
-			PushEndpoint: "https://www.razorpay.com/api",
-			Attributes: map[string]string{
-				"test_key": "test_value",
-			},
-			Credentials: &credentials.Model{
-				Username: "test_user",
-				Password: "",
-			},
-		},
-	}
 }
 
 func getDummySubscriptionWithRetry() subscription.Model {

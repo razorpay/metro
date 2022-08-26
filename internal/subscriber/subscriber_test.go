@@ -173,7 +173,6 @@ func TestSubscriber_Run(t *testing.T) {
 			}, nil).AnyTimes()
 			sub := tt.fields.subscriber
 			go sub.Run(tt.args.ctx)
-			<-time.NewTicker(time.Nanosecond * 1000).C
 			requestChan <- &PullRequest{
 				ctx:              ctx,
 				MaxNumOfMessages: 1,

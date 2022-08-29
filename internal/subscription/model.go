@@ -55,6 +55,7 @@ type PushConfig struct {
 	Credentials  *credentials.Model `json:"credentials,omitempty"`
 }
 
+// GetRedactedPushEndpoint returns the push endpoint but replaces any password with "xxxxx".
 func (pc *PushConfig) GetRedactedPushEndpoint() string {
 	if url, err := url.Parse(pc.PushEndpoint); err == nil {
 		return url.Redacted()

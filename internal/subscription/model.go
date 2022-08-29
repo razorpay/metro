@@ -2,7 +2,7 @@ package subscription
 
 import (
 	"fmt"
-	"net/url"
+	urlpkg "net/url"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
@@ -56,9 +56,11 @@ type PushConfig struct {
 }
 
 // GetRedactedPushEndpoint returns the push endpoint but replaces any password with "xxxxx".
-func (pc *PushConfig) GetRedactedPushEndpoint() string {
-	if url, err := url.Parse(pc.PushEndpoint); err == nil {
-		return url.Redacted()
+func (m *Model) GetRedactedPushEndpoint() string {
+	if m.IsPush() {
+		if url, err := urlpkg.Parse(m.PushConfig.PushEndpoint); err == nil {
+			return url.Redacted()
+		}
 	}
 	return ""
 }

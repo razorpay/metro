@@ -62,6 +62,7 @@ func Test_Model(t *testing.T) {
 	assert.False(t, dSubscription.IsPush())
 	assert.Nil(t, dSubscription.GetCredentials())
 	assert.False(t, dSubscription.HasCredentials())
+	assert.Empty(t, dSubscription.GetRedactedPushEndpoint())
 
 	dSubscription.setDefaultRetryPolicy()
 	assert.Equal(t, uint(5), dSubscription.RetryPolicy.MinimumBackoff)

@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
@@ -52,6 +53,13 @@ type PushConfig struct {
 	PushEndpoint string             `json:"push_endpoint,omitempty"`
 	Attributes   map[string]string  `json:"attributes,omitempty"`
 	Credentials  *credentials.Model `json:"credentials,omitempty"`
+}
+
+func (pc *PushConfig) GetRedactedPushEndpoint() string {
+	if url, err := url.Parse(pc.PushEndpoint); err == nil {
+		return url.Redacted()
+	}
+	return ""
 }
 
 // RetryPolicy defines the retry policy

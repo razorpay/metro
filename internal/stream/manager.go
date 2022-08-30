@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"sync"
 
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
@@ -16,6 +17,7 @@ type PushStreamManager struct {
 	doneCh     chan struct{}
 	config     *httpclient.Config
 	ps         *PushStream
+	mutex      *sync.Mutex
 }
 
 // NewPushStreamManager return a push stream manager obj which is used to manage push stream
@@ -31,6 +33,7 @@ func NewPushStreamManager(ctx context.Context, nodeID string, subName string, su
 		ps:         ps,
 		doneCh:     make(chan struct{}),
 		config:     config,
+		mutex:      &sync.Mutex{},
 	}, nil
 }
 
@@ -92,7 +95,17 @@ func (psm *PushStreamManager) startPushStream() {
 }
 
 func (psm *PushStreamManager) restartPushStream() {
-	psm.ps.Stop()
+	defer psm.mutex.Unlock()
+	psm.mutex.Lock()
+	err := psm.ps.Stop()
+	if err != nil {
+		logger.Ctx(psm.ctx).Errorw(
+			"push stream manager: stream stop error while restarting",
+			"subscription", psm.ps.subscription.Name,
+			"error", err.Error(),
+		)
+		return
+	}
 	psm.ps, _ = newPushStream(psm.ctx, psm.ps.nodeID, psm.ps.subscription.Name, psm.ps.subscriptionCore, psm.ps.subscriberCore, psm.config)
 	psm.startPushStream()
 	workerComponentRestartCount.WithLabelValues(env, "stream", psm.ps.subscription.Topic, psm.ps.subscription.Name).Inc()

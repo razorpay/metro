@@ -91,6 +91,14 @@ func TestModel_GetRedactedPushEndpoint(t *testing.T) {
 			assert: assert.Equal,
 		},
 		{
+			url:    "https://google.com/search?a=123&b=123",
+			assert: assert.Equal,
+		},
+		{
+			url:    "http//google.com/search?a=123",
+			assert: assert.NotEqual,
+		},
+		{
 			url:    "https://username:password@google.com",
 			assert: assert.NotEqual,
 		},
@@ -98,6 +106,7 @@ func TestModel_GetRedactedPushEndpoint(t *testing.T) {
 	sub := getDummySubscriptionModel()
 	for _, test := range tests {
 		sub.PushConfig.PushEndpoint = test.url
-		test.assert(t, test.url, sub.GetRedactedPushEndpoint())
+		got := sub.GetRedactedPushEndpoint()
+		test.assert(t, test.url, got)
 	}
 }

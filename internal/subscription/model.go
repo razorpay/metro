@@ -58,7 +58,7 @@ type PushConfig struct {
 // GetRedactedPushEndpoint returns the push endpoint but replaces any password with "xxxxx".
 func (m *Model) GetRedactedPushEndpoint() string {
 	if m.IsPush() {
-		if url, err := urlpkg.Parse(m.PushConfig.PushEndpoint); err == nil {
+		if url, err := urlpkg.ParseRequestURI(m.PushConfig.PushEndpoint); err == nil {
 			return url.Redacted()
 		}
 	}

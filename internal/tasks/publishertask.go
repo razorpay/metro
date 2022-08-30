@@ -20,9 +20,10 @@ type PublisherTask struct {
 	registry        registry.IRegistry
 	topicCore       topic.ICore
 	nodeBindingCore nodebinding.ICore
-	topicCache      map[string]*topic.Model
 	topicWatchData  chan *struct{}
 }
+
+var topicCacheData map[string]bool = make(map[string]bool)
 
 // NewPublisherTask creates PublisherTask instance
 func NewPublisherTask(
@@ -37,7 +38,6 @@ func NewPublisherTask(
 		registry:        registry,
 		topicCore:       topicCore,
 		nodeBindingCore: nodeBindingCore,
-		topicCache:      make(map[string]*topic.Model),
 		topicWatchData:  make(chan *struct{}),
 	}
 
@@ -121,18 +121,20 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 }
 
 func (pu *PublisherTask) refreshCache(ctx context.Context) error {
+	log.Printf("Refreshing cache....")
 	topics, terr := pu.topicCore.List(ctx, topic.Prefix)
 	if terr != nil {
 		logger.Ctx(ctx).Errorw("error fetching topic list", "error", terr)
 		return terr
 	}
 
-	topicData := make(map[string]*topic.Model)
+	topicData := make(map[string]bool)
 	for _, topic := range topics {
-		topicData[topic.Name] = topic
+		topicData[topic.Name] = true
 	}
-	pu.topicCache = topicData
+	topicCacheData = topicData
 
+	log.Println("Topic Data cache: ", topicCacheData)
 	return nil
 }
 
@@ -207,7 +209,7 @@ func (pu *PublisherTask) refreshNodeBindings(ctx context.Context) error {
 // CheckIfTopicExists is to check if topic exists inside the cache
 func (pu *PublisherTask) CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
-	topicData := pu.topicCache
+	topicData := topicCacheData
 	log.Println("TopicData: ", topicData)
 	if val, ok := topicData[topic]; ok {
 		println("Topic Object with topic name: ", topic, "| Object: ", val)

@@ -92,13 +92,8 @@ func (psm *PushStreamManager) startPushStream() {
 }
 
 func (psm *PushStreamManager) restartPushStream() {
-	err := psm.ps.Stop()
-	if err != nil {
-		logger.Ctx(psm.ctx).Errorw(
-			"push stream manager: stream stop error while restarting",
-			"subscription", psm.ps.subscription.Name,
-			"error", err.Error(),
-		)
+	if err := psm.ps.Stop(); err != nil {
+		logger.Ctx(psm.ctx).Errorw("push stream manager: stream stop error", "subscription", psm.ps.subscription.Name, "error", err.Error())
 		return
 	}
 	psm.ps, _ = newPushStream(psm.ctx, psm.ps.nodeID, psm.ps.subscription.Name, psm.ps.subscriptionCore, psm.ps.subscriberCore, psm.config)

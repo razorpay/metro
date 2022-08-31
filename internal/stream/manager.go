@@ -2,7 +2,6 @@ package stream
 
 import (
 	"context"
-	"sync"
 
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
@@ -17,7 +16,6 @@ type PushStreamManager struct {
 	doneCh     chan struct{}
 	config     *httpclient.Config
 	ps         *PushStream
-	mutex      *sync.Mutex
 }
 
 // NewPushStreamManager return a push stream manager obj which is used to manage push stream
@@ -33,7 +31,6 @@ func NewPushStreamManager(ctx context.Context, nodeID string, subName string, su
 		ps:         ps,
 		doneCh:     make(chan struct{}),
 		config:     config,
-		mutex:      &sync.Mutex{},
 	}, nil
 }
 
@@ -95,8 +92,6 @@ func (psm *PushStreamManager) startPushStream() {
 }
 
 func (psm *PushStreamManager) restartPushStream() {
-	defer psm.mutex.Unlock()
-	psm.mutex.Lock()
 	err := psm.ps.Stop()
 	if err != nil {
 		logger.Ctx(psm.ctx).Errorw(

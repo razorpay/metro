@@ -204,8 +204,6 @@ func getMockSubscriber(ctx context.Context, ctrl *gomock.Controller) *mocks3.Moc
 		counter := 0
 		for {
 			select {
-			case <-cancelChan:
-				return
 			case <-reqCh:
 				if counter < 1 {
 					messages := getMockResponseMessages()
@@ -216,6 +214,8 @@ func getMockSubscriber(ctx context.Context, ctrl *gomock.Controller) *mocks3.Moc
 				} else {
 					resCh <- &metrov1.PullResponse{}
 				}
+			case <-cancelChan:
+				return
 			}
 		}
 	}()

@@ -1,0 +1,8 @@
+name: Testing
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Testing
+    steps:
+      - run: echo ${{ github.token }}

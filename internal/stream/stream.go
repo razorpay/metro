@@ -249,7 +249,7 @@ func (ps *PushStream) nack(ctx context.Context, message *metrov1.ReceivedMessage
 		env,
 		ps.subscription.Topic,
 		ps.subscription.Name,
-		ps.subscription.PushConfig.PushEndpoint,
+		ps.subscription.GetRedactedPushEndpoint(),
 		ps.subs.GetID(),
 	).Inc()
 
@@ -284,7 +284,7 @@ func (ps *PushStream) ack(ctx context.Context, message *metrov1.ReceivedMessage)
 		env,
 		ps.subscription.Topic,
 		ps.subscription.Name,
-		ps.subscription.PushConfig.PushEndpoint,
+		ps.subscription.GetRedactedPushEndpoint(),
 		ps.subs.GetID(),
 	).Inc()
 

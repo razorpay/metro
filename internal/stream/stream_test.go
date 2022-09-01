@@ -211,8 +211,9 @@ func getMockSubscriber(ctx context.Context, ctrl *gomock.Controller) *mocks3.Moc
 						ReceivedMessages: messages,
 					}
 					counter++
+				} else {
+					resCh <- &metrov1.PullResponse{}
 				}
-				resCh <- &metrov1.PullResponse{}
 			case <-cancelChan:
 				return
 			}

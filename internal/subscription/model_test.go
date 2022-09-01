@@ -6,10 +6,8 @@ package subscription
 import (
 	"testing"
 
-	"github.com/razorpay/metro/internal/credentials"
-
 	"github.com/razorpay/metro/internal/common"
-
+	"github.com/razorpay/metro/internal/credentials"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -81,4 +79,34 @@ func Test_Model(t *testing.T) {
 
 	assert.Equal(t, "test-subscription.delay.5.seconds-cg", dSubscription.GetDelayConsumerGroupID("test-subscription.delay.5.seconds"))
 	assert.Equal(t, "test-subscription.delay.5.seconds-subscriberID", dSubscription.GetDelayConsumerGroupInstanceID("subscriberID", "test-subscription.delay.5.seconds"))
+}
+
+func TestModel_GetRedactedPushEndpoint(t *testing.T) {
+	tests := []struct {
+		url    string
+		assert func(assert.TestingT, interface{}, interface{}, ...interface{}) bool
+	}{
+		{
+			url:    "https://google.com/",
+			assert: assert.Equal,
+		},
+		{
+			url:    "https://google.com/search?a=123&b=123",
+			assert: assert.Equal,
+		},
+		{
+			url:    "http//google.com/search?a=123",
+			assert: assert.NotEqual,
+		},
+		{
+			url:    "https://username:password@google.com",
+			assert: assert.NotEqual,
+		},
+	}
+	sub := getDummySubscriptionModel()
+	for _, test := range tests {
+		sub.PushConfig.PushEndpoint = test.url
+		got := sub.GetRedactedPushEndpoint()
+		test.assert(t, test.url, got)
+	}
 }

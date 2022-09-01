@@ -269,41 +269,21 @@ func TestNewPushStream_Failure(t *testing.T) {
 func TestStart_RestartSubscriber(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
-
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"IsSuccess": true}`))
-	}))
-
-	defer s.Close()
-
-	tests := []struct {
-		name      string
-		endpoint  string
-		isSuccess bool
-	}{
-		{
-			name:      "Run Push Stream Restart Subscriber",
-			endpoint:  s.URL,
-			isSuccess: true,
-		},
-	}
-
-	for _, test := range tests {
-		ps, sub := getMockPushStreamRestart(ctx, ctrl, test.endpoint)
-		go ps.Start()
-		<-time.NewTicker(10 * time.Millisecond).C
-		if ps.subs != nil {
-			ps.subs.GetErrorChannel() <- errors.New("Subscriber Test Error")
-		}
-		select {
-		case <-time.NewTicker(1 * time.Second).C:
-			assert.NotEqual(t, ps.subs, sub)
-			ps.Stop()
-		}
+	ps := getMockPushStreamRestart(t, ctx, ctrl, "")
+	sub := ps.subs
+	go ps.Start()
+	<-time.NewTicker(10 * time.Millisecond).C
+	assert.NotNil(t, sub)
+	ps.subs.GetErrorChannel() <- errors.New("Subscriber Test Error")
+	select {
+	case <-time.NewTicker(1 * time.Second).C:
+		assert.NotNil(t, ps.subs)
+		assert.NotEqual(t, sub, ps.subs)
+		ps.Stop()
 	}
 }
 
-func getMockPushStreamRestart(ctx context.Context, ctrl *gomock.Controller, endpoint string) (*PushStream, *mocks2.MockICore) {
+func getMockPushStreamRestart(t *testing.T, ctx context.Context, ctrl *gomock.Controller, endpoint string) *PushStream {
 	subscriptionCoreMock := mocks1.NewMockICore(ctrl)
 	subscriberCoreMock := mocks2.NewMockICore(ctrl)
 	subModel := getMockSubModel(endpoint)
@@ -311,7 +291,7 @@ func getMockPushStreamRestart(ctx context.Context, ctrl *gomock.Controller, endp
 	workerID := uuid.New().String()
 	httpConfig := &httpclient.Config{}
 	pushStream, _ := NewPushStream(ctx, workerID, subName, subscriptionCoreMock, subscriberCoreMock, httpConfig)
-	pushStream.subs = getMockSubscriberRestart(ctx, ctrl)
+	pushStream.subs = getMockSubscriberRestart(t, ctx, ctrl)
 	subscriberCoreMock.EXPECT().NewSubscriber(
 		ctx,
 		workerID,
@@ -321,12 +301,12 @@ func getMockPushStreamRestart(ctx context.Context, ctrl *gomock.Controller, endp
 		defaultMaxOuttandingBytes,
 		gomock.AssignableToTypeOf(make(chan *subscriber.PullRequest)),
 		gomock.AssignableToTypeOf(make(chan *subscriber.AckMessage)),
-		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).Return(getMockSubscriberRestart(ctx, ctrl), nil).Times(2)
-	return pushStream, subscriberCoreMock
+		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).Return(getMockSubscriberRestart(t, ctx, ctrl), nil).Times(2)
+	return pushStream
 }
 
-func getMockSubscriberRestart(ctx context.Context, ctrl *gomock.Controller) *mocks3.MockISubscriber {
-	subscriberMock := mocks3.NewMockISubscriber(ctrl)
+func getMockSubscriberRestart(t *testing.T, ctx context.Context, ctrl *gomock.Controller) *mocks3.MockISubscriber {
+	subscriberMock := mocks3.NewMockISubscriber(gomock.NewController(t))
 	reqCh := make(chan *subscriber.PullRequest, 1)
 	resCh := make(chan *metrov1.PullResponse)
 	cancelChan := make(chan bool)
@@ -342,8 +322,9 @@ func getMockSubscriberRestart(ctx context.Context, ctrl *gomock.Controller) *moc
 						ReceivedMessages: messages,
 					}
 					counter++
+				} else {
+					resCh <- &metrov1.PullResponse{}
 				}
-				resCh <- &metrov1.PullResponse{}
 			case <-cancelChan:
 				return
 			}

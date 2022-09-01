@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	cloud.google.com/go/pubsub v1.11.0
-	github.com/alecthomas/participle/v2 v2.0.0-alpha7
+	github.com/alecthomas/participle/v2 v2.0.0-beta.5
 	github.com/apache/pulsar-client-go v0.5.0
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/getsentry/sentry-go v0.11.0
@@ -39,7 +39,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.48.0
-	google.golang.org/genproto v0.0.0-20220503193339-ba3ae3f07e29
+	google.golang.org/genproto v0.0.0-20220503193339-ba3ae3f07e29 // indirect
 	google.golang.org/grpc v1.46.0
 	google.golang.org/protobuf v1.28.0
 )

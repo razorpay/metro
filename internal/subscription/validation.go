@@ -390,8 +390,13 @@ func validatePushEndpoint(_ context.Context, req *metrov1.Subscription) error {
 			return ErrInvalidPushEndpointURL
 		}
 
-		// eg: DialTimeout("tcp", "golang.org:http", timeout)
-		networkAddress := u.Hostname() + ":" + u.Scheme
+		networkAddress := u.Hostname()
+		if u.Port() != "" {
+			networkAddress = networkAddress + ":" + u.Port()
+		} else if u.Scheme != "" {
+			networkAddress = networkAddress + ":" + u.Scheme
+		}
+
 		_, err = net.DialTimeout("tcp", networkAddress, URLValidationTimeout)
 
 		if err != nil {

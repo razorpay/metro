@@ -36,8 +36,7 @@ type PushStream struct {
 	processor        *processor
 	doneCh           chan struct{}
 	counter          int64
-	restartChan      chan bool
-	stopChan         chan bool
+	errChan          chan error
 }
 
 const (
@@ -46,14 +45,9 @@ const (
 	defaultMaxOuttandingBytes int64 = 0
 )
 
-// GetRestartChannel returns the chan where restart request is received
-func (ps *PushStream) GetRestartChannel() chan bool {
-	return ps.restartChan
-}
-
-// GetStopChannel returns the chan where stop request is received
-func (ps *PushStream) GetStopChannel() chan bool {
-	return ps.stopChan
+// GetErrorChannel returns the chan where stream errors are received
+func (ps *PushStream) GetErrorChannel() chan error {
+	return ps.errChan
 }
 
 // Start reads the messages from the broker and publish them to the subscription endpoint
@@ -76,7 +70,7 @@ func (ps *PushStream) Start() error {
 	ps.subs, err = ps.subscriberCore.NewSubscriber(subscriberCtx, ps.nodeID, ps.subscription, defaultTimeoutMs,
 		defaultMaxOutstandingMsgs, defaultMaxOuttandingBytes, subscriberRequestCh, subscriberAckCh, subscriberModAckCh)
 	if err != nil {
-		ps.restartChan <- true
+		ps.errChan <- err
 		logger.Ctx(ps.ctx).Errorw("worker: error creating subscriber", "subscription", ps.subscription.Name, "error", err.Error())
 		return err
 	}
@@ -105,7 +99,7 @@ func (ps *PushStream) Start() error {
 					logger.Ctx(ps.ctx).Errorw("worker: error from subscriber, restarting", "logFields", ps.getLogFields(), "error", err.Error())
 					workerSubscriberErrors.WithLabelValues(env, ps.subscription.Topic, ps.subscription.Name, err.Error(), ps.subs.GetID()).Inc()
 					if err = ps.restartSubsciber(); err != nil {
-						ps.restartChan <- true
+						ps.errChan <- err
 						return err
 					}
 				} else {
@@ -180,31 +174,6 @@ func (ps *PushStream) Stop() error {
 	<-ps.doneCh
 
 	return nil
-}
-
-// Restart is used to restart the push subscription processing
-func (ps *PushStream) Restart(ctx context.Context) {
-	logger.Ctx(ps.ctx).Infow("worker: push stream restart invoked", "subscription", ps.subscription.Name)
-	err := ps.Stop()
-	if err != nil {
-		logger.Ctx(ctx).Errorw(
-			"worker: push stream stop error",
-			"subscription", ps.subscription.Name,
-			"error", err.Error(),
-		)
-		return
-	}
-	go func(ctx context.Context) {
-		err := ps.Start()
-		if err != nil {
-			logger.Ctx(ctx).Errorw(
-				"worker: push stream restart error",
-				"subscription", ps.subscription.Name,
-				"error", err.Error(),
-			)
-		}
-	}(ctx)
-	workerComponentRestartCount.WithLabelValues(env, "stream", ps.subscription.Topic, ps.subscription.Name).Inc()
 }
 
 func (ps *PushStream) stopSubscriber() {
@@ -364,8 +333,7 @@ func NewPushStream(ctx context.Context, nodeID string, subName string, subscript
 		doneCh:           doneCh,
 		httpClient:       httpclient,
 		counter:          0,
-		restartChan:      make(chan bool),
-		stopChan:         make(chan bool),
+		errChan:          make(chan error),
 	}, nil
 }
 
@@ -412,30 +380,4 @@ func getRequestBytes(pushRequest *metrov1.PushEndpointRequest) *bytes.Buffer {
 		return nil
 	}
 	return bytes.NewBuffer(b)
-}
-
-// RunPushStreamManager return a runs a push stream manager used to handle restart/stop requests
-func (ps *PushStream) RunPushStreamManager(ctx context.Context) {
-	logger.Ctx(ctx).Infow("worker: started running stream manager", "subscription", ps.subscription.Name)
-
-	go func() {
-		defer logger.Ctx(ctx).Infow("worker: exiting stream manager", "subscription", ps.subscription.Name)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ps.GetRestartChannel():
-				logger.Ctx(ctx).Infow("worker: restarting stream handler", "subscription", ps.subscription.Name)
-				ps.Restart(ctx)
-			case <-ps.GetStopChannel():
-				logger.Ctx(ctx).Infow("worker: stopping stream handler", "subscription", ps.subscription.Name)
-				err := ps.Stop()
-				if err != nil {
-					logger.Ctx(ctx).Infow("worker: error in exiting stream handler ", "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
 }

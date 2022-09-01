@@ -33,13 +33,13 @@ require (
 	github.com/spf13/viper v1.8.0
 	github.com/streamnative/pulsarctl v0.4.3-0.20210116042116-1fe5d713915c
 	github.com/stretchr/testify v1.7.1
-	github.com/uber/jaeger-client-go v2.29.1+incompatible
+	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	github.com/uber/jaeger-lib v2.4.1+incompatible
 	go.uber.org/zap v1.17.0
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.48.0
-	google.golang.org/genproto v0.0.0-20220503193339-ba3ae3f07e29
+	google.golang.org/genproto v0.0.0-20220503193339-ba3ae3f07e29 // indirect
 	google.golang.org/grpc v1.46.0
 	google.golang.org/protobuf v1.28.0
 )

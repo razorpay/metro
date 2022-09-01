@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"fmt"
+	urlpkg "net/url"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
@@ -52,6 +53,16 @@ type PushConfig struct {
 	PushEndpoint string             `json:"push_endpoint,omitempty"`
 	Attributes   map[string]string  `json:"attributes,omitempty"`
 	Credentials  *credentials.Model `json:"credentials,omitempty"`
+}
+
+// GetRedactedPushEndpoint returns the push endpoint but replaces any password with "xxxxx".
+func (m *Model) GetRedactedPushEndpoint() string {
+	if m.IsPush() {
+		if url, err := urlpkg.ParseRequestURI(m.PushConfig.PushEndpoint); err == nil {
+			return url.Redacted()
+		}
+	}
+	return ""
 }
 
 // RetryPolicy defines the retry policy

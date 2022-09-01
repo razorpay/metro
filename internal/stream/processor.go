@@ -117,13 +117,13 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 			opentracing.HTTPHeadersCarrier(req.Header))
 	}
 
-	logFields["endpoint"] = subModel.PushConfig.PushEndpoint
+	logFields["endpoint"] = subModel.GetRedactedPushEndpoint()
 	logger.Ctx(ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
 	resp, err := pr.httpClient.Do(req)
 
 	// log metrics
-	workerPushEndpointCallsCount.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.PushConfig.PushEndpoint, pr.subID).Inc()
-	workerPushEndpointTimeTaken.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.PushConfig.PushEndpoint).Observe(time.Now().Sub(startTime).Seconds())
+	workerPushEndpointCallsCount.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.GetRedactedPushEndpoint(), pr.subID).Inc()
+	workerPushEndpointTimeTaken.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.GetRedactedPushEndpoint()).Observe(time.Now().Sub(startTime).Seconds())
 
 	// Process responnse
 	if err != nil {
@@ -132,7 +132,7 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 	}
 
 	logger.Ctx(pr.ctx).Infow("worker: push response received for subscription", "status", resp.StatusCode, "logFields", logFields)
-	workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.PushConfig.PushEndpoint, fmt.Sprintf("%v", resp.StatusCode)).Inc()
+	workerPushEndpointHTTPStatusCode.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.GetRedactedPushEndpoint(), fmt.Sprintf("%v", resp.StatusCode)).Inc()
 
 	success := false
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {

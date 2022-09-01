@@ -260,52 +260,10 @@ func TestNewPushStream_Failure(t *testing.T) {
 	subscriberCoreMock := mocks2.NewMockICore(ctrl)
 	workerID := uuid.New().String()
 	httpConfig := &httpclient.Config{}
-	type args struct {
-		ctx              context.Context
-		nodeID           string
-		subName          string
-		subscriptionCore subscription.ICore
-		subscriberCore   subscriber.ICore
-		config           *httpclient.Config
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *PushStream
-		wantErr bool
-	}{
-		{
-			name: "New Push Stream Failure",
-			args: args{
-				ctx:              ctx,
-				nodeID:           workerID,
-				subName:          subName,
-				subscriptionCore: subscriptionCoreMock,
-				subscriberCore:   subscriberCoreMock,
-				config:           httpConfig,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).DoAndReturn(
-				func(arg0 context.Context, arg1 string) (*subscription.Model, error) {
-					if tt.wantErr {
-						return nil, errors.New("Test Error")
-					}
-					return getMockSubModel(""), nil
-				},
-			)
-			got, err := NewPushStream(tt.args.ctx, tt.args.nodeID, tt.args.subName, tt.args.subscriptionCore, tt.args.subscriberCore, tt.args.config)
-			if err == nil {
-				assert.Equalf(t, tt.want, got, "NewPushStream(%v, %v, %v, %v, %v, %v)", tt.args.ctx, tt.args.nodeID, tt.args.subName, tt.args.subscriptionCore, tt.args.subscriberCore, tt.args.config)
-			}
-			assert.Equal(t, got, tt.want)
-			assert.Equal(t, tt.wantErr, err != nil)
-		})
-	}
+	subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).Return(nil, errors.New("Test Error"))
+	got, err := NewPushStream(ctx, workerID, subName, subscriptionCoreMock, subscriberCoreMock, httpConfig)
+	assert.Nil(t, got)
+	assert.NotNil(t, err)
 }
 
 func TestStart_RestartSubscriber(t *testing.T) {
@@ -332,14 +290,15 @@ func TestStart_RestartSubscriber(t *testing.T) {
 
 	for _, test := range tests {
 		ps, sub := getMockPushStreamRestart(ctx, ctrl, test.endpoint)
-		ps.RunPushStreamManager(ctx)
 		go ps.Start()
 		<-time.NewTicker(10 * time.Millisecond).C
-		ps.subs.GetErrorChannel() <- errors.New("Subscriber Test Error")
+		if ps.subs != nil {
+			ps.subs.GetErrorChannel() <- errors.New("Subscriber Test Error")
+		}
 		select {
 		case <-time.NewTicker(1 * time.Second).C:
 			assert.NotEqual(t, ps.subs, sub)
-			ps.stopChan <- true
+			ps.Stop()
 		}
 	}
 }

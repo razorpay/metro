@@ -155,12 +155,12 @@ func TestRetrier_Start(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockBrokerStore.EXPECT().GetConsumer(
-				gomock.Any(),
+				tt.args.ctx,
 				gomock.Any(),
 			).Return(dcs, nil).AnyTimes()
-			mockBrokerStore.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).AnyTimes()
+			mockBrokerStore.EXPECT().RemoveConsumer(tt.args.ctx, gomock.Any()).AnyTimes()
 			mockBrokerStore.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
-			mockCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
+			mockCache.EXPECT().Get(tt.args.ctx, gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 			r := &Retrier{
 				subscriberID:   tt.fields.subscriberID,
 				subs:           tt.fields.subs,

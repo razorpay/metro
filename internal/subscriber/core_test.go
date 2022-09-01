@@ -48,7 +48,6 @@ func setupCore(t *testing.T) (
 	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	store.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(getMockProducer(ctrl), nil).AnyTimes()
-	broker.EXPECT().Resume(gomock.Any(), gomock.Any()).AnyTimes().Return(nil).AnyTimes()
 	cs.EXPECT().Close(gomock.Any()).Return(nil).AnyTimes()
 	store.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 	return
@@ -128,7 +127,10 @@ func TestCore_NewSubscriber(t *testing.T) {
 					return cs, nil
 				}).AnyTimes()
 			count := 0
-			cs.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).DoAndReturn(
+			cs.EXPECT().ReceiveMessages(gomock.Any(), messagebroker.GetMessagesFromTopicRequest{
+				NumOfMessages: 10,
+				TimeoutMs:     100,
+			}).DoAndReturn(
 				func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
 					if count == 0 {
 						count++
@@ -138,12 +140,10 @@ func TestCore_NewSubscriber(t *testing.T) {
 				}).AnyTimes()
 			sub, err := tt.fields.core.NewSubscriber(tt.args.ctx, tt.args.subscriberID, tt.args.subscription, timeoutInMs,
 				maxOutstandingMessages, maxOutstandingBytes, tt.args.requestCh, tt.args.ackCh, tt.args.modAckCh)
-			if err == nil {
-				assert.True(t, EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
-			}
 			assert.Equal(t, err != nil, tt.wantErr)
 			assert.Equal(t, sub == nil, tt.wantErr)
 			if err == nil {
+				assert.True(t, EqualOnly(sub, tt.expected, []string{"topic", "subscriberID", "requestChan", "ackChan", "modAckChan"}))
 				sub.Stop()
 			}
 		})
@@ -199,7 +199,6 @@ func getMockConsumerCore(ctx context.Context, ctrl *gomock.Controller) *mockMB.M
 		Partition: partition,
 	}
 	cs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil).AnyTimes()
-	cs.EXPECT().Pause(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	cs.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(
 		messagebroker.CommitOnTopicResponse{}, nil,
 	).AnyTimes()

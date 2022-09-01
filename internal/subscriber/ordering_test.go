@@ -129,7 +129,7 @@ func TestOrderedImplementation_GetConsumerLag(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cs.EXPECT().FetchConsumerLag(gomock.Any()).Return(tt.want, nil).Times(1)
+			cs.EXPECT().FetchConsumerLag(ctx).Return(tt.want, nil).Times(1)
 			got := subImpl.GetConsumerLag()
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BasicImplementation.GetConsumerLag() = %v, want %v", got, tt.want)

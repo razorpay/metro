@@ -39,16 +39,19 @@ func setupDC(t *testing.T) (
 	handler = mocks3.NewMockMessageHandler(ctrl)
 	consumer = mocks2.NewMockConsumer(ctrl)
 	cache = cachemock.NewMockICache(ctrl)
-	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
-	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	handler.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	cache.EXPECT().Get(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
+	cache.EXPECT().Set(gomock.AssignableToTypeOf(subCtx), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	handler.EXPECT().Do(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(nil).AnyTimes()
 	consumer.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(messagebroker.CommitOnTopicResponse{}, nil).AnyTimes()
 	consumer.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	consumer.EXPECT().Resume(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(nil).AnyTimes()
-	consumer.EXPECT().Pause(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	consumer.EXPECT().Close(gomock.Any()).Return(nil)
-	store.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true)
-	store.EXPECT().GetConsumer(gomock.Any(), gomock.Any()).Return(consumer, nil)
+	consumer.EXPECT().Pause(gomock.AssignableToTypeOf(subCtx), messagebroker.PauseOnTopicRequest{
+		Topic:     "t1",
+		Partition: 0,
+	}).Return(nil).AnyTimes()
+	consumer.EXPECT().Close(gomock.AssignableToTypeOf(subCtx)).Return(nil)
+	store.EXPECT().RemoveConsumer(ctx, gomock.Any()).Return(true)
+	store.EXPECT().GetConsumer(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(consumer, nil)
 	return
 }
 func TestDelayConsumer_Run(t *testing.T) {
@@ -128,7 +131,7 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			count := 0
-			consumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).DoAndReturn(
+			consumer.EXPECT().ReceiveMessages(gomock.AssignableToTypeOf(subCtx), gomock.Any()).DoAndReturn(
 				func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
 					if count == 0 {
 						count++
@@ -143,26 +146,28 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 				if !tt.wantErr {
 					t.Errorf("Got Error : %v", err)
 				}
-				cancel()
 			case <-time.NewTicker(time.Millisecond * 500).C:
 				assert.Equal(t, len(dc.cachedMsgs), 1)
 				assert.True(t, reflect.DeepEqual(dc.cachedMsgs[0], tt.expected))
-				cancel()
 			}
+			cancel()
 			<-time.NewTicker(time.Millisecond * 1).C
 		})
 	}
 }
 
 func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
-	ctx, ctrl, subCtx, cancel, store, handler, consumer, cache := setupDC(t)
+	ctx, ctrl, subCtx, cancel, brokerstore, handler, consumer, cache := setupDC(t)
 	subs := getDummySubscriptionModel()
 	subscriberID := "subscriber-dl-id"
 	errCh := make(chan error)
 	dlqTopicChan := make(chan *messagebroker.SendMessageToTopicRequest)
 	producer := buildMockDLQProducer(ctx, ctrl, dlqTopicChan)
-	store.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
-	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1-dl", subs, store, handler, cache, errCh)
+	brokerstore.EXPECT().GetProducer(gomock.AssignableToTypeOf(subCtx), messagebroker.ProducerClientOptions{
+		Topic:     "dlt1",
+		TimeoutMs: 100,
+	}).Return(producer, nil).AnyTimes()
+	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1-dl", subs, brokerstore, handler, cache, errCh)
 	assert.NotNil(t, dc)
 	assert.Nil(t, err)
 	assert.NotNil(t, dc.LogFields())
@@ -192,7 +197,10 @@ func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			consumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).DoAndReturn(
+			consumer.EXPECT().ReceiveMessages(gomock.AssignableToTypeOf(subCtx), messagebroker.GetMessagesFromTopicRequest{
+				NumOfMessages: 10,
+				TimeoutMs:     100,
+			}).DoAndReturn(
 				func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
 					if count == 0 {
 						count++

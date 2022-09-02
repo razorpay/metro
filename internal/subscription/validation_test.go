@@ -445,3 +445,74 @@ func Test_validateFilterExpression(t *testing.T) {
 		assert.Equal(t, test.filterExpression, m.FilterExpression)
 	}
 }
+
+func Test_validatePushEndpoint(t *testing.T) {
+	ctx := context.Background()
+
+	type testCase struct {
+		inputConfig *metrov1.PushConfig
+		err         error
+	}
+
+	tests := [3]testCase{
+		{
+			&metrov1.PushConfig{
+				PushEndpoint: "https://razorpay.com",
+			},
+			nil,
+		},
+		{
+			&metrov1.PushConfig{
+				PushEndpoint: "https://randomNotReachableUrl.com",
+			},
+			ErrPushEndpointNotReachable,
+		},
+		{
+			&metrov1.PushConfig{
+				PushEndpoint: "invalidurl.com/test",
+			},
+			ErrInvalidPushEndpointURL,
+		},
+	}
+
+	for _, test := range tests {
+		err := validatePushEndpoint(ctx, &metrov1.Subscription{PushConfig: test.inputConfig})
+		assert.Equal(t, test.err, err)
+	}
+}
+
+func Test_getValidatedModelForCreate(t *testing.T) {
+	ctx := context.Background()
+
+	type testCase struct {
+		inputConfig *metrov1.PushConfig
+		err         error
+	}
+
+	tests := [2]testCase{
+		{
+			&metrov1.PushConfig{
+				PushEndpoint: "https://randomNotReachableUrl.com",
+			},
+			ErrPushEndpointNotReachable,
+		},
+		{
+			&metrov1.PushConfig{
+				PushEndpoint: "invalidurl.com/test",
+			},
+			ErrInvalidPushEndpointURL,
+		},
+	}
+
+	for _, test := range tests {
+		_, err := GetValidatedModelForCreate(ctx, &metrov1.Subscription{
+			Name:               "projects/project123/subscriptions/testsub",
+			Topic:              "projects/project123/topics/test-topic",
+			AckDeadlineSeconds: 30,
+			Filter:             "attributes:x",
+			PushConfig:         test.inputConfig,
+		})
+		assert.Equal(t, test.err.Error(), err.Error())
+	}
+
+}

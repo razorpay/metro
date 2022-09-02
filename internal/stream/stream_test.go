@@ -270,17 +270,15 @@ func TestStart_RestartSubscriber(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	ps := getMockPushStreamRestart(t, ctx, ctrl, "")
-	sub := ps.subs
 	go ps.Start()
 	<-time.NewTicker(10 * time.Millisecond).C
+	sub := ps.subs
 	assert.NotNil(t, sub)
 	ps.subs.GetErrorChannel() <- errors.New("Subscriber Test Error")
-	select {
-	case <-time.NewTicker(1 * time.Second).C:
-		assert.NotNil(t, ps.subs)
-		assert.NotEqual(t, sub, ps.subs)
-		ps.Stop()
-	}
+	<-time.NewTicker(1 * time.Second).C
+	assert.NotNil(t, ps.subs)
+	assert.NotEqual(t, sub, ps.subs)
+	ps.Stop()
 }
 
 func getMockPushStreamRestart(t *testing.T, ctx context.Context, ctrl *gomock.Controller, endpoint string) *PushStream {
@@ -291,7 +289,7 @@ func getMockPushStreamRestart(t *testing.T, ctx context.Context, ctrl *gomock.Co
 	workerID := uuid.New().String()
 	httpConfig := &httpclient.Config{}
 	pushStream, _ := NewPushStream(ctx, workerID, subName, subscriptionCoreMock, subscriberCoreMock, httpConfig)
-	pushStream.subs = getMockSubscriberRestart(t, ctx, ctrl)
+	pushStream.subs = getMockSubscriberRestart(t, ctx)
 	subscriberCoreMock.EXPECT().NewSubscriber(
 		ctx,
 		workerID,
@@ -301,11 +299,16 @@ func getMockPushStreamRestart(t *testing.T, ctx context.Context, ctrl *gomock.Co
 		defaultMaxOuttandingBytes,
 		gomock.AssignableToTypeOf(make(chan *subscriber.PullRequest)),
 		gomock.AssignableToTypeOf(make(chan *subscriber.AckMessage)),
-		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).Return(getMockSubscriberRestart(t, ctx, ctrl), nil).Times(2)
+		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).DoAndReturn((func(arg0 context.Context, arg1 string, arg2 *subscription.Model,
+		arg3 int, arg4, arg5 int64, arg6 chan *subscriber.PullRequest, arg7 chan *subscriber.AckMessage, arg8 chan *subscriber.ModAckMessage) (subscriber.ISubscriber, error) {
+		return getMockSubscriberRestart(t, ctx), nil
+	})).Times(2)
 	return pushStream
 }
 
-func getMockSubscriberRestart(t *testing.T, ctx context.Context, ctrl *gomock.Controller) *mocks3.MockISubscriber {
+// getMockSubscriberRestart returns new mock subscriber with new controller everytime it is called
+func getMockSubscriberRestart(t *testing.T, ctx context.Context) *mocks3.MockISubscriber {
+	// Since we are asserting subscriber's mock objects while testing subscriberRestartTest, so everytime we need to initialize with new controller
 	subscriberMock := mocks3.NewMockISubscriber(gomock.NewController(t))
 	reqCh := make(chan *subscriber.PullRequest, 1)
 	resCh := make(chan *metrov1.PullResponse)

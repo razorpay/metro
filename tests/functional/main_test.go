@@ -58,7 +58,7 @@ func setup() {
 	}
 
 	hname := os.Getenv("HOSTNAME")
-	if env == "" {
+	if env == "" || env == "dev" {
 		hname = "localhost"
 	}
 
@@ -76,6 +76,7 @@ func setup() {
 	mockServerPushEndpoint = fmt.Sprintf("http://%s:8077/push", hname)
 	mockServerMetricEndpoint = fmt.Sprintf("http://%s:8099/stats", os.Getenv("MOCK_SERVER_HOST"))
 
+	ps = pushserver.StartServer(context.TODO(), chanMap)
 	// create project in metro
 	setupTestProjects()
 
@@ -84,7 +85,6 @@ func setup() {
 		os.Exit(2)
 	}
 	setupOrdering()
-	ps = pushserver.StartServer(context.TODO(), chanMap)
 }
 
 func setupTestProjects() {

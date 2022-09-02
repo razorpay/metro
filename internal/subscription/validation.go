@@ -3,9 +3,11 @@ package subscription
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -56,6 +58,8 @@ const (
 	MaxDeliveryAttempts = 100
 	// DefaultDeliveryAttempts sDefault delivery attempts before deadlettering
 	DefaultDeliveryAttempts = 5
+	// Timeout to check the push endpoint is reachable or not
+	URLValidationTimeout = 1 * time.Second
 )
 
 var (
@@ -88,6 +92,9 @@ var (
 
 	// ErrInvalidPushEndpointPassword ...
 	ErrInvalidPushEndpointPassword = errors.New("invalid push_endpoint password attribute")
+
+	// ErrPushEndpointNotReachable ...
+	ErrPushEndpointNotReachable = errors.New("push_endpoint not reachable")
 )
 
 func init() {
@@ -139,6 +146,12 @@ func GetValidatedModelForCreate(ctx context.Context, req *metrov1.Subscription) 
 
 	// validate Filter Expression
 	err = validateFilterExpression(ctx, m, req)
+	if err != nil {
+		return nil, merror.Newf(merror.InvalidArgument, err.Error())
+	}
+
+	// check push endpoint is reachable
+	err = validatePushEndpoint(ctx, req)
 	if err != nil {
 		return nil, merror.Newf(merror.InvalidArgument, err.Error())
 	}
@@ -367,6 +380,29 @@ func validateDeadLetterPolicy(_ context.Context, m *Model, req *metrov1.Subscrip
 		DeadLetterTopic:     defaultDeadLetterTopic,
 	}
 
+	return nil
+}
+
+func validatePushEndpoint(_ context.Context, req *metrov1.Subscription) error {
+	if req.GetPushConfig() != nil {
+		u, err := url.ParseRequestURI(req.GetPushConfig().PushEndpoint)
+		if err != nil {
+			return ErrInvalidPushEndpointURL
+		}
+
+		networkAddress := u.Hostname()
+		if u.Port() != "" {
+			networkAddress = networkAddress + ":" + u.Port()
+		} else if u.Scheme != "" {
+			networkAddress = networkAddress + ":" + u.Scheme
+		}
+
+		_, err = net.DialTimeout("tcp", networkAddress, URLValidationTimeout)
+
+		if err != nil {
+			return ErrPushEndpointNotReachable
+		}
+	}
 	return nil
 }
 

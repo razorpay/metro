@@ -302,5 +302,6 @@ func (s subscriberserver) GetSubscription(ctx context.Context, req *metrov1.GetS
 	if subs.IsPush() && subs.PushConfig.Credentials != nil {
 		subs.PushConfig.Credentials.Password = ""
 	}
+	subs.PushConfig.PushEndpoint = subs.GetRedactedPushEndpoint()
 	return subscription.ModelToSubscriptionProtoV1(subs), nil
 }

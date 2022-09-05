@@ -36,7 +36,7 @@ func TestNewPushStreamManager(t *testing.T) {
 			uuid.New().String(),
 			subName,
 			getSubscriptionCoreMock(ctrl, test.wantErr),
-			getSubscriberCoreMock(t, ctx, ctrl),
+			getSubscriberCoreMock(ctx, t, ctrl),
 			&httpclient.Config{},
 		)
 		assert.Equal(t, test.wantErr, err != nil)
@@ -53,7 +53,7 @@ func TestPushStreamManager_Run(t *testing.T) {
 		uuid.New().String(),
 		subName,
 		getSubscriptionCoreMock(ctrl, false),
-		getSubscriberCoreMock(t, ctx, ctrl),
+		getSubscriberCoreMock(ctx, t, ctrl),
 		&httpclient.Config{},
 	)
 	assert.NoError(t, err)
@@ -78,7 +78,7 @@ func TestPushStreamManager_Stop(t *testing.T) {
 		uuid.New().String(),
 		subName,
 		getSubscriptionCoreMock(ctrl, false),
-		getSubscriberCoreMock(t, ctx, ctrl),
+		getSubscriberCoreMock(ctx, t, ctrl),
 		&httpclient.Config{},
 	)
 	assert.NoError(t, err)
@@ -91,7 +91,7 @@ func TestPushStreamManager_Stop(t *testing.T) {
 	assert.Equal(t, psm.ctx.Err(), context.Canceled)
 }
 
-func getSubscriberCoreMock(t *testing.T, ctx context.Context, ctrl *gomock.Controller) *mocks2.MockICore {
+func getSubscriberCoreMock(ctx context.Context, t *testing.T, ctrl *gomock.Controller) *mocks2.MockICore {
 	subscriberCoreMock := mocks2.NewMockICore(ctrl)
 	subModel := getMockSubModel("")
 

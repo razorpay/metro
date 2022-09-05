@@ -36,7 +36,7 @@ func TestNewPushStreamManager(t *testing.T) {
 			uuid.New().String(),
 			subName,
 			getSubscriptionCoreMock(ctrl, test.wantErr),
-			getSubscriberCoreMock(ctx, ctrl),
+			getSubscriberCoreMock(t, ctx, ctrl),
 			&httpclient.Config{},
 		)
 		assert.Equal(t, test.wantErr, err != nil)
@@ -53,7 +53,7 @@ func TestPushStreamManager_Run(t *testing.T) {
 		uuid.New().String(),
 		subName,
 		getSubscriptionCoreMock(ctrl, false),
-		getSubscriberCoreMock(ctx, ctrl),
+		getSubscriberCoreMock(t, ctx, ctrl),
 		&httpclient.Config{},
 	)
 	assert.NoError(t, err)
@@ -78,7 +78,7 @@ func TestPushStreamManager_Stop(t *testing.T) {
 		uuid.New().String(),
 		subName,
 		getSubscriptionCoreMock(ctrl, false),
-		getSubscriberCoreMock(ctx, ctrl),
+		getSubscriberCoreMock(t, ctx, ctrl),
 		&httpclient.Config{},
 	)
 	assert.NoError(t, err)
@@ -91,7 +91,7 @@ func TestPushStreamManager_Stop(t *testing.T) {
 	assert.Equal(t, psm.ctx.Err(), context.Canceled)
 }
 
-func getSubscriberCoreMock(ctx context.Context, ctrl *gomock.Controller) *mocks2.MockICore {
+func getSubscriberCoreMock(t *testing.T, ctx context.Context, ctrl *gomock.Controller) *mocks2.MockICore {
 	subscriberCoreMock := mocks2.NewMockICore(ctrl)
 	subModel := getMockSubModel("")
 
@@ -104,7 +104,7 @@ func getSubscriberCoreMock(ctx context.Context, ctrl *gomock.Controller) *mocks2
 		defaultMaxOuttandingBytes,
 		gomock.AssignableToTypeOf(make(chan *subscriber.PullRequest)),
 		gomock.AssignableToTypeOf(make(chan *subscriber.AckMessage)),
-		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).AnyTimes().Return(getMockSubscriber(ctx, ctrl), nil)
+		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).AnyTimes().Return(getMockSubscriber(t, ctx), nil)
 	return subscriberCoreMock
 }
 

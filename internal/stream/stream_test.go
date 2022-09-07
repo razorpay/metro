@@ -15,6 +15,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/subscriber"
 	mocks2 "github.com/razorpay/metro/internal/subscriber/mocks"
 	mocks3 "github.com/razorpay/metro/internal/subscriber/mocks"
@@ -129,7 +130,7 @@ func TestPushStream_Start(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		ps := getMockPushStream(ctx, ctrl, test.endpoint)
+		ps := getMockPushStream(t, ctx, ctrl, test.endpoint)
 		go ps.Start()
 		<-time.NewTicker(1 * time.Second).C
 		ps.cancelFunc()
@@ -170,7 +171,7 @@ func getMockSubModel(endpoint string) *subscription.Model {
 	}
 }
 
-func getMockPushStream(ctx context.Context, ctrl *gomock.Controller, endpoint string) *PushStream {
+func getMockPushStream(t *testing.T, ctx context.Context, ctrl *gomock.Controller, endpoint string) *PushStream {
 	subscriptionCoreMock := mocks1.NewMockICore(ctrl)
 	subscriberCoreMock := mocks2.NewMockICore(ctrl)
 	subModel := getMockSubModel(endpoint)
@@ -178,8 +179,7 @@ func getMockPushStream(ctx context.Context, ctrl *gomock.Controller, endpoint st
 	workerID := uuid.New().String()
 	httpConfig := &httpclient.Config{}
 	pushStream, _ := NewPushStream(ctx, workerID, subName, subscriptionCoreMock, subscriberCoreMock, httpConfig)
-	pushStream.subs = getMockSubscriber(ctx, ctrl)
-
+	pushStream.subs = getMockSubscriber(t, ctx)
 	subscriberCoreMock.EXPECT().NewSubscriber(
 		ctx,
 		workerID,
@@ -189,15 +189,17 @@ func getMockPushStream(ctx context.Context, ctrl *gomock.Controller, endpoint st
 		defaultMaxOuttandingBytes,
 		gomock.AssignableToTypeOf(make(chan *subscriber.PullRequest)),
 		gomock.AssignableToTypeOf(make(chan *subscriber.AckMessage)),
-		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).Return(getMockSubscriber(ctx, ctrl), nil)
+		gomock.AssignableToTypeOf(make(chan *subscriber.ModAckMessage))).DoAndReturn((func(arg0 context.Context, arg1 string, arg2 *subscription.Model,
+		arg3 int, arg4, arg5 int64, arg6 chan *subscriber.PullRequest, arg7 chan *subscriber.AckMessage, arg8 chan *subscriber.ModAckMessage) (subscriber.ISubscriber, error) {
+		return getMockSubscriber(t, ctx), nil
+	})).AnyTimes()
 	return pushStream
 }
 
-func getMockSubscriber(ctx context.Context, ctrl *gomock.Controller) *mocks3.MockISubscriber {
-	subscriberMock := mocks3.NewMockISubscriber(ctrl)
+func getMockSubscriber(t *testing.T, ctx context.Context) *mocks3.MockISubscriber {
+	subscriberMock := mocks3.NewMockISubscriber(gomock.NewController(t))
 	reqCh := make(chan *subscriber.PullRequest, 1)
 	resCh := make(chan *metrov1.PullResponse)
-
 	cancelChan := make(chan bool)
 
 	go func() {
@@ -220,7 +222,7 @@ func getMockSubscriber(ctx context.Context, ctrl *gomock.Controller) *mocks3.Moc
 		}
 	}()
 	subscriberMock.EXPECT().GetID().AnyTimes()
-	subscriberMock.EXPECT().GetErrorChannel().AnyTimes()
+	subscriberMock.EXPECT().GetErrorChannel().Return(make(chan error)).AnyTimes()
 	subscriberMock.EXPECT().GetModAckChannel().Return(make(chan *subscriber.ModAckMessage, 10)).AnyTimes()
 	subscriberMock.EXPECT().GetAckChannel().Return(make(chan *subscriber.AckMessage, 10)).AnyTimes()
 	subscriberMock.EXPECT().GetRequestChannel().Return(reqCh).AnyTimes()
@@ -246,8 +248,36 @@ func getMockResponseMessages() []*metrov1.ReceivedMessage {
 func TestPushStream_Stop(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
-	ps := getMockPushStream(ctx, ctrl, "")
+	ps := getMockPushStream(t, ctx, ctrl, "")
 	go ps.Start()
 	err := ps.Stop()
 	assert.Nil(t, err)
+}
+
+func TestNewPushStream_Failure(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	subscriptionCoreMock := mocks1.NewMockICore(ctrl)
+	subscriberCoreMock := mocks2.NewMockICore(ctrl)
+	workerID := uuid.New().String()
+	httpConfig := &httpclient.Config{}
+	subscriptionCoreMock.EXPECT().Get(gomock.Any(), subName).Return(nil, errors.New("Test Error"))
+	got, err := NewPushStream(ctx, workerID, subName, subscriptionCoreMock, subscriberCoreMock, httpConfig)
+	assert.Nil(t, got)
+	assert.NotNil(t, err)
+}
+
+func TestStart_RestartSubscriber(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	ps := getMockPushStream(t, ctx, ctrl, "")
+	go ps.Start()
+	<-time.NewTicker(10 * time.Millisecond).C
+	sub := ps.subs
+	assert.NotNil(t, sub)
+	ps.subs.GetErrorChannel() <- errors.New("Subscriber Test Error")
+	<-time.NewTicker(1 * time.Second).C
+	assert.NotNil(t, ps.subs)
+	assert.NotEqual(t, sub, ps.subs)
+	ps.Stop()
 }

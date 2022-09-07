@@ -83,7 +83,6 @@ func Init(_ context.Context, env string, componentName string) {
 // Run handles the component execution lifecycle
 func Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
-	log.Printf("Run initiated...")
 	// Shutdown monitoring
 	defer func() {
 		err := boot.Close()
@@ -112,13 +111,9 @@ func Run(ctx context.Context) {
 		cancel()
 	}()
 
-	log.Printf("Starting component.....")
 	err := component.Run(ctx)
 	if err != nil {
-		log.Printf("component exited with error...")
 		logger.Ctx(ctx).Fatalw("component exited with error", "msg", err.Error())
-	} else {
-		log.Printf("component started successfully...")
 	}
 
 	logger.Ctx(ctx).Infow("stopped metro")

@@ -12,6 +12,7 @@ import (
 	mocks6 "github.com/razorpay/metro/internal/credentials/mocks/core"
 	mocks5 "github.com/razorpay/metro/internal/project/mocks/core"
 	mocks3 "github.com/razorpay/metro/internal/publisher/mocks/publisher"
+	mocks7 "github.com/razorpay/metro/internal/tasks/mocks/core"
 	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/internal/topic/mocks/core"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -120,6 +121,7 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 	topicCore := mocks2.NewMockICore(ctrl)
 	publisher := mocks3.NewMockIPublisher(ctrl)
 	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	taskCore := mocks7.NewMockITask(ctrl)
 	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	req := &metrov1.PublishRequest{
@@ -130,8 +132,7 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 			},
 		},
 	}
-
-	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(true, nil)
+	taskCore.EXPECT().CheckIfTopicExists(gomock.Any(), req.Topic).Return(true)
 	publisher.EXPECT().Publish(gomock.Any(), req).Times(1).Return([]string{}, nil)
 	_, err := server.Publish(ctx, req)
 	assert.Nil(t, err)

@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"log"
 
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -60,7 +59,6 @@ func (svc *Service) GetErrorChannel() chan error {
 
 // Start the service
 func (svc *Service) Start(ctx context.Context) error {
-	log.Printf("////// inside service start //////")
 	id := uuid.New().String()
 	// Define server handlers
 	r, err := registry.NewRegistry(svc.registryConfig)

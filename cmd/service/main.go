@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 
 	"github.com/razorpay/metro/cmd/service/metro"
 	"github.com/razorpay/metro/internal/app"
@@ -33,5 +32,4 @@ func main() {
 
 	// Run metro
 	metro.Run(ctx)
-	log.Printf("Metro run initiated...")
 }

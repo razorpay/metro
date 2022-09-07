@@ -37,18 +37,12 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 		"topic": req.Topic,
 	})
 	defer span.Finish()
-	// TODO: Replace this function with the Watcher cache read implementation
 	if s.pubTask.CheckIfTopicExists(ctx, req.Topic) {
 		log.Printf("Topic exists inside the cache..")
 		// Do Nothing
 	} else {
 		return nil, merror.New(merror.NotFound, "Topic not found inside the cache..").ToGRPCError()
 	}
-	// if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
-	// 	return nil, merror.ToGRPCError(err)
-	// } else if !ok {
-	// 	return nil, merror.New(merror.NotFound, "topic not found").ToGRPCError()
-	// }
 
 	if err := publisher.ValidatePublishRequest(ctx, req); err != nil {
 		return nil, merror.ToGRPCError(err)

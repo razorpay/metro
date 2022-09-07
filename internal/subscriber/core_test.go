@@ -230,10 +230,7 @@ func getMockProducer(ctrl *gomock.Controller) *mockMB.MockProducer {
 // EqualOnly compares fields defined in the fields array
 func EqualOnly(sub1, sub2 interface{}, fields []string) bool {
 	if sub1 == nil || sub2 == nil {
-		if sub1 == sub2 {
-			return true
-		}
-		return false
+		return sub1 == sub2
 	}
 	val1 := reflect.ValueOf(sub1).Elem()
 	val2 := reflect.ValueOf(sub2).Elem()

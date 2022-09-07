@@ -39,7 +39,7 @@ func setupCore(t *testing.T) (
 ) {
 	ctrl := gomock.NewController(t)
 	ctx = context.Background()
-	cs = getMockConsumerCore(ctx, ctrl)
+	cs = getMockConsumer(ctx, ctrl)
 	store = mocks.NewMockIBrokerStore(ctrl)
 	broker = mockMB.NewMockBroker(ctrl)
 	core = sCore.NewMockICore(ctrl)
@@ -81,7 +81,7 @@ func TestCore_NewSubscriber(t *testing.T) {
 		{
 			name: "Create new subscriber and run with retry policy",
 			fields: fields{
-				core: getCore(store, core, offsetCore, ch),
+				core: NewCore(store, core, offsetCore, ch),
 			},
 			args: args{
 				ctx:          ctx,
@@ -100,7 +100,7 @@ func TestCore_NewSubscriber(t *testing.T) {
 		{
 			name: "Create new subscriber with getConsumer error Failure",
 			fields: fields{
-				core: getCore(store, core, offsetCore, ch),
+				core: NewCore(store, core, offsetCore, ch),
 			},
 			args: args{
 				ctx:          ctx,
@@ -183,23 +183,9 @@ func TestNewCore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewCore(tt.args.bs, tt.args.subscriptionCore, tt.args.offsetCore, tt.args.ch)
-			assert.Equalf(t, tt.want, got, "NewCore(%v, %v, %v, %v)", tt.args.bs, tt.args.subscriptionCore, tt.args.offsetCore, tt.args.ch)
+			assert.Equal(t, tt.want, got)
 		})
 	}
-}
-
-func getMockConsumerCore(ctx context.Context, ctrl *gomock.Controller) *mockMB.MockConsumer {
-	cs := mockMB.NewMockConsumer(ctrl)
-	req := messagebroker.GetTopicMetadataRequest{
-		Topic:     topicName,
-		Partition: partition,
-	}
-	cs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil).AnyTimes()
-	cs.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(
-		messagebroker.CommitOnTopicResponse{}, nil,
-	).AnyTimes()
-	cs.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	return cs
 }
 
 func getDummySubscriptionWithRetry() subscription.Model {
@@ -215,10 +201,6 @@ func getDummySubscriptionWithRetry() subscription.Model {
 			MaximumBackoff: 10,
 		},
 	}
-}
-
-func getCore(bs *mocks.MockIBrokerStore, subscriptionCore *sCore.MockICore, core *oCore.MockICore, ch *mCache.MockICache) ICore {
-	return NewCore(bs, subscriptionCore, core, ch)
 }
 
 func getMockProducer(ctrl *gomock.Controller) *mockMB.MockProducer {

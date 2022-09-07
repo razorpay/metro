@@ -168,7 +168,7 @@ func TestOrderedImplementation_EvictUnackedMessagesPastDeadline(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			errorCh := make(chan error)
 			subImpl.EvictUnackedMessagesPastDeadline(ctx, errorCh)
-			assert.Equal(t, len(subImpl.consumedMessageStats[NewTopicPartition(topicName, partition)].ConsumptionMetadata.consumedMessages), 0)
+			assert.Zero(t, len(subImpl.consumedMessageStats[NewTopicPartition(topicName, partition)].ConsumptionMetadata.consumedMessages))
 		})
 	}
 }

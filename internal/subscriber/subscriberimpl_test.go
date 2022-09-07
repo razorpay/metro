@@ -310,10 +310,11 @@ func getMockConsumer(ctx context.Context, ctrl *gomock.Controller) *mockMB.MockC
 		Partition: partition,
 	}
 	cs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil).AnyTimes()
-	cs.EXPECT().Pause(ctx, gomock.Any()).AnyTimes().Return(nil)
+	cs.EXPECT().Pause(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	cs.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(
 		messagebroker.CommitOnTopicResponse{}, nil,
 	).AnyTimes()
+	cs.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	return cs
 }
 

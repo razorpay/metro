@@ -208,7 +208,10 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 			Messages: messages,
 		}, nil,
 	)
-
+	cs.EXPECT().FetchConsumerLag(gomock.Any()).Return(map[string]uint64{
+		"primary-topic=0": 0,
+		"retry-topic=0":   0,
+	}, nil).AnyTimes()
 	subscriber := getMockSubscriber(ctx, subImpl)
 	pullRequest := &PullRequest{ctx: ctx, MaxNumOfMessages: 1}
 	subImpl.Pull(ctx, pullRequest, subscriber.responseChan, subscriber.errChan)
@@ -250,7 +253,7 @@ func getMockSubscriber(ctx context.Context, subImpl *BasicImplementation) *Subsc
 		closeChan:           make(chan struct{}),
 		modAckChan:          make(chan *ModAckMessage, 10),
 		deadlineTicker:      time.NewTicker(1 * time.Second),
-		healthMonitorTicker: time.NewTicker(1 * time.Minute),
+		healthMonitorTicker: time.NewTicker(1 * time.Second),
 		consumer:            subImpl.consumer,
 		cancelFunc:          cancelFunc,
 		ctx:                 ctx,

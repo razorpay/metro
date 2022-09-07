@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -96,6 +97,80 @@ func TestOrderedImplementation_ModAckDeadline(t *testing.T) {
 	}
 	tp := NewTopicPartition(topicName, partition)
 	assert.Zero(t, len(subImpl.consumedMessageStats[tp].consumedMessages))
+}
+
+func TestOrderedImplementation_GetConsumerLag(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	ctx := context.Background()
+	cs := getMockConsumer(ctx, ctrl)
+	consumer := getMockConsumerManager(ctx, ctrl, cs)
+	offsetRepo := getMockOffsetRepo(ctrl, string(sequenceSuccess))
+	subImpl := getMockOrderedImplementation(ctx, consumer, offsetRepo)
+	pTopic := subImpl.topic
+	rTopic := subImpl.subscription.GetRetryTopic()
+	tests := []struct {
+		name string
+		want map[string]uint64
+	}{
+		{
+			name: "Get Consumer Lag for Ordered Implementation",
+			want: map[string]uint64{
+				pTopic: 0,
+				rTopic: 0,
+			},
+		},
+		{
+			name: "Get Positive Consumer Lag for Ordered Implementation",
+			want: map[string]uint64{
+				pTopic: 1,
+				rTopic: 1,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cs.EXPECT().FetchConsumerLag(ctx).Return(tt.want, nil).Times(1)
+			got := subImpl.GetConsumerLag()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BasicImplementation.GetConsumerLag() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestOrderedImplementation_EvictUnackedMessagesPastDeadline(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	ctx := context.Background()
+	cs := getMockConsumer(ctx, ctrl)
+	consumer := getMockConsumerManager(ctx, ctrl, cs)
+	offsetRepo := getMockOffsetRepo(ctrl, string(sequenceSuccess))
+	subImpl := getMockOrderedImplementation(ctx, consumer, offsetRepo)
+	orderedConsumptionMetadata := NewOrderedConsumptionMetadata()
+	orderedConsumptionMetadata.Store(getDummyOrderedReceivedMessage()[0], time.Now().Add(time.Second*(-1)).Unix())
+	subImpl.consumedMessageStats[NewTopicPartition(topicName, partition)] = orderedConsumptionMetadata
+	pTopic := subImpl.topic
+	rTopic := subImpl.subscription.GetRetryTopic()
+	tests := []struct {
+		name    string
+		want    map[string]uint64
+		wantErr bool
+	}{
+		{
+			name: "Test Evict Unacked Messages past Deadline",
+			want: map[string]uint64{
+				pTopic: 0,
+				rTopic: 0,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errorCh := make(chan error)
+			subImpl.EvictUnackedMessagesPastDeadline(ctx, errorCh)
+			assert.Equal(t, len(subImpl.consumedMessageStats[NewTopicPartition(topicName, partition)].ConsumptionMetadata.consumedMessages), 0)
+		})
+	}
 }
 
 func getMockOrderedImplementation(

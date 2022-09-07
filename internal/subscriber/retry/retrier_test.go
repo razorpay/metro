@@ -5,15 +5,15 @@ package retry
 
 import (
 	"context"
-	"github.com/razorpay/metro/internal/brokerstore/mocks"
-	mocks2 "github.com/razorpay/metro/pkg/cache/mocks"
 	"sort"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/topic"
+	mocks2 "github.com/razorpay/metro/pkg/cache/mocks"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	mocks3 "github.com/razorpay/metro/pkg/messagebroker/mocks"
 	"github.com/stretchr/testify/assert"

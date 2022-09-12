@@ -46,6 +46,10 @@ func SpanContextOption(messageContext opentracing.SpanContext) opentracing.Start
 
 // GetSpanContext will extract information from attributes and return a SpanContext
 func GetSpanContext(ctx context.Context, attributes map[string]string) opentracing.SpanContext {
+	if _, ok := attributes[UberTraceID]; !ok {
+		return nil
+	}
+
 	spanContext, extractErr := opentracing.GlobalTracer().Extract(
 		opentracing.TextMap,
 		opentracing.TextMapCarrier(attributes),

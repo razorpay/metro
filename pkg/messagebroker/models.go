@@ -25,6 +25,12 @@ type DeleteTopicRequest struct {
 	NonPartitioned bool //  only required for pulsar and ignored for kafka
 }
 
+// ModifyTopicConfigRequest ...
+type ModifyTopicConfigRequest struct {
+	Name   string
+	Config map[string]string
+}
+
 // SendMessageToTopicRequest ...
 type SendMessageToTopicRequest struct {
 	Topic       string

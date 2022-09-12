@@ -285,6 +285,46 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 	}, nil
 }
 
+func (k *KafkaBroker) AlterTopicConfigs(ctx context.Context, request ModifyTopicConfigRequest) error {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "AlterTopicConfigs").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "AlterTopicConfigs").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	tp := normalizeTopicName(request.Name)
+
+	configs := make([]kafkapkg.ConfigEntry, 0, 2)
+	for key, value := range request.Config {
+		configs = append(configs, kafkapkg.ConfigEntry{
+			Name:      key,
+			Value:     value,
+			Operation: kafkapkg.AlterOperationSet,
+		})
+	}
+
+	resource := kafkapkg.ConfigResource{
+		Type:   kafkapkg.ResourceTopic,
+		Name:   tp,
+		Config: configs,
+	}
+
+	resources := make([]kafkapkg.ConfigResource, 0)
+	resources = append(resources, resource)
+
+	resp, err := k.Admin.AlterConfigs(ctx, resources, nil)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: request to alter topic config failed", "topic", tp,
+			"error", err.Error())
+		return err
+	}
+
+	logger.Ctx(ctx).Infow("kafka: request to alter topic configs completed", "topic", tp,
+		"resp", resp)
+	return nil
+}
+
 // DeleteTopic deletes an existing topic
 func (k *KafkaBroker) DeleteTopic(ctx context.Context, request DeleteTopicRequest) (DeleteTopicResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.DeleteTopic")

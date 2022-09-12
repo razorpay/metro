@@ -119,6 +119,11 @@ func (c *Core) CreateSubscription(ctx context.Context, m *Model) error {
 	// for subscription over deadletter topics, skip the deadletter topic creation
 	if topicModel.IsDeadLetterTopic() {
 		m.Labels["isDLQSubscription"] = "true"
+		err := c.topicCore.AlterTopicRetentionConfigs(ctx, topicModel)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to alter dead letter topic retention configs", "name", m.GetDeadLetterTopic(), "error", err.Error())
+			return err
+		}
 	} else {
 		m.Labels["isDLQSubscription"] = "false"
 		// create dead-letter topic for subscription

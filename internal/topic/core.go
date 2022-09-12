@@ -2,6 +2,7 @@ package topic
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -17,6 +18,7 @@ import (
 type ICore interface {
 	CreateTopic(ctx context.Context, model *Model) error
 	UpdateTopic(ctx context.Context, model *Model) error
+	AlterTopicRetentionConfigs(ctx context.Context, model *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
@@ -254,6 +256,23 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 	})
 
 	return terr
+}
+
+// AlterTopicConfigs alters topic configs eg retention policy
+func (c *Core) AlterTopicRetentionConfigs(ctx context.Context, m *Model) error {
+	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return aerr
+	}
+	configs := make(map[string]string, 2)
+	configs["retention.ms"] = fmt.Sprintf("%d", 1000*60*60*24*3)
+	configs["retention.bytes"] = fmt.Sprintf("%d", 10000*1000000)
+
+	// Create alter topic config request with Broker
+	return admin.AlterTopicConfigs(ctx, messagebroker.ModifyTopicConfigRequest{
+		Name:   m.Name,
+		Config: configs,
+	})
 }
 
 // List gets slice of topics starting with given prefix

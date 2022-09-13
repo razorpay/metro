@@ -260,7 +260,7 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 		ReplicationFactor: (len(k.Config.Brokers) + 1) / 2, // 50% of the available brokers
 	}
 
-	if len(request.Config) > 0 {
+	if request.Config != nil && len(request.Config) > 0 {
 		ts.Config = request.Config
 	}
 

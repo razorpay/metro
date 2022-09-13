@@ -32,7 +32,7 @@ func TestCore_CreateTopic(t *testing.T) {
 	dTopic := getDummyTopicModel()
 	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
 	mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
-	mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
+	mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{Name: dTopic.Name, NumPartitions: DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
 	mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+"topics/test-project/test-topic")
 	mockTopicRepo.EXPECT().Save(gomock.Any(), dTopic)
 	err := topicCore.CreateTopic(ctx, dTopic)
@@ -119,7 +119,7 @@ func TestCore_CreateSubscriptionTopic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockBrokerStore.EXPECT().GetAdmin(gomock.AssignableToTypeOf(ctx), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
-			mockAdmin.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), messagebroker.CreateTopicRequest{dTopic.Name, DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
+			mockAdmin.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), messagebroker.CreateTopicRequest{Name: dTopic.Name, NumPartitions: DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
 			if err := c.CreateSubscriptionTopic(tt.args.ctx, tt.args.model); (err != nil) != tt.wantErr {
 				t.Errorf("Core.CreateSubscriptionTopic() error = %v, wantErr %v", err, tt.wantErr)
 			}

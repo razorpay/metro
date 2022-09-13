@@ -2,6 +2,7 @@ package topic
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -12,6 +13,9 @@ import (
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
+
+const retentionPeriod = 1000 * 60 * 60 * 24 * 3   // 3 days
+const retentionSizePerPartition = 10000 * 1000000 // 10000 MB ~ 10000 messages
 
 // ICore is an interface over topic core
 type ICore interface {
@@ -251,6 +255,7 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
 		Name:          model.Name,
 		NumPartitions: model.NumPartitions,
+		Config:        c.getRetentionConfig(model),
 	})
 
 	return terr
@@ -277,4 +282,13 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 		out = append(out, obj.(*Model))
 	}
 	return out, nil
+}
+
+func (c *Core) getRetentionConfig(model *Model) map[string]string {
+	configs := make(map[string]string, 2)
+	if model.IsDeadLetterTopic() {
+		configs["retention.ms"] = fmt.Sprint(retentionPeriod)
+		configs["retention.bytes"] = fmt.Sprint(retentionSizePerPartition * model.NumPartitions)
+	}
+	return configs
 }

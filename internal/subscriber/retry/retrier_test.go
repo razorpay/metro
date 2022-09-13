@@ -113,7 +113,7 @@ func TestRetrier_Start(t *testing.T) {
 
 	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
 	mockCache := mocks2.NewMockICache(ctrl)
-	mockCache.EXPECT().Get(ctxWt, gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
+	mockCache.EXPECT().Get(gomock.AssignableToTypeOf(ctxWt), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 	dcs := getMockDelayConsumer(ctx, ctrl)
 	producer := getMockProducer(ctx, ctrl)
 	mockBrokerStore.EXPECT().GetConsumer(
@@ -128,7 +128,7 @@ func TestRetrier_Start(t *testing.T) {
 		subs:           getMockSubscriptionModel(),
 		bs:             mockBrokerStore,
 		ch:             mockCache,
-		backoff:        NewFixedWindowBackoff(),
+		backoff:        NewExponentialWindowBackoff(),
 		finder:         NewClosestIntervalWithCeil(),
 		handler:        NewPushToPrimaryRetryTopicHandler(mockBrokerStore),
 		delayConsumers: sync.Map{},
@@ -144,7 +144,11 @@ func TestRetrier_Start(t *testing.T) {
 		return true
 	})
 	sort.Strings(dcTopics)
-	assert.Equal(t, dcTopics, []string{"projects/test-project/topics/test-subscription.delay.30.seconds", "projects/test-project/topics/test-subscription.delay.5.seconds"})
+	assert.Equal(t, dcTopics, []string{"projects/test-project/topics/test-subscription.delay.150.seconds",
+		"projects/test-project/topics/test-subscription.delay.1800.seconds", "projects/test-project/topics/test-subscription.delay.30.seconds",
+		"projects/test-project/topics/test-subscription.delay.300.seconds", "projects/test-project/topics/test-subscription.delay.3600.seconds",
+		"projects/test-project/topics/test-subscription.delay.5.seconds", "projects/test-project/topics/test-subscription.delay.60.seconds",
+		"projects/test-project/topics/test-subscription.delay.600.seconds"})
 	err = r.Handle(ctx, getDummyBrokerMessage("msg-1", "m1", time.Now().Add(-time.Second*100), 1))
 	assert.Nil(t, err)
 	r.Stop(ctx)

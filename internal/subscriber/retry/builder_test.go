@@ -58,8 +58,8 @@ func getMockSubscriptionModel() *subscription.Model {
 			MaxDeliveryAttempts: 10,
 		},
 		RetryPolicy: &subscription.RetryPolicy{
-			MinimumBackoff: 10,
-			MaximumBackoff: 30,
+			MinimumBackoff: 5,
+			MaximumBackoff: 3600,
 		},
 		PushConfig: &subscription.PushConfig{
 			PushEndpoint: "www.some-url.com",

@@ -253,6 +253,7 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
 		Name:          model.Name,
 		NumPartitions: model.NumPartitions,
+		Config:        getRetentionConfig(model),
 	})
 
 	return terr
@@ -260,18 +261,20 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 
 // AlterTopicConfigs alters topic configs eg retention policy
 func (c *Core) AlterTopicRetentionConfigs(ctx context.Context, m *Model) error {
+	// ALter the topic configs only for dead letter topic for now
+	if !m.IsDeadLetterTopic() {
+		return nil
+	}
+
 	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
 	if aerr != nil {
 		return aerr
 	}
-	configs := make(map[string]string, 2)
-	configs["retention.ms"] = fmt.Sprintf("%d", 1000*60*60*24*3)
-	configs["retention.bytes"] = fmt.Sprintf("%d", 10000*1000000)
 
 	// Create alter topic config request with Broker
 	return admin.AlterTopicConfigs(ctx, messagebroker.ModifyTopicConfigRequest{
 		Name:   m.Name,
-		Config: configs,
+		Config: getRetentionConfig(m),
 	})
 }
 
@@ -296,4 +299,13 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 		out = append(out, obj.(*Model))
 	}
 	return out, nil
+}
+
+func getRetentionConfig(model *Model) map[string]string {
+	configs := make(map[string]string, 2)
+	if model.IsDeadLetterTopic() {
+		configs["retention.ms"] = fmt.Sprintf("%d", 1000*60*60*24*3)
+		configs["retention.bytes"] = fmt.Sprintf("%d", 10000*1000000)
+	}
+	return configs
 }

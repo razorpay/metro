@@ -259,6 +259,9 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 		NumPartitions:     request.NumPartitions,
 		ReplicationFactor: (len(k.Config.Brokers) + 1) / 2, // 50% of the available brokers
 	}
+	if len(request.Config) > 0 {
+		ts.Config = request.Config
+	}
 
 	topics = append(topics, ts)
 	topicsResp, err := k.Admin.CreateTopics(ctx, topics, kafkapkg.SetAdminOperationTimeout(59*time.Second))

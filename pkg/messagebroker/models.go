@@ -10,6 +10,7 @@ import (
 type CreateTopicRequest struct {
 	Name          string
 	NumPartitions int
+	Config        map[string]string
 }
 
 // AddTopicPartitionRequest ...

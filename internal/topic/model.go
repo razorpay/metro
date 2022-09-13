@@ -79,6 +79,7 @@ func (m *Model) IsPrimaryTopic() bool {
 	return !m.IsDeadLetterTopic() && !m.IsDelayTopic() && !m.IsRetryTopic()
 }
 
+// GetRetentionConfig returns the retention policy for a given topic
 func (m *Model) GetRetentionConfig() map[string]string {
 	if m.IsDeadLetterTopic() {
 		return map[string]string{

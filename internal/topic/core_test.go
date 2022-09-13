@@ -29,14 +29,28 @@ func TestCore_CreateTopic(t *testing.T) {
 	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
 	topicCore := NewCore(mockTopicRepo, mockProjectCore, mockBrokerStore)
 	ctx := context.Background()
-	dTopic := getDummyTopicModel()
-	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
-	mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
-	mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{Name: dTopic.Name, NumPartitions: DefaultNumPartitions}).Return(messagebroker.CreateTopicResponse{}, nil)
-	mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+"topics/test-project/test-topic")
-	mockTopicRepo.EXPECT().Save(gomock.Any(), dTopic)
-	err := topicCore.CreateTopic(ctx, dTopic)
-	assert.Nil(t, err)
+
+	tests := []struct {
+		topicModel *Model
+	}{
+		{
+			topicModel: getDummyTopicModel(),
+		},
+		{
+			topicModel: getDLQDummyTopicModel(),
+		},
+	}
+
+	for _, test := range tests {
+		dTopic := test.topicModel
+		mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
+		mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
+		mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{Name: dTopic.Name, NumPartitions: DefaultNumPartitions, Config: dTopic.GetRetentionConfig()}).Return(messagebroker.CreateTopicResponse{}, nil)
+		mockTopicRepo.EXPECT().Exists(gomock.Any(), dTopic.Key())
+		mockTopicRepo.EXPECT().Save(gomock.Any(), dTopic)
+		err := topicCore.CreateTopic(ctx, dTopic)
+		assert.Nil(t, err)
+	}
 }
 
 func TestCore_List(t *testing.T) {

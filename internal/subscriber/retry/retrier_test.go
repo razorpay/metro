@@ -134,7 +134,8 @@ func TestRetrier_Start(t *testing.T) {
 		delayConsumers: sync.Map{},
 		errChan:        make(chan error),
 	}
-
+	expDelayTopics := r.subs.GetDelayTopics()
+	sort.Strings(expDelayTopics)
 	err := r.Start(ctxWt)
 	assert.Nil(t, err)
 	dcTopics := []string{}
@@ -144,11 +145,7 @@ func TestRetrier_Start(t *testing.T) {
 		return true
 	})
 	sort.Strings(dcTopics)
-	assert.Equal(t, dcTopics, []string{"projects/test-project/topics/test-subscription.delay.150.seconds",
-		"projects/test-project/topics/test-subscription.delay.1800.seconds", "projects/test-project/topics/test-subscription.delay.30.seconds",
-		"projects/test-project/topics/test-subscription.delay.300.seconds", "projects/test-project/topics/test-subscription.delay.3600.seconds",
-		"projects/test-project/topics/test-subscription.delay.5.seconds", "projects/test-project/topics/test-subscription.delay.60.seconds",
-		"projects/test-project/topics/test-subscription.delay.600.seconds"})
+	assert.Equal(t, dcTopics, expDelayTopics)
 	err = r.Handle(ctx, getDummyBrokerMessage("msg-1", "m1", time.Now().Add(-time.Second*100), 1))
 	assert.Nil(t, err)
 	r.Stop(ctx)

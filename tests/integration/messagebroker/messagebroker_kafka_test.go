@@ -314,7 +314,7 @@ func Test_ResetAutoOffsetForConsumer(t *testing.T) {
 	aresp, err := admin.CreateTopic(context.Background(), messagebroker.CreateTopicRequest{
 		Name:          topic,
 		NumPartitions: 1,
-		Config: map[string]string{"retention.ms": 10000}
+		Config:        map[string]string{"retention.ms": "10000"},
 	})
 
 	assert.Nil(t, err)

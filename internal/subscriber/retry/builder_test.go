@@ -40,7 +40,7 @@ func TestRetrier_Build(t *testing.T) {
 		WithErrChan(errCh).
 		WithIntervalFinder(NewClosestIntervalWithCeil()).
 		WithMessageHandler(NewPushToPrimaryRetryTopicHandler(bs))
-	assert.Equalf(t, expectedRetrier, retrierBuilder.Build(), "Build()")
+	assert.Equal(t, expectedRetrier, retrierBuilder.Build())
 
 }
 

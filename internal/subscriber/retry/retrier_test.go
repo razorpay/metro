@@ -108,8 +108,9 @@ func Test_Interval_Calculator(t *testing.T) {
 func TestRetrier_Start(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
-	ctxWt, cancel := context.WithTimeout(ctx, time.Second*1)
+	ctxWt, cancel := context.WithCancel(ctx)
 	defer cancel()
+
 	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
 	mockCache := mocks2.NewMockICache(ctrl)
 	mockCache.EXPECT().Get(ctxWt, gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()

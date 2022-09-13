@@ -158,7 +158,7 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 	}
 
 	cancel()
-	<-time.NewTicker(time.Millisecond * 1).C
+	<-dc.doneCh
 }
 
 func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
@@ -209,7 +209,7 @@ func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
 		assert.FailNow(t, "test timed out")
 	}
 	cancel()
-	<-time.NewTicker(time.Millisecond * 1).C
+	<-dc.doneCh
 }
 
 func getDummyBrokerMessage(data, messageId string, nextDeliveryTime time.Time, maxRetryCount int32) messagebroker.ReceivedMessage {

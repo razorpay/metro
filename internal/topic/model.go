@@ -26,10 +26,10 @@ const (
 	// MaxNumPartitions max number of partitions for a topic
 	MaxNumPartitions = 100
 
-	// 3 days retention period
+	// RetentionPeriod is the time after which messages will be deleted from the topic = 3 days
 	RetentionPeriod = 1000 * 60 * 60 * 24 * 3
 
-	// 10000 MB retention size per partition ~ 10000 messages
+	// RetentionSizePerPartition is the max no of bytes retained per topic partition = 10000MB
 	RetentionSizePerPartition = 10000 * 1000000
 )
 

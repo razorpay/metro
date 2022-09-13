@@ -208,7 +208,10 @@ func TestBasicImplementation_ModAckDeadline(t *testing.T) {
 			Messages: messages,
 		}, nil,
 	)
-
+	cs.EXPECT().FetchConsumerLag(gomock.Any()).Return(map[string]uint64{
+		"primary-topic=0": 0,
+		"retry-topic=0":   0,
+	}, nil).AnyTimes()
 	subscriber := getMockSubscriber(ctx, subImpl)
 	pullRequest := &PullRequest{ctx: ctx, MaxNumOfMessages: 1}
 	subImpl.Pull(ctx, pullRequest, subscriber.responseChan, subscriber.errChan)
@@ -250,7 +253,7 @@ func getMockSubscriber(ctx context.Context, subImpl *BasicImplementation) *Subsc
 		closeChan:           make(chan struct{}),
 		modAckChan:          make(chan *ModAckMessage, 10),
 		deadlineTicker:      time.NewTicker(1 * time.Second),
-		healthMonitorTicker: time.NewTicker(1 * time.Minute),
+		healthMonitorTicker: time.NewTicker(1 * time.Second),
 		consumer:            subImpl.consumer,
 		cancelFunc:          cancelFunc,
 		ctx:                 ctx,
@@ -307,10 +310,11 @@ func getMockConsumer(ctx context.Context, ctrl *gomock.Controller) *mockMB.MockC
 		Partition: partition,
 	}
 	cs.EXPECT().GetTopicMetadata(ctx, req).Return(messagebroker.GetTopicMetadataResponse{}, nil).AnyTimes()
-	cs.EXPECT().Pause(ctx, gomock.Any()).AnyTimes().Return(nil)
+	cs.EXPECT().Pause(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	cs.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(
 		messagebroker.CommitOnTopicResponse{}, nil,
 	).AnyTimes()
+	cs.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	return cs
 }
 

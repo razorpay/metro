@@ -285,10 +285,11 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 }
 
 func (c *Core) getRetentionConfig(model *Model) map[string]string {
-	configs := make(map[string]string, 2)
 	if model.IsDeadLetterTopic() {
-		configs["retention.ms"] = fmt.Sprint(retentionPeriod)
-		configs["retention.bytes"] = fmt.Sprint(retentionSizePerPartition * model.NumPartitions)
+		return map[string]string{
+			"retention.ms":    fmt.Sprint(retentionPeriod),
+			"retention.bytes": fmt.Sprint(retentionSizePerPartition * model.NumPartitions),
+		}
 	}
-	return configs
+	return nil
 }

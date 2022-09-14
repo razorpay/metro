@@ -26,8 +26,14 @@ const (
 	// MaxNumPartitions max number of partitions for a topic
 	MaxNumPartitions = 100
 
+	// RetentionPeriodConfig is the name of topic level retention period config property
+	RetentionPeriodConfig = "retention.ms"
+
 	// RetentionPeriod is the time after which messages will be deleted from the topic = 3 days
 	RetentionPeriod = 1000 * 60 * 60 * 24 * 3
+
+	// RetentionSizeConfig is the name of topic level retention by size config property
+	RetentionSizeConfig = "retention.bytes"
 
 	// RetentionSizePerPartition is the max no of bytes retained per topic partition = 10000MB
 	RetentionSizePerPartition = 10000 * 1000000
@@ -83,8 +89,8 @@ func (m *Model) IsPrimaryTopic() bool {
 func (m *Model) GetRetentionConfig() map[string]string {
 	if m.IsDeadLetterTopic() {
 		return map[string]string{
-			"retention.ms":    fmt.Sprint(RetentionPeriod),
-			"retention.bytes": fmt.Sprint(RetentionSizePerPartition * m.NumPartitions),
+			RetentionPeriodConfig: fmt.Sprint(RetentionPeriod),
+			RetentionSizeConfig:   fmt.Sprint(RetentionSizePerPartition * m.NumPartitions),
 		}
 	}
 	return nil

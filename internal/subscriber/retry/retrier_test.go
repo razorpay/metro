@@ -108,19 +108,16 @@ func Test_Interval_Calculator(t *testing.T) {
 func TestRetrier_Start(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
-	ctxWt, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
 	mockCache := mocks2.NewMockICache(ctrl)
-	mockCache.EXPECT().Get(gomock.AssignableToTypeOf(ctxWt), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
+	mockCache.EXPECT().Get(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 	dcs := getMockDelayConsumer(ctx, ctrl)
 	producer := getMockProducer(ctx, ctrl)
 	mockBrokerStore.EXPECT().GetConsumer(
-		ctxWt,
+		ctx,
 		gomock.Any(),
 	).Return(dcs, nil).AnyTimes()
-	mockBrokerStore.EXPECT().RemoveConsumer(ctxWt, gomock.Any()).AnyTimes()
+	mockBrokerStore.EXPECT().RemoveConsumer(ctx, gomock.Any()).AnyTimes()
 	mockBrokerStore.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
 
 	r := &Retrier{
@@ -136,7 +133,7 @@ func TestRetrier_Start(t *testing.T) {
 	}
 	expDelayTopics := r.subs.GetDelayTopics()
 	sort.Strings(expDelayTopics)
-	err := r.Start(ctxWt)
+	err := r.Start(ctx)
 	assert.Nil(t, err)
 	dcTopics := []string{}
 	r.delayConsumers.Range(func(key, value interface{}) bool {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/credentials"
 	mocks3 "github.com/razorpay/metro/internal/subscriber/retry/mocks"
@@ -44,13 +45,12 @@ func setupDC(t *testing.T) (
 	handler.EXPECT().Do(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(nil).AnyTimes()
 	consumer.EXPECT().CommitByPartitionAndOffset(gomock.Any(), gomock.Any()).Return(messagebroker.CommitOnTopicResponse{}, nil).AnyTimes()
 	consumer.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	consumer.EXPECT().Resume(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(nil).AnyTimes()
 	consumer.EXPECT().Pause(gomock.AssignableToTypeOf(subCtx), messagebroker.PauseOnTopicRequest{
 		Topic:     "t1",
 		Partition: 0,
 	}).Return(nil).AnyTimes()
-	consumer.EXPECT().Close(gomock.AssignableToTypeOf(subCtx)).Return(nil)
-	store.EXPECT().RemoveConsumer(ctx, gomock.Any()).Return(true)
+	consumer.EXPECT().Close(gomock.AssignableToTypeOf(subCtx)).Return(nil).AnyTimes()
+	store.EXPECT().RemoveConsumer(ctx, gomock.Any()).Return(true).AnyTimes()
 	store.EXPECT().GetConsumer(gomock.AssignableToTypeOf(subCtx), gomock.Any()).Return(consumer, nil)
 	return
 }
@@ -117,48 +117,77 @@ func TestDelayConsumer_Run(t *testing.T) {
 }
 
 func TestDelayConsumer_Run_Consume(t *testing.T) {
-	ctx, ctrl, subCtx, cancel, brokerStore, handler, consumer, cache := setupDC(t)
-	subs := getMockSubscriptionModel()
-	subscriberID := "subscriber-id"
-	errCh := make(chan error)
-	dc, err := NewDelayConsumer(subCtx, subscriberID, "t1", subs, brokerStore, handler, cache, errCh)
-	producer := getMockProducer(ctx, ctrl)
-	brokerStore.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
-
-	assert.NotNil(t, dc)
-	assert.Nil(t, err)
-	assert.NotNil(t, dc.LogFields())
-
-	messages := make([]messagebroker.ReceivedMessage, 0)
 	// message with delay within duration of test-case
-	msg1 := getDummyBrokerMessage("msg-1", "msg-id-1", time.Now().Add(time.Nanosecond*1000), 5)
+	msg1 := getDummyBrokerMessage("msg-1", uuid.New().String(), time.Now().Add(time.Nanosecond*1000), 5)
 	// message with delay outside duration of test-case
-	msg2 := getDummyBrokerMessage("msg-2", "msg-id-2", time.Now().Add(time.Second*2), 5)
-	messages = append(messages, msg1, msg2)
-	count := 0
+	msg2 := getDummyBrokerMessage("msg-2", uuid.New().String(), time.Now().Add(time.Second*2), 5)
 
-	consumer.EXPECT().ReceiveMessages(gomock.AssignableToTypeOf(subCtx), gomock.Any()).DoAndReturn(
-		func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
-			if count == 0 {
-				count++
-				return &messagebroker.GetMessagesFromTopicResponse{Messages: messages}, nil
-			} else {
-				return &messagebroker.GetMessagesFromTopicResponse{}, nil
-			}
-		}).AnyTimes()
-
-	go dc.Run(ctx)
-
-	select {
-	case err := <-errCh:
-		assert.Fail(t, err.Error())
-	case <-time.NewTicker(time.Millisecond * 500).C:
-		assert.Equal(t, len(dc.cachedMsgs), 1)
-		assert.True(t, reflect.DeepEqual(dc.cachedMsgs[0], msg2))
+	type Test struct {
+		name                 string
+		messages             *messagebroker.ReceivedMessage
+		expectedMessage      *messagebroker.ReceivedMessage
+		expectedMessageCount int
 	}
 
-	cancel()
-	<-dc.doneCh
+	tests := []Test{
+		{
+			name:                 "DelayConsumer with message delivery time within test duration",
+			messages:             &msg1,
+			expectedMessage:      nil,
+			expectedMessageCount: 0,
+		},
+		{
+			name:                 "DelayConsumer with message delivery time above test duration",
+			messages:             &msg2,
+			expectedMessage:      &msg2,
+			expectedMessageCount: 1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// since new context is needed to for each time so set up is called each time
+			ctx, ctrl, subCtx, cancel, brokerStore, handler, consumer, cache := setupDC(t)
+			subs := getMockSubscriptionModel()
+			subscriberID := "subscriber-id"
+			errCh := make(chan error)
+			dc, err := NewDelayConsumer(subCtx, subscriberID, "t1", subs, brokerStore, handler, cache, errCh)
+			assert.NotNil(t, dc)
+			assert.Nil(t, err)
+			assert.NotNil(t, dc.LogFields())
+
+			producer := getMockProducer(ctx, ctrl)
+			brokerStore.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
+
+			go dc.Run(ctx)
+
+			messages := make([]messagebroker.ReceivedMessage, 0)
+			messages = append(messages, *test.messages)
+			count := 0
+			consumer.EXPECT().ReceiveMessages(gomock.AssignableToTypeOf(subCtx), gomock.Any()).DoAndReturn(
+				func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
+					if count == 0 {
+						count++
+						return &messagebroker.GetMessagesFromTopicResponse{Messages: messages}, nil
+					} else {
+						return &messagebroker.GetMessagesFromTopicResponse{}, nil
+					}
+				}).AnyTimes()
+
+			select {
+			case err := <-errCh:
+				assert.Fail(t, err.Error())
+			case <-time.NewTicker(time.Millisecond * 500).C:
+				assert.Equal(t, len(dc.cachedMsgs), test.expectedMessageCount)
+				if len(dc.cachedMsgs) != 0 {
+					assert.True(t, reflect.DeepEqual(dc.cachedMsgs[0], msg2))
+				}
+			}
+
+			cancel()
+			<-dc.doneCh
+		})
+	}
 }
 
 func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
@@ -239,7 +268,7 @@ func getDummyBrokerMessage(data, messageId string, nextDeliveryTime time.Time, m
 
 func getMockProducer(ctx context.Context, ctrl *gomock.Controller) *mocks2.MockProducer {
 	producer := mocks2.NewMockProducer(ctrl)
-	producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(&messagebroker.SendMessageToTopicResponse{MessageID: "m1"}, nil).AnyTimes()
+	producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(&messagebroker.SendMessageToTopicResponse{MessageID: uuid.New().String()}, nil).AnyTimes()
 	return producer
 }
 
@@ -248,7 +277,7 @@ func getMockDLQProducer(ctx context.Context, ctrl *gomock.Controller, dlqTopicCh
 	producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(arg0 context.Context, arg1 messagebroker.SendMessageToTopicRequest) (*messagebroker.SendMessageToTopicResponse, error) {
 			dlqTopicChan <- getMockSendMessageToTopicRequest()
-			return &messagebroker.SendMessageToTopicResponse{MessageID: "m1"}, nil
+			return &messagebroker.SendMessageToTopicResponse{MessageID: uuid.New().String()}, nil
 		})
 	return producer
 }

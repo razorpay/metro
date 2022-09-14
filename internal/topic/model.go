@@ -35,7 +35,7 @@ const (
 	// RetentionSizeConfig is the name of topic level retention by size config property
 	RetentionSizeConfig = "retention.bytes"
 
-	// RetentionSizePerPartition is the max no of bytes retained per topic partition = 10000MB
+	// RetentionSizePerPartition is the max no of bytes retained per topic = 10000MB
 	RetentionSizePerPartition = 10000 * 1000000
 )
 
@@ -90,7 +90,7 @@ func (m *Model) GetRetentionConfig() map[string]string {
 	if m.IsDeadLetterTopic() {
 		return map[string]string{
 			RetentionPeriodConfig: fmt.Sprint(RetentionPeriod),
-			RetentionSizeConfig:   fmt.Sprint(RetentionSizePerPartition * m.NumPartitions),
+			RetentionSizeConfig:   fmt.Sprint(RetentionSizePerPartition),
 		}
 	}
 	return nil

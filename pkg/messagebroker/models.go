@@ -26,10 +26,23 @@ type DeleteTopicRequest struct {
 	NonPartitioned bool //  only required for pulsar and ignored for kafka
 }
 
-// ModifyTopicConfigRequest ...
-type ModifyTopicConfigRequest struct {
+// TopicConfig ...
+type TopicConfig struct {
 	Name   string
 	Config map[string]string
+}
+
+// ModifyTopicConfigRequest ...
+type ModifyTopicConfigRequest struct {
+	TopicConfigs []TopicConfig
+}
+
+func NewModifyConfigRequest(topicConfigsMap map[string]TopicConfig) ModifyTopicConfigRequest {
+	topicConfigs := make([]TopicConfig, 0, len(topicConfigsMap))
+	for _, tc := range topicConfigsMap {
+		topicConfigs = append(topicConfigs, tc)
+	}
+	return ModifyTopicConfigRequest{TopicConfigs: topicConfigs}
 }
 
 // SendMessageToTopicRequest ...

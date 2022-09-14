@@ -23,7 +23,6 @@ type publisherServer struct {
 	topicCore       topic.ICore
 	credentialsCore credentials.ICore
 	publisher       publisher.IPublisher
-	pubTask         tasks.PublisherTask
 }
 
 func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, topicCore topic.ICore, credentialsCore credentials.ICore, publisher publisher.IPublisher) *publisherServer {
@@ -37,7 +36,7 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 		"topic": req.Topic,
 	})
 	defer span.Finish()
-	if s.pubTask.CheckIfTopicExists(ctx, req.Topic) {
+	if tasks.CheckIfTopicExists(ctx, req.Topic) {
 		log.Printf("Topic exists inside the cache..")
 		// Do Nothing
 	} else {

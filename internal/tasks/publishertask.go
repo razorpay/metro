@@ -207,7 +207,7 @@ func (pu *PublisherTask) refreshNodeBindings(ctx context.Context) error {
 }
 
 // CheckIfTopicExists is to check if topic exists inside the cache
-func (pu *PublisherTask) CheckIfTopicExists(ctx context.Context, topic string) bool {
+func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
 	topicData := topicCacheData
 	log.Println("TopicData: ", topicData)

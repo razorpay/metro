@@ -12,7 +12,7 @@ import (
 	mocks6 "github.com/razorpay/metro/internal/credentials/mocks/core"
 	mocks5 "github.com/razorpay/metro/internal/project/mocks/core"
 	mocks3 "github.com/razorpay/metro/internal/publisher/mocks/publisher"
-	mocks7 "github.com/razorpay/metro/internal/tasks/mocks/core"
+	mocks7 "github.com/razorpay/metro/internal/tasks/mocks"
 	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/internal/topic/mocks/core"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"

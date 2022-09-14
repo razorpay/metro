@@ -83,6 +83,7 @@ func Init(_ context.Context, env string, componentName string) {
 // Run handles the component execution lifecycle
 func Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
+
 	// Shutdown monitoring
 	defer func() {
 		err := boot.Close()

@@ -263,6 +263,10 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 		ts.Config = request.Config
 	}
 
+	if request.Config != nil && len(request.Config) > 0 {
+		ts.Config = request.Config
+	}
+
 	topics = append(topics, ts)
 	topicsResp, err := k.Admin.CreateTopics(ctx, topics, kafkapkg.SetAdminOperationTimeout(59*time.Second))
 	if err != nil {

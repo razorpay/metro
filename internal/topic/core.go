@@ -253,7 +253,7 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
 		Name:          model.Name,
 		NumPartitions: model.NumPartitions,
-		Config:        getRetentionConfig(model),
+		Config:        model.GetRetentionConfig(),
 	})
 
 	return terr
@@ -274,7 +274,7 @@ func (c *Core) AlterTopicRetentionConfigs(ctx context.Context, m *Model) error {
 	// Create alter topic config request with Broker
 	return admin.AlterTopicConfigs(ctx, messagebroker.ModifyTopicConfigRequest{
 		Name:   m.Name,
-		Config: getRetentionConfig(m),
+		Config: m.GetRetentionConfig(),
 	})
 }
 

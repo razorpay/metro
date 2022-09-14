@@ -443,19 +443,6 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 					" TopicName: ",
 					dlqModel.Name)
 			}
-			_, topicConfigUpdateErr := admin.AlterTopicConfigs(ctx, messagebroker.ModifyTopicConfigRequest{
-				TopicConfigs: []messagebroker.TopicConfig{{
-					Name:   dlqModel.Name,
-					Config: dlqModel.GetRetentionConfig(),
-				}},
-			})
-			if topicConfigUpdateErr != nil {
-				logger.Ctx(ctx).Error(
-					"Error in altering retention policy for dlq topic: ",
-					topicConfigUpdateErr.Error(),
-					" TopicName: ",
-					dlqModel.Name)
-			}
 		}
 	}
 	return nil

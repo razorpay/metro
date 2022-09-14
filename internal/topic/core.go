@@ -296,7 +296,7 @@ func (c *Core) SetupTopicRetentionConfigs(ctx context.Context) ([]string, error)
 	// remove topics whose retention configs have not changed
 	for name, existingConfig := range existingConfigs {
 		if topicConfig, ok := topicConfigs[name]; ok {
-			if existingConfig[RetentionMsConfig] == topicConfig.Config[RetentionMsConfig] && existingConfig[RetentionBytesConfig] == topicConfig.Config[RetentionBytesConfig] {
+			if IsRetentionPolicyUnchanged(existingConfig, topicConfig.Config) {
 				delete(topicConfigs, name)
 			}
 		}

@@ -2,7 +2,6 @@ package topic
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -18,7 +17,7 @@ import (
 type ICore interface {
 	CreateTopic(ctx context.Context, model *Model) error
 	UpdateTopic(ctx context.Context, model *Model) error
-	AlterTopicRetentionConfigs(ctx context.Context, model *Model) error
+	SetupTopicRetentionConfigs(ctx context.Context, model *Model) error
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
@@ -260,7 +259,7 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 }
 
 // AlterTopicConfigs alters topic configs eg retention policy
-func (c *Core) AlterTopicRetentionConfigs(ctx context.Context, m *Model) error {
+func (c *Core) SetupTopicRetentionConfigs(ctx context.Context, m *Model) error {
 	// ALter the topic configs only for dead letter topic for now
 	if !m.IsDeadLetterTopic() {
 		return nil
@@ -299,13 +298,4 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 		out = append(out, obj.(*Model))
 	}
 	return out, nil
-}
-
-func getRetentionConfig(model *Model) map[string]string {
-	configs := make(map[string]string, 2)
-	if model.IsDeadLetterTopic() {
-		configs["retention.ms"] = fmt.Sprintf("%d", 1000*60*60*24*3)
-		configs["retention.bytes"] = fmt.Sprintf("%d", 10000*1000000)
-	}
-	return configs
 }

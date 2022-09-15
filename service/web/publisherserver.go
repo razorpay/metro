@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"log"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -23,7 +22,6 @@ type publisherServer struct {
 	topicCore       topic.ICore
 	credentialsCore credentials.ICore
 	publisher       publisher.IPublisher
-	pubTask         tasks.PublisherTask
 }
 
 func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrokerStore, topicCore topic.ICore, credentialsCore credentials.ICore, publisher publisher.IPublisher) *publisherServer {
@@ -37,9 +35,8 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 		"topic": req.Topic,
 	})
 	defer span.Finish()
-	if s.pubTask.CheckIfTopicExists(ctx, req.Topic) {
-		log.Printf("Topic exists inside the cache..")
-		// Do Nothing
+	if tasks.CheckIfTopicExists(ctx, req.Topic) {
+		logger.Ctx(ctx).Infow("Topic exists inside the cache..", "req", req.Topic)
 	} else {
 		return nil, merror.New(merror.NotFound, "Topic not found inside the cache..").ToGRPCError()
 	}

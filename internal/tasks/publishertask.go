@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"context"
-	"log
+	"log"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/razorpay/metro/internal/common"

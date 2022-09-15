@@ -2,7 +2,8 @@ package tasks
 
 import (
 	"context"
-	"golang.org/x/sync/errgroup"
+
+	"context"ang.org/x/sync/errgroup"
 	"log"
 
 	"github.com/razorpay/metro/internal/common"
@@ -48,7 +49,6 @@ func NewPublisherTask(
 
 // Run the task
 func (pu *PublisherTask) Run(ctx context.Context) error {
-	logger.Ctx(ctx).Infow("running publisher task", "workerID", pu.id)
 	var err error
 	var topicWatcher registry.IWatcher
 
@@ -61,7 +61,7 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 		},
 	}
 
-	logger.Ctx(ctx).Infof("setting watch on topics")
+	logger.Ctx(ctx).Infof("setting watch on topics..")
 	topicWatcher, err = pu.registry.Watch(ctx, &twh)
 	if err != nil {
 		return err
@@ -86,7 +86,6 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 				if val == nil {
 					continue
 				}
-				// terr := pu.refreshNodeBindings(gctx)
 				terr := pu.refreshCache(ctx)
 				if err != nil {
 				}
@@ -122,7 +121,6 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 }
 
 func (pu *PublisherTask) refreshCache(ctx context.Context) error {
-	log.Printf("Refreshing cache....")
 	topics, terr := pu.topicCore.List(ctx, topic.Prefix)
 	if terr != nil {
 		logger.Ctx(ctx).Errorw("error fetching topic list", "error", terr)
@@ -135,7 +133,6 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 	}
 	topicCacheData = topicData
 
-	log.Println("Topic Data cache: ", topicCacheData)
 	return nil
 }
 
@@ -143,9 +140,8 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
 	topicData := topicCacheData
-	log.Println("TopicData: ", topicData)
-	if val, ok := topicData[topic]; ok {
-		println("Topic Object with topic name: ", topic, "| Object: ", val)
+	if _, ok := topicData[topic]; ok {
+		// println("Topic Object with topic name: ", topic, "| Object: ", val)
 		return true
 	}
 	return false

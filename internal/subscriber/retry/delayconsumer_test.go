@@ -99,7 +99,7 @@ func TestDelayConsumer_Run(t *testing.T) {
 	assert.NotNil(t, dc.LogFields())
 
 	msgs := make([]messagebroker.ReceivedMessage, 0)
-	msgs = append(msgs, getDummyBrokerMessage("msg-1", "m1", time.Now().Add(-time.Second*100), 5))
+	msgs = append(msgs, getDummyBrokerMessage("msg-1", uuid.New().String(), time.Now().Add(-time.Second*100), 5))
 	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}
 	mockConsumer.EXPECT().ReceiveMessages(gomock.Any(), gomock.Any()).Return(resp, nil).AnyTimes()
 	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
@@ -180,7 +180,7 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 			case <-time.NewTicker(time.Millisecond * 500).C:
 				assert.Equal(t, len(dc.cachedMsgs), test.expectedMessageCount)
 				if len(dc.cachedMsgs) != 0 {
-					assert.True(t, reflect.DeepEqual(dc.cachedMsgs[0], msg2))
+					assert.True(t, reflect.DeepEqual(dc.cachedMsgs[0], *test.expectedMessage))
 				}
 			}
 
@@ -208,7 +208,7 @@ func TestDelayConsumer_Run_DeadLetter(t *testing.T) {
 	assert.NotNil(t, dc.LogFields())
 
 	messages := make([]messagebroker.ReceivedMessage, 0)
-	msg := getDummyBrokerMessage("msg-2", "msg-id-2", time.Now().Add(time.Second*2), 1)
+	msg := getDummyBrokerMessage("msg-2", uuid.New().String(), time.Now().Add(time.Second*2), 1)
 	messages = append(messages, msg)
 	count := 0
 

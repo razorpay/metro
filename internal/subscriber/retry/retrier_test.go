@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/pkg/cache/mocks"
@@ -143,7 +144,7 @@ func TestRetrier_Start(t *testing.T) {
 	})
 	sort.Strings(dcTopics)
 	assert.Equal(t, dcTopics, expDelayTopics)
-	err = r.Handle(ctx, getDummyBrokerMessage("msg-1", "m1", time.Now().Add(-time.Second*100), 1))
+	err = r.Handle(ctx, getDummyBrokerMessage("msg-1", uuid.New().String(), time.Now().Add(-time.Second*100), 1))
 	assert.Nil(t, err)
 	r.Stop(ctx)
 }
@@ -162,7 +163,7 @@ func getMockDelayConsumer(ctx context.Context, ctrl *gomock.Controller) *mocks3.
 	dcs.EXPECT().Close(gomock.Any()).Return(nil).AnyTimes()
 	dcs.EXPECT().Resume(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	msgs := make([]messagebroker.ReceivedMessage, 0)
-	msg := getDummyBrokerMessage("msg-1", "m1", time.Now().Add(-time.Second*100), 5)
+	msg := getDummyBrokerMessage("msg-1", uuid.New().String(), time.Now().Add(-time.Second*100), 5)
 	msg.NextDeliveryTime = time.Now().Add(time.Second * 3)
 	msgs = append(msgs, msg)
 	resp := &messagebroker.GetMessagesFromTopicResponse{Messages: msgs}

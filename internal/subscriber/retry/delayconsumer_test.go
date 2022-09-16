@@ -124,22 +124,22 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 
 	type Test struct {
 		name                 string
-		messages             *messagebroker.ReceivedMessage
-		expectedMessage      *messagebroker.ReceivedMessage
+		messages             []messagebroker.ReceivedMessage
+		expectedMessage      []messagebroker.ReceivedMessage
 		expectedMessageCount int
 	}
 
 	tests := []Test{
 		{
 			name:                 "DelayConsumer with message delivery time within test duration",
-			messages:             &msg1,
-			expectedMessage:      nil,
+			messages:             []messagebroker.ReceivedMessage{msg1},
+			expectedMessage:      []messagebroker.ReceivedMessage{},
 			expectedMessageCount: 0,
 		},
 		{
 			name:                 "DelayConsumer with message delivery time above test duration",
-			messages:             &msg2,
-			expectedMessage:      &msg2,
+			messages:             []messagebroker.ReceivedMessage{msg2},
+			expectedMessage:      []messagebroker.ReceivedMessage{msg2},
 			expectedMessageCount: 1,
 		},
 	}
@@ -162,7 +162,7 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 			go dc.Run(ctx)
 
 			messages := make([]messagebroker.ReceivedMessage, 0)
-			messages = append(messages, *test.messages)
+			messages = append(messages, test.messages...)
 			count := 0
 			consumer.EXPECT().ReceiveMessages(gomock.AssignableToTypeOf(subCtx), gomock.Any()).DoAndReturn(
 				func(arg0 context.Context, arg1 messagebroker.GetMessagesFromTopicRequest) (*messagebroker.GetMessagesFromTopicResponse, error) {
@@ -179,9 +179,7 @@ func TestDelayConsumer_Run_Consume(t *testing.T) {
 				assert.Fail(t, err.Error())
 			case <-time.NewTicker(time.Millisecond * 500).C:
 				assert.Equal(t, len(dc.cachedMsgs), test.expectedMessageCount)
-				if len(dc.cachedMsgs) != 0 {
-					assert.True(t, reflect.DeepEqual(dc.cachedMsgs[0], *test.expectedMessage))
-				}
+				assert.True(t, reflect.DeepEqual(dc.cachedMsgs, test.expectedMessage))
 			}
 
 			cancel()

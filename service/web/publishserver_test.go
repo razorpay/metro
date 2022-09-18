@@ -126,7 +126,7 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 	req := &metrov1.PublishRequest{
 		Topic: "projects/project123/topics/test-topic",
 		Messages: []*metrov1.PubsubMessage{
-			&metrov1.PubsubMessage{
+			{
 				Data: []byte("data"),
 			},
 		},
@@ -154,7 +154,7 @@ func TestPublishServer_PublishFailure(t *testing.T) {
 	req := &metrov1.PublishRequest{
 		Topic: "projects/project123/topics/test-topic",
 		Messages: []*metrov1.PubsubMessage{
-			&metrov1.PubsubMessage{
+			{
 				Data: []byte("data"),
 			},
 		},
@@ -199,12 +199,14 @@ func TestPublishServer_PublishFailure_OnWrongTopic(t *testing.T) {
 	req := &metrov1.PublishRequest{
 		Topic: "projects/project123/topics/non-existent-topic",
 		Messages: []*metrov1.PubsubMessage{
-			&metrov1.PubsubMessage{
+			{
 				Data: []byte("data"),
 			},
 		},
 	}
 
+	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(true, nil)
+	publisher.EXPECT().Publish(gomock.Any(), req).Times(1).Return([]string{}, fmt.Errorf("error"))
 	_, err := server.Publish(ctx, req)
 	assert.NotNil(t, err)
 }

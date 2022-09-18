@@ -2,13 +2,14 @@ package tasks
 
 import (
 	"context"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // PublisherTask implements the Watcher and maintains a pre-warmup.

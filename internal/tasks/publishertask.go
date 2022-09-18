@@ -51,7 +51,10 @@ func NewPublisherTask(
 func (pu *PublisherTask) Run(ctx context.Context) error {
 	var err error
 	var topicWatcher registry.IWatcher
-	pu.refreshCache(ctx)
+	err = pu.refreshCache(ctx)
+	if err != nil {
+		return err
+	}
 
 	twh := registry.WatchConfig{
 		WatchType: "keyprefix",

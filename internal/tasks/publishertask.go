@@ -55,12 +55,11 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 		WatchType: "keyprefix",
 		WatchPath: common.GetBasePrefix() + topic.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
-			logger.Ctx(ctx).Infow("topic watch handler data", "pairs", pairs)
+			logger.Ctx(ctx).Infow("PublisherTask: topic watch handler data", "pairs", pairs)
 			pu.topicWatchData <- &struct{}{}
 		},
 	}
 
-	logger.Ctx(ctx).Infof("setting watch on topics..")
 	topicWatcher, err = pu.registry.Watch(ctx, &twh)
 	if err != nil {
 		return err
@@ -86,12 +85,10 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 					continue
 				}
 				terr := pu.refreshCache(ctx)
-				if err != nil {
-				}
 				if terr != nil {
 					logger.Ctx(gctx).Errorw("PublisherTask: Failed to refresh cache for topic/subscription/nodes", "error", err.Error())
 				} else {
-					logger.Ctx(gctx).Infow("Topic Cache refreshed")
+					logger.Ctx(gctx).Infow("PublisherTask: Topic Cache refreshed")
 				}
 			}
 		}
@@ -105,7 +102,6 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 			topicWatcher.StopWatch()
 		}
 
-		logger.Ctx(gctx).Info("publisher group context done")
 		return gctx.Err()
 	})
 
@@ -113,16 +109,17 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 	err = leadgrp.Wait()
 
 	if err != nil && err != context.Canceled {
-		logger.Ctx(gctx).Errorf("Error in leader group go routines : %s", err.Error())
+		logger.Ctx(gctx).Errorw("PublisherTask: Error in leader group go routines : %s", err.Error())
 	}
 
 	return err
 }
 
+// refreshCache is to refresh Topic Data Cache
 func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 	topics, terr := pu.topicCore.List(ctx, topic.Prefix)
 	if terr != nil {
-		logger.Ctx(ctx).Errorw("error fetching topic list", "error", terr)
+		logger.Ctx(ctx).Errorw("PublisherTask: error fetching topic list", "error", terr)
 		return terr
 	}
 
@@ -140,7 +137,6 @@ func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
 	topicData := topicCacheData
 	if _, ok := topicData[topic]; ok {
-		// println("Topic Object with topic name: ", topic, "| Object: ", val)
 		return true
 	}
 	return false

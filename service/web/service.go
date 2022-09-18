@@ -59,7 +59,6 @@ func (svc *Service) GetErrorChannel() chan error {
 
 // Start the service
 func (svc *Service) Start(ctx context.Context) error {
-	id := uuid.New().String()
 	// Define server handlers
 	r, err := registry.NewRegistry(svc.registryConfig)
 	if err != nil {
@@ -108,7 +107,7 @@ func (svc *Service) Start(ctx context.Context) error {
 	// Init Publisher task, this run the watchers on Registry
 	// Leader Task runs this task internally if node is elected as leader
 	publisherTask, err := tasks.NewPublisherTask(
-		id,
+		uuid.New().String(),
 		r,
 		topicCore,
 		nodeBindingCore,

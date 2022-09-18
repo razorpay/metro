@@ -29,9 +29,8 @@ func TestNewPublisherTask(t *testing.T) {
 	topicCoreMock := mocks4.NewMockICore(ctrl)
 	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
 
-	workerID := uuid.New().String()
 	task := &PublisherTask{
-		id:              workerID,
+		id:              uuid.New().String(),
 		registry:        registryMock,
 		topicCore:       topicCoreMock,
 		nodeBindingCore: nodebindingCoreMock,
@@ -47,7 +46,7 @@ func TestNewPublisherTask(t *testing.T) {
 		{
 			name: "Creating new publisher task successfully",
 			args: args{
-				id:              workerID,
+				id:              uuid.New().String(),
 				registry:        registryMock,
 				topicCore:       topicCoreMock,
 				nodeBindingCore: nodebindingCoreMock,
@@ -68,7 +67,67 @@ func TestNewPublisherTask(t *testing.T) {
 	}
 }
 
-func TestPublisherTask_Run(t *testing.T) {
+// func TestPublisherTask_Run(t *testing.T) {
+// 	type fields struct {
+// 		id              string
+// 		registry        registry.IRegistry
+// 		topicCore       topic.ICore
+// 		nodeBindingCore nodebinding.ICore
+// 		topicWatchData  chan *struct{}
+// 	}
+// 	type args struct {
+// 		ctx context.Context
+// 	}
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
+// 	// defer cancel()
+
+// 	registryMock := mocks.NewMockIRegistry(ctrl)
+// 	topicCoreMock := mocks4.NewMockICore(ctrl)
+// 	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
+// 	watcherMock := mocks.NewMockIWatcher(ctrl)
+
+// 	tests := []struct {
+// 		name    string
+// 		fields  fields
+// 		args    args
+// 		wantErr bool
+// 	}{
+// 		{
+// 			name: "Run publisher task successfully",
+// 			fields: fields{
+// 				id:              uuid.New().String(),
+// 				registry:        registryMock,
+// 				topicCore:       topicCoreMock,
+// 				nodeBindingCore: nodebindingCoreMock,
+// 				topicWatchData:  make(chan *struct{}),
+// 			},
+// 			args: args{
+// 				ctx: ctx,
+// 			},
+// 			wantErr: false,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			pu := &PublisherTask{
+// 				id:              tt.fields.id,
+// 				registry:        tt.fields.registry,
+// 				topicCore:       tt.fields.topicCore,
+// 				nodeBindingCore: tt.fields.nodeBindingCore,
+// 				topicWatchData:  tt.fields.topicWatchData,
+// 			}
+// 			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
+// 			registryMock.EXPECT().Watch(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(watcherMock, nil)
+// 			if err := pu.Run(tt.args.ctx); (err != nil) != tt.wantErr {
+// 				t.Errorf("PublisherTask.Run() error = %v, wantErr %v", err, tt.wantErr)
+// 			}
+// 		})
+// 	}
+// }
+
+func TestPublisherTask_refreshCache(t *testing.T) {
 	type fields struct {
 		id              string
 		registry        registry.IRegistry
@@ -79,15 +138,14 @@ func TestPublisherTask_Run(t *testing.T) {
 	type args struct {
 		ctx context.Context
 	}
-	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	topicCoreMock := mocks4.NewMockICore(ctrl)
 	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
 
-	workerID := uuid.New().String()
 	tests := []struct {
 		name    string
 		fields  fields
@@ -95,9 +153,9 @@ func TestPublisherTask_Run(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Run publisher task successfully",
+			name: "Refresh cache successfully",
 			fields: fields{
-				id:              workerID,
+				id:              uuid.New().String(),
 				registry:        registryMock,
 				topicCore:       topicCoreMock,
 				nodeBindingCore: nodebindingCoreMock,
@@ -118,114 +176,43 @@ func TestPublisherTask_Run(t *testing.T) {
 				nodeBindingCore: tt.fields.nodeBindingCore,
 				topicWatchData:  tt.fields.topicWatchData,
 			}
-			if err := pu.Run(tt.args.ctx); (err != nil) != tt.wantErr {
-				t.Errorf("PublisherTask.Run() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestPublisherTask_refreshCache(t *testing.T) {
-	type fields struct {
-		id              string
-		registry        registry.IRegistry
-		topicCore       topic.ICore
-		nodeBindingCore nodebinding.ICore
-		topicWatchData  chan *struct{}
-	}
-	type args struct {
-		ctx context.Context
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pu := &PublisherTask{
-				id:              tt.fields.id,
-				registry:        tt.fields.registry,
-				topicCore:       tt.fields.topicCore,
-				nodeBindingCore: tt.fields.nodeBindingCore,
-				topicWatchData:  tt.fields.topicWatchData,
-			}
+			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
 			if err := pu.refreshCache(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("PublisherTask.refreshCache() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
+	cancel()
 }
 
-func TestPublisherTask_refreshNodeBindings(t *testing.T) {
-	type fields struct {
-		id              string
-		registry        registry.IRegistry
-		topicCore       topic.ICore
-		nodeBindingCore nodebinding.ICore
-		topicWatchData  chan *struct{}
-	}
-	type args struct {
-		ctx context.Context
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pu := &PublisherTask{
-				id:              tt.fields.id,
-				registry:        tt.fields.registry,
-				topicCore:       tt.fields.topicCore,
-				nodeBindingCore: tt.fields.nodeBindingCore,
-				topicWatchData:  tt.fields.topicWatchData,
-			}
-			if err := pu.refreshNodeBindings(tt.args.ctx); (err != nil) != tt.wantErr {
-				t.Errorf("PublisherTask.refreshNodeBindings() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestPublisherTask_CheckIfTopicExists(t *testing.T) {
-	type fields struct {
-		id              string
-		registry        registry.IRegistry
-		topicCore       topic.ICore
-		nodeBindingCore nodebinding.ICore
-		topicWatchData  chan *struct{}
-	}
+func TestCheckIfTopicExists(t *testing.T) {
 	type args struct {
 		ctx   context.Context
 		topic string
 	}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
+		name string
+		args args
+		want bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Topic doesn't exist",
+			args: args{
+				ctx:   ctx,
+				topic: "projects/test-project/topics/test-topic",
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pu := &PublisherTask{
-				id:              tt.fields.id,
-				registry:        tt.fields.registry,
-				topicCore:       tt.fields.topicCore,
-				nodeBindingCore: tt.fields.nodeBindingCore,
-				topicWatchData:  tt.fields.topicWatchData,
-			}
-			if got := pu.CheckIfTopicExists(tt.args.ctx, tt.args.topic); got != tt.want {
-				t.Errorf("PublisherTask.CheckIfTopicExists() = %v, want %v", got, tt.want)
+			if got := CheckIfTopicExists(tt.args.ctx, tt.args.topic); got != tt.want {
+				t.Errorf("CheckIfTopicExists() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -72,3 +72,14 @@ func (m *Model) IsRetryTopic() bool {
 func (m *Model) IsPrimaryTopic() bool {
 	return !m.IsDeadLetterTopic() && !m.IsDelayTopic() && !m.IsRetryTopic()
 }
+
+// GetDummyTopicModel to export dummy topic model
+func GetDummyTopicModel() *Model {
+	return &Model{
+		Name:               "projects/test-project/topics/test-topic",
+		Labels:             map[string]string{"label": "value"},
+		ExtractedProjectID: "test-project",
+		ExtractedTopicName: "test-topic",
+		NumPartitions:      DefaultNumPartitions,
+	}
+}

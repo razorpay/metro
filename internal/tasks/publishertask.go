@@ -22,6 +22,7 @@ type PublisherTask struct {
 }
 
 var topicCacheData map[string]bool = make(map[string]bool)
+var sem = make(chan int, 1)
 
 // NewPublisherTask creates PublisherTask instance
 func NewPublisherTask(
@@ -50,7 +51,10 @@ func NewPublisherTask(
 func (pu *PublisherTask) Run(ctx context.Context) error {
 	var err error
 	var topicWatcher registry.IWatcher
-	pu.refreshCache(ctx)
+	err = pu.refreshCache(ctx)
+	if err != nil {
+		return err
+	}
 
 	twh := registry.WatchConfig{
 		WatchType: "keyprefix",
@@ -128,7 +132,11 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 	for _, topic := range topics {
 		topicData[topic.Name] = true
 	}
-	topicCacheData = topicData
+	sem <- 1
+	go func() {
+		topicCacheData = topicData
+		<-sem
+	}()
 
 	return nil
 }

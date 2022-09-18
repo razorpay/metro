@@ -2,9 +2,7 @@ package tasks
 
 import (
 	"context"
-
-	"context"ang.org/x/sync/errgroup"
-	"log"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/nodebinding"

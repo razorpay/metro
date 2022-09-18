@@ -141,8 +141,3 @@ func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	}
 	return false
 }
-
-// SetCacheData is to set the Cache Map
-func SetCacheData(data map[string]bool) {
-	topicCacheData = data
-}

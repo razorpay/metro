@@ -21,25 +21,25 @@ func TestCore_Publish(t *testing.T) {
 	producer := mockMB.NewMockProducer(ctrl)
 	publisherCore := NewCore(mockBrokerStore)
 	req := getDummyPublishRequest()
-	msgId := xid.New().String()
+	msgID := xid.New().String()
 
 	tests := []struct {
 		req      *metrov1.PublishRequest
-		msgId    string
+		msgID    string
 		expected []string
 		wantErr  bool
 		err      error
 	}{
 		{
 			req:      req,
-			msgId:    msgId,
-			expected: []string{msgId},
+			msgID:    msgID,
+			expected: []string{msgID},
 			wantErr:  false,
 			err:      nil,
 		},
 		{
 			req:      req,
-			msgId:    "",
+			msgID:    "",
 			expected: nil,
 			wantErr:  true,
 			err:      fmt.Errorf("Something went wrong"),
@@ -50,7 +50,7 @@ func TestCore_Publish(t *testing.T) {
 		mockBrokerStore.EXPECT().GetProducer(gomock.Any(), messagebroker.ProducerClientOptions{Topic: test.req.Topic, TimeoutMs: 500}).Return(producer, nil).AnyTimes()
 		producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, req messagebroker.SendMessageToTopicRequest) (*messagebroker.SendMessageToTopicResponse, error) {
-				return &messagebroker.SendMessageToTopicResponse{MessageID: test.msgId}, test.err
+				return &messagebroker.SendMessageToTopicResponse{MessageID: test.msgID}, test.err
 			}).AnyTimes()
 		msgIds, err := publisherCore.Publish(ctx, test.req)
 		assert.Equal(t, test.wantErr, err != nil)

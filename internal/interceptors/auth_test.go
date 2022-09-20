@@ -4,6 +4,7 @@ package interceptors
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -12,6 +13,7 @@ import (
 	mocks1 "github.com/razorpay/metro/internal/credentials/mocks/core"
 	"github.com/razorpay/metro/pkg/encryption"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -189,4 +191,15 @@ func Test_AppAuth_WrongPassword(t *testing.T) {
 
 	ctx, err := AppAuth(newCtx, mockCore, project)
 	assert.Equal(t, unauthenticatedError, err)
+}
+
+func TestUnaryServerAuthInterceptor(t *testing.T) {
+	ctx := context.Background()
+	authFunc := UnaryServerAuthInterceptor(func(ctx context.Context) (context.Context, error) {
+		return nil, fmt.Errorf("Something went wrong")
+	})
+	assert.NotNil(t, authFunc)
+	resp, err := authFunc(ctx, nil, &grpc.UnaryServerInfo{}, nil)
+	assert.Error(t, err)
+	assert.Nil(t, resp)
 }

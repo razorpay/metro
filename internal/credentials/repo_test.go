@@ -38,7 +38,7 @@ func getDummyRegistryPairs(model common.IModel) []registry.Pair {
 	value, _ := json.Marshal(model)
 	return []registry.Pair{
 		{
-			Value:   []byte(value),
+			Value:   value,
 			Version: model.GetVersion(),
 		},
 	}

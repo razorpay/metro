@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	mocks "github.com/razorpay/metro/internal/brokerstore/mocks"
+	"github.com/razorpay/metro/internal/common"
 	mocks6 "github.com/razorpay/metro/internal/credentials/mocks/core"
 	mocks5 "github.com/razorpay/metro/internal/project/mocks/core"
 	mocks3 "github.com/razorpay/metro/internal/publisher/mocks/publisher"
@@ -19,6 +20,27 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
+
+// Model for a topic
+type Model struct {
+	common.BaseModel
+	Name               string            `json:"name"`
+	Labels             map[string]string `json:"labels"`
+	ExtractedProjectID string            `json:"extracted_project_id"`
+	ExtractedTopicName string            `json:"extracted_topic_name"`
+	NumPartitions      int               `json:"num_partitions"`
+}
+
+// GetDummyTopicModel to export dummy topic model
+func GetDummyTopicModel() *Model {
+	return &Model{
+		Name:               "projects/test-project/topics/test-topic",
+		Labels:             map[string]string{"label": "value"},
+		ExtractedProjectID: "test-project",
+		ExtractedTopicName: "test-topic",
+		NumPartitions:      1,
+	}
+}
 
 func TestPublishServer_CreateTopicSuccess(t *testing.T) {
 	ctx := context.Background()
@@ -125,7 +147,7 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
 	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
-	dTopic := topic.GetDummyTopicModel()
+	dTopic := GetDummyTopicModel()
 	mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{dTopic.Name, 1}).Return(messagebroker.CreateTopicResponse{}, nil)
 	mockAdmin.CreateTopic(ctx, messagebroker.CreateTopicRequest{dTopic.Name, 1})
 

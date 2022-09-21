@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/razorpay/metro/internal/common"
 	mocks "github.com/razorpay/metro/internal/project/mocks/repo"
 	"github.com/stretchr/testify/assert"
 )
@@ -228,5 +229,36 @@ func TestCore_DeleteProject(t *testing.T) {
 				t.Errorf("Core.DeleteProject() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestCore_ListKeys(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockRepo := mocks.NewMockIRepo(ctrl)
+	core := NewCore(mockRepo)
+	ctx := context.Background()
+
+	tests := []struct {
+		expected []string
+		wantErr  bool
+		err      error
+	}{
+		{
+			expected: []string{"project_1", "project_2"},
+			wantErr:  false,
+			err:      nil,
+		},
+		{
+			expected: nil,
+			wantErr:  true,
+			err:      fmt.Errorf("Something went wrong"),
+		},
+	}
+
+	for _, test := range tests {
+		mockRepo.EXPECT().ListKeys(gomock.Any(), common.GetBasePrefix()+Prefix).Return(test.expected, test.err)
+		got, err := core.ListKeys(ctx)
+		assert.Equal(t, test.wantErr, err != nil)
+		assert.Equal(t, test.expected, got)
 	}
 }

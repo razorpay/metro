@@ -105,7 +105,6 @@ func (svc *Service) Start(ctx context.Context) error {
 	publisherCore := publisher.NewCore(brokerStore)
 
 	// Init Publisher task, this run the watchers on Registry
-	// Leader Task runs this task internally if node is elected as leader
 	publisherTask, err := tasks.NewPublisherTask(
 		uuid.New().String(),
 		r,

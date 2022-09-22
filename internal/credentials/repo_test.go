@@ -23,9 +23,7 @@ func TestRepo_List(t *testing.T) {
 	mockRegistry.EXPECT().List(gomock.Any(), "prefix").Return(getDummyRegistryPairs(dummyModel), nil)
 	got, err := r.List(ctx, "prefix")
 	assert.NoError(t, err)
-	if !reflect.DeepEqual(got, []common.IModel{dummyModel}) {
-		t.Errorf("List got %v, want %v", got, []common.IModel{dummyModel})
-	}
+	assert.True(t, reflect.DeepEqual(got, []common.IModel{dummyModel}))
 }
 
 func getDummyModel() *Model {

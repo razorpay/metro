@@ -196,6 +196,7 @@ func Test_offsetSequenceManager_GetOrderedSequenceNum(t *testing.T) {
 	dummyMsg := getDummyReceivedMessage()
 
 	tests := []struct {
+		name           string
 		exists         bool
 		previousOffset int32
 		messageOffset  int32
@@ -203,6 +204,7 @@ func Test_offsetSequenceManager_GetOrderedSequenceNum(t *testing.T) {
 		expected       *sequencePair
 	}{
 		{
+			name:           "Get Ordered Sequence with no previous offset",
 			exists:         false,
 			previousOffset: -1,
 			messageOffset:  0,
@@ -210,6 +212,7 @@ func Test_offsetSequenceManager_GetOrderedSequenceNum(t *testing.T) {
 			expected:       &sequencePair{CurrentSequenceNum: 0, PrevSequenceNum: -1},
 		},
 		{
+			name:           "Get Ordered Sequence with previous offset",
 			exists:         true,
 			previousOffset: 0,
 			messageOffset:  1,
@@ -217,6 +220,7 @@ func Test_offsetSequenceManager_GetOrderedSequenceNum(t *testing.T) {
 			expected:       &sequencePair{CurrentSequenceNum: 1, PrevSequenceNum: 0},
 		},
 		{
+			name:           "Get Ordered Sequence with higher previous offset",
 			exists:         true,
 			previousOffset: 1,
 			messageOffset:  0,
@@ -226,18 +230,20 @@ func Test_offsetSequenceManager_GetOrderedSequenceNum(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		dummyMsg.Offset = test.messageOffset
-		dummyMsg.OrderingKey = test.orderingKey
-		mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Return(test.exists, nil).AnyTimes()
-		mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(arg context.Context, arg2 string, arg3 *offset.Model) interface{} {
-				arg3.LatestOffset = test.previousOffset
-				return nil
-			}).AnyTimes()
+		t.Run(test.name, func(t *testing.T) {
+			dummyMsg.Offset = test.messageOffset
+			dummyMsg.OrderingKey = test.orderingKey
+			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Return(test.exists, nil).AnyTimes()
+			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+				func(arg context.Context, arg2 string, arg3 *offset.Model) interface{} {
+					arg3.LatestOffset = test.previousOffset
+					return nil
+				}).AnyTimes()
 
-		got, err := offsetSeqManager.GetOrderedSequenceNum(ctx, getMockSubModel(), dummyMsg)
-		assert.NoError(t, err)
-		assert.Equal(t, test.expected, got)
+			got, err := offsetSeqManager.GetOrderedSequenceNum(ctx, getMockSubModel(), dummyMsg)
+			assert.NoError(t, err)
+			assert.Equal(t, test.expected, got)
+		})
 	}
 }
 

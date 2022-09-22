@@ -24,6 +24,7 @@ func TestCore_Publish(t *testing.T) {
 	msgID := xid.New().String()
 
 	tests := []struct {
+		name     string
 		req      *metrov1.PublishRequest
 		msgID    string
 		expected []string
@@ -31,6 +32,7 @@ func TestCore_Publish(t *testing.T) {
 		err      error
 	}{
 		{
+			name:     "Message publishing with no errors",
 			req:      req,
 			msgID:    msgID,
 			expected: []string{msgID},
@@ -38,6 +40,7 @@ func TestCore_Publish(t *testing.T) {
 			err:      nil,
 		},
 		{
+			name:     "Message publishing with errors",
 			req:      req,
 			msgID:    "",
 			expected: nil,
@@ -47,17 +50,19 @@ func TestCore_Publish(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		mockBrokerStore.EXPECT().GetProducer(
-			gomock.Any(),
-			messagebroker.ProducerClientOptions{Topic: test.req.Topic, TimeoutMs: 500},
-		).Return(producer, nil).AnyTimes()
-		producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, req messagebroker.SendMessageToTopicRequest) (*messagebroker.SendMessageToTopicResponse, error) {
-				return &messagebroker.SendMessageToTopicResponse{MessageID: test.msgID}, test.err
-			}).AnyTimes()
-		msgIds, err := publisherCore.Publish(ctx, test.req)
-		assert.Equal(t, test.wantErr, err != nil)
-		assert.Equal(t, test.expected, msgIds)
+		t.Run(test.name, func(t *testing.T) {
+			mockBrokerStore.EXPECT().GetProducer(
+				gomock.Any(),
+				messagebroker.ProducerClientOptions{Topic: test.req.Topic, TimeoutMs: 500},
+			).Return(producer, nil).AnyTimes()
+			producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).DoAndReturn(
+				func(ctx context.Context, req messagebroker.SendMessageToTopicRequest) (*messagebroker.SendMessageToTopicResponse, error) {
+					return &messagebroker.SendMessageToTopicResponse{MessageID: test.msgID}, test.err
+				}).AnyTimes()
+			msgIds, err := publisherCore.Publish(ctx, test.req)
+			assert.Equal(t, test.wantErr, err != nil)
+			assert.Equal(t, test.expected, msgIds)
+		})
 	}
 }
 

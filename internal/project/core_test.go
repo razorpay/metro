@@ -239,16 +239,19 @@ func TestCore_ListKeys(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
+		name     string
 		expected []string
 		wantErr  bool
 		err      error
 	}{
 		{
+			name:     "List projects with no errors",
 			expected: []string{"project_1", "project_2"},
 			wantErr:  false,
 			err:      nil,
 		},
 		{
+			name:     "List projects with errors",
 			expected: nil,
 			wantErr:  true,
 			err:      fmt.Errorf("Something went wrong"),
@@ -256,9 +259,11 @@ func TestCore_ListKeys(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		mockRepo.EXPECT().ListKeys(gomock.Any(), common.GetBasePrefix()+Prefix).Return(test.expected, test.err)
-		got, err := core.ListKeys(ctx)
-		assert.Equal(t, test.wantErr, err != nil)
-		assert.Equal(t, test.expected, got)
+		t.Run(test.name, func(t *testing.T) {
+			mockRepo.EXPECT().ListKeys(gomock.Any(), common.GetBasePrefix()+Prefix).Return(test.expected, test.err)
+			got, err := core.ListKeys(ctx)
+			assert.Equal(t, test.wantErr, err != nil)
+			assert.Equal(t, test.expected, got)
+		})
 	}
 }

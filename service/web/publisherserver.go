@@ -41,13 +41,11 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 	})
 	defer span.Finish()
 	var appConfig *registry.Config
-	env := app.GetEnv()
-	configreader.NewDefaultConfig().Load(env, &appConfig)
+	configreader.NewDefaultConfig().Load(app.GetEnv(), &appConfig)
 
 	r, _ := registry.NewRegistry(appConfig)
 	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(r))
 	topicCore := topic.NewCore(topic.NewRepo(r), s.projectCore, s.brokerStore)
-	// Init Publisher task, this run the watchers on Registry
 	publisherTask, _ := tasks.NewPublisherTask(
 		uuid.New().String(),
 		r,

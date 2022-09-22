@@ -115,9 +115,8 @@ func (svc *Service) Start(ctx context.Context) error {
 		return err
 	}
 	// Run the Publisher task
-	go func() error {
-		ferr := publisherTask.Run(ctx)
-		return ferr
+	go func() {
+		publisherTask.Run(ctx)
 	}()
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))

@@ -56,7 +56,10 @@ func TestCore_Publish(t *testing.T) {
 				messagebroker.ProducerClientOptions{Topic: test.req.Topic, TimeoutMs: 500},
 			).Return(producer, nil).AnyTimes()
 			producer.EXPECT().SendMessage(gomock.Any(), gomock.Any()).DoAndReturn(
-				func(ctx context.Context, req messagebroker.SendMessageToTopicRequest) (*messagebroker.SendMessageToTopicResponse, error) {
+				func(
+					ctx context.Context,
+					req messagebroker.SendMessageToTopicRequest,
+				) (*messagebroker.SendMessageToTopicResponse, error) {
 					return &messagebroker.SendMessageToTopicResponse{MessageID: test.msgID}, test.err
 				}).AnyTimes()
 			msgIds, err := publisherCore.Publish(ctx, test.req)

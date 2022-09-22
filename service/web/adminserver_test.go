@@ -256,24 +256,38 @@ func Test_adminServer_CreateProjectCredentials(t *testing.T) {
 	mockCredentialsCore := mocks4.NewMockICore(ctrl)
 	req := &metrov1.ProjectCredentials{ProjectId: "test-project"}
 
-	tests := []struct{ err error }{
-		{err: nil},
-		{err: fmt.Errorf("Something went wrong")},
+	tests := []struct {
+		name    string
+		wantErr bool
+		err     error
+	}{
+		{
+			name:    "Create Project credentials without error",
+			wantErr: false,
+			err:     nil,
+		},
+		{
+			name:    "Create Project credentials with error",
+			wantErr: true,
+			err:     fmt.Errorf("Something went wrong"),
+		},
 	}
 	for _, test := range tests {
-		mockCredentialsCore.EXPECT().Create(ctx, gomock.Any()).Times(1).Return(test.err)
-		adminServer := newAdminServer(
-			&credentials.Model{Username: "u", Password: "p"},
-			mocks.NewMockICore(ctrl),
-			mocks2.NewMockICore(ctrl),
-			mocks3.NewMockICore(ctrl),
-			mockCredentialsCore,
-			mocksnb.NewMockICore(ctrl),
-			nil,
-		)
-		got, err := adminServer.CreateProjectCredentials(ctx, req)
-		assert.Equal(t, test.err != nil, err != nil)
-		assert.Equal(t, test.err == nil, got != nil)
+		t.Run(test.name, func(t *testing.T) {
+			mockCredentialsCore.EXPECT().Create(ctx, gomock.Any()).Times(1).Return(test.err)
+			adminServer := newAdminServer(
+				&credentials.Model{Username: "u", Password: "p"},
+				mocks.NewMockICore(ctrl),
+				mocks2.NewMockICore(ctrl),
+				mocks3.NewMockICore(ctrl),
+				mockCredentialsCore,
+				mocksnb.NewMockICore(ctrl),
+				nil,
+			)
+			got, err := adminServer.CreateProjectCredentials(ctx, req)
+			assert.Equal(t, test.wantErr, err != nil)
+			assert.Equal(t, !test.wantErr, got != nil)
+		})
 	}
 }
 
@@ -289,24 +303,28 @@ func Test_adminServer_DeleteProjectCredentials(t *testing.T) {
 	}
 
 	tests := []struct {
+		name            string
 		credentialModel *credentials.Model
 		getErr          error
 		deleteErr       error
 		wantErr         bool
 	}{
 		{
+			name:            "Delete Project Credentials without error",
 			credentialModel: credentialModel,
 			getErr:          nil,
 			deleteErr:       nil,
 			wantErr:         false,
 		},
 		{
+			name:            "Delete Project Credentials which doesn't exist",
 			credentialModel: nil,
 			getErr:          fmt.Errorf("Something went wrong"),
 			deleteErr:       fmt.Errorf("Something went wrong"),
 			wantErr:         true,
 		},
 		{
+			name:            "Delete Project Credentials with error",
 			credentialModel: credentialModel,
 			getErr:          nil,
 			deleteErr:       fmt.Errorf("Something went wrong"),
@@ -315,19 +333,21 @@ func Test_adminServer_DeleteProjectCredentials(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		mockCredentialsCore.EXPECT().Get(ctx, req.ProjectId, req.Username).Return(test.credentialModel, test.getErr)
-		mockCredentialsCore.EXPECT().Delete(ctx, credentialModel).Return(test.deleteErr).MaxTimes(1)
-		adminServer := newAdminServer(
-			&credentials.Model{Username: "u", Password: "p"},
-			mocks.NewMockICore(ctrl),
-			mocks2.NewMockICore(ctrl),
-			mocks3.NewMockICore(ctrl),
-			mockCredentialsCore,
-			mocksnb.NewMockICore(ctrl),
-			nil,
-		)
-		_, err := adminServer.DeleteProjectCredentials(ctx, req)
-		assert.Equal(t, test.wantErr, err != nil)
+		t.Run(test.name, func(t *testing.T) {
+			mockCredentialsCore.EXPECT().Get(ctx, req.ProjectId, req.Username).Return(test.credentialModel, test.getErr)
+			mockCredentialsCore.EXPECT().Delete(ctx, credentialModel).Return(test.deleteErr).MaxTimes(1)
+			adminServer := newAdminServer(
+				&credentials.Model{Username: "u", Password: "p"},
+				mocks.NewMockICore(ctrl),
+				mocks2.NewMockICore(ctrl),
+				mocks3.NewMockICore(ctrl),
+				mockCredentialsCore,
+				mocksnb.NewMockICore(ctrl),
+				nil,
+			)
+			_, err := adminServer.DeleteProjectCredentials(ctx, req)
+			assert.Equal(t, test.wantErr, err != nil)
+		})
 	}
 }
 
@@ -361,29 +381,40 @@ func Test_adminServer_ModifyTopic(t *testing.T) {
 	brokerStoreMock.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(mockAdmin, nil).AnyTimes()
 
 	tests := []struct {
+		name    string
 		wantErr bool
 		err     error
 	}{
-		{wantErr: false, err: nil},
-		{wantErr: true, err: fmt.Errorf("Something went wrong")},
+		{
+			name:    "Modify topic without error",
+			wantErr: false,
+			err:     nil,
+		},
+		{
+			name:    "Modify topic with error",
+			wantErr: true,
+			err:     fmt.Errorf("Something went wrong"),
+		},
 	}
 
 	for _, test := range tests {
-		mockAdmin.EXPECT().AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
-			Name:          req.GetName(),
-			NumPartitions: int(req.GetNumPartitions()),
-		}).Return(&messagebroker.AddTopicPartitionResponse{}, test.err).Times(1)
-		adminServer := newAdminServer(
-			&credentials.Model{Username: "u", Password: "p"},
-			mocks.NewMockICore(ctrl),
-			mockSubscriptionCore,
-			mockTopicCore,
-			mockCredentialsCore,
-			mocksnb.NewMockICore(ctrl),
-			brokerStoreMock,
-		)
-		_, err := adminServer.ModifyTopic(ctx, req)
-		assert.Equal(t, test.wantErr, err != nil)
+		t.Run(test.name, func(t *testing.T) {
+			mockAdmin.EXPECT().AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
+				Name:          req.GetName(),
+				NumPartitions: int(req.GetNumPartitions()),
+			}).Return(&messagebroker.AddTopicPartitionResponse{}, test.err).Times(1)
+			adminServer := newAdminServer(
+				&credentials.Model{Username: "u", Password: "p"},
+				mocks.NewMockICore(ctrl),
+				mockSubscriptionCore,
+				mockTopicCore,
+				mockCredentialsCore,
+				mocksnb.NewMockICore(ctrl),
+				brokerStoreMock,
+			)
+			_, err := adminServer.ModifyTopic(ctx, req)
+			assert.Equal(t, test.wantErr, err != nil)
+		})
 	}
 }
 
@@ -393,24 +424,33 @@ func Test_adminServer_MigrateSubscriptions(t *testing.T) {
 	mocknodeBindingCore := mocksnb.NewMockICore(ctrl)
 
 	tests := []struct {
-		err error
+		name string
+		err  error
 	}{
-		{err: nil},
-		{err: fmt.Errorf("Something went wrong")},
+		{
+			name: "Migrate Subscriptions without error",
+			err:  nil,
+		},
+		{
+			name: "Migrate Subscriptions with error",
+			err:  fmt.Errorf("Something went wrong"),
+		},
 	}
 	for _, test := range tests {
-		mocknodeBindingCore.EXPECT().TriggerNodeBindingRefresh(ctx).Return(test.err)
-		adminServer := newAdminServer(
-			&credentials.Model{Username: "u", Password: "p"},
-			mocks.NewMockICore(ctrl),
-			mocks2.NewMockICore(ctrl),
-			mocks3.NewMockICore(ctrl),
-			mocks4.NewMockICore(ctrl),
-			mocknodeBindingCore,
-			nil,
-		)
-		_, err := adminServer.MigrateSubscriptions(ctx, &metrov1.Subscriptions{})
-		assert.Equal(t, test.err != nil, err != nil)
+		t.Run(test.name, func(t *testing.T) {
+			mocknodeBindingCore.EXPECT().TriggerNodeBindingRefresh(ctx).Return(test.err)
+			adminServer := newAdminServer(
+				&credentials.Model{Username: "u", Password: "p"},
+				mocks.NewMockICore(ctrl),
+				mocks2.NewMockICore(ctrl),
+				mocks3.NewMockICore(ctrl),
+				mocks4.NewMockICore(ctrl),
+				mocknodeBindingCore,
+				nil,
+			)
+			_, err := adminServer.MigrateSubscriptions(ctx, &metrov1.Subscriptions{})
+			assert.Equal(t, test.err != nil, err != nil)
+		})
 	}
 }
 

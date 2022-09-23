@@ -39,10 +39,13 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 		"topic": req.Topic,
 	})
 	defer span.Finish()
-	var appConfig *registry.Config
-	configreader.NewDefaultConfig().Load(app.GetEnv(), &appConfig)
+	var registryConfig *registry.Config
+	confErr := configreader.NewDefaultConfig().Load(app.GetEnv(), &registryConfig)
+	if confErr != nil {
+		logger.Ctx(ctx).Errorw("PublishServer: error in creating registry config ", "confErr", confErr.Error())
+	}
 
-	r, _ := registry.NewRegistry(appConfig)
+	r, _ := registry.NewRegistry(registryConfig)
 	topicCore := topic.NewCore(topic.NewRepo(r), s.projectCore, s.brokerStore)
 	publisherTask, _ := tasks.NewPublisherTask(
 		uuid.New().String(),

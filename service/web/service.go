@@ -115,7 +115,11 @@ func (svc *Service) Start(ctx context.Context) error {
 	}
 	// Run the Publisher task
 	go func() {
-		publisherTask.Run(ctx)
+		err := publisherTask.Run(ctx)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("Error while running publisher task ", "error", err.Error())
+		}
+
 	}()
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))

@@ -3,7 +3,9 @@ package web
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
+	"github.com/razorpay/metro/internal/app"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/merror"
@@ -11,7 +13,9 @@ import (
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/internal/topic"
+	configreader "github.com/razorpay/metro/pkg/config"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/registry"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -35,9 +39,23 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 		"topic": req.Topic,
 	})
 	defer span.Finish()
-	if tasks.CheckIfTopicExists(ctx, req.Topic) {
-		logger.Ctx(ctx).Infow("PublishServer: Topic exists inside the cache..", "req", req.Topic)
-	} else if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
+	var registryConfig *registry.Config
+	confErr := configreader.NewDefaultConfig().Load(app.GetEnv(), &registryConfig)
+	if confErr != nil {
+		logger.Ctx(ctx).Errorw("PublishServer: error in creating registry config ", "confErr", confErr.Error())
+	}
+
+	r, _ := registry.NewRegistry(registryConfig)
+	topicCore := topic.NewCore(topic.NewRepo(r), s.projectCore, s.brokerStore)
+	publisherTask, _ := tasks.NewPublisherTask(
+		uuid.New().String(),
+		r,
+		topicCore,
+	)
+	if !publisherTask.CheckIfTopicExists(ctx, req.Topic) {
+		logger.Ctx(ctx).Infow("PublishServer: Topic doesn't exist inside the cache..", "req", req.Topic)
+	}
+	if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
 		return nil, merror.ToGRPCError(err)
 	} else if !ok {
 		return nil, merror.New(merror.NotFound, "topic not found").ToGRPCError()

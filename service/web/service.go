@@ -105,20 +105,20 @@ func (svc *Service) Start(ctx context.Context) error {
 	publisherCore := publisher.NewCore(brokerStore)
 
 	// Init Publisher task, this run the watchers on Registry
-	// Leader Task runs this task internally if node is elected as leader
 	publisherTask, err := tasks.NewPublisherTask(
 		uuid.New().String(),
 		r,
 		topicCore,
-		nodeBindingCore,
 	)
 	if err != nil {
 		return err
 	}
 	// Run the Publisher task
-	go func() error {
-		ferr := publisherTask.Run(ctx)
-		return ferr
+	go func() {
+		runErr := publisherTask.Run(ctx)
+		if runErr != nil {
+			logger.Ctx(ctx).Errorw("Error while running publisher task ", "runErr", runErr.Error())
+		}
 	}()
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))

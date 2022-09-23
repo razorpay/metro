@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/razorpay/metro/internal/common"
-	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
@@ -14,30 +13,26 @@ import (
 
 // PublisherTask implements the Watcher and maintains a pre-warmup.
 type PublisherTask struct {
-	id              string
-	registry        registry.IRegistry
-	topicCore       topic.ICore
-	nodeBindingCore nodebinding.ICore
-	topicWatchData  chan *struct{}
+	id             string
+	registry       registry.IRegistry
+	topicCore      topic.ICore
+	topicWatchData chan *struct{}
+	topicCacheData map[string]bool
 }
-
-var topicCacheData map[string]bool = make(map[string]bool)
-var sem = make(chan int, 1)
 
 // NewPublisherTask creates PublisherTask instance
 func NewPublisherTask(
 	id string,
 	registry registry.IRegistry,
 	topicCore topic.ICore,
-	nodeBindingCore nodebinding.ICore,
 	options ...Option,
-) (ITask, error) {
+) (IPubTask, error) {
 	publisherTask := &PublisherTask{
-		id:              id,
-		registry:        registry,
-		topicCore:       topicCore,
-		nodeBindingCore: nodeBindingCore,
-		topicWatchData:  make(chan *struct{}),
+		id:             id,
+		registry:       registry,
+		topicCore:      topicCore,
+		topicWatchData: make(chan *struct{}),
+		topicCacheData: make(map[string]bool),
 	}
 
 	for _, option := range options {
@@ -132,19 +127,15 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 	for _, topic := range topics {
 		topicData[topic.Name] = true
 	}
-	sem <- 1
-	go func() {
-		topicCacheData = topicData
-		<-sem
-	}()
+	pu.topicCacheData = topicData
 
 	return nil
 }
 
 // CheckIfTopicExists is to check if topic exists inside the cache
-func CheckIfTopicExists(ctx context.Context, topic string) bool {
+func (pu *PublisherTask) CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
-	topicData := topicCacheData
+	topicData := pu.topicCacheData
 	if _, ok := topicData[topic]; ok {
 		return true
 	}

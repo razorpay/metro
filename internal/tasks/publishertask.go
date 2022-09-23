@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/razorpay/metro/internal/common"
-	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/registry"
@@ -14,12 +13,11 @@ import (
 
 // PublisherTask implements the Watcher and maintains a pre-warmup.
 type PublisherTask struct {
-	id              string
-	registry        registry.IRegistry
-	topicCore       topic.ICore
-	nodeBindingCore nodebinding.ICore
-	topicWatchData  chan *struct{}
-	topicCacheData  map[string]bool
+	id             string
+	registry       registry.IRegistry
+	topicCore      topic.ICore
+	topicWatchData chan *struct{}
+	topicCacheData map[string]bool
 }
 
 // NewPublisherTask creates PublisherTask instance
@@ -27,16 +25,14 @@ func NewPublisherTask(
 	id string,
 	registry registry.IRegistry,
 	topicCore topic.ICore,
-	nodeBindingCore nodebinding.ICore,
 	options ...Option,
 ) (IPubTask, error) {
 	publisherTask := &PublisherTask{
-		id:              id,
-		registry:        registry,
-		topicCore:       topicCore,
-		nodeBindingCore: nodeBindingCore,
-		topicWatchData:  make(chan *struct{}),
-		topicCacheData:  make(map[string]bool),
+		id:             id,
+		registry:       registry,
+		topicCore:      topicCore,
+		topicWatchData: make(chan *struct{}),
+		topicCacheData: make(map[string]bool),
 	}
 
 	for _, option := range options {
@@ -131,9 +127,7 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 	for _, topic := range topics {
 		topicData[topic.Name] = true
 	}
-	go func() {
-		pu.topicCacheData = topicData
-	}()
+	pu.topicCacheData = topicData
 
 	return nil
 }

@@ -109,7 +109,6 @@ func (svc *Service) Start(ctx context.Context) error {
 		uuid.New().String(),
 		r,
 		topicCore,
-		nodeBindingCore,
 	)
 	if err != nil {
 		return err

@@ -9,7 +9,6 @@ import (
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/credentials"
 	"github.com/razorpay/metro/internal/merror"
-	"github.com/razorpay/metro/internal/nodebinding"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/tasks"
@@ -44,17 +43,16 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 	configreader.NewDefaultConfig().Load(app.GetEnv(), &appConfig)
 
 	r, _ := registry.NewRegistry(appConfig)
-	nodeBindingCore := nodebinding.NewCore(nodebinding.NewRepo(r))
 	topicCore := topic.NewCore(topic.NewRepo(r), s.projectCore, s.brokerStore)
 	publisherTask, _ := tasks.NewPublisherTask(
 		uuid.New().String(),
 		r,
 		topicCore,
-		nodeBindingCore,
 	)
-	if publisherTask.CheckIfTopicExists(ctx, req.Topic) {
-		logger.Ctx(ctx).Infow("PublishServer: Topic exists inside the cache..", "req", req.Topic)
-	} else if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
+	if !publisherTask.CheckIfTopicExists(ctx, req.Topic) {
+		logger.Ctx(ctx).Infow("PublishServer: Topic doesn't exist inside the cache..", "req", req.Topic)
+	}
+	if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
 		return nil, merror.ToGRPCError(err)
 	} else if !ok {
 		return nil, merror.New(merror.NotFound, "topic not found").ToGRPCError()

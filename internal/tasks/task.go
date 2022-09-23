@@ -12,6 +12,7 @@ type ITask interface {
 type IPubTask interface {
 	// Run the worker with the given context
 	Run(ctx context.Context) error
+	// CheckIfTopicExists in the Topic Cache Data
 	CheckIfTopicExists(ctx context.Context, topic string) bool
 }
 

@@ -298,6 +298,8 @@ func TestCore_DeleteTopic(t *testing.T) {
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
 				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(true, nil)
 				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil)
+				mockBrokerStore.EXPECT().IsTopicCleanUpEnabled(gomock.Any()).Return(true)
+				mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(getMockAdmin(ctx, ctrl, tt.args.m), nil)
 			}
 			if err := c.DeleteTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteTopic() error = %v, wantErr %v", err, tt.wantErr)
@@ -627,4 +629,11 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 			assert.Equal(t, test.expected, got)
 		})
 	}
+}
+
+func getMockAdmin(ctx context.Context, ctrl *gomock.Controller, m *Model) *messagebrokermock.MockAdmin {
+	mockAdmin := messagebrokermock.NewMockAdmin(ctrl)
+	mockAdmin.EXPECT().DeleteTopic(gomock.Any(), messagebroker.DeleteTopicRequest{Name: m.Name}).
+		Return(messagebroker.DeleteTopicResponse{}, nil)
+	return mockAdmin
 }

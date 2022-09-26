@@ -95,3 +95,8 @@ func (m *Model) GetRetentionConfig() map[string]string {
 	}
 	return nil
 }
+
+// IsSubscriptionInternalTopic checks if the topic is subscription's internal topic or not
+func (m *Model) IsSubscriptionInternalTopic() bool {
+	return strings.HasSuffix(m.ExtractedTopicName, SubscriptionSuffix)
+}

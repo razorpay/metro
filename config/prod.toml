@@ -23,6 +23,8 @@
             brokers       = ["localhost:9092"]
             enableTLS     = true
             certDir       = "/app/configs/"
+            [web.broker.brokerconfig.admin]
+                enableTopicCleanUp = false
     [web.interfaces]
         [web.interfaces.api]
             GrpcServerAddress               = "0.0.0.0:8081"

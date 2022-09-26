@@ -463,11 +463,16 @@ func TestSubscriberServer_DeleteSubscription(t *testing.T) {
 	req := &metrov1.DeleteSubscriptionRequest{
 		Subscription: "projects/project123/subscriptions/testsub",
 	}
+	subModel := &subscription.Model{
+		Name:                           req.Subscription,
+		Topic:                          "projects/project123/topics/test-topic",
+		ExtractedTopicProjectID:        "project123",
+		ExtractedSubscriptionProjectID: "project123",
+		ExtractedSubscriptionName:      "testsub",
+	}
 
-	m, err := subscription.GetValidatedModelForDelete(ctx, &metrov1.Subscription{Name: req.Subscription})
-	assert.Nil(t, err)
-
-	subscriptionCore.EXPECT().DeleteSubscription(gomock.Any(), m).Times(1).Return(nil)
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription).Return(subModel, nil)
+	subscriptionCore.EXPECT().DeleteSubscription(gomock.Any(), subModel).Times(1).Return(nil)
 	res, err := server.DeleteSubscription(ctx, req)
 	assert.Nil(t, err)
 	assert.Equal(t, &emptypb.Empty{}, res)
@@ -487,11 +492,15 @@ func TestSubscriberServer_DeleteSubscriptionFailure(t *testing.T) {
 	req := &metrov1.DeleteSubscriptionRequest{
 		Subscription: "projects/project123/subscriptions/testsub",
 	}
-
-	m, err := subscription.GetValidatedModelForDelete(ctx, &metrov1.Subscription{Name: req.Subscription})
-	assert.Nil(t, err)
-
-	subscriptionCore.EXPECT().DeleteSubscription(gomock.Any(), m).Times(1).Return(fmt.Errorf("error"))
+	subModel := &subscription.Model{
+		Name:                           req.Subscription,
+		Topic:                          "projects/project123/topics/test-topic",
+		ExtractedTopicProjectID:        "project123",
+		ExtractedSubscriptionProjectID: "project123",
+		ExtractedSubscriptionName:      "testsub",
+	}
+	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription).Return(subModel, nil)
+	subscriptionCore.EXPECT().DeleteSubscription(gomock.Any(), subModel).Times(1).Return(fmt.Errorf("error"))
 	res, err := server.DeleteSubscription(ctx, req)
 	assert.Nil(t, res)
 	assert.NotNil(t, err)

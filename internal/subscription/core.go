@@ -5,8 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
@@ -14,6 +13,7 @@ import (
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 // ICore is an interface over subscription core
@@ -213,6 +213,10 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 			return err
 		}
 		return merror.Newf(merror.NotFound, "Subscription does not exist")
+	}
+	// cleaning up internal/retry/delay/dlq topics of subscription from broker and consul
+	if err := c.deleteSubscriptionTopics(ctx, m); err != nil {
+		return err
 	}
 	return c.repo.Delete(ctx, m)
 }
@@ -496,4 +500,56 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 	logger.Ctx(ctx).Infow("migration: request completed.", "subscriptionsUpdated", updatedSubCount)
 	return nil
+}
+
+func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
+	if m == nil || m.GetTopic() == "" {
+		return errors.New("Nil model")
+	}
+
+	projectID := m.ExtractedTopicProjectID
+
+	//  delete internal topic
+	internalTopic := m.GetSubscriptionTopic()
+	err := c.deleteSubscriptionTopic(ctx, internalTopic, projectID, topic.GetTopicNameOnly(internalTopic))
+	if err != nil {
+		return err
+	}
+
+	// delete retry topic
+	retryTopic := m.GetRetryTopic()
+	err = c.deleteSubscriptionTopic(ctx, retryTopic, projectID, topic.GetTopicNameOnly(retryTopic))
+	if err != nil {
+		return err
+	}
+
+	// delete delay topics
+	for _, delayTopic := range m.GetDelayTopics() {
+		delayModel := &topic.Model{
+			Name:               delayTopic,
+			ExtractedProjectID: projectID,
+			ExtractedTopicName: topic.GetTopicNameOnly(delayTopic),
+		}
+		err = c.topicCore.DeleteSubscriptionTopic(ctx, delayModel)
+		if err != nil {
+			return err
+		}
+	}
+
+	// delete dlq topics
+	dlqTopic := m.GetDeadLetterTopic()
+	err = c.deleteSubscriptionTopic(ctx, dlqTopic, projectID, topic.GetTopicNameOnly(dlqTopic))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Core) deleteSubscriptionTopic(ctx context.Context, name, projectID, extractedTopicName string) error {
+	return c.topicCore.DeleteSubscriptionTopic(ctx, &topic.Model{
+		Name:               name,
+		ExtractedProjectID: projectID,
+		ExtractedTopicName: extractedTopicName,
+	})
 }

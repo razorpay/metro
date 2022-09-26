@@ -21,6 +21,7 @@ type ICore interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
+	DeleteSubscriptionTopic(ctx context.Context, m *Model) error
 	DeleteProjectTopics(ctx context.Context, projectID string) error
 	Get(ctx context.Context, key string) (*Model, error)
 	CreateSubscriptionTopic(ctx context.Context, model *Model) error
@@ -186,6 +187,47 @@ func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
 		}
 		return merror.New(merror.NotFound, "Topic not found")
 	}
+	// cleanup topics from broker
+	if err := c.DeleteBrokerTopic(ctx, m); err != nil {
+		return err
+	}
+	return c.repo.Delete(ctx, m)
+}
+
+// DeleteSubscriptionTopic deletes a subscription's topic and all resources associated with it
+func (c *Core) DeleteSubscriptionTopic(ctx context.Context, m *Model) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "TopicCore.DeleteSubscriptionTopic")
+	defer span.Finish()
+
+	topicOperationCount.WithLabelValues(env, "DeleteSubscriptionTopic").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		topicOperationTimeTaken.WithLabelValues(env, "DeleteSubscriptionTopic").Observe(time.Now().Sub(startTime).Seconds())
+	}()
+
+	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedProjectID); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.Newf(merror.NotFound, "Project not found")
+	}
+	// clean-up topic from broker
+	if err := c.DeleteBrokerTopic(ctx, m); err != nil {
+		return err
+	}
+	// since internal and retry topic are not being stored in registry no need to clean-up
+	if m.IsRetryTopic() || m.IsSubscriptionInternalTopic() {
+		return nil
+	}
+	// clean-up topic form registry
+	if ok, err := c.Exists(ctx, m.Key()); !ok {
+		if err != nil {
+			return err
+		}
+		return merror.New(merror.NotFound, "Topic not found")
+	}
+
 	return c.repo.Delete(ctx, m)
 }
 
@@ -349,4 +391,20 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 		out = append(out, obj.(*Model))
 	}
 	return out, nil
+}
+
+// DeleteBrokerTopic deletes the topic from the message broker
+func (c *Core) DeleteBrokerTopic(ctx context.Context, model *Model) error {
+	// only delete the topic if topic clean-up config is enabled
+	if !c.brokerStore.IsTopicCleanUpEnabled(ctx) {
+		logger.Ctx(ctx).Infow("brokerstore topic cleanup not enabled")
+		return nil
+	}
+	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return aerr
+	}
+	// deletes topic from Broker
+	_, terr := admin.DeleteTopic(ctx, messagebroker.DeleteTopicRequest{Name: model.Name})
+	return terr
 }

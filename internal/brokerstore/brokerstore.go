@@ -79,6 +79,9 @@ type IBrokerStore interface {
 
 	// FlushAllProducers will iterate over the producer map, and flush all messages in the producer buffer
 	FlushAllProducers(ctx context.Context)
+
+	// IsTopicCleanUpEnabled returns true if topicCleanUp is enabled in the env
+	IsTopicCleanUpEnabled(ctx context.Context) bool
 }
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
@@ -324,4 +327,10 @@ func (b *BrokerStore) FlushAllProducers(ctx context.Context) {
 		return true
 	})
 	wg.Wait()
+}
+
+// IsTopicCleanUpEnabled checks if topic clean-up config is enabled or not
+func (b *BrokerStore) IsTopicCleanUpEnabled(ctx context.Context) bool {
+	logger.Ctx(ctx).Infof("EnableTopicCleanUp value: %v", b.bConfig.Admin.EnableTopicCleanUp)
+	return b.bConfig.Admin.EnableTopicCleanUp
 }

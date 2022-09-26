@@ -17,8 +17,11 @@ type PublisherTask struct {
 	registry       registry.IRegistry
 	topicCore      topic.ICore
 	topicWatchData chan *struct{}
-	topicCacheData map[string]bool
 }
+
+// topicCacheData is declared Global to keep it instance agnostic
+// NOTE: Only read queries to be written from Public methods on topicCacheData
+var topicCacheData map[string]bool = make(map[string]bool)
 
 // NewPublisherTask creates PublisherTask instance
 func NewPublisherTask(
@@ -26,13 +29,12 @@ func NewPublisherTask(
 	registry registry.IRegistry,
 	topicCore topic.ICore,
 	options ...Option,
-) (IPubTask, error) {
+) (ITask, error) {
 	publisherTask := &PublisherTask{
 		id:             id,
 		registry:       registry,
 		topicCore:      topicCore,
 		topicWatchData: make(chan *struct{}),
-		topicCacheData: make(map[string]bool),
 	}
 
 	for _, option := range options {
@@ -127,16 +129,15 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 	for _, topic := range topics {
 		topicData[topic.Name] = true
 	}
-	pu.topicCacheData = topicData
+	topicCacheData = topicData
 
 	return nil
 }
 
 // CheckIfTopicExists is to check if topic exists inside the cache
-func (pu *PublisherTask) CheckIfTopicExists(ctx context.Context, topic string) bool {
+func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
-	topicData := pu.topicCacheData
-	if _, ok := topicData[topic]; ok {
+	if _, ok := topicCacheData[topic]; ok {
 		return true
 	}
 	return false

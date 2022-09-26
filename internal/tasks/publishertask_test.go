@@ -6,35 +6,32 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	"github.com/razorpay/metro/internal/nodebinding"
-	mocks5 "github.com/razorpay/metro/internal/nodebinding/mocks/core"
+	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	mocks4 "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/registry/mocks"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewPublisherTask(t *testing.T) {
 	type args struct {
-		id              string
-		registry        registry.IRegistry
-		topicCore       topic.ICore
-		nodeBindingCore nodebinding.ICore
-		options         []Option
+		id        string
+		registry  registry.IRegistry
+		topicCore topic.ICore
+		options   []Option
 	}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	topicCoreMock := mocks4.NewMockICore(ctrl)
-	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
 
 	task := &PublisherTask{
-		id:              uuid.New().String(),
-		registry:        registryMock,
-		topicCore:       topicCoreMock,
-		nodeBindingCore: nodebindingCoreMock,
-		topicWatchData:  make(chan *struct{}),
+		id:             uuid.New().String(),
+		registry:       registryMock,
+		topicCore:      topicCoreMock,
+		topicWatchData: make(chan *struct{}),
 	}
 
 	tests := []struct {
@@ -46,11 +43,10 @@ func TestNewPublisherTask(t *testing.T) {
 		{
 			name: "Creating new publisher task successfully",
 			args: args{
-				id:              uuid.New().String(),
-				registry:        registryMock,
-				topicCore:       topicCoreMock,
-				nodeBindingCore: nodebindingCoreMock,
-				options:         []Option{},
+				id:        uuid.New().String(),
+				registry:  registryMock,
+				topicCore: topicCoreMock,
+				options:   []Option{},
 			},
 			want:    task,
 			wantErr: false,
@@ -58,7 +54,7 @@ func TestNewPublisherTask(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewPublisherTask(tt.args.id, tt.args.registry, tt.args.topicCore, tt.args.nodeBindingCore, tt.args.options...)
+			_, err := NewPublisherTask(tt.args.id, tt.args.registry, tt.args.topicCore, tt.args.options...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewPublisherTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -67,73 +63,87 @@ func TestNewPublisherTask(t *testing.T) {
 	}
 }
 
-// func TestPublisherTask_Run(t *testing.T) {
-// 	type fields struct {
-// 		id              string
-// 		registry        registry.IRegistry
-// 		topicCore       topic.ICore
-// 		nodeBindingCore nodebinding.ICore
-// 		topicWatchData  chan *struct{}
-// 	}
-// 	type args struct {
-// 		ctx context.Context
-// 	}
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
-// 	// defer cancel()
+func TestPublisherTask_Run(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	defer cancel()
 
-// 	registryMock := mocks.NewMockIRegistry(ctrl)
-// 	topicCoreMock := mocks4.NewMockICore(ctrl)
-// 	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
-// 	watcherMock := mocks.NewMockIWatcher(ctrl)
+	registryMock := mocks.NewMockIRegistry(ctrl)
+	topicCoreMock := mocks4.NewMockICore(ctrl)
+	watcherMock := mocks.NewMockIWatcher(ctrl)
 
-// 	tests := []struct {
-// 		name    string
-// 		fields  fields
-// 		args    args
-// 		wantErr bool
-// 	}{
-// 		{
-// 			name: "Run publisher task successfully",
-// 			fields: fields{
-// 				id:              uuid.New().String(),
-// 				registry:        registryMock,
-// 				topicCore:       topicCoreMock,
-// 				nodeBindingCore: nodebindingCoreMock,
-// 				topicWatchData:  make(chan *struct{}),
-// 			},
-// 			args: args{
-// 				ctx: ctx,
-// 			},
-// 			wantErr: false,
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			pu := &PublisherTask{
-// 				id:              tt.fields.id,
-// 				registry:        tt.fields.registry,
-// 				topicCore:       tt.fields.topicCore,
-// 				nodeBindingCore: tt.fields.nodeBindingCore,
-// 				topicWatchData:  tt.fields.topicWatchData,
-// 			}
-// 			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
-// 			registryMock.EXPECT().Watch(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(watcherMock, nil)
-// 			if err := pu.Run(tt.args.ctx); (err != nil) != tt.wantErr {
-// 				t.Errorf("PublisherTask.Run() error = %v, wantErr %v", err, tt.wantErr)
-// 			}
-// 		})
-// 	}
-// }
+	workerID := uuid.New().String()
+	task, err := NewPublisherTask(
+		workerID,
+		registryMock,
+		topicCoreMock)
+	assert.Nil(t, err)
+
+	doneCh := make(chan struct{})
+
+	// mock registry
+	registryMock.EXPECT().Watch(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(watcherMock, nil).AnyTimes()
+
+	// mock watcher
+	watcherMock.EXPECT().StartWatch().Do(func() {
+		<-ctx.Done()
+	}).Return(nil)
+	watcherMock.EXPECT().StopWatch()
+
+	// mock subscription Core
+	sub := subscription.Model{
+		Name:                           "projects/test-project/subscriptions/test",
+		Topic:                          "projects/test-project/topics/test",
+		ExtractedTopicProjectID:        "test-project",
+		ExtractedSubscriptionName:      "test",
+		ExtractedSubscriptionProjectID: "test-project",
+		ExtractedTopicName:             "test",
+		DeadLetterPolicy: &subscription.DeadLetterPolicy{
+			DeadLetterTopic:     "projects/test-project/topics/test-dlq",
+			MaxDeliveryAttempts: 5,
+		},
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "http://test.test",
+		},
+	}
+	sub.SetVersion("1")
+
+	dummyTopicModels := []*topic.Model{
+		{
+			Name:               "projects/test-project/topics/test",
+			NumPartitions:      2,
+			ExtractedTopicName: "test",
+			ExtractedProjectID: "test-project",
+			Labels:             map[string]string{},
+		},
+	}
+	// mock Topic Get
+	topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(
+		dummyTopicModels, nil).AnyTimes()
+
+	go func() {
+		err = task.Run(ctx)
+		assert.Equal(t, err, context.Canceled)
+		close(doneCh)
+	}()
+
+	// test signals on channels
+	task.(*PublisherTask).topicWatchData <- &struct{}{}
+
+	// test nils
+	task.(*PublisherTask).topicWatchData <- nil
+
+	cancel()
+	<-doneCh
+}
 
 func TestPublisherTask_refreshCache(t *testing.T) {
 	type fields struct {
-		id              string
-		registry        registry.IRegistry
-		topicCore       topic.ICore
-		nodeBindingCore nodebinding.ICore
-		topicWatchData  chan *struct{}
+		id             string
+		registry       registry.IRegistry
+		topicCore      topic.ICore
+		topicWatchData chan *struct{}
 	}
 	type args struct {
 		ctx context.Context
@@ -144,7 +154,6 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	topicCoreMock := mocks4.NewMockICore(ctrl)
-	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
 
 	tests := []struct {
 		name    string
@@ -155,11 +164,10 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 		{
 			name: "Refresh cache successfully",
 			fields: fields{
-				id:              uuid.New().String(),
-				registry:        registryMock,
-				topicCore:       topicCoreMock,
-				nodeBindingCore: nodebindingCoreMock,
-				topicWatchData:  make(chan *struct{}),
+				id:             uuid.New().String(),
+				registry:       registryMock,
+				topicCore:      topicCoreMock,
+				topicWatchData: make(chan *struct{}),
 			},
 			args: args{
 				ctx: ctx,
@@ -170,11 +178,10 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pu := &PublisherTask{
-				id:              tt.fields.id,
-				registry:        tt.fields.registry,
-				topicCore:       tt.fields.topicCore,
-				nodeBindingCore: tt.fields.nodeBindingCore,
-				topicWatchData:  tt.fields.topicWatchData,
+				id:             tt.fields.id,
+				registry:       tt.fields.registry,
+				topicCore:      tt.fields.topicCore,
+				topicWatchData: tt.fields.topicWatchData,
 			}
 			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
 			if err := pu.refreshCache(tt.args.ctx); (err != nil) != tt.wantErr {

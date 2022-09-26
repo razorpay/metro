@@ -45,3 +45,10 @@ func TestModel_HiddenPassword_Failure(t *testing.T) {
 	assert.Empty(t, hiddenPwd)
 	assert.Equal(t, err, ErrPasswordNotInExpectedFormat)
 }
+
+func TestNewCredential(t *testing.T) {
+	credential := NewCredential("username", "password")
+	assert.NotNil(t, credential)
+	assert.Equal(t, "username", credential.GetUsername())
+	assert.NotNil(t, credential.GetProjectID())
+}

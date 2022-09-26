@@ -15,6 +15,8 @@ import (
 	repo "github.com/razorpay/metro/internal/subscription/mocks/repo"
 	"github.com/razorpay/metro/internal/topic"
 	tCore "github.com/razorpay/metro/internal/topic/mocks/core"
+	"github.com/razorpay/metro/pkg/messagebroker"
+	messagebrokermock "github.com/razorpay/metro/pkg/messagebroker/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -218,16 +220,26 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockProjectCore := pCore.NewMockICore(ctrl)
 	mockTopicCore := tCore.NewMockICore(ctrl)
-	mockRepo := repo.NewMockIRepo(ctrl)
-	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
-	sub := getSubModel()
+	mockTopicCore.EXPECT().UpdateTopic(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
+	mockRepo := repo.NewMockIRepo(ctrl)
+	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
+	mockAdmin.EXPECT().AddTopicPartitions(gomock.Any(), gomock.Any()).Return(&messagebroker.AddTopicPartitionResponse{}, nil).AnyTimes()
+
+	sub := getSubModel()
+	expectedList := []common.IModel{
+		&sub,
+	}
 	topic := &topic.Model{
-		Name:               sub.GetSubscriptionTopic(),
+		Name:               sub.GetTopic(),
 		ExtractedTopicName: sub.ExtractedSubscriptionName,
 		ExtractedProjectID: sub.ExtractedTopicProjectID,
 		NumPartitions:      1,
 	}
+	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
+	mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(mockAdmin, nil).AnyTimes()
+	mockProjectCore.EXPECT().ListKeys(gomock.Any()).Return([]string{"metro/projects/project123"}, nil)
+	mockRepo.EXPECT().List(gomock.Any(), gomock.Any()).Return(expectedList, nil)
 
 	tests := []struct {
 		name    string
@@ -258,16 +270,63 @@ func TestCore_RescaleSubTopics(t *testing.T) {
 				topicCore:   tt.fields.topicCore,
 				brokerStore: tt.fields.brokerStore,
 			}
-			expectedList := []common.IModel{
-				&sub,
-			}
-			mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any())
-			mockProjectCore.EXPECT().ListKeys(gomock.Any()).Return([]string{"metro/projects/project123"}, nil)
-			mockRepo.EXPECT().List(gomock.Any(), gomock.Any()).Return(expectedList, nil)
-			mockTopicCore.EXPECT().UpdateTopic(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			if err := c.RescaleSubTopics(tt.args.ctx, tt.args.topicModel); (err != nil) != tt.wantErr {
 				t.Errorf("Core.RescaleSubTopics() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
+}
+
+func TestCore_DeleteSubscription(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
+
+	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
+	sub := getSubModel()
+
+	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(true, nil)
+	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil)
+	mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+	err := core.DeleteSubscription(ctx, &sub)
+	assert.Nil(t, err)
+}
+
+func TestCore_DeleteProjectSubscriptions(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
+
+	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
+
+	mockRepo.EXPECT().DeleteTree(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+	err := core.DeleteProjectSubscriptions(ctx, "project123")
+	assert.Nil(t, err)
+}
+
+func TestCore_GetTopicFromSubscriptionName(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
+	sub := getSubModel()
+
+	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
+	mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
+		func(ctx context.Context, prefix string, model *Model) error {
+			model.Topic = sub.Topic
+			return nil
+		})
+
+	topic, err := core.GetTopicFromSubscriptionName(ctx, sub.Name)
+	assert.Nil(t, err)
+	assert.Equal(t, sub.Topic, topic)
 }

@@ -6,13 +6,23 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	mocks4 "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/registry/mocks"
 	"github.com/stretchr/testify/assert"
 )
+
+// GetDummyTopicModel to export dummy topic model
+func GetDummyTopicModel() *topic.Model {
+	return &topic.Model{
+		Name:               "projects/test-project/topics/test-topic",
+		Labels:             map[string]string{"label": "value"},
+		ExtractedProjectID: "test-project",
+		ExtractedTopicName: "test-topic",
+		NumPartitions:      1,
+	}
+}
 
 func TestNewPublisherTask(t *testing.T) {
 	type args struct {
@@ -90,24 +100,6 @@ func TestPublisherTask_Run(t *testing.T) {
 		<-ctx.Done()
 	}).Return(nil)
 	watcherMock.EXPECT().StopWatch()
-
-	// mock subscription Core
-	sub := subscription.Model{
-		Name:                           "projects/test-project/subscriptions/test",
-		Topic:                          "projects/test-project/topics/test",
-		ExtractedTopicProjectID:        "test-project",
-		ExtractedSubscriptionName:      "test",
-		ExtractedSubscriptionProjectID: "test-project",
-		ExtractedTopicName:             "test",
-		DeadLetterPolicy: &subscription.DeadLetterPolicy{
-			DeadLetterTopic:     "projects/test-project/topics/test-dlq",
-			MaxDeliveryAttempts: 5,
-		},
-		PushConfig: &subscription.PushConfig{
-			PushEndpoint: "http://test.test",
-		},
-	}
-	sub.SetVersion("1")
 
 	dummyTopicModels := []*topic.Model{
 		{
@@ -208,7 +200,7 @@ func TestCheckIfTopicExists(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "Topic doesn't exist",
+			name: "Topic doesn't exist in the cache",
 			args: args{
 				ctx:   ctx,
 				topic: "projects/test-project/topics/test-topic",

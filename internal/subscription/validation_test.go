@@ -1,4 +1,3 @@
-//go:build unit
 // +build unit
 
 package subscription
@@ -458,7 +457,7 @@ func Test_validatePushEndpoint(t *testing.T) {
 	tests := [3]testCase{
 		{
 			&metrov1.PushConfig{
-				PushEndpoint: "https://google.com",
+				PushEndpoint: "https://razorpay.com",
 			},
 			nil,
 		},

@@ -307,8 +307,9 @@ func TestCore_DeleteSubscription(t *testing.T) {
 			mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(!test.wantErr, nil)
 			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).MaxTimes(1).Return(true, nil)
 			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil)
-			err := core.DeleteSubscription(ctx, &sub)
-			assert.Equal(t, test.wantErr, err != nil)
+			mockTopicCore.EXPECT().DeleteSubscriptionTopic(ctx, gomock.Any()).Return(nil).AnyTimes()
+	err := core.DeleteSubscription(ctx, &sub)
+	assert.Equal(t, test.wantErr, err != nil)
 		})
 	}
 }

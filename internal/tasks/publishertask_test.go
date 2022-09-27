@@ -200,7 +200,7 @@ func TestCheckIfTopicExists(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "Topic doesn't exist in the cache",
+			name: "Topic doesn't exist in cache",
 			args: args{
 				ctx:   ctx,
 				topic: "projects/test-project/topics/test-topic",

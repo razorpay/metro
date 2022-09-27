@@ -205,6 +205,9 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 		return nil, merror.ToGRPCError(err)
 	}
 	sub, err := s.subscriptionCore.Get(ctx, req.Subscription)
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
 	m.Topic = sub.Topic
 	m.ExtractedSubscriptionName = sub.ExtractedSubscriptionName
 	m.ExtractedSubscriptionProjectID = sub.ExtractedSubscriptionProjectID

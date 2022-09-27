@@ -3,6 +3,7 @@ package subscription
 import (
 	"fmt"
 	urlpkg "net/url"
+	"strings"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/credentials"
@@ -19,6 +20,9 @@ const (
 
 	// SubscriptionTypePull ...
 	SubscriptionTypePull = "Pull"
+
+	// DeadLetterTopicSuffix dead letter topic suffix
+	DeadLetterTopicSuffix = "-dlq"
 )
 
 // Model for a subscription
@@ -260,4 +264,9 @@ func (m *Model) SetFilterExpression(Filter string) {
 // IsFilteringEnabled checks if the subscription has filter criteria or not
 func (m *Model) IsFilteringEnabled() bool {
 	return len(m.FilterExpression) > 0
+}
+
+// IsDeadLetterSubscription check if subscription is Dead Letter subscription
+func (m *Model) IsDeadLetterSubscription() bool {
+	return strings.HasSuffix(topic.GetTopicNameOnly(m.Topic), DeadLetterTopicSuffix)
 }

@@ -536,6 +536,11 @@ func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
 		}
 	}
 
+	// since dlq topic is not created for dlq subscription no need to delete dlq topic
+	if m.IsDeadLetterSubscription() {
+		return nil
+	}
+
 	// delete dlq topics
 	dlqTopic := m.GetDeadLetterTopic()
 	err = c.deleteSubscriptionTopic(ctx, dlqTopic, projectID, topic.GetTopicNameOnly(dlqTopic))

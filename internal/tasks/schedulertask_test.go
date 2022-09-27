@@ -184,7 +184,7 @@ func TestSchedulerTask_refreshCache(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Test1",
+			name: "Refresh cache successfully",
 			fields: fields{
 				id:               workerID,
 				registry:         registryMock,

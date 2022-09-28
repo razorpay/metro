@@ -149,7 +149,6 @@ func TestSchedulerTask_refreshCache(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	registryMock := mocks.NewMockIRegistry(ctrl)
-	// watcherMock := mocks.NewMockIWatcher(ctrl)
 	brokerstoreMock := mocks2.NewMockIBrokerStore(ctrl)
 	nodeCoreMock := mocks3.NewMockICore(ctrl)
 	topicCoreMock := mocks4.NewMockICore(ctrl)

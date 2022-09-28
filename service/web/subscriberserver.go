@@ -206,7 +206,7 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 	}
 	sub, err := s.subscriptionCore.Get(ctx, req.Subscription)
 	if err != nil {
-		return nil, merror.ToGRPCError(err)
+		return nil, merror.New(merror.NotFound, "Subscription does not exist")
 	}
 	m.Topic = sub.Topic
 	m.ExtractedSubscriptionName = sub.ExtractedSubscriptionName
@@ -293,7 +293,7 @@ func (s subscriberserver) ListProjectSubscriptions(ctx context.Context,
 	return &metrov1.ListProjectSubscriptionsResponse{Subscriptions: res}, nil
 }
 
-//AuthFuncOverride - Override function called by the auth interceptor
+// AuthFuncOverride - Override function called by the auth interceptor
 func (s subscriberserver) AuthFuncOverride(ctx context.Context, fullMethodName string, req interface{}) (context.Context, error) {
 	return authRequest(ctx, s.credentialCore, fullMethodName, req)
 }

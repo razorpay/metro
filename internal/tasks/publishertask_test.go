@@ -14,13 +14,15 @@ import (
 )
 
 // GetDummyTopicModel to export dummy topic model
-func GetDummyTopicModel() *topic.Model {
-	return &topic.Model{
-		Name:               "projects/test-project/topics/test-topic",
-		Labels:             map[string]string{"label": "value"},
-		ExtractedProjectID: "test-project",
-		ExtractedTopicName: "test-topic",
-		NumPartitions:      1,
+func GetDummyTopicModel() []*topic.Model {
+	return []*topic.Model{
+		{
+			Name:               "projects/test-project/topics/test",
+			NumPartitions:      2,
+			ExtractedTopicName: "test",
+			ExtractedProjectID: "test-project",
+			Labels:             map[string]string{},
+		},
 	}
 }
 
@@ -101,15 +103,7 @@ func TestPublisherTask_Run(t *testing.T) {
 	}).Return(nil)
 	watcherMock.EXPECT().StopWatch()
 
-	dummyTopicModels := []*topic.Model{
-		{
-			Name:               "projects/test-project/topics/test",
-			NumPartitions:      2,
-			ExtractedTopicName: "test",
-			ExtractedProjectID: "test-project",
-			Labels:             map[string]string{},
-		},
-	}
+	dummyTopicModels := GetDummyTopicModel()
 	// mock Topic Get
 	topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(
 		dummyTopicModels, nil).AnyTimes()

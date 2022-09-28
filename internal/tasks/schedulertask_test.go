@@ -225,15 +225,7 @@ func TestSchedulerTask_refreshCache(t *testing.T) {
 				subWatchData:     tt.fields.subWatchData,
 				topicWatchData:   tt.fields.topicWatchData,
 			}
-			dummyTopicModels := []*topic.Model{
-				{
-					Name:               "projects/test-project/topics/test",
-					NumPartitions:      2,
-					ExtractedTopicName: "test",
-					ExtractedProjectID: "test-project",
-					Labels:             map[string]string{},
-				},
-			}
+			dummyTopicModels := GetDummyTopicModel()
 			// mock Topic Get
 			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(
 				dummyTopicModels, nil).AnyTimes()

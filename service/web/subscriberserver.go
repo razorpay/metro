@@ -206,7 +206,7 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 	}
 	sub, err := s.subscriptionCore.Get(ctx, req.Subscription)
 	if err != nil {
-		return &emptypb.Empty{}, merror.Newf(merror.NotFound, "Subscription does not exist")
+		return &emptypb.Empty{}, merror.ToGRPCError(merror.Newf(merror.NotFound, "Subscription does not exist"))
 	}
 	m.Topic = sub.Topic
 	m.ExtractedSubscriptionName = sub.ExtractedSubscriptionName

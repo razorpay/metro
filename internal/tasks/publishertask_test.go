@@ -134,9 +134,6 @@ func TestPublisherTask_Run(t *testing.T) {
 }
 
 func TestPublisherTask_refreshCache(t *testing.T) {
-	for k := range topicCacheData {
-		delete(topicCacheData, k)
-	}
 	type fields struct {
 		id             string
 		registry       registry.IRegistry
@@ -178,7 +175,10 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 				topicCore:      tt.fields.topicCore,
 				topicWatchData: tt.fields.topicWatchData,
 			}
-			assert.Equal(t, topicCacheData, make(map[string]bool))
+			dTopic := GetDummyTopicModel()[0]
+			cache := make(map[string]bool)
+			cache[dTopic.Name] = true
+			assert.Equal(t, topicCacheData, cache)
 			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
 			if err := pu.refreshCache(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("PublisherTask.refreshCache() error = %v, wantErr %v", err, tt.wantErr)

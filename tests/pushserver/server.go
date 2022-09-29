@@ -99,6 +99,8 @@ func (ps *PushServer) health(w http.ResponseWriter, req *http.Request) {
 }
 
 func (ps *PushServer) pushHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Connection", "keep-alive")
+
 	var pushData PushBody
 	now := time.Now().UnixNano()
 	decoder := json.NewDecoder(req.Body)

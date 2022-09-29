@@ -9,8 +9,12 @@ import (
 	"net/http/httptrace"
 	"testing"
 
+	"github.com/razorpay/metro/tests/pushserver"
 	"github.com/stretchr/testify/assert"
 )
+
+var ps *pushserver.PushServer
+var chanMap = map[string]chan pushserver.PushMessage{}
 
 func Test_NewClient(t *testing.T) {
 	assert.Nil(t, NewClient(nil))
@@ -28,6 +32,9 @@ func Test_NewClient(t *testing.T) {
 }
 
 func Test_SendRequest(t *testing.T) {
+	ps = pushserver.StartServer(context.TODO(), chanMap)
+	defer ps.StopServer()
+
 	connectionsCreated := 0
 	clientTrace := &httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {
@@ -49,8 +56,8 @@ func Test_SendRequest(t *testing.T) {
 		TLSHandshakeTimeoutMS:   2000,
 	})
 
-	for i := 0; i < 5; i++ {
-		req, _ := http.NewRequestWithContext(traceCtx, http.MethodGet, "http://localhost:8090/headers", nil)
+	for i := 0; i < 10; i++ {
+		req, _ := http.NewRequestWithContext(traceCtx, http.MethodGet, "http://localhost:8077/push", nil)
 		SendRequest(client, req)
 	}
 

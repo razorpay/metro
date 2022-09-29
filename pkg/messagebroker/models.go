@@ -37,6 +37,7 @@ type ModifyTopicConfigRequest struct {
 	TopicConfigs []TopicConfig
 }
 
+// NewModifyConfigRequest ...
 func NewModifyConfigRequest(topicConfigsMap map[string]TopicConfig) ModifyTopicConfigRequest {
 	topicConfigs := make([]TopicConfig, 0, len(topicConfigsMap))
 	for _, tc := range topicConfigsMap {

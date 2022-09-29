@@ -205,12 +205,12 @@ func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 }
 
 // AlterTopicConfigs alters the topic config
-func (k *PulsarBroker) AlterTopicConfigs(ctx context.Context, request ModifyTopicConfigRequest) ([]string, error) {
+func (p *PulsarBroker) AlterTopicConfigs(ctx context.Context, request ModifyTopicConfigRequest) ([]string, error) {
 	panic("implement this!")
 }
 
 // DescribeTopicConfigs describes the topic config
-func (k *PulsarBroker) DescribeTopicConfigs(ctx context.Context, names []string) (map[string]map[string]string, error) {
+func (p *PulsarBroker) DescribeTopicConfigs(ctx context.Context, names []string) (map[string]map[string]string, error) {
 	panic("implement this!")
 }
 

@@ -134,6 +134,9 @@ func TestPublisherTask_Run(t *testing.T) {
 }
 
 func TestPublisherTask_refreshCache(t *testing.T) {
+	for k := range topicCacheData {
+		delete(topicCacheData, k)
+	}
 	type fields struct {
 		id             string
 		registry       registry.IRegistry
@@ -189,24 +192,9 @@ func TestCheckIfTopicExists(t *testing.T) {
 		ctx   context.Context
 		topic string
 	}
-	ctx, ctrl, cancel, registryMock, topicCoreMock := setupPT(t)
+	ctx, ctrl, cancel, _, _ := setupPT(t)
 	defer ctrl.Finish()
 	defer cancel()
-
-	topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
-	workerID := uuid.New().String()
-	task, err := NewPublisherTask(workerID, registryMock, topicCoreMock)
-	doneCh := make(chan struct{})
-
-	// mock registry
-	watcherMock := mocks.NewMockIWatcher(ctrl)
-	registryMock.EXPECT().Watch(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(watcherMock, nil).AnyTimes()
-	go func() {
-		err = task.Run(ctx)
-		assert.Equal(t, err, context.Canceled)
-	}()
-
-	assert.Nil(t, err)
 
 	tests := []struct {
 		name string
@@ -233,7 +221,7 @@ func TestCheckIfTopicExists(t *testing.T) {
 	for _, tt := range tests {
 		if tt.want == true {
 			topicCacheData = make(map[string]bool)
-			topicCacheData["projects/test-project/topics/test-topic"] = true
+			topicCacheData[tt.args.topic] = true
 		}
 		t.Run(tt.name, func(t *testing.T) {
 			if got := CheckIfTopicExists(tt.args.ctx, tt.args.topic); got != tt.want {
@@ -241,6 +229,4 @@ func TestCheckIfTopicExists(t *testing.T) {
 			}
 		})
 	}
-
-	close(doneCh)
 }

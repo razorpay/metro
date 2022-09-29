@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -166,6 +167,19 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Error while getting Topic List",
+			fields: fields{
+				id:             uuid.New().String(),
+				registry:       registryMock,
+				topicCore:      topicCoreMock,
+				topicWatchData: make(chan *struct{}),
+			},
+			args: args{
+				ctx: ctx,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -175,11 +189,15 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 				topicCore:      tt.fields.topicCore,
 				topicWatchData: tt.fields.topicWatchData,
 			}
-			dTopic := GetDummyTopicModel()[0]
-			cache := make(map[string]bool)
-			cache[dTopic.Name] = true
-			assert.Equal(t, topicCacheData, cache)
-			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
+			if tt.wantErr == true {
+				topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(nil, fmt.Errorf(""))
+			} else {
+				dTopic := GetDummyTopicModel()[0]
+				cache := make(map[string]bool)
+				cache[dTopic.Name] = true
+				assert.Equal(t, topicCacheData, cache)
+				topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
+			}
 			if err := pu.refreshCache(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("PublisherTask.refreshCache() error = %v, wantErr %v", err, tt.wantErr)
 			}

@@ -26,6 +26,21 @@ func GetDummyTopicModel() []*topic.Model {
 	}
 }
 
+func setupPT(t *testing.T) (
+	ctx context.Context,
+	ctrl *gomock.Controller,
+	cancel context.CancelFunc,
+	registryMock *mocks.MockIRegistry,
+	topicCoreMock *mocks4.MockICore,
+) {
+	ctx, cancel = context.WithCancel(context.Background())
+	ctrl = gomock.NewController(t)
+
+	registryMock = mocks.NewMockIRegistry(ctrl)
+	topicCoreMock = mocks4.NewMockICore(ctrl)
+	return
+}
+
 func TestNewPublisherTask(t *testing.T) {
 	type args struct {
 		id        string
@@ -33,11 +48,9 @@ func TestNewPublisherTask(t *testing.T) {
 		topicCore topic.ICore
 		options   []Option
 	}
-	ctrl := gomock.NewController(t)
+	_, ctrl, cancel, registryMock, topicCoreMock := setupPT(t)
 	defer ctrl.Finish()
-
-	registryMock := mocks.NewMockIRegistry(ctrl)
-	topicCoreMock := mocks4.NewMockICore(ctrl)
+	defer cancel()
 
 	task := &PublisherTask{
 		id:             uuid.New().String(),
@@ -76,13 +89,9 @@ func TestNewPublisherTask(t *testing.T) {
 }
 
 func TestPublisherTask_Run(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	ctrl := gomock.NewController(t)
+	ctx, ctrl, cancel, registryMock, topicCoreMock := setupPT(t)
 	defer ctrl.Finish()
 	defer cancel()
-
-	registryMock := mocks.NewMockIRegistry(ctrl)
-	topicCoreMock := mocks4.NewMockICore(ctrl)
 	watcherMock := mocks.NewMockIWatcher(ctrl)
 
 	workerID := uuid.New().String()
@@ -134,12 +143,9 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 	type args struct {
 		ctx context.Context
 	}
-	ctrl := gomock.NewController(t)
+	ctx, ctrl, cancel, registryMock, topicCoreMock := setupPT(t)
 	defer ctrl.Finish()
-	ctx, cancel := context.WithCancel(context.Background())
-
-	registryMock := mocks.NewMockIRegistry(ctrl)
-	topicCoreMock := mocks4.NewMockICore(ctrl)
+	defer cancel()
 
 	tests := []struct {
 		name    string

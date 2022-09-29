@@ -1,4 +1,3 @@
-//go:build unit
 // +build unit
 
 package httpclient
@@ -61,6 +60,6 @@ func Test_SendRequest(t *testing.T) {
 		SendRequest(client, req)
 	}
 
-	// Only one connection should be created
+	// One connection should be created
 	assert.Equal(t, 1, connectionsCreated)
 }

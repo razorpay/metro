@@ -175,13 +175,13 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 				topicCore:      tt.fields.topicCore,
 				topicWatchData: tt.fields.topicWatchData,
 			}
+			assert.Equal(t, topicCacheData, make(map[string]bool))
 			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
 			if err := pu.refreshCache(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("PublisherTask.refreshCache() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
-	cancel()
 }
 
 func TestCheckIfTopicExists(t *testing.T) {
@@ -189,10 +189,24 @@ func TestCheckIfTopicExists(t *testing.T) {
 		ctx   context.Context
 		topic string
 	}
-	ctrl := gomock.NewController(t)
+	ctx, ctrl, cancel, registryMock, topicCoreMock := setupPT(t)
 	defer ctrl.Finish()
-	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
+	workerID := uuid.New().String()
+	task, err := NewPublisherTask(workerID, registryMock, topicCoreMock)
+	doneCh := make(chan struct{})
+
+	// mock registry
+	watcherMock := mocks.NewMockIWatcher(ctrl)
+	registryMock.EXPECT().Watch(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(watcherMock, nil).AnyTimes()
+	go func() {
+		err = task.Run(ctx)
+		assert.Equal(t, err, context.Canceled)
+	}()
+
+	assert.Nil(t, err)
 
 	tests := []struct {
 		name string
@@ -207,12 +221,26 @@ func TestCheckIfTopicExists(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "Topic exist in cache",
+			args: args{
+				ctx:   ctx,
+				topic: "projects/test-project/topics/test-topic",
+			},
+			want: true,
+		},
 	}
 	for _, tt := range tests {
+		if tt.want == true {
+			topicCacheData = make(map[string]bool)
+			topicCacheData["projects/test-project/topics/test-topic"] = true
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			if got := CheckIfTopicExists(tt.args.ctx, tt.args.topic); got != tt.want {
 				t.Errorf("CheckIfTopicExists() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+
+	close(doneCh)
 }

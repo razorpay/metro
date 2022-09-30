@@ -196,7 +196,6 @@ mock-gen:
 	@mockgen --build_flags='--tags=musl' -destination=internal/tasks/mocks/mock_task.go -package=mocks github.com/razorpay/metro/internal/tasks ITask
 	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/retry/mocks/mock_handler.go -package=mocks github.com/razorpay/metro/internal/subscriber/retry MessageHandler
 	@mockgen --build_flags='--tags=musl' -destination=internal/subscriber/retry/mocks/mock_retrier.go -package=mocks github.com/razorpay/metro/internal/subscriber/retry IRetrier
-	@mockgen --build_flags='--tags=musl' -destination=internal/server/mocks/mock_server.go -package=mocks github.com/razorpay/metro/internal/server IServer
 
 .PHONY: mock-gen-clean ## Clean up all mockgen generated mocks directories
 mock-gen-clean:

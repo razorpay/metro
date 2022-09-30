@@ -554,45 +554,52 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 	dlqTopic := getDLQDummyTopicModel()
 
 	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
-	mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+Prefix).Return([]common.IModel{dlqTopic}, nil).AnyTimes()
 	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
 
 	tests := []struct {
 		name            string
+		topics          []common.IModel
 		existingConfigs map[string]map[string]string
 		expected        []string
-		wantErr         bool
 		err             error
 	}{
 		{
 			name:            "Alter retention configs without error",
+			topics:          []common.IModel{dlqTopic},
 			existingConfigs: nil,
 			expected:        []string{dlqTopic.Name},
-			wantErr:         false,
 			err:             nil,
 		},
 		{
 			name:            "Alter retention configs with error",
+			topics:          []common.IModel{dlqTopic},
 			existingConfigs: map[string]map[string]string{dlqTopic.Name: {RetentionPeriodConfig: "10"}},
 			expected:        nil,
-			wantErr:         true,
 			err:             fmt.Errorf("Something went wrong"),
+		},
+		{
+			name:            "Alter retention configs without any existing topic",
+			topics:          nil,
+			existingConfigs: nil,
+			expected:        nil,
+			err:             nil,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockAdmin.EXPECT().AlterTopicConfigs(ctx, gomock.Any()).Return(test.expected, test.err)
-			mockAdmin.EXPECT().DescribeTopicConfigs(ctx, gomock.Any()).Return(test.existingConfigs, nil)
+			mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+Prefix).Return(test.topics, nil)
+			mockAdmin.EXPECT().AlterTopicConfigs(ctx, gomock.Any()).Return(test.expected, test.err).MaxTimes(1)
+			mockAdmin.EXPECT().DescribeTopicConfigs(ctx, gomock.Any()).Return(test.existingConfigs, nil).MaxTimes(1)
 			mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
-			mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
+			mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil).MaxTimes(1)
 			c := &Core{
 				repo:        mockTopicRepo,
 				projectCore: projectcoremock.NewMockICore(ctrl),
 				brokerStore: mockBrokerStore,
 			}
 			got, err := c.SetupTopicRetentionConfigs(ctx)
-			assert.Equal(t, test.wantErr, err != nil)
+			assert.Equal(t, test.err != nil, err != nil)
 			assert.Equal(t, test.expected, got)
 		})
 	}

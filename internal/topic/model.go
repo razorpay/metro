@@ -25,6 +25,18 @@ const (
 
 	// MaxNumPartitions max number of partitions for a topic
 	MaxNumPartitions = 100
+
+	// RetentionPeriodConfig is the name of topic level retention period config property
+	RetentionPeriodConfig = "retention.ms"
+
+	// RetentionPeriod is the time after which messages will be deleted from the topic = 14 days
+	RetentionPeriod = 1000 * 60 * 60 * 24 * 14
+
+	// RetentionSizeConfig is the name of topic level retention by size configgit checkout -b METRO-151-existing-dlq-topics property
+	RetentionSizeConfig = "retention.bytes"
+
+	// RetentionSizePerPartition is the max no of bytes retained per topic = 10000MB
+	RetentionSizePerPartition = 10000 * 1000000
 )
 
 // Model for a topic
@@ -71,4 +83,15 @@ func (m *Model) IsRetryTopic() bool {
 // IsPrimaryTopic checks if the topic is primary topic or not
 func (m *Model) IsPrimaryTopic() bool {
 	return !m.IsDeadLetterTopic() && !m.IsDelayTopic() && !m.IsRetryTopic()
+}
+
+// GetRetentionConfig returns the retention policy for a given topic
+func (m *Model) GetRetentionConfig() map[string]string {
+	if m.IsDeadLetterTopic() {
+		return map[string]string{
+			RetentionPeriodConfig: fmt.Sprint(RetentionPeriod),
+			RetentionSizeConfig:   fmt.Sprint(RetentionSizePerPartition),
+		}
+	}
+	return nil
 }

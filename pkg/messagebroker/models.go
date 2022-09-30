@@ -10,6 +10,7 @@ import (
 type CreateTopicRequest struct {
 	Name          string
 	NumPartitions int
+	Config        map[string]string
 }
 
 // AddTopicPartitionRequest ...
@@ -23,6 +24,26 @@ type DeleteTopicRequest struct {
 	Name           string
 	Force          bool //  only required for pulsar and ignored for kafka
 	NonPartitioned bool //  only required for pulsar and ignored for kafka
+}
+
+// TopicConfig ...
+type TopicConfig struct {
+	Name   string
+	Config map[string]string
+}
+
+// ModifyTopicConfigRequest ...
+type ModifyTopicConfigRequest struct {
+	TopicConfigs []TopicConfig
+}
+
+// NewModifyConfigRequest ...
+func NewModifyConfigRequest(topicConfigsMap map[string]TopicConfig) ModifyTopicConfigRequest {
+	topicConfigs := make([]TopicConfig, 0, len(topicConfigsMap))
+	for _, tc := range topicConfigsMap {
+		topicConfigs = append(topicConfigs, tc)
+	}
+	return ModifyTopicConfigRequest{TopicConfigs: topicConfigs}
 }
 
 // SendMessageToTopicRequest ...

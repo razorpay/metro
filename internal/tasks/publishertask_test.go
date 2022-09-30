@@ -134,52 +134,6 @@ func TestPublisherTask_Run(t *testing.T) {
 	<-doneCh
 }
 
-func Test2PublisherTask_Run(t *testing.T) {
-	ctx, ctrl, cancel, registryMock, topicCoreMock := setupPT(t)
-	defer ctrl.Finish()
-	defer cancel()
-	watcherMock := mocks.NewMockIWatcher(ctrl)
-
-	workerID := uuid.New().String()
-	task, err := NewPublisherTask(
-		workerID,
-		registryMock,
-		topicCoreMock,
-	)
-	assert.Nil(t, err)
-
-	doneCh := make(chan struct{})
-
-	// mock registry
-	registryMock.EXPECT().Watch(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(watcherMock, nil).AnyTimes()
-
-	// mock watcher
-	watcherMock.EXPECT().StartWatch().Do(func() {
-		<-ctx.Done()
-	}).Return(nil)
-	watcherMock.EXPECT().StopWatch()
-
-	dummyTopicModels := GetDummyTopicModel()
-	// mock Topic Get
-	topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(
-		dummyTopicModels, nil).AnyTimes()
-
-	go func() {
-		err = task.Run(ctx)
-		assert.Equal(t, err, context.Canceled)
-		close(doneCh)
-	}()
-
-	// test signals on channels
-	task.(*PublisherTask).topicWatchData <- &struct{}{}
-
-	// test nils
-	task.(*PublisherTask).topicWatchData <- nil
-
-	cancel()
-	<-doneCh
-}
-
 func TestPublisherTask_refreshCache(t *testing.T) {
 	type fields struct {
 		id             string

@@ -181,6 +181,31 @@ func TestPublishServer_PublishFailure(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func Test2PublishServer_PublishFailure(t *testing.T) {
+	ctx := context.Background()
+
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks5.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	topicCore := mocks2.NewMockICore(ctrl)
+	publisher := mocks3.NewMockIPublisher(ctrl)
+	mockCredentialsCore := mocks6.NewMockICore(ctrl)
+	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
+
+	req := &metrov1.PublishRequest{
+		Topic: "projects/project123/topics/test-topic",
+		Messages: []*metrov1.PubsubMessage{
+			{
+				Data: []byte("data"),
+			},
+		},
+	}
+
+	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(false, fmt.Errorf("error"))
+	_, err := server.Publish(ctx, req)
+	assert.NotNil(t, err)
+}
+
 func TestPublishServer_PublishFailure_OnValidation(t *testing.T) {
 	ctx := context.Background()
 

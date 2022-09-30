@@ -57,7 +57,6 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 		WatchType: "keyprefix",
 		WatchPath: common.GetBasePrefix() + topic.Prefix,
 		Handler: func(ctx context.Context, pairs []registry.Pair) {
-			logger.Ctx(ctx).Infow("PublisherTask: topic watch handler data", "pairs", pairs)
 			pu.topicWatchData <- &struct{}{}
 		},
 	}
@@ -88,7 +87,7 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 				}
 				terr := pu.refreshCache(ctx)
 				if terr != nil {
-					logger.Ctx(gctx).Errorw("PublisherTask: Failed to refresh cache for topic/subscription/nodes", "error", err.Error())
+					logger.Ctx(gctx).Errorw("PublisherTask: Failed to refresh cache for topic", "error", err.Error())
 				} else {
 					logger.Ctx(gctx).Infow("PublisherTask: Topic Cache refreshed")
 				}

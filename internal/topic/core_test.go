@@ -564,6 +564,13 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 		err             error
 	}{
 		{
+			name:            "Alter retention configs without errors",
+			topics:          []common.IModel{dlqTopic},
+			existingConfigs: nil,
+			expected:        []string{dlqTopic.Name},
+			err:             nil,
+		},
+		{
 			name:            "Alter retention configs with error",
 			topics:          []common.IModel{dlqTopic},
 			existingConfigs: nil,
@@ -571,7 +578,7 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 			err:             fmt.Errorf("Something went wrong"),
 		},
 		{
-			name:            "Alter retention configs withoutout any config change",
+			name:            "Alter retention configs without any config change",
 			topics:          []common.IModel{dlqTopic},
 			existingConfigs: map[string]map[string]string{dlqTopic.Name: dlqTopic.GetRetentionConfig()},
 			expected:        nil,
@@ -602,5 +609,46 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 			assert.Equal(t, test.err != nil, err != nil)
 			assert.Equal(t, test.expected, got)
 		})
+	}
+}
+
+func TestCore_CreateDeadLetterTopic(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
+	mockProjectCore := projectcoremock.NewMockICore(ctrl)
+	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
+	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
+	topicCore := NewCore(mockTopicRepo, mockProjectCore, mockBrokerStore)
+	ctx := context.Background()
+
+	tests := []struct {
+		topicModel *Model
+		wantErr    bool
+		err        error
+	}{
+		{
+			topicModel: getDLQDummyTopicModel(),
+			wantErr:    false,
+			err:        nil,
+		},
+		{
+			topicModel: getDLQDummyTopicModel(),
+			wantErr:    true,
+			err:        fmt.Errorf("Something went wrong"),
+		},
+	}
+
+	for _, test := range tests {
+		dTopic := test.topicModel
+		mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil)
+		mockAdmin.EXPECT().CreateTopic(
+			gomock.Any(),
+			messagebroker.CreateTopicRequest{
+				Name: dTopic.Name, NumPartitions: DefaultNumPartitions, Config: dTopic.GetRetentionConfig(),
+			},
+		).Return(messagebroker.CreateTopicResponse{}, test.err)
+		mockTopicRepo.EXPECT().Save(gomock.Any(), dTopic).MaxTimes(1)
+		err := topicCore.CreateDeadLetterTopic(ctx, dTopic)
+		assert.Equal(t, test.wantErr, err != nil)
 	}
 }

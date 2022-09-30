@@ -36,7 +36,11 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 	})
 	defer span.Finish()
 	if !tasks.CheckIfTopicExists(ctx, req.Topic) {
-		logger.Ctx(ctx).Infow("PublishServer: Topic doesn't exist inside the cache..", "req", req.Topic)
+		logger.Ctx(ctx).Infow(
+			"PublishServer: Topic doesn't exist inside the cache..",
+			"req",
+			req.Topic)
+
 		if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
 			return nil, merror.ToGRPCError(err)
 		} else if !ok {

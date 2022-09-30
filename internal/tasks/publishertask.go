@@ -61,7 +61,9 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 		},
 	}
 
-	topicWatcher, err = pu.registry.Watch(ctx, &twh)
+	topicWatcher, err = pu.registry.Watch(
+		ctx,
+		&twh)
 	if err != nil {
 		return err
 	}
@@ -118,7 +120,9 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 
 // refreshCache is to refresh Topic Data Cache
 func (pu *PublisherTask) refreshCache(ctx context.Context) error {
-	topics, terr := pu.topicCore.List(ctx, topic.Prefix)
+	topics, terr := pu.topicCore.List(
+		ctx,
+		topic.Prefix)
 	if terr != nil {
 		logger.Ctx(ctx).Errorw("PublisherTask: error fetching topic list", "error", terr)
 		return terr

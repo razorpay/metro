@@ -34,16 +34,29 @@ func init() {
 	}
 }
 
-type registerGrpcHandlers func(server *grpc.Server) error
-type registerHTTPHandlers func(mux *runtime.ServeMux) error
+// RegisterGrpcHandlers GRPC handler
+type RegisterGrpcHandlers func(server *grpc.Server) error
+
+// RegisterHTTPHandlers HTTP handler
+type RegisterHTTPHandlers func(mux *runtime.ServeMux) error
+
+// IServer defines Server interface
+type IServer interface {
+	// RunGRPCServer with handlers and interceptors
+	RunGRPCServer(ctx context.Context, address string, RegisterGrpcHandlers RegisterGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) error
+	// RunHTTPServer with handlers
+	RunHTTPServer(ctx context.Context, address string, RegisterHTTPHandlers RegisterHTTPHandlers) error
+	// RunInternalHTTPServer with handlers
+	RunInternalHTTPServer(ctx context.Context, address string) error
+}
 
 // RunGRPCServer with handlers and interceptors
 func RunGRPCServer(
 	ctx context.Context,
 	address string,
-	registerGrpcHandlers registerGrpcHandlers,
+	RegisterGrpcHandlers RegisterGrpcHandlers,
 	interceptors ...grpc.UnaryServerInterceptor) error {
-	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
+	grpcServer, err := newGrpcServer(RegisterGrpcHandlers, interceptors...)
 	if err != nil {
 		return err
 	}
@@ -64,8 +77,8 @@ func RunGRPCServer(
 }
 
 // RunHTTPServer with handlers
-func RunHTTPServer(ctx context.Context, address string, registerHTTPHandlers registerHTTPHandlers) error {
-	httpServer, err := newHTTPServer(registerHTTPHandlers)
+func RunHTTPServer(ctx context.Context, address string, RegisterHTTPHandlers RegisterHTTPHandlers) error {
+	httpServer, err := newHTTPServer(RegisterHTTPHandlers)
 	if err != nil {
 		return err
 	}
@@ -133,7 +146,7 @@ func RunInternalHTTPServer(ctx context.Context, address string) error {
 	return nil
 }
 
-func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
+func newGrpcServer(r RegisterGrpcHandlers, interceptors ...grpc.UnaryServerInterceptor) (*grpc.Server, error) {
 	grpcprometheus.EnableHandlingTimeHistogram(func(opts *prometheus.HistogramOpts) {
 		opts.Name = "grpc_server_handled_duration_seconds"
 		// The buckets covers 2ms to 8.192s
@@ -175,7 +188,7 @@ func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInter
 	return grpcServer, nil
 }
 
-func newHTTPServer(r registerHTTPHandlers) (*http.Server, error) {
+func newHTTPServer(r RegisterHTTPHandlers) (*http.Server, error) {
 	// MarshalerOption is added so that grpc-gateway does not omit empty values - https://stackoverflow.com/a/50044963
 	marshlerOption := runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{})
 

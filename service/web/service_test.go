@@ -63,6 +63,7 @@ func TestService_Start(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	registryMock := mocks.NewMockIRegistry(ctrl)
 	topicCore := mocks2.NewMockICore(ctrl)
+	// serverMock := mocks3.NewMockIServer(ctrl)
 	var appConfig AppConfig
 	err := configreader.NewDefaultConfig().Load(app.GetEnv(), &appConfig)
 	if err != nil {
@@ -76,7 +77,7 @@ func TestService_Start(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Start service successfully",
+			name: "Start service with errors",
 			fields: fields{
 				webConfig:      &appConfig.Web,
 				registryConfig: &appConfig.Registry,
@@ -90,7 +91,7 @@ func TestService_Start(t *testing.T) {
 			args: args{
 				ctx: ctx,
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -103,6 +104,9 @@ func TestService_Start(t *testing.T) {
 				admin:          tt.fields.admin,
 				errChan:        tt.fields.errChan,
 			}
+			// serverMock.EXPECT().RunGRPCServer(gomock.AssignableToTypeOf(ctx), gomock.Any(), gomock.Any()).Return(nil)
+			// serverMock.EXPECT().RunHTTPServer(gomock.AssignableToTypeOf(ctx), gomock.Any(), gomock.Any()).Return(nil)
+			// serverMock.EXPECT().RunInternalHTTPServer(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil)
 			if err := svc.Start(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("Service.Start() error = %v, wantErr %v", err, tt.wantErr)
 			}

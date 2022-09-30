@@ -35,17 +35,21 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 		"topic": req.Topic,
 	})
 	defer span.Finish()
+	// Check if topic exists in the PublisherTask Cache
 	if !tasks.CheckIfTopicExists(ctx, req.Topic) {
 		logger.Ctx(ctx).Infow(
 			"PublishServer: Topic doesn't exist inside the cache..",
 			"req",
 			req.Topic)
 
+		// Fallback method to check topic existence in the Registry
 		if ok, err := s.topicCore.ExistsWithName(
 			ctx,
 			req.Topic); err != nil {
+
 			return nil, merror.ToGRPCError(err)
 		} else if !ok {
+
 			return nil, merror.New(
 				merror.NotFound,
 				"topic not found").ToGRPCError()

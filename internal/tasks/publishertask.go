@@ -30,6 +30,7 @@ func NewPublisherTask(
 	topicCore topic.ICore,
 	options ...Option,
 ) (ITask, error) {
+
 	publisherTask := &PublisherTask{
 		id:             id,
 		registry:       registry,
@@ -49,6 +50,7 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 	var err error
 	var topicWatcher registry.IWatcher
 
+	// Refresh Cache to Buildup cache in beginning
 	err = pu.refreshCache(ctx)
 	if err != nil {
 		return err
@@ -125,12 +127,14 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 
 // refreshCache is to refresh Topic Data Cache
 func (pu *PublisherTask) refreshCache(ctx context.Context) error {
+	// Fetch Topic List for cache buildup
 	topics, terr := pu.topicCore.List(
 		ctx,
 		topic.Prefix)
 
 	if terr != nil {
 		logger.Ctx(ctx).Errorw("PublisherTask: error fetching topic list", "error", terr)
+
 		return terr
 	}
 
@@ -148,6 +152,7 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
 	if _, ok := topicCacheData[topic]; ok {
+
 		return true
 	}
 

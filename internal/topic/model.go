@@ -26,16 +26,16 @@ const (
 	// MaxNumPartitions max number of partitions for a topic
 	MaxNumPartitions = 100
 
-	// RetentionPeriodConfig is the name of topic level retention period config property
+	// RetentionPeriodConfig is the topic level retention period config
 	RetentionPeriodConfig = "retention.ms"
 
 	// RetentionPeriod is the time after which messages will be deleted from the topic = 14 days
 	RetentionPeriod = 1000 * 60 * 60 * 24 * 14
 
-	// RetentionSizeConfig is the name of topic level retention by size configgit checkout -b METRO-151-existing-dlq-topics property
+	// RetentionSizeConfig is the partition retention size config
 	RetentionSizeConfig = "retention.bytes"
 
-	// RetentionSizePerPartition is the max no of bytes retained per topic = 10000MB
+	// RetentionSizePerPartition is the max no of bytes retained per partition = 10000MB
 	RetentionSizePerPartition = 10000 * 1000000
 )
 

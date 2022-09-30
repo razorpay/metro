@@ -295,7 +295,9 @@ func (k *KafkaBroker) AlterTopicConfigs(ctx context.Context, request ModifyTopic
 
 	startTime := time.Now()
 	defer func() {
-		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "AlterTopicConfigs").Observe(time.Since(startTime).Seconds())
+		messageBrokerOperationTimeTaken.WithLabelValues(
+			env, Kafka, "AlterTopicConfigs",
+		).Observe(time.Since(startTime).Seconds())
 	}()
 
 	if len(request.TopicConfigs) == 0 {
@@ -307,7 +309,7 @@ func (k *KafkaBroker) AlterTopicConfigs(ctx context.Context, request ModifyTopic
 
 	for _, topicConfig := range request.TopicConfigs {
 		tp := normalizeTopicName(topicConfig.Name)
-		configs := make([]kafkapkg.ConfigEntry, 0, 2)
+		configs := make([]kafkapkg.ConfigEntry, 0, len(topicConfig.Config))
 		for key, value := range topicConfig.Config {
 			configs = append(configs, kafkapkg.ConfigEntry{
 				Name:      key,
@@ -339,7 +341,9 @@ func (k *KafkaBroker) DescribeTopicConfigs(ctx context.Context, names []string) 
 
 	startTime := time.Now()
 	defer func() {
-		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "DescribeTopicConfigs").Observe(time.Since(startTime).Seconds())
+		messageBrokerOperationTimeTaken.WithLabelValues(
+			env, Kafka, "DescribeTopicConfigs",
+		).Observe(time.Since(startTime).Seconds())
 	}()
 
 	if len(names) == 0 {

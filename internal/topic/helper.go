@@ -26,6 +26,7 @@ func GetTopicNameOnly(topicName string) string {
 }
 
 // IsRetentionPolicyUnchanged checks if the existing and the required retention policy are same or not
-func IsRetentionPolicyUnchanged(existing map[string]string, required map[string]string) bool {
-	return existing[RetentionPeriodConfig] == required[RetentionPeriodConfig] && existing[RetentionSizeConfig] == required[RetentionSizeConfig]
+func IsRetentionPolicyUnchanged(existing, required map[string]string) bool {
+	return existing[RetentionPeriodConfig] == required[RetentionPeriodConfig] &&
+		existing[RetentionSizeConfig] == required[RetentionSizeConfig]
 }

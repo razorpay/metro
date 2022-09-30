@@ -54,9 +54,9 @@ type IServer interface {
 func RunGRPCServer(
 	ctx context.Context,
 	address string,
-	RegisterGrpcHandlers RegisterGrpcHandlers,
+	registerGrpcHandlers RegisterGrpcHandlers,
 	interceptors ...grpc.UnaryServerInterceptor) error {
-	grpcServer, err := newGrpcServer(RegisterGrpcHandlers, interceptors...)
+	grpcServer, err := newGrpcServer(registerGrpcHandlers, interceptors...)
 	if err != nil {
 		return err
 	}

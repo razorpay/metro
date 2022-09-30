@@ -29,10 +29,10 @@ const (
 	// RetentionPeriodConfig is the name of topic level retention period config property
 	RetentionPeriodConfig = "retention.ms"
 
-	// RetentionPeriod is the time after which messages will be deleted from the topic = 3 days
-	RetentionPeriod = 1000 * 60 * 60 * 24 * 3
+	// RetentionPeriod is the time after which messages will be deleted from the topic = 14 days
+	RetentionPeriod = 1000 * 60 * 60 * 24 * 14
 
-	// RetentionSizeConfig is the name of topic level retention by size config property
+	// RetentionSizeConfig is the name of topic level retention by size configgit checkout -b METRO-151-existing-dlq-topics property
 	RetentionSizeConfig = "retention.bytes"
 
 	// RetentionSizePerPartition is the max no of bytes retained per topic = 10000MB

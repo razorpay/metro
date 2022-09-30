@@ -48,6 +48,7 @@ func NewPublisherTask(
 func (pu *PublisherTask) Run(ctx context.Context) error {
 	var err error
 	var topicWatcher registry.IWatcher
+
 	err = pu.refreshCache(ctx)
 	if err != nil {
 		return err
@@ -75,6 +76,7 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 	// watch the Topic path for new topics and rebalance
 	leadgrp.Go(func() error {
 		watchErr := topicWatcher.StartWatch()
+
 		close(pu.topicWatchData)
 		return watchErr
 	})
@@ -89,6 +91,7 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 				if val == nil {
 					continue
 				}
+
 				terr := pu.refreshCache(ctx)
 				if terr != nil {
 					logger.Ctx(gctx).Errorw("PublisherTask: Failed to refresh cache for topic", "error", err.Error())
@@ -125,6 +128,7 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 	topics, terr := pu.topicCore.List(
 		ctx,
 		topic.Prefix)
+
 	if terr != nil {
 		logger.Ctx(ctx).Errorw("PublisherTask: error fetching topic list", "error", terr)
 		return terr
@@ -134,6 +138,7 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 	for _, topic := range topics {
 		topicData[topic.Name] = true
 	}
+
 	topicCacheData = topicData
 
 	return nil
@@ -145,5 +150,6 @@ func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	if _, ok := topicCacheData[topic]; ok {
 		return true
 	}
+
 	return false
 }

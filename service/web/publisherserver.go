@@ -41,10 +41,14 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 			"req",
 			req.Topic)
 
-		if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
+		if ok, err := s.topicCore.ExistsWithName(
+			ctx,
+			req.Topic); err != nil {
 			return nil, merror.ToGRPCError(err)
 		} else if !ok {
-			return nil, merror.New(merror.NotFound, "topic not found").ToGRPCError()
+			return nil, merror.New(
+				merror.NotFound,
+				"topic not found").ToGRPCError()
 		}
 	}
 

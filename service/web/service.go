@@ -104,12 +104,10 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	publisherCore := publisher.NewCore(brokerStore)
 
-	// Init Publisher task, this run the watchers on Registry
 	publisherTask, err := tasks.NewPublisherTask(uuid.New().String(), r, topicCore)
 	if err != nil {
 		return err
 	}
-	// Run the Publisher task
 	go func() {
 		runErr := publisherTask.Run(ctx)
 		if runErr != nil {

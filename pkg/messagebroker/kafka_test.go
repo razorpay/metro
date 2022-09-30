@@ -44,14 +44,14 @@ func Test_Pause(t *testing.T) {
 }
 
 func Test_DescribeTopicConfigs(t *testing.T) {
-	a := getAdmin()
+	a := getKafkaAdmin()
 	resp, err := a.DescribeTopicConfigs(context.Background(), []string{})
 	assert.NotNil(t, err)
 	assert.Nil(t, resp)
 }
 
 func Test_AlterTopicConfigs(t *testing.T) {
-	a := getAdmin()
+	a := getKafkaAdmin()
 	resp, err := a.AlterTopicConfigs(context.Background(), ModifyTopicConfigRequest{TopicConfigs: nil})
 	assert.NotNil(t, err)
 	assert.Nil(t, resp)
@@ -62,7 +62,7 @@ func getConsumer() Consumer {
 	return consumer
 }
 
-func getAdmin() Admin {
+func getKafkaAdmin() Admin {
 	admin, _ := newKafkaAdminClient(context.Background(), getValidBrokerConfig(), getValidAdminClientOptions())
 	return admin
 }

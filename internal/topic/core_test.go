@@ -564,18 +564,18 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 		err             error
 	}{
 		{
-			name:            "Alter retention configs without error",
-			topics:          []common.IModel{dlqTopic},
-			existingConfigs: nil,
-			expected:        []string{dlqTopic.Name},
-			err:             nil,
-		},
-		{
 			name:            "Alter retention configs with error",
 			topics:          []common.IModel{dlqTopic},
-			existingConfigs: map[string]map[string]string{dlqTopic.Name: {RetentionPeriodConfig: "10"}},
+			existingConfigs: nil,
 			expected:        nil,
 			err:             fmt.Errorf("Something went wrong"),
+		},
+		{
+			name:            "Alter retention configs withoutout any config change",
+			topics:          []common.IModel{dlqTopic},
+			existingConfigs: map[string]map[string]string{dlqTopic.Name: dlqTopic.GetRetentionConfig()},
+			expected:        nil,
+			err:             nil,
 		},
 		{
 			name:            "Alter retention configs without any existing topic",
@@ -588,7 +588,7 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+Prefix).Return(test.topics, nil)
+			mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+Prefix).Return(test.topics, nil).MaxTimes(1)
 			mockAdmin.EXPECT().AlterTopicConfigs(ctx, gomock.Any()).Return(test.expected, test.err).MaxTimes(1)
 			mockAdmin.EXPECT().DescribeTopicConfigs(ctx, gomock.Any()).Return(test.existingConfigs, nil).MaxTimes(1)
 			mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)

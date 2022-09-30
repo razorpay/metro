@@ -56,7 +56,9 @@ func (pu *PublisherTask) Run(ctx context.Context) error {
 	twh := registry.WatchConfig{
 		WatchType: "keyprefix",
 		WatchPath: common.GetBasePrefix() + topic.Prefix,
-		Handler: func(ctx context.Context, pairs []registry.Pair) {
+		Handler: func(
+			ctx context.Context,
+			pairs []registry.Pair) {
 			pu.topicWatchData <- &struct{}{}
 		},
 	}

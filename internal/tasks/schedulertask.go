@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -181,6 +182,10 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 				nerr := sm.refreshNodeBindings(gctx)
 				if nerr != nil {
 					logger.Ctx(gctx).Infow("error processing node updates", "error", nerr)
+				}
+				rerr := sm.redistributeSubs(gctx)
+				if rerr != nil {
+					logger.Ctx(gctx).Infow("error redistributing subs to nodes", "error", rerr)
 				}
 
 			case val := <-sm.topicWatchData:
@@ -428,4 +433,20 @@ func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscrip
 	*nodeBindings = append(*nodeBindings, nb)
 	logger.Ctx(ctx).Infow("schedulertask: successfully assigned nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", partition)
 	return nil
+}
+
+func (sm *SchedulerTask) redistributeSubs(ctx context.Context) error {
+	err := fmt.Errorf("error while redistributing Subs")
+	nodes, nerr := sm.nodeCore.List(ctx, node.Prefix)
+	if nerr != nil {
+		logger.Ctx(ctx).Errorw("error fetching new node list", "error", nerr)
+		return nerr
+	}
+
+	if len(sm.nodeCache) == len(nodes) {
+		return fmt.Errorf("error: number of nodes not affected")
+	} else {
+		// TODO: add redistribution logic
+	}
+	return err
 }

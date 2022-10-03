@@ -293,11 +293,11 @@ func TestCore_DeleteSubscription(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "",
+			name:    "Delete subscription with error",
 			wantErr: true,
 		},
 		{
-			name:    "",
+			name:    "Delete subscription without error",
 			wantErr: false,
 		},
 	}

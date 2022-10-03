@@ -272,7 +272,6 @@ func (sm *SchedulerTask) refreshCache(ctx context.Context) error {
 // 2. Evaluate subscriptions and schedule any missing subscription/partition combos to nodes available.
 // 3. Topic changes are inherently covered since subscription validates against topic.
 func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
-	// R
 	err := sm.deleteInvalidBindings(ctx)
 	if err != nil {
 		return err
@@ -421,14 +420,14 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 				nb, ok := validBindings[subPart]
 				if !ok {
 					logger.Ctx(ctx).Infow("schedulertask: assigning nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
-					err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
+					err = sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
 					if err != nil {
 						logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
 					}
 				} else if validSubsRebalanced < validSubsToBeRebalanced {
 					invalidBindings[nb.Key()] = nb
 					logger.Ctx(ctx).Infow("schedulertask: rebalancing nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
-					err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
+					err = sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
 					if err != nil {
 						logger.Ctx(ctx).Errorw("schedulertask: rebalancing nodebinding for missing subscription-partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
 					}

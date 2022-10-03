@@ -363,10 +363,16 @@ func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscrip
 // 2. Evaluate subscriptions and rebalance the subscription across all nodes
 // 3. Topic changes are inherently covered since subscription validates against topic.
 func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
+	exisitingNodeCache := sm.nodeCache
+
 	err := sm.deleteInvalidBindings(ctx)
 	if err != nil {
 		return err
 	}
+
+	// Calculate change in Nodes percentage
+	updatedNodeCache := sm.nodeCache
+	nodesUpdatePerc := ((len(updatedNodeCache) - len(exisitingNodeCache)) / len(exisitingNodeCache)) * 100
 
 	// Fetch the latest node bindings after deletions and schedule missing bindings
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
@@ -394,7 +400,15 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 		},
 	)
 
+	validSubsToBeRebalanced := 0
+	// Calculate Total subs to be rebalanced from existing Nodes
+	if nodesUpdatePerc > 0 {
+		validSubsToBeRebalanced = (nodesUpdatePerc * len(validSubscriptions)) / 100
+	}
+
 	for _, sub := range validSubscriptions {
+		validSubsRebalanced := 0
+		invalidBindings := make(map[string]*nodebinding.Model)
 		//Fetch topic and see if all partitions are assigned.
 		// If not assign missing ones
 		topic, ok := sm.topicCache[sub.Topic]
@@ -404,13 +418,28 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 			}
 			for i := 0; i < topic.NumPartitions; i++ {
 				subPart := sub.Name + "_" + strconv.Itoa(i)
-				if _, ok := validBindings[subPart]; !ok {
+				nb, ok := validBindings[subPart]
+				if !ok {
 					logger.Ctx(ctx).Infow("schedulertask: assigning nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
 					err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
 					if err != nil {
-						//TODO: Track status here and re-assign if possible
 						logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
 					}
+				} else if validSubsRebalanced < validSubsToBeRebalanced {
+					invalidBindings[nb.Key()] = nb
+					logger.Ctx(ctx).Infow("schedulertask: rebalancing nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
+					err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
+					if err != nil {
+						logger.Ctx(ctx).Errorw("schedulertask: rebalancing nodebinding for missing subscription-partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
+					}
+					validSubsRebalanced++
+				}
+			}
+			// Delete bindings which are invalid due to Rebalancing of subs across nodes
+			for key, nb := range invalidBindings {
+				dErr := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
+				if err != nil {
+					logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding while rebalancing", "error", dErr.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
 				}
 			}
 		} else {

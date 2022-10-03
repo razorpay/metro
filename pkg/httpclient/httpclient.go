@@ -39,3 +39,15 @@ func NewClient(config *Config) *http.Client {
 
 	return &http.Client{Transport: tr}
 }
+
+// SendRequest sends the request and close the response body
+func SendRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+	resp, err := client.Do(req)
+
+	// Close the body to reuse the connection
+	if err == nil {
+		defer resp.Body.Close()
+	}
+
+	return resp, err
+}

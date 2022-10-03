@@ -133,7 +133,10 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 		topic.Prefix)
 
 	if terr != nil {
-		logger.Ctx(ctx).Errorw("PublisherTask: error fetching topic list", "error", terr)
+		logger.Ctx(ctx).Errorw(
+			"PublisherTask: error fetching topic list",
+			"error",
+			terr)
 
 		return terr
 	}

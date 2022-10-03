@@ -31,10 +31,15 @@ func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrok
 // Produce messages to a topic
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
 	logger.Ctx(ctx).Infow("PublishServer: produce request received", "req", req.Topic)
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.Publish", opentracing.Tags{
-		"topic": req.Topic,
-	})
+
+	span, ctx := opentracing.StartSpanFromContext(
+		ctx,
+		"PublisherServer.Publish",
+		opentracing.Tags{
+			"topic": req.Topic,
+		})
 	defer span.Finish()
+
 	// Check if topic exists in the PublisherTask Cache
 	if !tasks.CheckIfTopicExists(ctx, req.Topic) {
 		logger.Ctx(ctx).Infow(

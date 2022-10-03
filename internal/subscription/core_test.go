@@ -288,11 +288,29 @@ func TestCore_DeleteSubscription(t *testing.T) {
 	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
 	sub := getSubModel()
 
-	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(true, nil)
-	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil)
-	mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Times(1).Return(nil)
-	err := core.DeleteSubscription(ctx, &sub)
-	assert.Nil(t, err)
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{
+			name:    "",
+			wantErr: true,
+		},
+		{
+			name:    "",
+			wantErr: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(!test.wantErr, nil)
+			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).MaxTimes(1).Return(true, nil)
+			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil)
+			err := core.DeleteSubscription(ctx, &sub)
+			assert.Equal(t, test.wantErr, err != nil)
+		})
+	}
 }
 
 func TestCore_DeleteProjectSubscriptions(t *testing.T) {
@@ -329,4 +347,19 @@ func TestCore_GetTopicFromSubscriptionName(t *testing.T) {
 	topic, err := core.GetTopicFromSubscriptionName(ctx, sub.Name)
 	assert.Nil(t, err)
 	assert.Equal(t, sub.Topic, topic)
+}
+
+func TestCore_ListKeys(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
+
+	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
+	mockRepo.EXPECT().ListKeys(ctx, common.GetBasePrefix()+Prefix).Return([]string{"sub01"}, nil)
+	resp, err := core.ListKeys(ctx, Prefix)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"sub01"}, resp)
 }

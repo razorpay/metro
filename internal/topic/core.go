@@ -251,6 +251,7 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 	_, terr := admin.CreateTopic(ctx, messagebroker.CreateTopicRequest{
 		Name:          model.Name,
 		NumPartitions: model.NumPartitions,
+		Config:        model.GetRetentionConfig(),
 	})
 
 	return terr

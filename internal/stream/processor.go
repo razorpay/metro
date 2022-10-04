@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/razorpay/metro/pkg/httpclient"
+
 	"github.com/opentracing/opentracing-go"
 	"github.com/panjf2000/ants/v2"
 	"github.com/razorpay/metro/internal/subscription"
@@ -119,7 +121,7 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 
 	logFields["endpoint"] = subModel.GetRedactedPushEndpoint()
 	logger.Ctx(ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
-	resp, err := pr.httpClient.Do(req)
+	resp, err := httpclient.SendRequest(pr.httpClient, req)
 
 	// log metrics
 	workerPushEndpointCallsCount.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.GetRedactedPushEndpoint(), pr.subID).Inc()

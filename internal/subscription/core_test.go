@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/common"
@@ -308,8 +309,102 @@ func TestCore_DeleteSubscription(t *testing.T) {
 			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).MaxTimes(1).Return(true, nil)
 			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil)
 			mockTopicCore.EXPECT().DeleteSubscriptionTopic(ctx, gomock.Any()).Return(nil).AnyTimes()
-	err := core.DeleteSubscription(ctx, &sub)
-	assert.Equal(t, test.wantErr, err != nil)
+			err := core.DeleteSubscription(ctx, &sub)
+			assert.Equal(t, test.wantErr, err != nil)
+		})
+	}
+}
+
+func TestCore_DeleteSubscriptionTopics_Failure(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionName := "projects/test-project/subscriptions/test-sub"
+	projectID := "test-project"
+	subTopic := "projects/test-project/topics/test-topic"
+	subName := "test-sub"
+	topicName := "test-topic"
+	subscription := getSubModelWithInput(subscriptionName, subTopic, projectID, projectID, subName, topicName)
+	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
+	type args struct {
+		ctx            context.Context
+		subscription   *Model
+		deleteErrTopic string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "DeleteSubscriptionTopic with Empty topic",
+			args: args{
+				ctx:            ctx,
+				subscription:   getSubModelWithInput(subscriptionName, "", projectID, projectID, subName, topicName),
+				deleteErrTopic: "",
+			},
+			wantErr: true,
+		},
+		{
+			name: "DeleteSubscriptionTopic of Retry topic",
+			args: args{
+				ctx:            ctx,
+				subscription:   subscription,
+				deleteErrTopic: subscription.GetRetryTopic(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "DeleteSubscriptionTopic of Internal topic",
+			args: args{
+				ctx:            ctx,
+				subscription:   subscription,
+				deleteErrTopic: subscription.GetSubscriptionTopic(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "DeleteSubscriptionTopic of DLQ topicc",
+			args: args{
+				ctx:            ctx,
+				subscription:   subscription,
+				deleteErrTopic: subscription.GetDeadLetterTopic(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "DeleteSubscriptionTopic of Delay topic",
+			args: args{
+				ctx:            ctx,
+				subscription:   subscription,
+				deleteErrTopic: subscription.GetDelayTopics()[0],
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), tt.args.subscription.ExtractedSubscriptionProjectID).DoAndReturn(func(arg0 context.Context, arg1 string) (bool, error) {
+				if arg1 == tt.args.subscription.ExtractedSubscriptionProjectID {
+					return true, nil
+				} else {
+					return false, errors.New("project not found")
+				}
+			}).AnyTimes()
+			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil).AnyTimes()
+			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			mockTopicCore.EXPECT().DeleteSubscriptionTopic(ctx, gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 *topic.Model) error {
+				if arg1.Name != tt.args.deleteErrTopic {
+					return nil
+				} else {
+					return errors.New("test error")
+				}
+			}).AnyTimes()
+			err := core.DeleteSubscription(ctx, tt.args.subscription)
+			assert.Equal(t, err != nil, tt.wantErr)
 		})
 	}
 }
@@ -363,4 +458,20 @@ func TestCore_ListKeys(t *testing.T) {
 	resp, err := core.ListKeys(ctx, Prefix)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"sub01"}, resp)
+}
+
+func getSubModelWithInput(name, topic, subProjectID, topicProjectID, subName, topicName string) *Model {
+	return &Model{
+		Name:                           name,
+		Topic:                          topic,
+		ExtractedSubscriptionProjectID: subProjectID,
+		ExtractedTopicProjectID:        topicProjectID,
+		ExtractedSubscriptionName:      subName,
+		ExtractedTopicName:             topicName,
+		PushConfig: &PushConfig{
+			PushEndpoint: "https://www.razorpay.com/api/v1",
+		},
+		AckDeadlineSeconds: 20,
+		Labels:             map[string]string{},
+	}
 }

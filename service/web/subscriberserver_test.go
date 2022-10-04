@@ -15,12 +15,16 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"github.com/pkg/errors"
+	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/credentials"
 	mocks5 "github.com/razorpay/metro/internal/credentials/mocks/core"
+	"github.com/razorpay/metro/internal/project"
 	mocks4 "github.com/razorpay/metro/internal/project/mocks/core"
 	"github.com/razorpay/metro/internal/subscription"
 	mocks2 "github.com/razorpay/metro/internal/subscription/mocks/core"
+	cache2 "github.com/razorpay/metro/pkg/cache"
 	cachemock "github.com/razorpay/metro/pkg/cache/mocks"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/razorpay/metro/service/web/stream"
@@ -461,21 +465,115 @@ func TestSubscriberServer_DeleteSubscription(t *testing.T) {
 
 	ctx := context.Background()
 	req := &metrov1.DeleteSubscriptionRequest{
-		Subscription: "projects/project123/subscriptions/testsub",
+		Subscription: "projects/project123/subscriptions/sub-test",
 	}
-	subModel := &subscription.Model{
-		Name:                           req.Subscription,
-		Topic:                          "projects/project123/topics/test-topic",
-		ExtractedTopicProjectID:        "project123",
-		ExtractedSubscriptionProjectID: "project123",
-		ExtractedSubscriptionName:      "testsub",
-	}
+	subModel := getSubModel(req.Subscription, "projects/project123/topics/test-topic", "project123", "project123", "sub-test")
 
 	subscriptionCore.EXPECT().Get(gomock.Any(), req.Subscription).Return(subModel, nil)
 	subscriptionCore.EXPECT().DeleteSubscription(gomock.Any(), subModel).Times(1).Return(nil)
 	res, err := server.DeleteSubscription(ctx, req)
 	assert.Nil(t, err)
 	assert.Equal(t, &emptypb.Empty{}, res)
+}
+
+func TestSubscriberServer_DeleteSubscription_Failure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockProjectCore := mocks4.NewMockICore(ctrl)
+	brokerStore := mocks.NewMockIBrokerStore(ctrl)
+	subscriptionCore := mocks2.NewMockICore(ctrl)
+	manager := mocks3.NewMockIManager(ctrl)
+	mockCredentialsCore := mocks5.NewMockICore(ctrl)
+	cache := cachemock.NewMockICache(ctrl)
+	ctx := context.Background()
+	req := &metrov1.DeleteSubscriptionRequest{
+		Subscription: "projects/project123/subscriptions/sub-test",
+	}
+	invalidReq := &metrov1.DeleteSubscriptionRequest{
+		Subscription: "invalid-sub",
+	}
+	type args struct {
+		ctx              context.Context
+		projectCore      project.ICore
+		brokerStore      brokerstore.IBrokerStore
+		subscriptionCore subscription.ICore
+		credentialCore   credentials.ICore
+		manager          stream.IManager
+		cache            cache2.ICache
+		req              *metrov1.DeleteSubscriptionRequest
+		subModel         *subscription.Model
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Delete invalid subscription",
+			args: args{
+				ctx:              ctx,
+				projectCore:      mockProjectCore,
+				brokerStore:      brokerStore,
+				subscriptionCore: subscriptionCore,
+				credentialCore:   mockCredentialsCore,
+				manager:          manager,
+				cache:            cache,
+				req:              invalidReq,
+				subModel:         getSubModel("invalid-sub", "projects/project123/topics/test-topic", "project123", "project123", "invalid-sub"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "Delete non-existent subscription",
+			args: args{
+				ctx:              ctx,
+				projectCore:      mockProjectCore,
+				brokerStore:      brokerStore,
+				subscriptionCore: subscriptionCore,
+				credentialCore:   mockCredentialsCore,
+				manager:          manager,
+				cache:            cache,
+				req:              req,
+				subModel:         getSubModel("projects/project123/subscriptions/sub", "projects/project123/topics/test-topic", "project123", "project123", "sub"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "Delete subscription with error from subscription core",
+			args: args{
+				ctx:              ctx,
+				projectCore:      mockProjectCore,
+				brokerStore:      brokerStore,
+				subscriptionCore: subscriptionCore,
+				credentialCore:   mockCredentialsCore,
+				manager:          manager,
+				cache:            cache,
+				req:              req,
+				subModel:         getSubModel(req.Subscription, "projects/project123/topics/test-topic", "project123", "project123", "sub-test"),
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := newSubscriberServer(tt.args.projectCore, tt.args.brokerStore, tt.args.subscriptionCore, tt.args.credentialCore, tt.args.manager, tt.args.cache)
+			subscriptionCore.EXPECT().Get(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 string) (*subscription.Model, error) {
+				if tt.args.req.Subscription == tt.args.subModel.Name {
+					return tt.args.subModel, nil
+				} else {
+					return nil, errors.New("Subscription doesn't exist")
+				}
+			}).AnyTimes()
+			subscriptionCore.EXPECT().DeleteSubscription(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 *subscription.Model) error {
+				if tt.wantErr {
+					return errors.New("Test error")
+				} else {
+					return nil
+				}
+			}).AnyTimes()
+			_, err := server.DeleteSubscription(ctx, tt.args.req)
+			assert.Equal(t, err != nil, tt.wantErr)
+		})
+	}
 }
 
 func TestSubscriberServer_DeleteSubscriptionFailure(t *testing.T) {
@@ -759,4 +857,14 @@ func TestSubscriberServer_GetSubscriptionFailure(t *testing.T) {
 	res, err := server.GetSubscription(ctx, req)
 	assert.NotNil(t, err)
 	assert.Nil(t, res)
+}
+
+func getSubModel(name, topic, projectID, subProjectID, subName string) *subscription.Model {
+	return &subscription.Model{
+		Name:                           name,
+		Topic:                          topic,
+		ExtractedTopicProjectID:        projectID,
+		ExtractedSubscriptionProjectID: subProjectID,
+		ExtractedSubscriptionName:      subName,
+	}
 }

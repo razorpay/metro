@@ -371,7 +371,10 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 
 	// Calculate change in Nodes percentage
 	updatedNodeCache := sm.nodeCache
-	nodesUpdatePerc := ((len(updatedNodeCache) - len(exisitingNodeCache)) / len(exisitingNodeCache)) * 100
+	nodesUpdatePerc := 0
+	if len(updatedNodeCache) > len(exisitingNodeCache) && len(exisitingNodeCache) != 0 {
+		nodesUpdatePerc = ((len(updatedNodeCache) - len(exisitingNodeCache)) / len(exisitingNodeCache)) * 10
+	}
 
 	// Fetch the latest node bindings after deletions and schedule missing bindings
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)

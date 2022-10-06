@@ -156,6 +156,24 @@ func GetDummyTopicModel() []*topic.Model {
 	}
 }
 
+func GetDummySubModel() subscription.Model {
+	return subscription.Model{
+		Name:                           "projects/test-project/subscriptions/test",
+		Topic:                          "projects/test-project/topics/test",
+		ExtractedTopicProjectID:        "test-project",
+		ExtractedSubscriptionName:      "test",
+		ExtractedSubscriptionProjectID: "test-project",
+		ExtractedTopicName:             "test",
+		DeadLetterPolicy: &subscription.DeadLetterPolicy{
+			DeadLetterTopic:     "projects/test-project/topics/test-dlq",
+			MaxDeliveryAttempts: 5,
+		},
+		PushConfig: &subscription.PushConfig{
+			PushEndpoint: "http://test.test",
+		},
+	}
+}
+
 func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 	type fields struct {
 		id               string
@@ -190,6 +208,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 	schedulerMock := mocks6.NewMockIScheduler(ctrl)
 
 	workerID := uuid.New().String()
+	workerID2 := uuid.New().String()
 	tests := []struct {
 		name    string
 		fields  fields
@@ -248,6 +267,9 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 					{
 						ID: workerID,
 					},
+					{
+						ID: workerID2,
+					},
 				}, nil).AnyTimes()
 			nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
 				[]*nodebinding.Model{}, nil).AnyTimes()
@@ -255,21 +277,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 			nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
 				[]string{}, nil).AnyTimes()
 			// mock subscription Core
-			sub := subscription.Model{
-				Name:                           "projects/test-project/subscriptions/test",
-				Topic:                          "projects/test-project/topics/test",
-				ExtractedTopicProjectID:        "test-project",
-				ExtractedSubscriptionName:      "test",
-				ExtractedSubscriptionProjectID: "test-project",
-				ExtractedTopicName:             "test",
-				DeadLetterPolicy: &subscription.DeadLetterPolicy{
-					DeadLetterTopic:     "projects/test-project/topics/test-dlq",
-					MaxDeliveryAttempts: 5,
-				},
-				PushConfig: &subscription.PushConfig{
-					PushEndpoint: "http://test.test",
-				},
-			}
+			sub := GetDummySubModel()
 			sub.SetVersion("1")
 			// mock nodebindings core
 			nb := &nodebinding.Model{
@@ -394,21 +402,7 @@ func TestSchedulerTask_deleteInvalidBindings(t *testing.T) {
 			nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
 				[]string{}, nil).AnyTimes()
 			// mock subscription Core
-			sub := subscription.Model{
-				Name:                           "projects/test-project/subscriptions/test",
-				Topic:                          "projects/test-project/topics/test",
-				ExtractedTopicProjectID:        "test-project",
-				ExtractedSubscriptionName:      "test",
-				ExtractedSubscriptionProjectID: "test-project",
-				ExtractedTopicName:             "test",
-				DeadLetterPolicy: &subscription.DeadLetterPolicy{
-					DeadLetterTopic:     "projects/test-project/topics/test-dlq",
-					MaxDeliveryAttempts: 5,
-				},
-				PushConfig: &subscription.PushConfig{
-					PushEndpoint: "http://test.test",
-				},
-			}
+			sub := GetDummySubModel()
 			sub.SetVersion("1")
 			// mock nodebindings core
 			nb := &nodebinding.Model{

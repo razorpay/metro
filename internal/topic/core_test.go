@@ -579,6 +579,12 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 			expectedErr: fmt.Errorf("Something went wrong"),
 		},
 		{
+			name:        "Alter retention configs with error in getting admin server",
+			topics:      []common.IModel{dlqTopic},
+			getAdminErr: fmt.Errorf("Something went wrong"),
+			expectedErr: fmt.Errorf("Something went wrong"),
+		},
+		{
 			name: "Alter retention configs without any existing topic",
 		},
 		{
@@ -594,7 +600,7 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 			mockAdmin.EXPECT().AlterTopicConfigs(ctx, gomock.Any()).Return(test.expected, test.expectedErr).MaxTimes(1)
 			mockAdmin.EXPECT().DescribeTopicConfigs(ctx, gomock.Any()).Return(test.existingConfigs, nil).MaxTimes(1)
 			mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
-			mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, nil).MaxTimes(1)
+			mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), messagebroker.AdminClientOptions{}).Return(mockAdmin, test.getAdminErr).MaxTimes(1)
 			c := &Core{
 				repo:        mockTopicRepo,
 				projectCore: projectcoremock.NewMockICore(ctrl),

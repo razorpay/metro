@@ -14,22 +14,9 @@ import (
 	mocks3 "github.com/razorpay/metro/internal/publisher/mocks/publisher"
 	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/internal/topic/mocks/core"
-	"github.com/razorpay/metro/pkg/messagebroker"
-	messagebrokermock "github.com/razorpay/metro/pkg/messagebroker/mocks"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
-
-// GetDummyTopicModel to export dummy topic model
-func GetDummyTopicModel() *topic.Model {
-	return &topic.Model{
-		Name:               "projects/test-project/topics/test-topic",
-		Labels:             map[string]string{"label": "value"},
-		ExtractedProjectID: "test-project",
-		ExtractedTopicName: "test-topic",
-		NumPartitions:      1,
-	}
-}
 
 func TestPublishServer_CreateTopicSuccess(t *testing.T) {
 	ctx := context.Background()
@@ -135,15 +122,10 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 	mockCredentialsCore := mocks6.NewMockICore(ctrl)
 	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
 
-	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
-	dTopic := GetDummyTopicModel()
-	mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{dTopic.Name, 1}).Return(messagebroker.CreateTopicResponse{}, nil)
-	mockAdmin.CreateTopic(ctx, messagebroker.CreateTopicRequest{dTopic.Name, 1})
-
 	req := &metrov1.PublishRequest{
-		Topic: "projects/test-project/topics/test-topic",
+		Topic: "projects/project123/topics/test-topic",
 		Messages: []*metrov1.PubsubMessage{
-			{
+			&metrov1.PubsubMessage{
 				Data: []byte("data"),
 			},
 		},
@@ -169,7 +151,7 @@ func TestPublishServer_PublishFailure(t *testing.T) {
 	req := &metrov1.PublishRequest{
 		Topic: "projects/project123/topics/test-topic",
 		Messages: []*metrov1.PubsubMessage{
-			{
+			&metrov1.PubsubMessage{
 				Data: []byte("data"),
 			},
 		},
@@ -177,56 +159,6 @@ func TestPublishServer_PublishFailure(t *testing.T) {
 
 	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(true, nil)
 	publisher.EXPECT().Publish(gomock.Any(), req).Times(1).Return([]string{}, fmt.Errorf("error"))
-	_, err := server.Publish(ctx, req)
-	assert.NotNil(t, err)
-}
-
-func Test2PublishServer_PublishFailure(t *testing.T) {
-	ctx := context.Background()
-
-	ctrl := gomock.NewController(t)
-	mockProjectCore := mocks5.NewMockICore(ctrl)
-	brokerStore := mocks.NewMockIBrokerStore(ctrl)
-	topicCore := mocks2.NewMockICore(ctrl)
-	publisher := mocks3.NewMockIPublisher(ctrl)
-	mockCredentialsCore := mocks6.NewMockICore(ctrl)
-	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
-
-	req := &metrov1.PublishRequest{
-		Topic: "projects/project123/topics/test-topic",
-		Messages: []*metrov1.PubsubMessage{
-			{
-				Data: []byte("data"),
-			},
-		},
-	}
-
-	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(false, fmt.Errorf("error"))
-	_, err := server.Publish(ctx, req)
-	assert.NotNil(t, err)
-}
-
-func Test3PublishServer_PublishFailure(t *testing.T) {
-	ctx := context.Background()
-
-	ctrl := gomock.NewController(t)
-	mockProjectCore := mocks5.NewMockICore(ctrl)
-	brokerStore := mocks.NewMockIBrokerStore(ctrl)
-	topicCore := mocks2.NewMockICore(ctrl)
-	publisher := mocks3.NewMockIPublisher(ctrl)
-	mockCredentialsCore := mocks6.NewMockICore(ctrl)
-	server := newPublisherServer(mockProjectCore, brokerStore, topicCore, mockCredentialsCore, publisher)
-
-	req := &metrov1.PublishRequest{
-		Topic: "projects/project123/topics/test-topic",
-		Messages: []*metrov1.PubsubMessage{
-			{
-				Data: []byte("data"),
-			},
-		},
-	}
-
-	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(false, nil)
 	_, err := server.Publish(ctx, req)
 	assert.NotNil(t, err)
 }
@@ -266,14 +198,13 @@ func TestPublishServer_PublishFailure_OnWrongTopic(t *testing.T) {
 	req := &metrov1.PublishRequest{
 		Topic: "projects/project123/topics/non-existent-topic",
 		Messages: []*metrov1.PubsubMessage{
-			{
+			&metrov1.PubsubMessage{
 				Data: []byte("data"),
 			},
 		},
 	}
 
-	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(true, nil)
-	publisher.EXPECT().Publish(gomock.Any(), req).Times(1).Return([]string{}, fmt.Errorf("error"))
+	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(false, nil)
 	_, err := server.Publish(ctx, req)
 	assert.NotNil(t, err)
 }

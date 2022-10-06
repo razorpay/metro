@@ -178,9 +178,9 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 				if val == nil {
 					continue
 				}
-				rerr := sm.rebalanceSubs(gctx)
-				if rerr != nil {
-					logger.Ctx(gctx).Infow("error rebalancing subs to nodes", "error", rerr)
+				nerr := sm.rebalanceSubs(gctx)
+				if nerr != nil {
+					logger.Ctx(gctx).Infow("error processing node updates", "error", nerr)
 				}
 
 			case val := <-sm.topicWatchData:

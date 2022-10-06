@@ -19,12 +19,12 @@ func getDummyTopicModel() *Model {
 	}
 }
 
-func getDLQDummyTopicModel() *Model {
+func getDLQDummyTopicModel(name string) *Model {
 	return &Model{
-		Name:               "projects/test-project/topics/test-topic-dlq",
+		Name:               "projects/test-project/topics/" + name,
 		Labels:             map[string]string{"label": "value"},
 		ExtractedProjectID: "test-project",
-		ExtractedTopicName: "test-topic-dlq",
+		ExtractedTopicName: name,
 		NumPartitions:      DefaultNumPartitions,
 	}
 }

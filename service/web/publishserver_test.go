@@ -137,8 +137,8 @@ func TestPublishServer_PublishSuccess(t *testing.T) {
 
 	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
 	dTopic := GetDummyTopicModel()
-	mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{dTopic.Name, 1, dTopic.GetRetentionConfig()}).Return(messagebroker.CreateTopicResponse{}, nil)
-	mockAdmin.CreateTopic(ctx, messagebroker.CreateTopicRequest{dTopic.Name, 1, dTopic.GetRetentionConfig()})
+	mockAdmin.EXPECT().CreateTopic(gomock.Any(), messagebroker.CreateTopicRequest{dTopic.Name, 1}).Return(messagebroker.CreateTopicResponse{}, nil)
+	mockAdmin.CreateTopic(ctx, messagebroker.CreateTopicRequest{dTopic.Name, 1})
 
 	req := &metrov1.PublishRequest{
 		Topic: "projects/test-project/topics/test-topic",

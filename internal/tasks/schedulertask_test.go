@@ -324,6 +324,7 @@ func TestSchedulerTask_deleteInvalidBindings(t *testing.T) {
 	schedulerMock := mocks6.NewMockIScheduler(ctrl)
 
 	workerID := uuid.New().String()
+	workerID2 := uuid.New().String()
 
 	tests := []struct {
 		name    string
@@ -382,6 +383,9 @@ func TestSchedulerTask_deleteInvalidBindings(t *testing.T) {
 				[]*node.Model{
 					{
 						ID: workerID,
+					},
+					{
+						ID: workerID2,
 					},
 				}, nil).AnyTimes()
 			nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(

@@ -447,7 +447,6 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 		} else {
 			logger.Ctx(ctx).Errorw("schedulertask: Subscription found without a valid topic", "subscription", sub.Name, "topic", sub.Topic)
 		}
-
 	}
 
 	return nil
@@ -518,11 +517,8 @@ func (sm *SchedulerTask) deleteInvalidBindings(ctx context.Context) error {
 		} else {
 			// Remove bindings for subscriptions that have changed.
 			invalidBindings[nb.Key()] = nb
-			logger.Ctx(ctx).Infow("subscription updated, stale node bindings will be deleted",
-				"subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
-
+			logger.Ctx(ctx).Infow("subscription updated, stale node bindings will be deleted", "subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
 		}
-
 	}
 
 	logger.Ctx(ctx).Infow("schedulertask: Resolved invalid bindings to be deleted", "invalidBindings", invalidBindings)

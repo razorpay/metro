@@ -37,7 +37,7 @@ func TestCore_CreateTopic(t *testing.T) {
 			topicModel: getDummyTopicModel(),
 		},
 		{
-			topicModel: getDLQDummyTopicModel(),
+			topicModel: getDLQDummyTopicModel("test-topic-dlq"),
 		},
 	}
 
@@ -551,7 +551,9 @@ func TestCore_Get(t *testing.T) {
 func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
-	dlqTopic := getDLQDummyTopicModel()
+	dlqTopic := getDLQDummyTopicModel("test-topic-dlq")
+	primaryTopic := getDummyTopicModel()
+	dlqTopic2 := getDLQDummyTopicModel("test-topic-2-dlq")
 
 	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
 	mockAdmin := messagebrokermock.NewMockBroker(ctrl)
@@ -566,19 +568,15 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 		expectedErr     error
 	}{
 		{
-			name:     "Alter retention configs without errors",
-			topics:   []common.IModel{dlqTopic},
-			expected: []string{dlqTopic.Name},
+			name:            "Alter retention configs with non dlq topics, without error",
+			topics:          []common.IModel{primaryTopic, dlqTopic, dlqTopic2},
+			existingConfigs: map[string]map[string]string{dlqTopic2.Name: dlqTopic2.GetRetentionConfig()},
+			expected:        []string{dlqTopic.Name},
 		},
 		{
 			name:        "Alter retention configs with error in altering configs",
 			topics:      []common.IModel{dlqTopic},
 			expectedErr: fmt.Errorf("Something went wrong"),
-		},
-		{
-			name:            "Alter retention configs without any config change",
-			topics:          []common.IModel{dlqTopic},
-			existingConfigs: map[string]map[string]string{dlqTopic.Name: dlqTopic.GetRetentionConfig()},
 		},
 		{
 			name: "Alter retention configs without any existing topic",

@@ -20,6 +20,12 @@ type Admin interface {
 	// AddTopicPartitions adds partitions to an existing topic
 	AddTopicPartitions(context.Context, AddTopicPartitionRequest) (*AddTopicPartitionResponse, error)
 
+	// AlterTopicConfigs alters topic configuration
+	AlterTopicConfigs(context.Context, ModifyTopicConfigRequest) ([]string, error)
+
+	// DescribeTopicConfigs describes topic configuration
+	DescribeTopicConfigs(context.Context, []string) (map[string]map[string]string, error)
+
 	// IsHealthy checks health of underlying broker
 	IsHealthy(context.Context) (bool, error)
 }

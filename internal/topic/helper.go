@@ -24,3 +24,9 @@ func IsDLQTopic(topicName string) bool {
 func GetTopicNameOnly(topicName string) string {
 	return strings.Split(topicName, "/")[3]
 }
+
+// IsRetentionPolicyUnchanged checks if the existing and the required retention policy are same or not
+func IsRetentionPolicyUnchanged(existing, required map[string]string) bool {
+	return existing[RetentionPeriodConfig] == required[RetentionPeriodConfig] &&
+		existing[RetentionSizeConfig] == required[RetentionSizeConfig]
+}

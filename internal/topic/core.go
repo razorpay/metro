@@ -17,6 +17,7 @@ import (
 type ICore interface {
 	CreateTopic(ctx context.Context, model *Model) error
 	UpdateTopic(ctx context.Context, model *Model) error
+	SetupTopicRetentionConfigs(ctx context.Context) ([]string, error)
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
@@ -255,6 +256,63 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 	})
 
 	return terr
+}
+
+// SetupTopicRetentionConfigs sets up retention policy on top of dlq topics
+func (c *Core) SetupTopicRetentionConfigs(ctx context.Context) ([]string, error) {
+	// Alter the topic configs only for dead letter topic for now
+	models, err := c.List(ctx, Prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	topicConfigs := make(map[string]messagebroker.TopicConfig)
+	topicsToUpdate := make([]string, 0, len(models))
+	for _, model := range models {
+		if model.IsDeadLetterTopic() {
+			topicConfigs[model.Name] = messagebroker.TopicConfig{
+				Name:   model.Name,
+				Config: model.GetRetentionConfig(),
+			}
+			topicsToUpdate = append(topicsToUpdate, model.Name)
+		}
+	}
+
+	if len(topicsToUpdate) == 0 {
+		return nil, nil
+	}
+
+	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return nil, aerr
+	}
+
+	// Describe existing configs
+	existingConfigs, err := admin.DescribeTopicConfigs(ctx, topicsToUpdate)
+	if err != nil {
+		return nil, err
+	}
+
+	// remove topics whose retention configs have not changed
+	for name, existingConfig := range existingConfigs {
+		if topicConfig, ok := topicConfigs[name]; ok {
+			if IsRetentionPolicyUnchanged(existingConfig, topicConfig.Config) {
+				delete(topicConfigs, name)
+			}
+		}
+	}
+
+	if len(topicConfigs) == 0 {
+		return nil, nil
+	}
+
+	// Create alter topic config request with Broker
+	updatedTopics, err := admin.AlterTopicConfigs(ctx, messagebroker.NewModifyConfigRequest(topicConfigs))
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedTopics, nil
 }
 
 // List gets slice of topics starting with given prefix

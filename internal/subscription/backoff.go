@@ -1,4 +1,4 @@
-package retry
+package subscription
 
 import "math"
 
@@ -13,6 +13,15 @@ type BackoffPolicy struct {
 	lastInterval  float64
 	count         float64
 	exponential   float64
+}
+
+func NewBackoffPolicy(startInterval, lastInterval, count, exponential float64) BackoffPolicy {
+	return BackoffPolicy{
+		startInterval: startInterval,
+		lastInterval:  lastInterval,
+		count:         count,
+		exponential:   exponential,
+	}
 }
 
 // NewExponentialWindowBackoff  return a backoff policy that that grows exponentially.

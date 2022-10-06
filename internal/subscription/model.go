@@ -186,6 +186,7 @@ func (m *Model) GetDelayTopics() []string {
 	}
 }
 
+// GetDelayTopicsByBackoff returns delay topic based on retry policy
 func (m *Model) GetDelayTopicsByBackoff() []string {
 	if m.DeadLetterPolicy == nil || m.RetryPolicy == nil {
 		return m.GetDelayTopics()
@@ -194,9 +195,9 @@ func (m *Model) GetDelayTopicsByBackoff() []string {
 	delayTopicsMap := m.GetDelayTopicsMap()
 	nef := m.GetBackoff()
 	finder := m.GetIntervalFinder()
-	currentRetryCount := 0
+	currentRetryCount := 1
 	currentInterval := 0
-	expectedIntervals := make([]string, 0)
+	delayTopics := make([]string, 0)
 
 	for currentRetryCount <= int(m.DeadLetterPolicy.MaxDeliveryAttempts) {
 		nextDelayInterval := nef.Next(NewBackoffPolicy(
@@ -213,17 +214,19 @@ func (m *Model) GetDelayTopicsByBackoff() []string {
 			topic.Intervals,
 		))
 
-		expectedIntervals = append(expectedIntervals, delayTopicsMap[closestInterval])
+		delayTopics = append(delayTopics, delayTopicsMap[closestInterval])
 		currentInterval = int(closestInterval)
 		currentRetryCount++
 	}
-	return expectedIntervals
+	return delayTopics
 }
 
+// GetBackoff returns backoff policy
 func (m *Model) GetBackoff() Backoff {
 	return NewExponentialWindowBackoff()
 }
 
+// GetIntervalFinder returns the interval window finder
 func (m *Model) GetIntervalFinder() IntervalFinder {
 	return NewClosestIntervalWithCeil()
 }

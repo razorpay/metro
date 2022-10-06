@@ -118,6 +118,8 @@ func TestSubscriptionCore_UpdateSubscription(t *testing.T) {
 	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
 
 	sub := getSubModel()
+	sub.setDefaultDeadLetterPolicy()
+	sub.setDefaultRetryPolicy()
 	tpc := topic.Model{
 		Name:               sub.Topic,
 		ExtractedTopicName: sub.ExtractedTopicName,
@@ -191,8 +193,10 @@ func TestSubscriptionCore_CreateDelayTopics(t *testing.T) {
 	assert.Nil(t, err)
 
 	sub := getSubModel()
+	sub.setDefaultRetryPolicy()
+	sub.setDefaultDeadLetterPolicy()
 
-	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).Times(8) // number of delay topics being created
+	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).MaxTimes(8) // number of delay topics being created
 	err = createDelayTopics(ctx, &sub, mockTopicCore, topic)
 	assert.Nil(t, err)
 }

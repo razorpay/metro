@@ -9,19 +9,21 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-
+	"github.com/razorpay/metro/internal/brokerstore"
 	mocks2 "github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/node"
 	mocks3 "github.com/razorpay/metro/internal/node/mocks/core"
 	"github.com/razorpay/metro/internal/nodebinding"
 	mocks5 "github.com/razorpay/metro/internal/nodebinding/mocks/core"
+	"github.com/razorpay/metro/internal/scheduler"
 	mocks6 "github.com/razorpay/metro/internal/scheduler/mocks"
 	"github.com/razorpay/metro/internal/subscription"
 	mocks7 "github.com/razorpay/metro/internal/subscription/mocks/core"
 	"github.com/razorpay/metro/internal/topic"
 	mocks4 "github.com/razorpay/metro/internal/topic/mocks/core"
+	"github.com/razorpay/metro/pkg/registry"
 	"github.com/razorpay/metro/pkg/registry/mocks"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSchedulerTask_Run(t *testing.T) {
@@ -139,4 +141,286 @@ func TestSchedulerTask_Run(t *testing.T) {
 
 	cancel()
 	<-doneCh
+}
+
+// GetDummyTopicModel to export dummy topic model
+func GetDummyTopicModel() []*topic.Model {
+	return []*topic.Model{
+		{
+			Name:               "projects/test-project/topics/test",
+			NumPartitions:      2,
+			ExtractedTopicName: "test",
+			ExtractedProjectID: "test-project",
+			Labels:             map[string]string{},
+		},
+	}
+}
+
+func TestSchedulerTask_rebalanceSubs(t *testing.T) {
+	type fields struct {
+		id               string
+		registry         registry.IRegistry
+		brokerstore      brokerstore.IBrokerStore
+		nodeCore         node.ICore
+		scheduler        scheduler.IScheduler
+		topicCore        topic.ICore
+		nodeBindingCore  nodebinding.ICore
+		subscriptionCore subscription.ICore
+		nodeCache        map[string]*node.Model
+		subCache         map[string]*subscription.Model
+		topicCache       map[string]*topic.Model
+		nodeWatchData    chan *struct{}
+		subWatchData     chan *struct{}
+		topicWatchData   chan *struct{}
+	}
+	type args struct {
+		ctx context.Context
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	registryMock := mocks.NewMockIRegistry(ctrl)
+	brokerstoreMock := mocks2.NewMockIBrokerStore(ctrl)
+	nodeCoreMock := mocks3.NewMockICore(ctrl)
+	topicCoreMock := mocks4.NewMockICore(ctrl)
+	subscriptionCoreMock := mocks7.NewMockICore(ctrl)
+	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
+	schedulerMock := mocks6.NewMockIScheduler(ctrl)
+
+	workerID := uuid.New().String()
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Rebalance subs successfully",
+			fields: fields{
+				id:               workerID,
+				registry:         registryMock,
+				brokerstore:      brokerstoreMock,
+				nodeCore:         nodeCoreMock,
+				scheduler:        schedulerMock,
+				topicCore:        topicCoreMock,
+				nodeBindingCore:  nodebindingCoreMock,
+				subscriptionCore: subscriptionCoreMock,
+				nodeCache:        make(map[string]*node.Model),
+				subCache:         make(map[string]*subscription.Model),
+				topicCache:       make(map[string]*topic.Model),
+				nodeWatchData:    make(chan *struct{}),
+				subWatchData:     make(chan *struct{}),
+				topicWatchData:   make(chan *struct{}),
+			},
+			args: args{
+				ctx: ctx,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := &SchedulerTask{
+				id:               tt.fields.id,
+				registry:         tt.fields.registry,
+				brokerstore:      tt.fields.brokerstore,
+				nodeCore:         tt.fields.nodeCore,
+				scheduler:        tt.fields.scheduler,
+				topicCore:        tt.fields.topicCore,
+				nodeBindingCore:  tt.fields.nodeBindingCore,
+				subscriptionCore: tt.fields.subscriptionCore,
+				nodeCache:        tt.fields.nodeCache,
+				subCache:         tt.fields.subCache,
+				topicCache:       tt.fields.topicCache,
+				nodeWatchData:    tt.fields.nodeWatchData,
+				subWatchData:     tt.fields.subWatchData,
+				topicWatchData:   tt.fields.topicWatchData,
+			}
+			dummyTopicModels := GetDummyTopicModel()
+			// mock Topic Get
+			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(
+				dummyTopicModels, nil).AnyTimes()
+			// mock nodes core
+			nodeCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodes/").Return(
+				[]*node.Model{
+					{
+						ID: workerID,
+					},
+				}, nil).AnyTimes()
+			nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+				[]*nodebinding.Model{}, nil).AnyTimes()
+
+			nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+				[]string{}, nil).AnyTimes()
+			// mock subscription Core
+			sub := subscription.Model{
+				Name:                           "projects/test-project/subscriptions/test",
+				Topic:                          "projects/test-project/topics/test",
+				ExtractedTopicProjectID:        "test-project",
+				ExtractedSubscriptionName:      "test",
+				ExtractedSubscriptionProjectID: "test-project",
+				ExtractedTopicName:             "test",
+				DeadLetterPolicy: &subscription.DeadLetterPolicy{
+					DeadLetterTopic:     "projects/test-project/topics/test-dlq",
+					MaxDeliveryAttempts: 5,
+				},
+				PushConfig: &subscription.PushConfig{
+					PushEndpoint: "http://test.test",
+				},
+			}
+			sub.SetVersion("1")
+			// mock nodebindings core
+			nb := &nodebinding.Model{
+				ID:                  uuid.New().String(),
+				NodeID:              workerID,
+				SubscriptionID:      "projects/test-project/subscriptions/test",
+				SubscriptionVersion: "1",
+			}
+			nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
+			// mock scheduler
+			schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).AnyTimes()
+			subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(
+				[]*subscription.Model{&sub}, nil).AnyTimes()
+			if err := sm.rebalanceSubs(tt.args.ctx); (err != nil) != tt.wantErr {
+				t.Errorf("SchedulerTask.rebalanceSubs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSchedulerTask_deleteInvalidBindings(t *testing.T) {
+	type fields struct {
+		id               string
+		registry         registry.IRegistry
+		brokerstore      brokerstore.IBrokerStore
+		nodeCore         node.ICore
+		scheduler        scheduler.IScheduler
+		topicCore        topic.ICore
+		nodeBindingCore  nodebinding.ICore
+		subscriptionCore subscription.ICore
+		nodeCache        map[string]*node.Model
+		subCache         map[string]*subscription.Model
+		topicCache       map[string]*topic.Model
+		nodeWatchData    chan *struct{}
+		subWatchData     chan *struct{}
+		topicWatchData   chan *struct{}
+	}
+	type args struct {
+		ctx context.Context
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	registryMock := mocks.NewMockIRegistry(ctrl)
+	brokerstoreMock := mocks2.NewMockIBrokerStore(ctrl)
+	nodeCoreMock := mocks3.NewMockICore(ctrl)
+	topicCoreMock := mocks4.NewMockICore(ctrl)
+	subscriptionCoreMock := mocks7.NewMockICore(ctrl)
+	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
+	schedulerMock := mocks6.NewMockIScheduler(ctrl)
+
+	workerID := uuid.New().String()
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Delete invalid bindings.",
+			fields: fields{
+				id:               workerID,
+				registry:         registryMock,
+				brokerstore:      brokerstoreMock,
+				nodeCore:         nodeCoreMock,
+				scheduler:        schedulerMock,
+				topicCore:        topicCoreMock,
+				nodeBindingCore:  nodebindingCoreMock,
+				subscriptionCore: subscriptionCoreMock,
+				nodeCache:        make(map[string]*node.Model),
+				subCache:         make(map[string]*subscription.Model),
+				topicCache:       make(map[string]*topic.Model),
+				nodeWatchData:    make(chan *struct{}),
+				subWatchData:     make(chan *struct{}),
+				topicWatchData:   make(chan *struct{}),
+			},
+			args: args{
+				ctx: ctx,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := &SchedulerTask{
+				id:               tt.fields.id,
+				registry:         tt.fields.registry,
+				brokerstore:      tt.fields.brokerstore,
+				nodeCore:         tt.fields.nodeCore,
+				scheduler:        tt.fields.scheduler,
+				topicCore:        tt.fields.topicCore,
+				nodeBindingCore:  tt.fields.nodeBindingCore,
+				subscriptionCore: tt.fields.subscriptionCore,
+				nodeCache:        tt.fields.nodeCache,
+				subCache:         tt.fields.subCache,
+				topicCache:       tt.fields.topicCache,
+				nodeWatchData:    tt.fields.nodeWatchData,
+				subWatchData:     tt.fields.subWatchData,
+				topicWatchData:   tt.fields.topicWatchData,
+			}
+			dummyTopicModels := GetDummyTopicModel()
+			// mock Topic Get
+			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(
+				dummyTopicModels, nil).AnyTimes()
+			// mock nodes core
+			nodeCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodes/").Return(
+				[]*node.Model{
+					{
+						ID: workerID,
+					},
+				}, nil).AnyTimes()
+			nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+				[]*nodebinding.Model{}, nil).AnyTimes()
+
+			nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+				[]string{}, nil).AnyTimes()
+			// mock subscription Core
+			sub := subscription.Model{
+				Name:                           "projects/test-project/subscriptions/test",
+				Topic:                          "projects/test-project/topics/test",
+				ExtractedTopicProjectID:        "test-project",
+				ExtractedSubscriptionName:      "test",
+				ExtractedSubscriptionProjectID: "test-project",
+				ExtractedTopicName:             "test",
+				DeadLetterPolicy: &subscription.DeadLetterPolicy{
+					DeadLetterTopic:     "projects/test-project/topics/test-dlq",
+					MaxDeliveryAttempts: 5,
+				},
+				PushConfig: &subscription.PushConfig{
+					PushEndpoint: "http://test.test",
+				},
+			}
+			sub.SetVersion("1")
+			// mock nodebindings core
+			nb := &nodebinding.Model{
+				ID:                  uuid.New().String(),
+				NodeID:              workerID,
+				SubscriptionID:      "projects/test-project/subscriptions/test",
+				SubscriptionVersion: "1",
+			}
+			nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
+			// mock scheduler
+			schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).AnyTimes()
+			subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(
+				[]*subscription.Model{&sub}, nil).AnyTimes()
+			if err := sm.deleteInvalidBindings(tt.args.ctx); (err != nil) != tt.wantErr {
+				t.Errorf("SchedulerTask.deleteInvalidBindings() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

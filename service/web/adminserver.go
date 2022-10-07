@@ -254,9 +254,9 @@ func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *me
 	return &emptypb.Empty{}, nil
 }
 
-func (s adminServer) SetupRetentionPolicy(ctx context.Context, _ *emptypb.Empty) (*metrov1.Topics, error) {
+func (s adminServer) SetupRetentionPolicy(ctx context.Context, topics *metrov1.Topics) (*metrov1.Topics, error) {
 	logger.Ctx(ctx).Infow("received request to set up retention policy")
-	updatedTopics, err := s.topicCore.SetupTopicRetentionConfigs(ctx)
+	updatedTopics, err := s.topicCore.SetupTopicRetentionConfigs(ctx, topics.GetNames())
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}

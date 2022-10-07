@@ -17,6 +17,7 @@ type IntervalFinderParams struct {
 	intervals     []topic.Interval
 }
 
+// NewIntervalFinderParams returns a instance of next interval finder
 func NewIntervalFinderParams(min, max uint, delayInterval float64, intervals []topic.Interval) IntervalFinderParams {
 	return IntervalFinderParams{
 		min:           min,

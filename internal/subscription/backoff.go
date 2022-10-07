@@ -15,6 +15,7 @@ type BackoffPolicy struct {
 	exponential   float64
 }
 
+// NewBackoffPolicy returns a backoff policy instance.
 func NewBackoffPolicy(startInterval, lastInterval, count, exponential float64) BackoffPolicy {
 	return BackoffPolicy{
 		startInterval: startInterval,

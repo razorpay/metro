@@ -20,9 +20,6 @@ const (
 
 	// SubscriptionTypePull ...
 	SubscriptionTypePull = "Pull"
-
-	// DeadLetterTopicSuffix dead letter topic suffix
-	DeadLetterTopicSuffix = "-dlq"
 )
 
 // Model for a subscription
@@ -268,5 +265,5 @@ func (m *Model) IsFilteringEnabled() bool {
 
 // IsDeadLetterSubscription check if subscription is Dead Letter subscription
 func (m *Model) IsDeadLetterSubscription() bool {
-	return strings.HasSuffix(topic.GetTopicNameOnly(m.Topic), DeadLetterTopicSuffix)
+	return strings.HasSuffix(topic.GetTopicNameOnly(m.Topic), topic.DeadLetterTopicSuffix)
 }

@@ -504,57 +504,33 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
 	if m == nil || m.GetTopic() == "" {
-		return errors.New("Nil model")
+		return errors.New("Nil topic model or topic Name is empty")
 	}
-
-	projectID := m.ExtractedTopicProjectID
-
-	//  delete internal topic
-	internalTopic := m.GetSubscriptionTopic()
-	err := c.deleteSubscriptionTopic(ctx, internalTopic, projectID, topic.GetTopicNameOnly(internalTopic))
-	if err != nil {
-		return err
-	}
-
-	// delete retry topic
-	retryTopic := m.GetRetryTopic()
-	err = c.deleteSubscriptionTopic(ctx, retryTopic, projectID, topic.GetTopicNameOnly(retryTopic))
-	if err != nil {
-		return err
-	}
-
-	// delete delay topics
-	for _, delayTopic := range m.GetDelayTopics() {
-		delayModel := &topic.Model{
-			Name:               delayTopic,
+	subsTopics := getSubsTopics(m)
+	projectID := m.ExtractedSubscriptionProjectID
+	for _, subsTopic := range subsTopics {
+		err := c.topicCore.DeleteSubscriptionTopic(ctx, &topic.Model{
+			Name:               subsTopic,
 			ExtractedProjectID: projectID,
-			ExtractedTopicName: topic.GetTopicNameOnly(delayTopic),
-		}
-		err = c.topicCore.DeleteSubscriptionTopic(ctx, delayModel)
+			ExtractedTopicName: topic.GetTopicNameOnly(subsTopic),
+		})
 		if err != nil {
 			return err
 		}
 	}
-
-	// since dlq topic is not created for dlq subscription no need to delete dlq topic
-	if m.IsDeadLetterSubscription() {
-		return nil
-	}
-
-	// delete dlq topics
-	dlqTopic := m.GetDeadLetterTopic()
-	err = c.deleteSubscriptionTopic(ctx, dlqTopic, projectID, topic.GetTopicNameOnly(dlqTopic))
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (c *Core) deleteSubscriptionTopic(ctx context.Context, name, projectID, extractedTopicName string) error {
-	return c.topicCore.DeleteSubscriptionTopic(ctx, &topic.Model{
-		Name:               name,
-		ExtractedProjectID: projectID,
-		ExtractedTopicName: extractedTopicName,
-	})
+// getSubsTopics get List of all the topics related to subscription
+func getSubsTopics(subs *Model) []string {
+	subsTopics := []string{
+		subs.GetSubscriptionTopic(),
+		subs.GetRetryTopic(),
+	}
+	subsTopics = append(subsTopics, subs.GetDelayTopics()...)
+	// since dlq subscription doesn't have dlq topic
+	if !subs.IsDeadLetterSubscription() {
+		subsTopics = append(subsTopics, subs.GetDeadLetterTopic())
+	}
+	return subsTopics
 }

@@ -81,7 +81,7 @@ type IBrokerStore interface {
 	FlushAllProducers(ctx context.Context)
 
 	// IsTopicCleanUpEnabled returns true if topicCleanUp is enabled in the env
-	IsTopicCleanUpEnabled(ctx context.Context) bool
+	IsTopicCleanUpEnabled() bool
 }
 
 // NewBrokerStore returns a concrete implementation IBrokerStore
@@ -330,7 +330,6 @@ func (b *BrokerStore) FlushAllProducers(ctx context.Context) {
 }
 
 // IsTopicCleanUpEnabled checks if topic clean-up config is enabled or not
-func (b *BrokerStore) IsTopicCleanUpEnabled(ctx context.Context) bool {
-	logger.Ctx(ctx).Infof("EnableTopicCleanUp value: %v", b.bConfig.Admin.EnableTopicCleanUp)
+func (b *BrokerStore) IsTopicCleanUpEnabled() bool {
 	return b.bConfig.Admin.EnableTopicCleanUp
 }

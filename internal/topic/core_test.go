@@ -299,7 +299,7 @@ func TestCore_DeleteTopic(t *testing.T) {
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
 				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(true, nil)
 				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil)
-				mockBrokerStore.EXPECT().IsTopicCleanUpEnabled(gomock.Any()).Return(true)
+				mockBrokerStore.EXPECT().IsTopicCleanUpEnabled().Return(true)
 				mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(getMockAdmin(ctrl), nil)
 			}
 			if err := c.DeleteTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
@@ -705,7 +705,7 @@ func TestCore_DeleteSubscriptionTopic(t *testing.T) {
 				}
 			}).AnyTimes()
 			projectCore.EXPECT().Exists(tt.args.ctx, gomock.Any()).Return(true, nil).AnyTimes()
-			brokerStore.EXPECT().IsTopicCleanUpEnabled(gomock.Any()).Return(true)
+			brokerStore.EXPECT().IsTopicCleanUpEnabled().Return(true)
 			repo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil).AnyTimes()
 			repo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, nil).AnyTimes()
 			brokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(getMockAdmin(ctrl), nil).AnyTimes()
@@ -777,7 +777,7 @@ func TestCore_DeleteSubscriptionTopic_Failure(t *testing.T) {
 				}
 			}).AnyTimes()
 			projectCore.EXPECT().Exists(tt.args.ctx, gomock.Any()).Return(true, nil).AnyTimes()
-			brokerStore.EXPECT().IsTopicCleanUpEnabled(gomock.Any()).Return(true).AnyTimes()
+			brokerStore.EXPECT().IsTopicCleanUpEnabled().Return(true).AnyTimes()
 			repo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil).AnyTimes()
 			repo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).DoAndReturn(func(arg0 context.Context, arg1 string) (bool, error) {
 				if arg1 != getTopicModelWithInput(topic, extractedTopic, extracteProjectID).Key() {

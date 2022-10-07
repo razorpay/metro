@@ -314,8 +314,7 @@ func TestCore_DeleteSubscription(t *testing.T) {
 		})
 	}
 }
-
-func TestCore_DeleteSubscriptionTopics_Failure(t *testing.T) {
+func TestCore_DeleteSubscriptionTopics(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	mockProjectCore := pCore.NewMockICore(ctrl)
@@ -329,10 +328,11 @@ func TestCore_DeleteSubscriptionTopics_Failure(t *testing.T) {
 	topicName := "test-topic"
 	subscription := getSubModelWithInput(subscriptionName, subTopic, projectID, projectID, subName, topicName)
 	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
+	subTopicsMap := getSubTopicsMap(subscription)
 	type args struct {
-		ctx            context.Context
-		subscription   *Model
-		deleteErrTopic string
+		ctx           context.Context
+		subscription  *Model
+		subsTopicsMap map[string]bool
 	}
 	tests := []struct {
 		name    string
@@ -340,47 +340,29 @@ func TestCore_DeleteSubscriptionTopics_Failure(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "DeleteSubscriptionTopic with Empty topic",
+			name: "DeleteSubscriptionTopic sucesss",
 			args: args{
-				ctx:            ctx,
-				subscription:   getSubModelWithInput(subscriptionName, "", projectID, projectID, subName, topicName),
-				deleteErrTopic: "",
+				ctx:           ctx,
+				subscription:  subscription,
+				subsTopicsMap: subTopicsMap,
+			},
+			wantErr: false,
+		},
+		{
+			name: "DeleteSubscriptionTopic failure subscription with empty topic",
+			args: args{
+				ctx:           ctx,
+				subscription:  getSubModelWithInput(subscriptionName, "", projectID, projectID, subName, topicName),
+				subsTopicsMap: subTopicsMap,
 			},
 			wantErr: true,
 		},
 		{
-			name: "DeleteSubscriptionTopic of Retry topic",
+			name: "DeleteSubscriptionTopic failure error from topic core",
 			args: args{
-				ctx:            ctx,
-				subscription:   subscription,
-				deleteErrTopic: subscription.GetRetryTopic(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "DeleteSubscriptionTopic of Internal topic",
-			args: args{
-				ctx:            ctx,
-				subscription:   subscription,
-				deleteErrTopic: subscription.GetSubscriptionTopic(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "DeleteSubscriptionTopic of DLQ topicc",
-			args: args{
-				ctx:            ctx,
-				subscription:   subscription,
-				deleteErrTopic: subscription.GetDeadLetterTopic(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "DeleteSubscriptionTopic of Delay topic",
-			args: args{
-				ctx:            ctx,
-				subscription:   subscription,
-				deleteErrTopic: subscription.GetDelayTopics()[0],
+				ctx:           ctx,
+				subscription:  subscription,
+				subsTopicsMap: subTopicsMap,
 			},
 			wantErr: true,
 		},
@@ -390,18 +372,16 @@ func TestCore_DeleteSubscriptionTopics_Failure(t *testing.T) {
 			mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), tt.args.subscription.ExtractedSubscriptionProjectID).DoAndReturn(func(arg0 context.Context, arg1 string) (bool, error) {
 				if arg1 == tt.args.subscription.ExtractedSubscriptionProjectID {
 					return true, nil
-				} else {
-					return false, errors.New("project not found")
 				}
+				return false, errors.New("project not found")
 			}).AnyTimes()
 			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil).AnyTimes()
 			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			mockTopicCore.EXPECT().DeleteSubscriptionTopic(ctx, gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 *topic.Model) error {
-				if arg1.Name != tt.args.deleteErrTopic {
-					return nil
-				} else {
+				if ok := tt.args.subsTopicsMap[arg1.Name]; !ok || tt.wantErr {
 					return errors.New("test error")
 				}
+				return nil
 			}).AnyTimes()
 			err := core.DeleteSubscription(ctx, tt.args.subscription)
 			assert.Equal(t, err != nil, tt.wantErr)
@@ -474,4 +454,18 @@ func getSubModelWithInput(name, topic, subProjectID, topicProjectID, subName, to
 		AckDeadlineSeconds: 20,
 		Labels:             map[string]string{},
 	}
+}
+
+func getSubTopicsMap(subs *Model) map[string]bool {
+	subTopicsMap := map[string]bool{
+		subs.GetSubscriptionTopic(): true,
+		subs.GetRetryTopic():        true,
+	}
+	for _, delayTopic := range subs.GetDelayTopics() {
+		subTopicsMap[delayTopic] = true
+	}
+	if !subs.IsDeadLetterSubscription() {
+		subTopicsMap[subs.GetDeadLetterTopic()] = true
+	}
+	return subTopicsMap
 }

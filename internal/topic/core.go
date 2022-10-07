@@ -396,7 +396,7 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 // DeleteBrokerTopic deletes the topic from the message broker
 func (c *Core) DeleteBrokerTopic(ctx context.Context, model *Model) error {
 	// only delete the topic if topic clean-up config is enabled
-	if !c.brokerStore.IsTopicCleanUpEnabled(ctx) {
+	if !c.brokerStore.IsTopicCleanUpEnabled() {
 		logger.Ctx(ctx).Infow("brokerstore topic cleanup not enabled")
 		return nil
 	}

@@ -124,26 +124,29 @@ func TestBrokerStore_IsTopicCleanUpEnabled(t *testing.T) {
 		variant string
 		bConfig *messagebroker.BrokerConfig
 	}
-	type args struct {
-		ctx context.Context
-	}
-	ctx := context.Background()
+	brokerConfigTopicCleanEnabled := getValidBrokerConfig()
+	brokerConfigTopicCleanDisabled := getValidBrokerConfig()
+	brokerConfigTopicCleanDisabled.Admin.EnableTopicCleanUp = false
 	tests := []struct {
 		name   string
 		fields fields
-		args   args
 		want   bool
 	}{
 		{
 			name: "Get EnableTopicCleanUp value as true",
 			fields: fields{
 				variant: "kafka",
-				bConfig: getValidBrokerConfig(),
-			},
-			args: args{
-				ctx: ctx,
+				bConfig: brokerConfigTopicCleanEnabled,
 			},
 			want: true,
+		},
+		{
+			name: "Get EnableTopicCleanUp value as false",
+			fields: fields{
+				variant: "kafka",
+				bConfig: brokerConfigTopicCleanDisabled,
+			},
+			want: false,
 		},
 	}
 	for _, tt := range tests {
@@ -152,7 +155,7 @@ func TestBrokerStore_IsTopicCleanUpEnabled(t *testing.T) {
 				variant: tt.fields.variant,
 				bConfig: tt.fields.bConfig,
 			}
-			assert.Equalf(t, tt.want, b.IsTopicCleanUpEnabled(tt.args.ctx), "IsTopicCleanUpEnabled(%v)", tt.args.ctx)
+			assert.Equalf(t, tt.want, b.IsTopicCleanUpEnabled(), "IsTopicCleanUpEnabled(%v)")
 		})
 	}
 }

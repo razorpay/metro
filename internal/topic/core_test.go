@@ -560,6 +560,7 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 
 	tests := []struct {
 		name            string
+		topicsToUpdate  map[string]*Model
 		topics          []common.IModel
 		existingConfigs map[string]map[string]string
 		expected        []string
@@ -574,9 +575,10 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 			expected:        []string{dlqTopic.Name},
 		},
 		{
-			name:        "Alter retention configs with error in altering configs",
-			topics:      []common.IModel{dlqTopic},
-			expectedErr: fmt.Errorf("Something went wrong"),
+			name:           "Alter retention configs with error in altering configs",
+			topicsToUpdate: map[string]*Model{dlqTopic.Name: dlqTopic},
+			topics:         []common.IModel{dlqTopic},
+			expectedErr:    fmt.Errorf("Something went wrong"),
 		},
 		{
 			name:        "Alter retention configs with error in getting admin server",
@@ -596,7 +598,21 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+Prefix).Return(test.topics, test.listErr).MaxTimes(1)
+			topicNames := make([]string, 0, len(test.topicsToUpdate))
+			if len(test.topicsToUpdate) > 0 {
+				for name, model := range test.topicsToUpdate {
+					topicNames = append(topicNames, name)
+					mockTopicRepo.EXPECT().Exists(gomock.Any(), model.Key()).Return(true, nil).MaxTimes(1)
+					mockTopicRepo.EXPECT().Get(gomock.Any(), model.Key(), gomock.Any()).DoAndReturn(func(arg1 context.Context, name string, mod *Model) error {
+						mod.Name = model.Name
+						mod.ExtractedTopicName = model.ExtractedTopicName
+						return nil
+					}).MaxTimes(1)
+				}
+			} else {
+				mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+Prefix).Return(test.topics, test.listErr).MaxTimes(1)
+			}
+
 			mockAdmin.EXPECT().AlterTopicConfigs(ctx, gomock.Any()).Return(test.expected, test.expectedErr).MaxTimes(1)
 			mockAdmin.EXPECT().DescribeTopicConfigs(ctx, gomock.Any()).Return(test.existingConfigs, nil).MaxTimes(1)
 			mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
@@ -606,7 +622,7 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 				projectCore: projectcoremock.NewMockICore(ctrl),
 				brokerStore: mockBrokerStore,
 			}
-			got, err := c.SetupTopicRetentionConfigs(ctx)
+			got, err := c.SetupTopicRetentionConfigs(ctx, topicNames)
 			assert.Equal(t, test.expectedErr != nil, err != nil)
 			assert.Equal(t, test.expected, got)
 		})

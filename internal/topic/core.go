@@ -17,7 +17,7 @@ import (
 type ICore interface {
 	CreateTopic(ctx context.Context, model *Model) error
 	UpdateTopic(ctx context.Context, model *Model) error
-	SetupTopicRetentionConfigs(ctx context.Context) ([]string, error)
+	SetupTopicRetentionConfigs(ctx context.Context, names []string) ([]string, error)
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
@@ -259,16 +259,29 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 }
 
 // SetupTopicRetentionConfigs sets up retention policy on top of dlq topics
-func (c *Core) SetupTopicRetentionConfigs(ctx context.Context) ([]string, error) {
-	// Alter the topic configs only for dead letter topic for now
-	models, err := c.List(ctx, Prefix)
-	if err != nil {
-		return nil, err
+func (c *Core) SetupTopicRetentionConfigs(ctx context.Context, names []string) ([]string, error) {
+	topicModels := make([]*Model, 0)
+	if len(names) == 0 {
+		models, err := c.List(ctx, Prefix)
+		if err != nil {
+			return nil, err
+		}
+		topicModels = append(topicModels, models...)
+	} else {
+		for _, name := range names {
+			model, err := c.Get(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			topicModels = append(topicModels, model)
+		}
 	}
 
 	topicConfigs := make(map[string]messagebroker.TopicConfig)
-	topicsToUpdate := make([]string, 0, len(models))
-	for _, model := range models {
+	topicsToUpdate := make([]string, 0, len(topicModels))
+
+	// Alter the topic configs only for dead letter topic for now
+	for _, model := range topicModels {
 		if model.IsDeadLetterTopic() {
 			topicConfigs[model.Name] = messagebroker.TopicConfig{
 				Name:   model.Name,

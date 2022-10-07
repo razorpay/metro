@@ -410,13 +410,18 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 				retryModel.Name)
 		}
 
-		delayTopics := m.GetDelayTopicsByBackoff()
+		delayTopics := m.GetDelayTopics()
 		for _, delayTopic := range delayTopics {
 			_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
 				Name:          delayTopic,
 				NumPartitions: topicModel.NumPartitions,
 			})
-			if err != nil {
+
+			if val, ok := err.(*merror.MError); ok {
+				if val.Code() == merror.NotFound {
+					continue
+				}
+			} else if err != nil {
 				return merror.ToGRPCError(err)
 			}
 			delayModel := &topic.Model{

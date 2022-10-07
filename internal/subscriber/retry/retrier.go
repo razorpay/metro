@@ -96,7 +96,7 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		float64(msg.InitialDelayInterval),
 		float64(msg.CurrentDelayInterval),
 		float64(msg.CurrentRetryCount),
-		2,
+		subscription.DefaultBackoffExponential,
 	))
 
 	// find next allowed delay interval from the list of pre-defined intervals

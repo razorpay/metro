@@ -174,7 +174,7 @@ func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentIn
 			float64(min),
 			float64(currentInterval),
 			float64(currentRetryCount),
-			2,
+			subscription.DefaultBackoffExponential,
 		))
 
 		closestInterval := finder.Next(subscription.NewIntervalFinderParams(

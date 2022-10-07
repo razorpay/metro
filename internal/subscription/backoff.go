@@ -2,6 +2,9 @@ package subscription
 
 import "math"
 
+// DefaultBackoffExponential is the default exponential value for backoff
+const DefaultBackoffExponential = 2
+
 // Backoff defines the backoff calculation logic
 type Backoff interface {
 	Next(BackoffPolicy) float64

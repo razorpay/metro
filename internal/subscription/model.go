@@ -204,12 +204,12 @@ func (m *Model) GetDelayTopicsByBackoff() []string {
 			float64(m.RetryPolicy.MinimumBackoff),
 			float64(currentInterval),
 			float64(currentRetryCount),
-			2,
+			DefaultBackoffExponential,
 		))
 
 		closestInterval := finder.Next(NewIntervalFinderParams(
-			uint(m.RetryPolicy.MinimumBackoff),
-			uint(m.RetryPolicy.MaximumBackoff),
+			m.RetryPolicy.MinimumBackoff,
+			m.RetryPolicy.MaximumBackoff,
 			nextDelayInterval,
 			topic.Intervals,
 		))

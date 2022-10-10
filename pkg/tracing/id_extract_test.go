@@ -28,8 +28,8 @@ func TestTagsCarrier_Set_JaegerTraceFormat(t *testing.T) {
 	c.Set(traceHeaderName, traceHeaderValue)
 
 	assert.EqualValues(t, map[string]interface{}{
-		TagTraceId: fakeInboundTraceId,
-		TagSpanId:  fakeInboundSpanId,
+		TagTraceID: fakeInboundTraceId,
+		TagSpanID:  fakeInboundSpanId,
 		TagSampled: "true",
 	}, c.Tags.Values())
 }

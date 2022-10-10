@@ -5,12 +5,17 @@ import (
 
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/razorpay/metro/pkg/logger"
 )
 
 const (
-	TagTraceId           = "trace.traceid"
-	TagSpanId            = "trace.spanid"
-	TagSampled           = "trace.sampled"
+	// TagTraceID tag for trace id
+	TagTraceID = "trace.traceid"
+	// TagSpanID tag for span id
+	TagSpanID = "trace.spanid"
+	// TagSampled tag for sampled
+	TagSampled = "trace.sampled"
+	// jaegerNotSampledFlag sampling flag
 	jaegerNotSampledFlag = "0"
 )
 
@@ -27,7 +32,7 @@ const (
 func injectOpentracingIdsToTags(traceHeaderName string, span opentracing.Span, tags grpc_ctxtags.Tags) {
 	if err := span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders,
 		&tagsCarrier{Tags: tags, traceHeaderName: traceHeaderName}); err != nil {
-		// logger.Infof("grpc_opentracing: failed extracting trace info into ctx %v", err)
+		logger.Ctx(nil).Infow("grpc_opentracing: failed extracting trace info into ctx %v", err)
 	}
 }
 
@@ -43,8 +48,8 @@ func (t *tagsCarrier) Set(key, val string) {
 	if key == t.traceHeaderName {
 		parts := strings.Split(val, ":")
 		if len(parts) == 4 {
-			t.Tags.Set(TagTraceId, parts[0])
-			t.Tags.Set(TagSpanId, parts[1])
+			t.Tags.Set(TagTraceID, parts[0])
+			t.Tags.Set(TagSpanID, parts[1])
 
 			if parts[3] != jaegerNotSampledFlag {
 				t.Tags.Set(TagSampled, "true")
@@ -57,11 +62,11 @@ func (t *tagsCarrier) Set(key, val string) {
 	}
 
 	if strings.Contains(key, "traceid") {
-		t.Tags.Set(TagTraceId, val) // this will most likely be base-16 (hex) encoded
+		t.Tags.Set(TagTraceID, val) // this will most likely be base-16 (hex) encoded
 	}
 
 	if strings.Contains(key, "spanid") && !strings.Contains(strings.ToLower(key), "parent") {
-		t.Tags.Set(TagSpanId, val) // this will most likely be base-16 (hex) encoded
+		t.Tags.Set(TagSpanID, val) // this will most likely be base-16 (hex) encoded
 	}
 
 	if strings.Contains(key, "sampled") {
@@ -72,10 +77,10 @@ func (t *tagsCarrier) Set(key, val string) {
 	}
 
 	if strings.HasSuffix(key, "trace-id") {
-		t.Tags.Set(TagTraceId, val)
+		t.Tags.Set(TagTraceID, val)
 	}
 
 	if strings.HasSuffix(key, "parent-id") {
-		t.Tags.Set(TagSpanId, val)
+		t.Tags.Set(TagSpanID, val)
 	}
 }

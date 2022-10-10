@@ -11,14 +11,18 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+	"github.com/razorpay/metro/pkg/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	Component      = "component"
-	HttpStatusCode = "http.status_code"
+	// Component eg: GRPC
+	Component = "component"
+	// HTTPStatusCode response status
+	HTTPStatusCode = "http.status_code"
+	// GRPCStatusCode response status
 	GRPCStatusCode = "status.code"
 )
 
@@ -71,7 +75,7 @@ func newServerSpanFromInbound(ctx context.Context, tracer opentracing.Tracer, tr
 	md := metautils.ExtractIncoming(ctx)
 	parentSpanContext, err := tracer.Extract(opentracing.HTTPHeaders, metadataTextMap(md))
 	if err != nil && err != opentracing.ErrSpanContextNotFound {
-		// GetLogger().Infof("grpc_opentracing: failed parsing trace information: %v", err)
+		logger.Ctx(ctx).Infow("grpc_opentracing: failed parsing trace information: %v", err)
 	}
 
 	serverSpan := tracer.StartSpan(
@@ -100,7 +104,7 @@ func finishServerSpan(ctx context.Context, serverSpan opentracing.Span, err erro
 	if err != nil {
 		if s, ok := status.FromError(err); ok {
 			serverSpan.SetTag(GRPCStatusCode, s.Code())
-			serverSpan.SetTag(HttpStatusCode, runtime.HTTPStatusFromCode(s.Code()))
+			serverSpan.SetTag(HTTPStatusCode, runtime.HTTPStatusFromCode(s.Code()))
 		}
 
 		ext.Error.Set(serverSpan, true)
@@ -108,7 +112,7 @@ func finishServerSpan(ctx context.Context, serverSpan opentracing.Span, err erro
 
 	} else {
 		serverSpan.SetTag(GRPCStatusCode, codes.OK)
-		serverSpan.SetTag(HttpStatusCode, http.StatusOK)
+		serverSpan.SetTag(HTTPStatusCode, http.StatusOK)
 	}
 
 	serverSpan.Finish()

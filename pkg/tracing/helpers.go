@@ -90,6 +90,7 @@ func evaluateOptions(opts []Option) *options {
 	return optCopy
 }
 
+// Option accepts a fun with options
 type Option func(*options)
 
 // WithFilterFunc customizes the function used for deciding whether a given call is traced or not.

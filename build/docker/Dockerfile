@@ -1,6 +1,6 @@
 # Stage 1 - Generate proto
 ###########################
-FROM golang:1.16.5-alpine3.13 as proto-builder
+FROM golang:1.19.0-alpine3.16 as proto-builder
 
 ENV CGO_ENABLED 1
 ENV METRO_APPENV=${APP_ENV}
@@ -27,7 +27,7 @@ RUN make proto-generate
 
 # Stage 2 - Compilation build stage
 ######################################
-FROM golang:1.16.5-alpine3.13 as builder
+FROM golang:1.19.0-alpine3.16 as builder
 
 ENV CGO_ENABLED 1
 ENV METRO_APPENV=${APP_ENV}
@@ -59,7 +59,7 @@ RUN make go-build-metro
 
 # Stage 3 - Binary build stage
 ######################################
-FROM alpine:3.13
+FROM alpine:3.16
 
 COPY --from=builder /src/bin/metro /app/
 COPY --from=builder /src/config/ /app/config/

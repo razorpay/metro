@@ -9,7 +9,6 @@ import (
 
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
-	grpcopentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/opentracing/opentracing-go"
@@ -20,6 +19,7 @@ import (
 
 	grpcinterceptor "github.com/razorpay/metro/internal/interceptors"
 	"github.com/razorpay/metro/pkg/logger"
+	"github.com/razorpay/metro/pkg/tracing"
 )
 
 // Map containing the gRPC methods that should not be traced
@@ -147,14 +147,14 @@ func newGrpcServer(r registerGrpcHandlers, interceptors ...grpc.UnaryServerInter
 		// Add tags to logger context.
 		grpcinterceptor.UnaryServerLoggerInterceptor(),
 		// Todo: Confirm tracing is working as expected. Jaegar integration?
-		grpcopentracing.UnaryServerInterceptor(grpcopentracing.WithTracer(opentracing.GlobalTracer()), grpcopentracing.WithFilterFunc(shouldEnableTrace)),
+		tracing.UnaryServerInterceptor(tracing.WithTracer(opentracing.GlobalTracer()), tracing.WithFilterFunc(shouldEnableTrace)),
 		// Instrument prometheus metrics for all methods. This will have a counter & histogram of latency.
 		grpcprometheus.UnaryServerInterceptor,
 	}
 
 	defaultStreamInterceptors := []grpc.StreamServerInterceptor{
 		// Enable trace injection on streaming server
-		grpcopentracing.StreamServerInterceptor(grpcopentracing.WithTracer(opentracing.GlobalTracer()), grpcopentracing.WithFilterFunc(shouldEnableTrace)),
+		tracing.StreamServerInterceptor(tracing.WithTracer(opentracing.GlobalTracer()), tracing.WithFilterFunc(shouldEnableTrace)),
 	}
 	effectiveInterceptors := append(defaultUnaryInterceptors, interceptors...)
 	grpcServer := grpc.NewServer(

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -109,10 +110,12 @@ func (svc *Service) Start(ctx context.Context) error {
 		return err
 	}
 	go func() {
+		startTime := time.Now()
 		runErr := publisherTask.Run(ctx)
 		if runErr != nil {
 			logger.Ctx(ctx).Errorw("Error while running publisher task ", "runErr", runErr.Error())
 		}
+		preWarmupCacheTimeTaken.WithLabelValues(env, "ListKeys").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))

@@ -41,7 +41,10 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 	defer span.Finish()
 
 	// Check if topic exists in the PublisherTask Cache
-	if !tasks.CheckIfTopicExists(ctx, req.Topic) {
+	if tasks.CheckIfTopicExists(ctx, req.Topic) {
+		topicCacheHitCount.WithLabelValues(env, "CreateProject").Inc()
+	} else {
+		topicCacheMissCount.WithLabelValues(env, "CreateProject").Inc()
 		logger.Ctx(ctx).Infow(
 			"PublishServer: Topic doesn't exist inside the cache..",
 			"req",

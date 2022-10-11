@@ -115,7 +115,7 @@ func (svc *Service) Start(ctx context.Context) error {
 		if runErr != nil {
 			logger.Ctx(ctx).Errorw("Error while running publisher task ", "runErr", runErr.Error())
 		}
-		preWarmupCacheTimeTaken.WithLabelValues(env, "ListKeys").Observe(time.Now().Sub(startTime).Seconds())
+		preWarmupCacheTimeTaken.WithLabelValues(env, "PreWarmup").Observe(time.Now().Sub(startTime).Seconds())
 	}()
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))

@@ -272,7 +272,11 @@ func (sm *SchedulerTask) refreshCache(ctx context.Context) error {
 }
 
 // refreshNodeBindings achieves the following in the order outline:
-// 1. DeleteInvalidBindings: Refresh Cache & delete invalid node bindings
+// 1. Go through node bindings and remove invalid bindings
+// 	 (Invalid due to changes in the subscription, node failures, topic updates, etc)
+//	  a. Remove bindings that do not conform to the new partition based approach.
+//    b. Remove nodebindings for deleted/invalid subscriptions.
+//    c. Remove nodebindings impacted by node failures
 // 2. Evaluate subscriptions and schedule any missing subscription/partition combos to nodes available.
 // 3. Topic changes are inherently covered since subscription validates against topic.
 func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
@@ -333,8 +337,10 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 		} else {
 			// Remove bindings for subscriptions that have changed.
 			invalidBindings[nb.Key()] = nb
-			logger.Ctx(ctx).Infow("subscription updated, stale node bindings will be deleted", "subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
+			logger.Ctx(ctx).Infow("subscription updated, stale node bindings will be deleted",
+				"subscription", sub.Name, "stale version", nb.SubscriptionVersion, "new version", subVersion)
 		}
+
 	}
 
 	logger.Ctx(ctx).Infow("schedulertask: Resolved invalid bindings to be deleted", "invalidBindings", invalidBindings)
@@ -456,7 +462,7 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 			}
 		}
 
-		// Sort nodes in decreasing order of nodebindings
+		// Sort nodes in decreasing order of number of nodebindings
 		sort.SliceStable(nodes, func(i, j int) bool {
 			return len(nodeMap[nodes[i]]) > len(nodeMap[nodes[j]])
 		})

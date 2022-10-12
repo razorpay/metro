@@ -431,85 +431,34 @@ func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscrip
 // 2. Rebalance node bindings between the nodes with max and min bindings
 // 3. Continue the same for half of the nodes
 func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
-	exisitingNodeCache := sm.nodeCache
-
-	// Calculate change in Nodes percentage
-	updatedNodeCache := sm.nodeCache
-	nodesUpdatePerc := 0
-	if len(updatedNodeCache) > len(exisitingNodeCache) && len(exisitingNodeCache) != 0 {
-		nodesUpdatePerc = ((len(updatedNodeCache) - len(exisitingNodeCache)) / len(exisitingNodeCache)) * 10
-	}
-
 	// Fetch the latest node bindings after deletions and schedule missing bindings
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
 	if err != nil {
 		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
 		return err
 	}
-	validBindings := make(map[string]*nodebinding.Model)
+	invalidBindings := make(map[string]*nodebinding.Model)
+	nodeMap := make(map[string][]*nodebinding.Model)
 
+	// Create a map with nodebinding list such as { "node1" : ["nodebinding1", "nodebinding2"] }
 	for _, nb := range nodeBindings {
-		subPart := nb.SubscriptionID + "_" + strconv.Itoa(nb.Partition)
-		validBindings[subPart] = nb
-	}
-
-	validSubscriptions := make([]*subscription.Model, 0, len(validBindings))
-	for _, sub := range sm.subCache {
-		validSubscriptions = append(validSubscriptions, sub)
-	}
-
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(
-		len(validSubscriptions),
-		func(i, j int) {
-			validSubscriptions[i], validSubscriptions[j] = validSubscriptions[j], validSubscriptions[i]
-		},
-	)
-
-	validSubsToBeRebalanced := 0
-	// Calculate Total subs to be rebalanced from existing Nodes
-	if nodesUpdatePerc > 0 {
-		validSubsToBeRebalanced = (nodesUpdatePerc * len(validSubscriptions)) / 100
-	}
-
-	for _, sub := range validSubscriptions {
-		validSubsRebalanced := 0
-		invalidBindings := make(map[string]*nodebinding.Model)
-		//Fetch topic and see if all partitions are assigned.
-		// If not assign missing ones
-		topic, ok := sm.topicCache[sub.Topic]
-		if ok {
-			if topic.NumPartitions == 0 {
-				topic.NumPartitions = 1
-			}
-			for i := 0; i < topic.NumPartitions; i++ {
-				subPart := sub.Name + "_" + strconv.Itoa(i)
-				nb, ok := validBindings[subPart]
-				if !ok {
-					logger.Ctx(ctx).Infow("schedulertask: assigning nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
-					err = sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
-					if err != nil {
-						logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
-					}
-				} else if validSubsRebalanced < validSubsToBeRebalanced {
-					invalidBindings[nb.Key()] = nb
-					logger.Ctx(ctx).Infow("schedulertask: rebalancing nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
-					err = sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
-					if err != nil {
-						logger.Ctx(ctx).Errorw("schedulertask: rebalancing nodebinding for missing subscription-partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
-					}
-					validSubsRebalanced++
-				}
-			}
-			// Delete bindings which are invalid due to Rebalancing of subs across nodes
-			for key, nb := range invalidBindings {
-				dErr := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
-				if err != nil {
-					logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding while rebalancing", "error", dErr.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
-				}
-			}
+		if len(nodeMap[nb.NodeID]) != 0 {
+			nodeMap[nb.NodeID] = append(nodeMap[nb.NodeID], nb)
 		} else {
-			logger.Ctx(ctx).Errorw("schedulertask: Subscription found without a valid topic", "subscription", sub.Name, "topic", sub.Topic)
+			nodeMap[nb.NodeID] = []*nodebinding.Model{nb}
+		}
+	}
+
+	// TODO: Rebalance node between nodes with least nodebindings and max nodebindings and
+	// 			push rebalanced to invalid bindings list
+
+	// sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
+
+	// Delete bindings which are invalid due to Rebalancing of subs across nodes
+	for key, nb := range invalidBindings {
+		dErr := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding while rebalancing", "error", dErr.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
 		}
 	}
 

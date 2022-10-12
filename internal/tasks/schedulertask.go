@@ -385,7 +385,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 				subPart := sub.Name + "_" + strconv.Itoa(i)
 				if _, ok := validBindings[subPart]; !ok {
 					logger.Ctx(ctx).Infow("schedulertask: assigning nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
-					err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
+					err := sm.scheduleSubscription(ctx, sub, &nodeBindings, i, sm.nodeCache)
 					if err != nil {
 						//TODO: Track status here and re-assign if possible
 						logger.Ctx(ctx).Errorw("schedulertask: scheduling nodebinding for missing subscription-partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", i)
@@ -401,33 +401,7 @@ func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	return nil
 }
 
-func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model, partition int) error {
-	nb, serr := sm.scheduler.Schedule(sub, partition, *nodeBindings, sm.nodeCache)
-	if serr != nil {
-		logger.Ctx(ctx).Errorw("scheduler: failed to schedule subscription", "err", serr.Error(), "logFields", map[string]interface{}{
-			"subscription": sub.Name,
-			"topic":        sub.Topic,
-			"partition":    partition,
-		})
-		return serr
-	}
-
-	berr := sm.nodeBindingCore.CreateNodeBinding(ctx, nb)
-	if berr != nil {
-		logger.Ctx(ctx).Errorw("scheduler: failed to create nodebinding", "err", serr.Error(), "logFields", map[string]interface{}{
-			"subscription": sub.Name,
-			"topic":        sub.Topic,
-			"partition":    partition,
-		})
-		return berr
-	}
-
-	*nodeBindings = append(*nodeBindings, nb)
-	logger.Ctx(ctx).Infow("schedulertask: successfully assigned nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", partition)
-	return nil
-}
-
-func (sm *SchedulerTask) specificScheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model, partition int, nodes map[string]*node.Model) error {
+func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model, partition int, nodes map[string]*node.Model) error {
 	nb, serr := sm.scheduler.Schedule(sub, partition, *nodeBindings, nodes)
 	if serr != nil {
 		logger.Ctx(ctx).Errorw("scheduler: failed to schedule subscription", "err", serr.Error(), "logFields", map[string]interface{}{
@@ -498,7 +472,7 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 			// Specifically schedule with other node
 			specificNodes := make(map[string]*node.Model)
 			specificNodes[nodes[0]] = sm.nodeCache[nodes[0]]
-			sm.specificScheduleSubscription(ctx, sm.subCache[nb.SubscriptionID], &nodeBindings, nb.Partition, specificNodes)
+			sm.scheduleSubscription(ctx, sm.subCache[nb.SubscriptionID], &nodeBindings, nb.Partition, specificNodes)
 
 			//push rebalanced nodebinding into invalid bindings list
 			invalidBindings[nb.Key()] = nb

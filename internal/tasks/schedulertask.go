@@ -478,8 +478,10 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 			// Specifically schedule with other node
 			specificNodes := make(map[string]*node.Model)
 			specificNodes[nodes[0]] = sm.nodeCache[nodes[0]]
-			sm.scheduleSubscription(ctx, sm.subCache[nb.SubscriptionID], &nodeBindings, nb.Partition, specificNodes)
-
+			err = sm.scheduleSubscription(ctx, sm.subCache[nb.SubscriptionID], &nodeBindings, nb.Partition, specificNodes)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("schedulertask: Rescheduling nodebinding", "topic", sm.subCache[nb.SubscriptionID].Topic, "subscription", sm.subCache[nb.SubscriptionID].Name, "partition", nb.Partition)
+			}
 			//push rebalanced nodebinding into invalid bindings list
 			invalidBindings[nb.Key()] = nb
 

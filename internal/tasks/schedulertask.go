@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"math/rand"
+	"sort"
 	"strconv"
 	"time"
 
@@ -426,39 +427,92 @@ func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscrip
 	return nil
 }
 
+func (sm *SchedulerTask) specificScheduleSubscription(ctx context.Context, sub *subscription.Model, nodeBindings *[]*nodebinding.Model, partition int, nodes map[string]*node.Model) error {
+	nb, serr := sm.scheduler.Schedule(sub, partition, *nodeBindings, nodes)
+	if serr != nil {
+		logger.Ctx(ctx).Errorw("scheduler: failed to schedule subscription", "err", serr.Error(), "logFields", map[string]interface{}{
+			"subscription": sub.Name,
+			"topic":        sub.Topic,
+			"partition":    partition,
+		})
+		return serr
+	}
+
+	berr := sm.nodeBindingCore.CreateNodeBinding(ctx, nb)
+	if berr != nil {
+		logger.Ctx(ctx).Errorw("scheduler: failed to create nodebinding", "err", serr.Error(), "logFields", map[string]interface{}{
+			"subscription": sub.Name,
+			"topic":        sub.Topic,
+			"partition":    partition,
+		})
+		return berr
+	}
+
+	*nodeBindings = append(*nodeBindings, nb)
+	logger.Ctx(ctx).Infow("schedulertask: successfully assigned nodebinding for subscription/partition combo", "topic", sub.Topic, "subscription", sub.Name, "partition", partition)
+	return nil
+}
+
 // rebalanceSubs achieves the following in the order outline:
 // 1. Fetch nodes in decreasing order of amount of node bindings
 // 2. Rebalance node bindings between the nodes with max and min bindings
 // 3. Continue the same for half of the nodes
 func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
-	// Fetch the latest node bindings after deletions and schedule missing bindings
-	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
-	if err != nil {
-		logger.Ctx(ctx).Errorw("error fetching new node binding list", "error", err)
-		return err
-	}
-	invalidBindings := make(map[string]*nodebinding.Model)
-	nodeMap := make(map[string][]*nodebinding.Model)
+	numOfNodes := len(sm.nodeCache)
 
-	// Create a map with nodebinding list such as { "node1" : ["nodebinding1", "nodebinding2"] }
-	for _, nb := range nodeBindings {
-		if len(nodeMap[nb.NodeID]) != 0 {
-			nodeMap[nb.NodeID] = append(nodeMap[nb.NodeID], nb)
-		} else {
-			nodeMap[nb.NodeID] = []*nodebinding.Model{nb}
-		}
-	}
-
-	// TODO: Rebalance node between nodes with least nodebindings and max nodebindings and
-	// 			push rebalanced to invalid bindings list
-
-	// sm.scheduleSubscription(ctx, sub, &nodeBindings, i)
-
-	// Delete bindings which are invalid due to Rebalancing of subs across nodes
-	for key, nb := range invalidBindings {
-		dErr := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
+	for i := 0; i < numOfNodes/2; i++ {
+		// Fetch the latest node bindings after deletions and schedule missing bindings
+		nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
 		if err != nil {
-			logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding while rebalancing", "error", dErr.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
+			logger.Ctx(ctx).Errorw("Rebalancing: error fetching new node binding list", "error", err)
+			return err
+		}
+
+		invalidBindings := make(map[string]*nodebinding.Model)
+		nodeMap := make(map[string][]*nodebinding.Model)
+		nodes := make([]string, 0, len(nodeMap))
+
+		// Create a map with nodebinding list such as { "node1" : ["nodebinding1", "nodebinding2"] }
+		for _, nb := range nodeBindings {
+			if len(nodeMap[nb.NodeID]) != 0 {
+				nodeMap[nb.NodeID] = append(nodeMap[nb.NodeID], nb)
+			} else {
+				nodeMap[nb.NodeID] = []*nodebinding.Model{nb}
+				nodes = append(nodes, nb.NodeID)
+			}
+		}
+
+		// Sort nodes in decreasing order of nodebindings
+		sort.SliceStable(nodes, func(i, j int) bool {
+			return len(nodeMap[nodes[i]]) > len(nodeMap[nodes[j]])
+		})
+
+		len1 := len(nodeMap[nodes[0]])
+		len2 := len(nodeMap[nodes[numOfNodes-1]])
+
+		for len1 > len2 {
+			// Remove binding from 1, truncate the nb list
+			nb := nodeMap[nodes[0]][len1-1]
+			nodeMap[nodes[0]] = nodeMap[nodes[0]][:len1-1]
+
+			// Specifically schedule with other node
+			specificNodes := make(map[string]*node.Model)
+			specificNodes[nodes[0]] = sm.nodeCache[nodes[0]]
+			sm.specificScheduleSubscription(ctx, sm.subCache[nb.SubscriptionID], &nodeBindings, nb.Partition, specificNodes)
+
+			//push rebalanced nodebinding into invalid bindings list
+			invalidBindings[nb.Key()] = nb
+
+			len1--
+			len2++
+		}
+
+		// Delete bindings which are invalid due to Rebalancing of subs across nodes
+		for key, nb := range invalidBindings {
+			dErr := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding while rebalancing", "error", dErr.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
+			}
 		}
 	}
 

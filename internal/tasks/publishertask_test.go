@@ -195,7 +195,7 @@ func TestPublisherTask_refreshCache(t *testing.T) {
 				dTopic := GetDummyTopicModel()[0]
 				cache := make(map[string]bool)
 				cache[dTopic.Name] = true
-				assert.Equal(t, topicCacheData, cache)
+				assert.Equal(t, TopicCacheData, cache)
 				topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return([]*topic.Model{}, nil)
 			}
 			if err := pu.refreshCache(tt.args.ctx); (err != nil) != tt.wantErr {
@@ -238,8 +238,8 @@ func TestCheckIfTopicExists(t *testing.T) {
 	}
 	for _, tt := range tests {
 		if tt.want == true {
-			topicCacheData = make(map[string]bool)
-			topicCacheData[tt.args.topic] = true
+			TopicCacheData = make(map[string]bool)
+			TopicCacheData[tt.args.topic] = true
 		}
 		t.Run(tt.name, func(t *testing.T) {
 			if got := CheckIfTopicExists(tt.args.ctx, tt.args.topic); got != tt.want {
@@ -247,6 +247,10 @@ func TestCheckIfTopicExists(t *testing.T) {
 			}
 		})
 	}
+	for k := range TopicCacheData {
+		delete(TopicCacheData, k)
+	}
+
 }
 
 func TestUpdateTopicCache(t *testing.T) {
@@ -276,7 +280,11 @@ func TestUpdateTopicCache(t *testing.T) {
 		cache[dTopic.Name] = true
 		t.Run(tt.name, func(t *testing.T) {
 			UpdateTopicCache(tt.args.ctx, tt.args.topic)
-			assert.Equal(t, cache, topicCacheData)
+			assert.Equal(t, cache, TopicCacheData)
 		})
 	}
+	for k := range TopicCacheData {
+		delete(TopicCacheData, k)
+	}
+
 }

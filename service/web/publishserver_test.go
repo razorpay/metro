@@ -12,6 +12,7 @@ import (
 	mocks6 "github.com/razorpay/metro/internal/credentials/mocks/core"
 	mocks5 "github.com/razorpay/metro/internal/project/mocks/core"
 	mocks3 "github.com/razorpay/metro/internal/publisher/mocks/publisher"
+	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -182,6 +183,9 @@ func TestPublishServer_PublishFailure(t *testing.T) {
 }
 
 func Test2PublishServer_PublishFailure(t *testing.T) {
+	for k := range tasks.TopicCacheData {
+		delete(tasks.TopicCacheData, k)
+	}
 	ctx := context.Background()
 
 	ctrl := gomock.NewController(t)
@@ -207,6 +211,9 @@ func Test2PublishServer_PublishFailure(t *testing.T) {
 }
 
 func Test3PublishServer_PublishFailure(t *testing.T) {
+	for k := range tasks.TopicCacheData {
+		delete(tasks.TopicCacheData, k)
+	}
 	ctx := context.Background()
 
 	ctrl := gomock.NewController(t)
@@ -232,6 +239,9 @@ func Test3PublishServer_PublishFailure(t *testing.T) {
 }
 
 func TestPublishServer_PublishFailure_OnValidation(t *testing.T) {
+	for k := range tasks.TopicCacheData {
+		delete(tasks.TopicCacheData, k)
+	}
 	ctx := context.Background()
 
 	ctrl := gomock.NewController(t)

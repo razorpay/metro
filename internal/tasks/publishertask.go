@@ -19,9 +19,10 @@ type PublisherTask struct {
 	topicWatchData chan *struct{}
 }
 
-// topicCacheData is declared Global to keep it instance agnostic
-// NOTE: Only read queries to be written from Public methods on topicCacheData
-var topicCacheData map[string]bool = make(map[string]bool)
+// NOTE: Only read queries to be written from Public methods on TopicCacheData
+
+// TopicCacheData is declared Global to keep it instance agnostic
+var TopicCacheData map[string]bool = make(map[string]bool)
 
 // NewPublisherTask creates PublisherTask instance
 func NewPublisherTask(
@@ -146,7 +147,7 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 		topicData[topic.Name] = true
 	}
 
-	topicCacheData = topicData
+	TopicCacheData = topicData
 
 	return nil
 }
@@ -154,7 +155,7 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 // CheckIfTopicExists is to check if topic exists inside the cache
 func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	// Get Topic Cache and check in topic exists
-	if _, ok := topicCacheData[topic]; ok {
+	if _, ok := TopicCacheData[topic]; ok {
 
 		return true
 	}
@@ -165,5 +166,5 @@ func CheckIfTopicExists(ctx context.Context, topic string) bool {
 // UpdateTopicCache is to update the cache
 func UpdateTopicCache(ctx context.Context, topic string) {
 	logger.Ctx(ctx).Info("PublisherTask: Missed topic cache update", "topic", topic)
-	topicCacheData[topic] = true
+	TopicCacheData[topic] = true
 }

@@ -161,3 +161,9 @@ func CheckIfTopicExists(ctx context.Context, topic string) bool {
 
 	return false
 }
+
+// UpdateTopicCache is to update the cache
+func UpdateTopicCache(ctx context.Context, topic string) {
+	logger.Ctx(ctx).Info("PublisherTask: Missed topic cache update", "topic", topic)
+	topicCacheData[topic] = true
+}

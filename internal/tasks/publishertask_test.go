@@ -248,3 +248,35 @@ func TestCheckIfTopicExists(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateTopicCache(t *testing.T) {
+	type args struct {
+		ctx   context.Context
+		topic string
+	}
+	ctx, ctrl, cancel, _, _ := setupPT(t)
+	defer ctrl.Finish()
+	defer cancel()
+
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Update Topic Cache",
+			args: args{
+				ctx:   ctx,
+				topic: "projects/test-project/topics/test",
+			},
+		},
+	}
+	for _, tt := range tests {
+		dTopic := GetDummyTopicModel()[0]
+		cache := make(map[string]bool)
+		cache[dTopic.Name] = true
+		t.Run(tt.name, func(t *testing.T) {
+			UpdateTopicCache(tt.args.ctx, tt.args.topic)
+			assert.Equal(t, cache, topicCacheData)
+		})
+	}
+}

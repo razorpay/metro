@@ -472,9 +472,9 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 			continue
 		}
 
-		nodesToRebalance := len(nodeMap[nodes[i]]) - avgNodebindings
-		for j := 0; j < nodesToRebalance; j++ {
-			nb := nodeMap[nodes[0]][j]
+		nodebindingsToRebalance := len(nodeMap[nodes[i]]) - avgNodebindings
+		for j := 0; j < nodebindingsToRebalance; j++ {
+			nb := nodeMap[nodes[i]][j]
 			err = sm.scheduleSubscription(ctx, sm.subCache[nb.SubscriptionID], &nodeBindings, nb.Partition)
 			if err != nil {
 				logger.Ctx(ctx).Errorw("schedulertask: Rescheduling nodebinding", "topic", sm.subCache[nb.SubscriptionID].Topic, "subscription", sm.subCache[nb.SubscriptionID].Name, "partition", nb.Partition)

@@ -470,7 +470,6 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 		if len(nodeMap[nodes[i]]) <= avgNodebindings {
 			continue
 		}
-
 		nodebindingsToRebalance := len(nodeMap[nodes[i]]) - avgNodebindings
 		for j := 0; j < nodebindingsToRebalance; j++ {
 			nb := nodeMap[nodes[i]][j]

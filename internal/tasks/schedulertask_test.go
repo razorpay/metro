@@ -257,28 +257,6 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 				subWatchData:     tt.fields.subWatchData,
 				topicWatchData:   tt.fields.topicWatchData,
 			}
-			dummyTopicModels := GetDummyTopicModel()
-			// mock Topic Get
-			topicCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "topics/").Return(
-				dummyTopicModels, nil).AnyTimes()
-			// mock nodes core
-			nodeCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodes/").Return(
-				[]*node.Model{
-					{
-						ID: workerID,
-					},
-					{
-						ID: workerID2,
-					},
-				}, nil).AnyTimes()
-			nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
-				[]*nodebinding.Model{}, nil).AnyTimes()
-
-			nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
-				[]string{}, nil).AnyTimes()
-			// mock subscription Core
-			sub := GetDummySubModel()
-			sub.SetVersion("1")
 			// mock nodebindings core
 			nb := &nodebinding.Model{
 				ID:                  uuid.New().String(),
@@ -286,7 +264,24 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 				SubscriptionID:      "projects/test-project/subscriptions/test",
 				SubscriptionVersion: "1",
 			}
+			nb2 := &nodebinding.Model{
+				ID:                  uuid.New().String(),
+				NodeID:              workerID2,
+				SubscriptionID:      "projects/test-project/subscriptions/test2",
+				SubscriptionVersion: "1",
+			}
+			nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+				[]*nodebinding.Model{
+					nb, nb2,
+				}, nil).AnyTimes()
+
+			nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+				[]string{}, nil).AnyTimes()
 			nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
+
+			// mock subscription Core
+			sub := GetDummySubModel()
+			sub.SetVersion("1")
 			// mock scheduler
 			schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).AnyTimes()
 			subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(

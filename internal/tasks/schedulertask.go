@@ -466,7 +466,6 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 		avgNodebindings = len(nodeBindings) / len(nodeMap)
 	}
 
-	invalidBindings := make(map[string]*nodebinding.Model)
 	for i := 0; i < len(nodes); i++ {
 		if len(nodeMap[nodes[i]]) <= avgNodebindings {
 			continue
@@ -475,19 +474,14 @@ func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
 		nodebindingsToRebalance := len(nodeMap[nodes[i]]) - avgNodebindings
 		for j := 0; j < nodebindingsToRebalance; j++ {
 			nb := nodeMap[nodes[i]][j]
+			err = sm.nodeBindingCore.DeleteNodeBinding(ctx, nb.Key(), nb)
+			if err != nil {
+				logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding while rebalancing", "error", err.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
+			}
 			err = sm.scheduleSubscription(ctx, sm.subCache[nb.SubscriptionID], &nodeBindings, nb.Partition)
 			if err != nil {
 				logger.Ctx(ctx).Errorw("schedulertask: Rescheduling nodebinding", "topic", sm.subCache[nb.SubscriptionID].Topic, "subscription", sm.subCache[nb.SubscriptionID].Name, "partition", nb.Partition)
 			}
-			//push rebalanced nodebinding into invalid bindings list
-			invalidBindings[nb.Key()] = nb
-		}
-	}
-	// Delete bindings which are invalid due to Rebalancing of subs across nodes
-	for key, nb := range invalidBindings {
-		dErr := sm.nodeBindingCore.DeleteNodeBinding(ctx, key, nb)
-		if err != nil {
-			logger.Ctx(ctx).Errorw("schedulertask: failed to delete invalid node binding while rebalancing", "error", dErr.Error(), "subscripiton", nb.SubscriptionID, "partition", nb.Partition, "nodebinding", nb.ID)
 		}
 	}
 

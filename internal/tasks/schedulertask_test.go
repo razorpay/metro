@@ -217,7 +217,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Rebalance subs successfully",
+			name: "Rebalance subs failed",
 			fields: fields{
 				id:               workerID,
 				registry:         registryMock,
@@ -237,10 +237,10 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 			args: args{
 				ctx: ctx,
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
-			name: "Rebalance subs failed",
+			name: "Rebalance subs successfully",
 			fields: fields{
 				id:               workerID,
 				registry:         registryMock,
@@ -297,7 +297,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 			if tt.wantErr {
 				err := fmt.Errorf("Something went wrong")
 				nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
-					nil, err).AnyTimes()
+					nil, err)
 			} else if !tt.wantErr {
 				nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
 					[]*nodebinding.Model{

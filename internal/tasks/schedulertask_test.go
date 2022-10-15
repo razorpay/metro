@@ -294,6 +294,12 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 				SubscriptionID:      "projects/test-project/subscriptions/test2",
 				SubscriptionVersion: "1",
 			}
+			nb3 := &nodebinding.Model{
+				ID:                  uuid.New().String(),
+				NodeID:              workerID2,
+				SubscriptionID:      "projects/test-project/subscriptions/test3",
+				SubscriptionVersion: "1",
+			}
 			if tt.wantErr {
 				err := fmt.Errorf("Something went wrong")
 				nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
@@ -301,7 +307,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 			} else if !tt.wantErr {
 				nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
 					[]*nodebinding.Model{
-						nb, nb2,
+						nb, nb2, nb3,
 					}, nil).AnyTimes()
 
 				nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()

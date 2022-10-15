@@ -5,6 +5,7 @@ package tasks
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -238,6 +239,29 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Rebalance subs failed",
+			fields: fields{
+				id:               workerID,
+				registry:         registryMock,
+				brokerstore:      brokerstoreMock,
+				nodeCore:         nodeCoreMock,
+				scheduler:        schedulerMock,
+				topicCore:        topicCoreMock,
+				nodeBindingCore:  nodebindingCoreMock,
+				subscriptionCore: subscriptionCoreMock,
+				nodeCache:        make(map[string]*node.Model),
+				subCache:         make(map[string]*subscription.Model),
+				topicCache:       make(map[string]*topic.Model),
+				nodeWatchData:    make(chan *struct{}),
+				subWatchData:     make(chan *struct{}),
+				topicWatchData:   make(chan *struct{}),
+			},
+			args: args{
+				ctx: ctx,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -270,22 +294,27 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 				SubscriptionID:      "projects/test-project/subscriptions/test2",
 				SubscriptionVersion: "1",
 			}
-			nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
-				[]*nodebinding.Model{
-					nb, nb2,
-				}, nil).AnyTimes()
+			if tt.wantErr {
+				err := fmt.Errorf("Something went wrong")
+				nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+					nil, err).AnyTimes()
+			} else if !tt.wantErr {
+				nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
+					[]*nodebinding.Model{
+						nb, nb2,
+					}, nil).AnyTimes()
 
-			nodebindingCoreMock.EXPECT().ListKeys(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
-				[]string{}, nil).AnyTimes()
-			nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
+				nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
 
-			// mock subscription Core
-			sub := GetDummySubModel()
-			sub.SetVersion("1")
-			// mock scheduler
-			schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).AnyTimes()
-			subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(
-				[]*subscription.Model{&sub}, nil).AnyTimes()
+				// mock subscription Core
+				sub := GetDummySubModel()
+				sub.SetVersion("1")
+				// mock scheduler
+				schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).AnyTimes()
+				subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(
+					[]*subscription.Model{&sub}, nil).AnyTimes()
+			}
+
 			if err := sm.rebalanceSubs(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("SchedulerTask.rebalanceSubs() error = %v, wantErr %v", err, tt.wantErr)
 			}

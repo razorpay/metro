@@ -291,13 +291,13 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 			nb2 := &nodebinding.Model{
 				ID:                  uuid.New().String(),
 				NodeID:              workerID2,
-				SubscriptionID:      "projects/test-project/subscriptions/test2",
+				SubscriptionID:      "projects/test-project/subscriptions/test",
 				SubscriptionVersion: "1",
 			}
 			nb3 := &nodebinding.Model{
 				ID:                  uuid.New().String(),
 				NodeID:              workerID2,
-				SubscriptionID:      "projects/test-project/subscriptions/test3",
+				SubscriptionID:      "projects/test-project/subscriptions/test",
 				SubscriptionVersion: "1",
 			}
 			if tt.wantErr {
@@ -310,13 +310,15 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 						nb, nb2, nb3,
 					}, nil).AnyTimes()
 
+				nodebindingCoreMock.EXPECT().DeleteNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				nodebindingCoreMock.EXPECT().CreateNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).AnyTimes()
 
 				// mock subscription Core
 				sub := GetDummySubModel()
 				sub.SetVersion("1")
+				sm.subCache[sub.Name] = &sub
 				// mock scheduler
-				schedulerMock.EXPECT().Schedule(&sub, gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).AnyTimes()
+				schedulerMock.EXPECT().Schedule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nb, nil).AnyTimes()
 				subscriptionCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "subscriptions/").Return(
 					[]*subscription.Model{&sub}, nil).AnyTimes()
 			}

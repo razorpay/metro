@@ -61,7 +61,9 @@ func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishReques
 				"topic not found").ToGRPCError()
 		}
 		// Update Topic cache with Fallback
-		tasks.UpdateTopicCache(ctx, req.Topic)
+		topicMap := make(map[string]bool)
+		topicMap[req.Topic] = true
+		tasks.UpdateTopicCache(ctx, topicMap, true)
 	}
 
 	if err := publisher.ValidatePublishRequest(ctx, req); err != nil {

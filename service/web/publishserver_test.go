@@ -232,7 +232,9 @@ func Test3PublishServer_PublishFailure(t *testing.T) {
 			},
 		},
 	}
-
+	for k := range tasks.TopicCacheData {
+		delete(tasks.TopicCacheData, k)
+	}
 	topicCore.EXPECT().ExistsWithName(gomock.Any(), req.Topic).Return(false, nil)
 	_, err := server.Publish(ctx, req)
 	assert.NotNil(t, err)

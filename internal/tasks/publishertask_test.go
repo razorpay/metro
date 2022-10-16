@@ -255,22 +255,34 @@ func TestCheckIfTopicExists(t *testing.T) {
 
 func TestUpdateTopicCache(t *testing.T) {
 	type args struct {
-		ctx   context.Context
-		topic string
+		ctx               context.Context
+		topicMap          map[string]bool
+		specificTopicBool bool
 	}
 	ctx, ctrl, cancel, _, _ := setupPT(t)
 	defer ctrl.Finish()
 	defer cancel()
+	topicMap := make(map[string]bool)
+	topicMap["projects/test-project/topics/test"] = true
 
 	tests := []struct {
 		name string
 		args args
 	}{
 		{
-			name: "Update Topic Cache",
+			name: "Update specific Topic Cache",
 			args: args{
-				ctx:   ctx,
-				topic: "projects/test-project/topics/test",
+				ctx:               ctx,
+				topicMap:          topicMap,
+				specificTopicBool: true,
+			},
+		},
+		{
+			name: "Update Complete Topic Cache",
+			args: args{
+				ctx:               ctx,
+				topicMap:          topicMap,
+				specificTopicBool: false,
 			},
 		},
 	}
@@ -279,12 +291,10 @@ func TestUpdateTopicCache(t *testing.T) {
 		cache := make(map[string]bool)
 		cache[dTopic.Name] = true
 		t.Run(tt.name, func(t *testing.T) {
-			UpdateTopicCache(tt.args.ctx, tt.args.topic)
-			assert.Equal(t, cache, TopicCacheData)
+			UpdateTopicCache(tt.args.ctx, tt.args.topicMap, tt.args.specificTopicBool)
 		})
 	}
 	for k := range TopicCacheData {
 		delete(TopicCacheData, k)
 	}
-
 }

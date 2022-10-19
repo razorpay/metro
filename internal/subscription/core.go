@@ -199,7 +199,7 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 
 	startTime := time.Now()
 	defer func() {
-		subscriptionOperationTimeTaken.WithLabelValues(env, "DeleteSubscription").Observe(time.Now().Sub(startTime).Seconds())
+		subscriptionOperationTimeTaken.WithLabelValues(env, "DeleteSubscription").Observe(time.Since(startTime).Seconds())
 	}()
 
 	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedSubscriptionProjectID); !ok {
@@ -214,7 +214,7 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 		}
 		return merror.Newf(merror.NotFound, "Subscription does not exist")
 	}
-	// cleaning up internal/retry/delay/dlq topics of subscription from broker and consul
+	// cleaning up all subscription topics from broker and consul
 	if err := c.deleteSubscriptionTopics(ctx, m); err != nil {
 		return err
 	}
@@ -503,15 +503,21 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 }
 
 func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
-	if m == nil || m.GetTopic() == "" {
-		return errors.New("Nil topic model or topic Name is empty")
+	sub, err := c.Get(ctx, m.Name)
+	if err != nil {
+		return err
 	}
+	if sub.GetTopic() == "" {
+		return errors.New("Topic doesn't exist for subscription")
+	}
+
+	m.Topic = sub.Topic
+	m.ExtractedTopicProjectID = sub.ExtractedTopicProjectID
 	subsTopics := getSubsTopics(m)
-	projectID := m.ExtractedSubscriptionProjectID
 	for _, subsTopic := range subsTopics {
-		err := c.topicCore.DeleteSubscriptionTopic(ctx, &topic.Model{
+		err := c.topicCore.DeleteTopic(ctx, &topic.Model{
 			Name:               subsTopic,
-			ExtractedProjectID: projectID,
+			ExtractedProjectID: m.ExtractedSubscriptionProjectID,
 			ExtractedTopicName: topic.GetTopicNameOnly(subsTopic),
 		})
 		if err != nil {
@@ -521,16 +527,15 @@ func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
 	return nil
 }
 
-// getSubsTopics get List of all the topics related to subscription
-func getSubsTopics(subs *Model) []string {
+// getSubsTopics gets list of all the subscription topics
+func getSubsTopics(m *Model) []string {
 	subsTopics := []string{
-		subs.GetSubscriptionTopic(),
-		subs.GetRetryTopic(),
+		m.GetSubscriptionTopic(),
+		m.GetRetryTopic(),
 	}
-	subsTopics = append(subsTopics, subs.GetDelayTopics()...)
-	// since dlq subscription doesn't have dlq topic
-	if !subs.IsDeadLetterSubscription() {
-		subsTopics = append(subsTopics, subs.GetDeadLetterTopic())
+	subsTopics = append(subsTopics, m.GetDelayTopics()...)
+	if !m.IsDeadLetterSubscription() {
+		subsTopics = append(subsTopics, m.GetDeadLetterTopic())
 	}
 	return subsTopics
 }

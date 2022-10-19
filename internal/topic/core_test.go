@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/brokerstore"
 	brokerstoremock "github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/common"
@@ -297,7 +296,7 @@ func TestCore_DeleteTopic(t *testing.T) {
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(expectBool, err2)
 			} else {
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
-				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(true, nil)
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, nil)
 				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil)
 				mockBrokerStore.EXPECT().IsTopicCleanUpEnabled().Return(true)
 				mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(getMockAdmin(ctrl), nil)
@@ -637,166 +636,6 @@ func getMockAdmin(ctrl *gomock.Controller) *messagebrokermock.MockAdmin {
 	mockAdmin.EXPECT().DeleteTopic(gomock.Any(), gomock.Any()).
 		Return(messagebroker.DeleteTopicResponse{}, nil).AnyTimes()
 	return mockAdmin
-}
-
-func TestCore_DeleteSubscriptionTopic(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := topicrepomock.NewMockIRepo(ctrl)
-	projectCore := projectcoremock.NewMockICore(ctrl)
-	brokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
-	ctx := context.Background()
-	extracteProjectID := "test-project"
-	topic := "projects/test-project/topics/test-topic"
-	extractedTopic := "test-topic"
-	type fields struct {
-		repo        IRepo
-		projectCore project.ICore
-		brokerStore brokerstore.IBrokerStore
-	}
-	type args struct {
-		ctx context.Context
-		m   *Model
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "Delete Borker Topics success",
-			fields: fields{
-				repo:        repo,
-				projectCore: projectCore,
-				brokerStore: brokerStore,
-			},
-			args: args{
-				ctx: ctx,
-				m:   getTopicModelWithInput(topic, extractedTopic, extracteProjectID),
-			},
-			wantErr: false,
-		},
-		{
-			name: "Delete Borker Retry Topics ",
-			fields: fields{
-				repo:        repo,
-				projectCore: projectCore,
-				brokerStore: brokerStore,
-			},
-			args: args{
-				ctx: ctx,
-				m:   getTopicModelWithInput(topic+"-retry", extractedTopic+"-retry", extracteProjectID),
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Core{
-				repo:        tt.fields.repo,
-				projectCore: tt.fields.projectCore,
-				brokerStore: tt.fields.brokerStore,
-			}
-			projectCore.EXPECT().ExistsWithID(gomock.Any(), tt.args.m.ExtractedProjectID).DoAndReturn(func(arg0 context.Context, arg1 string) (bool, error) {
-				if arg1 == extracteProjectID {
-					return true, nil
-				} else {
-					return false, errors.New("ProjectID not found")
-				}
-			}).AnyTimes()
-			projectCore.EXPECT().Exists(tt.args.ctx, gomock.Any()).Return(true, nil).AnyTimes()
-			brokerStore.EXPECT().IsTopicCleanUpEnabled().Return(true)
-			repo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil).AnyTimes()
-			repo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, nil).AnyTimes()
-			brokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(getMockAdmin(ctrl), nil).AnyTimes()
-			err := c.DeleteSubscriptionTopic(tt.args.ctx, tt.args.m)
-			assert.Equal(t, tt.wantErr, err != nil)
-		})
-	}
-}
-
-func TestCore_DeleteSubscriptionTopic_Failure(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := topicrepomock.NewMockIRepo(ctrl)
-	projectCore := projectcoremock.NewMockICore(ctrl)
-	brokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
-	ctx := context.Background()
-	extracteProjectID := "test-project"
-	topic := "projects/test-project/topics/test-topic"
-	extractedTopic := "test-topic"
-	c := &Core{repo, projectCore, brokerStore}
-	type args struct {
-		ctx          context.Context
-		m            *Model
-		mockAdminErr bool
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-		c       ICore
-	}{
-		{
-			name: "Delete Broker Topic with registry non-existent projectID",
-			args: args{
-				ctx:          ctx,
-				m:            getTopicModelWithInput(topic, extractedTopic, "test-project-1"),
-				mockAdminErr: false,
-			},
-			c:       c,
-			wantErr: true,
-		},
-		{
-			name: "Delete Broker Topics with registry non-existent topicID",
-			args: args{
-				ctx:          ctx,
-				m:            getTopicModelWithInput(topic, "test-topic-1", extracteProjectID),
-				mockAdminErr: false,
-			},
-			c:       c,
-			wantErr: true,
-		},
-		{
-			name: "Delete Broker Topics with admin delete error",
-			args: args{
-				ctx:          ctx,
-				m:            getTopicModelWithInput(topic, extractedTopic, extracteProjectID),
-				mockAdminErr: true,
-			},
-			c:       c,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			projectCore.EXPECT().ExistsWithID(gomock.Any(), tt.args.m.ExtractedProjectID).DoAndReturn(func(arg0 context.Context, arg1 string) (bool, error) {
-				if arg1 == extracteProjectID {
-					return true, nil
-				} else {
-					return false, errors.New("ProjectID not found")
-				}
-			}).AnyTimes()
-			projectCore.EXPECT().Exists(tt.args.ctx, gomock.Any()).Return(true, nil).AnyTimes()
-			brokerStore.EXPECT().IsTopicCleanUpEnabled().Return(true).AnyTimes()
-			repo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil).AnyTimes()
-			repo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).DoAndReturn(func(arg0 context.Context, arg1 string) (bool, error) {
-				if arg1 != getTopicModelWithInput(topic, extractedTopic, extracteProjectID).Key() {
-					return false, errors.New("topic not found")
-				} else {
-					return true, nil
-				}
-			}).AnyTimes()
-			brokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 messagebroker.AdminClientOptions) (messagebroker.Admin, error) {
-				if tt.args.mockAdminErr {
-					return nil, errors.New("test error")
-				} else {
-					return getMockAdmin(ctrl), nil
-				}
-			}).AnyTimes()
-			err := tt.c.DeleteSubscriptionTopic(tt.args.ctx, tt.args.m)
-			assert.Equal(t, tt.wantErr, err != nil)
-		})
-	}
 }
 
 func getTopicModelWithInput(name, extractedTopicName, extractedProjectID string) *Model {

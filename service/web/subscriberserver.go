@@ -17,7 +17,6 @@ import (
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"github.com/razorpay/metro/service/web/stream"
 	"golang.org/x/sync/errgroup"
-
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -204,14 +203,6 @@ func (s subscriberserver) DeleteSubscription(ctx context.Context, req *metrov1.D
 	if err != nil {
 		return nil, merror.ToGRPCError(err)
 	}
-	sub, err := s.subscriptionCore.Get(ctx, req.Subscription)
-	if err != nil {
-		return &emptypb.Empty{}, merror.ToGRPCError(merror.Newf(merror.NotFound, "Subscription does not exist"))
-	}
-	m.Topic = sub.Topic
-	m.ExtractedSubscriptionName = sub.ExtractedSubscriptionName
-	m.ExtractedSubscriptionProjectID = sub.ExtractedSubscriptionProjectID
-	m.ExtractedTopicProjectID = sub.ExtractedTopicProjectID
 	err = s.subscriptionCore.DeleteSubscription(ctx, m)
 	if err != nil {
 		return nil, merror.ToGRPCError(err)

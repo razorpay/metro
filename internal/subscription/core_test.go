@@ -306,9 +306,15 @@ func TestCore_DeleteSubscription(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(!test.wantErr, nil)
+			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+				func(ctx context.Context, prefix string, model *Model) error {
+					model.Topic = sub.Topic
+					model.ExtractedTopicName = sub.ExtractedTopicName
+					return nil
+				}).MaxTimes(1)
 			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).MaxTimes(1).Return(true, nil)
 			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil)
-			mockTopicCore.EXPECT().DeleteSubscriptionTopic(ctx, gomock.Any()).Return(nil).AnyTimes()
+			mockTopicCore.EXPECT().DeleteTopic(ctx, gomock.Any()).Return(nil).AnyTimes()
 			err := core.DeleteSubscription(ctx, &sub)
 			assert.Equal(t, test.wantErr, err != nil)
 		})
@@ -374,11 +380,16 @@ func TestCore_DeleteSubscriptionTopics(t *testing.T) {
 					return true, nil
 				}
 				return false, errors.New("project not found")
-			}).AnyTimes()
-			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil).AnyTimes()
-			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			mockTopicCore.EXPECT().DeleteSubscriptionTopic(ctx, gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 *topic.Model) error {
-				if ok := tt.args.subsTopicsMap[arg1.Name]; !ok || tt.wantErr {
+			}).MaxTimes(1)
+			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 string, model *Model) error {
+				model.Topic = tt.args.subscription.Topic
+				model.ExtractedTopicName = tt.args.subscription.ExtractedTopicName
+				return nil
+			}).MaxTimes(1)
+			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil).MaxTimes(1)
+			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(1)
+			mockTopicCore.EXPECT().DeleteTopic(ctx, gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 *topic.Model) error {
+				if tt.wantErr {
 					return errors.New("test error")
 				}
 				return nil

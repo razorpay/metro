@@ -173,6 +173,19 @@ func (c *Core) UpdateSubscription(ctx context.Context, uModel *Model) error {
 		return merror.New(merror.NotFound, "subscription not found")
 	}
 
+	// This will create all delay topics based on updated subscription config.
+	topicModel, err := c.topicCore.Get(ctx, uModel.GetTopic())
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to get topic model", "error", err.Error())
+		return err
+	}
+
+	err = createDelayTopics(ctx, uModel, c.topicCore, topicModel)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
+		return err
+	}
+
 	return c.repo.Save(ctx, uModel)
 }
 
@@ -319,7 +332,8 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, top
 		return nil
 	}
 
-	for _, delayTopic := range m.GetDelayTopics() {
+	delayTopics := m.GetDelayTopicsByBackoff()
+	for _, delayTopic := range delayTopics {
 
 		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
 			Name:            delayTopic,
@@ -396,12 +410,18 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 				retryModel.Name)
 		}
 
-		for _, delayTopic := range m.GetDelayTopics() {
+		delayTopics := m.GetDelayTopics()
+		for _, delayTopic := range delayTopics {
 			_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
 				Name:          delayTopic,
 				NumPartitions: topicModel.NumPartitions,
 			})
-			if err != nil {
+
+			if val, ok := err.(*merror.MError); ok {
+				if val.Code() == merror.NotFound {
+					continue
+				}
+			} else if err != nil {
 				return merror.ToGRPCError(err)
 			}
 			delayModel := &topic.Model{

@@ -1,6 +1,6 @@
 // +build unit
 
-package retry
+package subscription
 
 import (
 	"testing"

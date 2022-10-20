@@ -117,12 +117,23 @@ func TestSubscriptionCore_UpdateSubscription(t *testing.T) {
 	mockRepo := repo.NewMockIRepo(ctrl)
 	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
 
-	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
 	sub := getSubModel()
+	sub.setDefaultDeadLetterPolicy()
+	sub.setDefaultRetryPolicy()
+	tpc := topic.Model{
+		Name:               sub.Topic,
+		ExtractedTopicName: sub.ExtractedTopicName,
+		ExtractedProjectID: sub.ExtractedTopicProjectID,
+		NumPartitions:      0,
+	}
 
+	mockTopicCore.EXPECT().Get(gomock.Any(), sub.Topic).Times(1).Return(&tpc, nil)
+	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).MaxTimes(8)
+	mockTopicCore.EXPECT().CreateDeadLetterTopic(gomock.Any(), gomock.Any()).Times(0).Return(nil)
 	mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(true, nil)
 	mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil)
 	mockRepo.EXPECT().Save(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
 	err := core.UpdateSubscription(ctx, &sub)
 	assert.Nil(t, err)
 }
@@ -182,8 +193,10 @@ func TestSubscriptionCore_CreateDelayTopics(t *testing.T) {
 	assert.Nil(t, err)
 
 	sub := getSubModel()
+	sub.setDefaultRetryPolicy()
+	sub.setDefaultDeadLetterPolicy()
 
-	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).Times(8) // number of delay topics being created
+	mockTopicCore.EXPECT().CreateTopic(gomock.AssignableToTypeOf(ctx), gomock.Any()).Return(nil).MaxTimes(8) // number of delay topics being created
 	err = createDelayTopics(ctx, &sub, mockTopicCore, topic)
 	assert.Nil(t, err)
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	"github.com/stretchr/testify/assert"
 )
@@ -435,4 +436,36 @@ func Test_AlterTopicConfigs(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, []string{topic}, updatedTopics)
+}
+
+func Test_AddTopicPartitions(t *testing.T) {
+	topic := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+	admin, err := messagebroker.NewAdminClient(context.Background(), "kafka", getKafkaBrokerConfig(), getAdminClientConfig())
+	assert.NotNil(t, admin)
+	assert.Nil(t, err)
+
+	aresp, err := admin.CreateTopic(context.Background(), messagebroker.CreateTopicRequest{
+		Name:          topic,
+		NumPartitions: 1,
+	})
+
+	assert.Nil(t, err)
+	assert.NotNil(t, aresp)
+
+	resp, err := admin.AddTopicPartitions(context.Background(), messagebroker.AddTopicPartitionRequest{
+		Name:          topic,
+		NumPartitions: 4,
+	})
+	assert.Nil(t, err)
+	assert.NotNil(t, resp)
+
+	invalidTopic := fmt.Sprintf("topic-%s", uuid.New().String()[0:4])
+	resp, err = admin.AddTopicPartitions(context.Background(), messagebroker.AddTopicPartitionRequest{
+		Name:          invalidTopic,
+		NumPartitions: 2,
+	})
+	assert.Error(t, err)
+	if val, ok := err.(*merror.MError); ok {
+		assert.Equal(t, val.Code(), merror.NotFound)
+	}
 }

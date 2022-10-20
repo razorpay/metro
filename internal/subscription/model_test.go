@@ -110,3 +110,45 @@ func TestModel_GetRedactedPushEndpoint(t *testing.T) {
 		test.assert(t, test.url, got)
 	}
 }
+
+func TestModel_GetDelayTopicsByBackoff(t *testing.T) {
+	subModel := getDummySubscriptionModel()
+
+	tests := []struct {
+		name             string
+		retryPolicy      *RetryPolicy
+		deadLetterPolicy *DeadLetterPolicy
+		expected         []string
+	}{
+		{
+			name:             "Min backoff as 10 and max backoff as 600",
+			retryPolicy:      &RetryPolicy{MinimumBackoff: 10, MaximumBackoff: 600},
+			deadLetterPolicy: &DeadLetterPolicy{MaxDeliveryAttempts: 5},
+			expected: []string{
+				subModel.GetDelay30secTopic(),
+				subModel.GetDelay60secTopic(),
+				subModel.GetDelay150secTopic(),
+				subModel.GetDelay300secTopic(),
+				subModel.GetDelay600secTopic(),
+			},
+		},
+		{
+			name:             "Min and max backoff as 5",
+			retryPolicy:      &RetryPolicy{MinimumBackoff: 5, MaximumBackoff: 5},
+			deadLetterPolicy: &DeadLetterPolicy{MaxDeliveryAttempts: 3},
+			expected: []string{
+				subModel.GetDelay5secTopic(),
+				subModel.GetDelay5secTopic(),
+				subModel.GetDelay5secTopic(),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			subModel.DeadLetterPolicy = test.deadLetterPolicy
+			subModel.RetryPolicy = test.retryPolicy
+			assert.Equal(t, test.expected, subModel.GetDelayTopicsByBackoff())
+		})
+	}
+}

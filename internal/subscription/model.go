@@ -186,6 +186,51 @@ func (m *Model) GetDelayTopics() []string {
 	}
 }
 
+// GetDelayTopicsByBackoff returns delay topic based on retry policy
+func (m *Model) GetDelayTopicsByBackoff() []string {
+	if m.DeadLetterPolicy == nil || m.RetryPolicy == nil {
+		return m.GetDelayTopics()
+	}
+
+	delayTopicsMap := m.GetDelayTopicsMap()
+	nef := m.GetBackoff()
+	finder := m.GetIntervalFinder()
+	currentRetryCount := 1
+	currentInterval := 0
+	delayTopics := make([]string, 0)
+
+	for currentRetryCount <= int(m.DeadLetterPolicy.MaxDeliveryAttempts) {
+		nextDelayInterval := nef.Next(NewBackoffPolicy(
+			float64(m.RetryPolicy.MinimumBackoff),
+			float64(currentInterval),
+			float64(currentRetryCount),
+			DefaultBackoffExponential,
+		))
+
+		closestInterval := finder.Next(NewIntervalFinderParams(
+			m.RetryPolicy.MinimumBackoff,
+			m.RetryPolicy.MaximumBackoff,
+			nextDelayInterval,
+			topic.Intervals,
+		))
+
+		delayTopics = append(delayTopics, delayTopicsMap[closestInterval])
+		currentInterval = int(closestInterval)
+		currentRetryCount++
+	}
+	return delayTopics
+}
+
+// GetBackoff returns backoff policy
+func (m *Model) GetBackoff() Backoff {
+	return NewExponentialWindowBackoff()
+}
+
+// GetIntervalFinder returns the interval window finder
+func (m *Model) GetIntervalFinder() IntervalFinder {
+	return NewClosestIntervalWithCeil()
+}
+
 // GetDelay5secTopic returns the formatted delay topic name for 5sec interval
 func (m *Model) GetDelay5secTopic() string {
 	return fmt.Sprintf(topic.DelayTopicWithProjectNameFormat, m.ExtractedSubscriptionProjectID, m.ExtractedSubscriptionName, topic.Delay5sec)

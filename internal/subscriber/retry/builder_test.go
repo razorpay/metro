@@ -24,8 +24,8 @@ func TestRetrier_Build(t *testing.T) {
 		subs:           subs,
 		bs:             bs,
 		ch:             ch,
-		backoff:        NewFixedWindowBackoff(),
-		finder:         NewClosestIntervalWithCeil(),
+		backoff:        subscription.NewFixedWindowBackoff(),
+		finder:         subscription.NewClosestIntervalWithCeil(),
 		handler:        NewPushToPrimaryRetryTopicHandler(bs),
 		delayConsumers: sync.Map{},
 		errChan:        errCh,
@@ -35,10 +35,10 @@ func TestRetrier_Build(t *testing.T) {
 		WithSubscriberID("subscription-id").
 		WithBrokerStore(bs).
 		WithSubscription(subs).
-		WithBackoff(NewFixedWindowBackoff()).
+		WithBackoff(subscription.NewFixedWindowBackoff()).
 		WithCache(ch).
 		WithErrChan(errCh).
-		WithIntervalFinder(NewClosestIntervalWithCeil()).
+		WithIntervalFinder(subscription.NewClosestIntervalWithCeil()).
 		WithMessageHandler(NewPushToPrimaryRetryTopicHandler(bs))
 	assert.Equal(t, expectedRetrier, retrierBuilder.Build())
 

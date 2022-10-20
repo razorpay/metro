@@ -229,11 +229,10 @@ func TestCore_DeleteTopic(t *testing.T) {
 		brokerStore brokerstore.IBrokerStore
 	}
 	type args struct {
-		ctx       context.Context
-		m         *Model
-		name      string
-		projectID string
-		topicName string
+		ctx            context.Context
+		m              *Model
+		name           string
+		cleanupEnabled bool
 	}
 	ctrl := gomock.NewController(t)
 	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
@@ -241,6 +240,9 @@ func TestCore_DeleteTopic(t *testing.T) {
 	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
 	ctx := context.Background()
 	dTopic := getDummyTopicModel()
+	retryTopic := getDummyTopicModel()
+	retryTopic.Name += RetryTopicSuffix
+	retryTopic.ExtractedTopicName += RetryTopicSuffix
 
 	tests := []struct {
 		name    string
@@ -256,11 +258,25 @@ func TestCore_DeleteTopic(t *testing.T) {
 				brokerStore: mockBrokerStore,
 			},
 			args: args{
-				ctx:       ctx,
-				m:         dTopic,
-				name:      dTopic.Name,
-				projectID: dTopic.ExtractedProjectID,
-				topicName: dTopic.ExtractedTopicName,
+				ctx:            ctx,
+				m:              dTopic,
+				name:           dTopic.Name,
+				cleanupEnabled: true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Deleting Retry Topic successfully",
+			fields: fields{
+				repo:        mockTopicRepo,
+				projectCore: mockProjectCore,
+				brokerStore: mockBrokerStore,
+			},
+			args: args{
+				ctx:            ctx,
+				m:              retryTopic,
+				name:           retryTopic.Name,
+				cleanupEnabled: false,
 			},
 			wantErr: false,
 		},
@@ -272,11 +288,10 @@ func TestCore_DeleteTopic(t *testing.T) {
 				brokerStore: mockBrokerStore,
 			},
 			args: args{
-				ctx:       ctx,
-				m:         dTopic,
-				name:      "",
-				projectID: "",
-				topicName: "",
+				ctx:            ctx,
+				m:              dTopic,
+				name:           "",
+				cleanupEnabled: true,
 			},
 			wantErr: true,
 		},
@@ -296,10 +311,10 @@ func TestCore_DeleteTopic(t *testing.T) {
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(expectBool, err2)
 			} else {
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
-				mockTopicRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, nil)
-				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil)
-				mockBrokerStore.EXPECT().IsTopicCleanUpEnabled().Return(true)
-				mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(getMockAdmin(ctrl), nil)
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, nil).AnyTimes()
+				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil).AnyTimes()
+				mockBrokerStore.EXPECT().IsTopicCleanUpEnabled().Return(tt.args.cleanupEnabled)
+				mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(getMockAdmin(ctrl), nil).MaxTimes(1)
 			}
 			if err := c.DeleteTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteTopic() error = %v, wantErr %v", err, tt.wantErr)

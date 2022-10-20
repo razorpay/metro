@@ -4,10 +4,10 @@ package subscription
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/common"
@@ -290,112 +290,69 @@ func TestCore_DeleteSubscription(t *testing.T) {
 	sub := getSubModel()
 
 	tests := []struct {
-		name    string
-		wantErr bool
+		name          string
+		projectExists bool
+		subExists     bool
+		topicExists   bool
+		wantErr       bool
+		err           error
 	}{
 		{
-			name:    "Delete subscription with error",
-			wantErr: true,
+			name:          "Delete non-existing subscription",
+			projectExists: true,
+			subExists:     false,
+			wantErr:       true,
+			err:           fmt.Errorf("Something went wrong"),
 		},
 		{
-			name:    "Delete subscription without error",
-			wantErr: false,
+			name:          "Delete subscription without error",
+			projectExists: true,
+			topicExists:   true,
+			subExists:     true,
+		},
+		{
+			name:          "Delete subscription of non existing topic",
+			projectExists: true,
+			subExists:     true,
+			wantErr:       true,
+			err:           fmt.Errorf("Something went wrong"),
+		},
+		{
+			name:    "Delete subscription of non existing project",
+			wantErr: true,
+			err:     fmt.Errorf("Something went wrong"),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).Times(1).Return(!test.wantErr, nil)
+			mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), sub.ExtractedSubscriptionProjectID).DoAndReturn(
+				func(ctx context.Context, prefix string) (bool, error) {
+					if test.projectExists {
+						return true, nil
+					}
+					return false, test.err
+				}).MaxTimes(1)
 			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 				func(ctx context.Context, prefix string, model *Model) error {
-					model.Topic = sub.Topic
-					model.ExtractedTopicName = sub.ExtractedTopicName
-					return nil
+					if !test.wantErr {
+						model.Topic = sub.Topic
+						model.ExtractedTopicName = sub.ExtractedTopicName
+						return nil
+					}
+					return test.err
 				}).MaxTimes(1)
-			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).MaxTimes(1).Return(true, nil)
+			mockRepo.EXPECT().Exists(gomock.Any(), sub.Key()).DoAndReturn(
+				func(ctx context.Context, prefix string) (bool, error) {
+					if test.subExists {
+						return true, nil
+					}
+					return false, test.err
+				}).MaxTimes(1)
 			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil)
 			mockTopicCore.EXPECT().DeleteTopic(ctx, gomock.Any()).Return(nil).AnyTimes()
 			err := core.DeleteSubscription(ctx, &sub)
 			assert.Equal(t, test.wantErr, err != nil)
-		})
-	}
-}
-func TestCore_DeleteSubscriptionTopics(t *testing.T) {
-	ctx := context.Background()
-	ctrl := gomock.NewController(t)
-	mockProjectCore := pCore.NewMockICore(ctrl)
-	mockTopicCore := tCore.NewMockICore(ctrl)
-	mockRepo := repo.NewMockIRepo(ctrl)
-	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
-	subscriptionName := "projects/test-project/subscriptions/test-sub"
-	projectID := "test-project"
-	subTopic := "projects/test-project/topics/test-topic"
-	subName := "test-sub"
-	topicName := "test-topic"
-	subscription := getSubModelWithInput(subscriptionName, subTopic, projectID, projectID, subName, topicName)
-	core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
-	subTopicsMap := getSubTopicsMap(subscription)
-	type args struct {
-		ctx           context.Context
-		subscription  *Model
-		subsTopicsMap map[string]bool
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "DeleteSubscriptionTopic sucesss",
-			args: args{
-				ctx:           ctx,
-				subscription:  subscription,
-				subsTopicsMap: subTopicsMap,
-			},
-			wantErr: false,
-		},
-		{
-			name: "DeleteSubscriptionTopic failure subscription with empty topic",
-			args: args{
-				ctx:           ctx,
-				subscription:  getSubModelWithInput(subscriptionName, "", projectID, projectID, subName, topicName),
-				subsTopicsMap: subTopicsMap,
-			},
-			wantErr: true,
-		},
-		{
-			name: "DeleteSubscriptionTopic failure error from topic core",
-			args: args{
-				ctx:           ctx,
-				subscription:  subscription,
-				subsTopicsMap: subTopicsMap,
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), tt.args.subscription.ExtractedSubscriptionProjectID).DoAndReturn(func(arg0 context.Context, arg1 string) (bool, error) {
-				if arg1 == tt.args.subscription.ExtractedSubscriptionProjectID {
-					return true, nil
-				}
-				return false, errors.New("project not found")
-			}).MaxTimes(1)
-			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 string, model *Model) error {
-				model.Topic = tt.args.subscription.Topic
-				model.ExtractedTopicName = tt.args.subscription.ExtractedTopicName
-				return nil
-			}).MaxTimes(1)
-			mockRepo.EXPECT().Exists(gomock.Any(), gomock.Any()).Times(1).Return(true, nil).MaxTimes(1)
-			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).MaxTimes(1)
-			mockTopicCore.EXPECT().DeleteTopic(ctx, gomock.Any()).DoAndReturn(func(arg0 context.Context, arg1 *topic.Model) error {
-				if tt.wantErr {
-					return errors.New("test error")
-				}
-				return nil
-			}).AnyTimes()
-			err := core.DeleteSubscription(ctx, tt.args.subscription)
-			assert.Equal(t, err != nil, tt.wantErr)
 		})
 	}
 }

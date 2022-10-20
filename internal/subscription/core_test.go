@@ -11,6 +11,7 @@ import (
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/common"
+	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	pCore "github.com/razorpay/metro/internal/project/mocks/core"
 	repo "github.com/razorpay/metro/internal/subscription/mocks/repo"
@@ -311,6 +312,22 @@ func TestCore_DeleteSubscription(t *testing.T) {
 			subExists:     true,
 		},
 		{
+			name:          "Delete subscription with error in topic deletion",
+			projectExists: true,
+			subExists:     true,
+			topicExists:   true,
+			wantErr:       false,
+			err:           merror.Newf(merror.NotFound, "Topic not found"),
+		},
+		{
+			name:          "Delete subscription with error in subs topic deletion",
+			projectExists: true,
+			subExists:     true,
+			topicExists:   true,
+			wantErr:       true,
+			err:           fmt.Errorf("Something went wrong"),
+		},
+		{
 			name:          "Delete subscription of non existing topic",
 			projectExists: true,
 			subExists:     true,
@@ -335,7 +352,7 @@ func TestCore_DeleteSubscription(t *testing.T) {
 				}).MaxTimes(1)
 			mockRepo.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 				func(ctx context.Context, prefix string, model *Model) error {
-					if !test.wantErr {
+					if test.topicExists {
 						model.Topic = sub.Topic
 						model.ExtractedTopicName = sub.ExtractedTopicName
 						return nil
@@ -350,7 +367,10 @@ func TestCore_DeleteSubscription(t *testing.T) {
 					return false, test.err
 				}).MaxTimes(1)
 			mockRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil)
-			mockTopicCore.EXPECT().DeleteTopic(ctx, gomock.Any()).Return(nil).AnyTimes()
+			mockTopicCore.EXPECT().DeleteTopic(ctx, gomock.Any()).DoAndReturn(
+				func(ctx context.Context, prefix *topic.Model) error {
+					return test.err
+				}).AnyTimes()
 			err := core.DeleteSubscription(ctx, &sub)
 			assert.Equal(t, test.wantErr, err != nil)
 		})

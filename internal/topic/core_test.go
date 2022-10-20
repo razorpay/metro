@@ -223,13 +223,7 @@ func TestCore_ExistsWithName(t *testing.T) {
 }
 
 func TestCore_DeleteTopic(t *testing.T) {
-	type fields struct {
-		repo        IRepo
-		projectCore project.ICore
-		brokerStore brokerstore.IBrokerStore
-	}
 	type args struct {
-		ctx            context.Context
 		m              *Model
 		name           string
 		cleanupEnabled bool
@@ -238,27 +232,21 @@ func TestCore_DeleteTopic(t *testing.T) {
 	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
 	mockProjectCore := projectcoremock.NewMockICore(ctrl)
 	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
-	ctx := context.Background()
+	mockAdmin := messagebrokermock.NewMockAdmin(ctrl)
 	dTopic := getDummyTopicModel()
 	retryTopic := getDummyTopicModel()
 	retryTopic.Name += RetryTopicSuffix
 	retryTopic.ExtractedTopicName += RetryTopicSuffix
 
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name           string
+		args           args
+		brokerTopicErr error
+		wantErr        bool
 	}{
 		{
 			name: "Delete Topic Successfully",
-			fields: fields{
-				repo:        mockTopicRepo,
-				projectCore: mockProjectCore,
-				brokerStore: mockBrokerStore,
-			},
 			args: args{
-				ctx:            ctx,
 				m:              dTopic,
 				name:           dTopic.Name,
 				cleanupEnabled: true,
@@ -267,13 +255,7 @@ func TestCore_DeleteTopic(t *testing.T) {
 		},
 		{
 			name: "Deleting Retry Topic successfully",
-			fields: fields{
-				repo:        mockTopicRepo,
-				projectCore: mockProjectCore,
-				brokerStore: mockBrokerStore,
-			},
 			args: args{
-				ctx:            ctx,
 				m:              retryTopic,
 				name:           retryTopic.Name,
 				cleanupEnabled: false,
@@ -281,14 +263,18 @@ func TestCore_DeleteTopic(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Deleting Topic failure",
-			fields: fields{
-				repo:        mockTopicRepo,
-				projectCore: mockProjectCore,
-				brokerStore: mockBrokerStore,
-			},
+			name: "Deleting Topic failed due to broker topic deletion",
 			args: args{
-				ctx:            ctx,
+				m:              dTopic,
+				name:           dTopic.Name,
+				cleanupEnabled: true,
+			},
+			brokerTopicErr: fmt.Errorf("Broker Topic deletion error"),
+			wantErr:        true,
+		},
+		{
+			name: "Deleting Topic failure",
+			args: args{
 				m:              dTopic,
 				name:           "",
 				cleanupEnabled: true,
@@ -314,9 +300,16 @@ func TestCore_DeleteTopic(t *testing.T) {
 				mockTopicRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, nil).AnyTimes()
 				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil).AnyTimes()
 				mockBrokerStore.EXPECT().IsTopicCleanUpEnabled().Return(tt.args.cleanupEnabled)
-				mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(getMockAdmin(ctrl), nil).MaxTimes(1)
+				mockAdmin.EXPECT().DeleteTopic(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(ctx context.Context, req messagebroker.DeleteTopicRequest) (*messagebroker.DeleteTopicResponse, error) {
+						if tt.brokerTopicErr != nil {
+							return nil, tt.brokerTopicErr
+						}
+						return &messagebroker.DeleteTopicResponse{}, nil
+					}).MaxTimes(1)
+				mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(mockAdmin, nil).MaxTimes(1)
 			}
-			if err := c.DeleteTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
+			if err := c.DeleteTopic(context.Background(), tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteTopic() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -644,13 +637,6 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 			assert.Equal(t, test.expected, got)
 		})
 	}
-}
-
-func getMockAdmin(ctrl *gomock.Controller) *messagebrokermock.MockAdmin {
-	mockAdmin := messagebrokermock.NewMockAdmin(ctrl)
-	mockAdmin.EXPECT().DeleteTopic(gomock.Any(), gomock.Any()).
-		Return(messagebroker.DeleteTopicResponse{}, nil).AnyTimes()
-	return mockAdmin
 }
 
 func getTopicModelWithInput(name, extractedTopicName, extractedProjectID string) *Model {

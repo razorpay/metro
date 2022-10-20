@@ -407,33 +407,3 @@ func TestCore_ListKeys(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"sub01"}, resp)
 }
-
-func getSubModelWithInput(name, topic, subProjectID, topicProjectID, subName, topicName string) *Model {
-	return &Model{
-		Name:                           name,
-		Topic:                          topic,
-		ExtractedSubscriptionProjectID: subProjectID,
-		ExtractedTopicProjectID:        topicProjectID,
-		ExtractedSubscriptionName:      subName,
-		ExtractedTopicName:             topicName,
-		PushConfig: &PushConfig{
-			PushEndpoint: "https://www.razorpay.com/api/v1",
-		},
-		AckDeadlineSeconds: 20,
-		Labels:             map[string]string{},
-	}
-}
-
-func getSubTopicsMap(subs *Model) map[string]bool {
-	subTopicsMap := map[string]bool{
-		subs.GetSubscriptionTopic(): true,
-		subs.GetRetryTopic():        true,
-	}
-	for _, delayTopic := range subs.GetDelayTopics() {
-		subTopicsMap[delayTopic] = true
-	}
-	if !subs.IsDeadLetterSubscription() {
-		subTopicsMap[subs.GetDeadLetterTopic()] = true
-	}
-	return subTopicsMap
-}

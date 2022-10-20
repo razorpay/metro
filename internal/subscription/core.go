@@ -513,6 +513,7 @@ func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
 
 	m.Topic = sub.Topic
 	m.ExtractedTopicProjectID = sub.ExtractedTopicProjectID
+	m.ExtractedTopicName = sub.ExtractedTopicName
 	subsTopics := getSubsTopics(m)
 	for _, subsTopic := range subsTopics {
 		err := c.topicCore.DeleteTopic(ctx, &topic.Model{
@@ -534,8 +535,8 @@ func getSubsTopics(m *Model) []string {
 		m.GetRetryTopic(),
 	}
 	subsTopics = append(subsTopics, m.GetDelayTopics()...)
-	if !m.IsDeadLetterSubscription() {
-		subsTopics = append(subsTopics, m.GetDeadLetterTopic())
+	if topic.IsDLQTopic(m.ExtractedTopicName) {
+		return subsTopics
 	}
-	return subsTopics
+	return append(subsTopics, m.GetDeadLetterTopic())
 }

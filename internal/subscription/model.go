@@ -261,8 +261,3 @@ func (m *Model) SetFilterExpression(Filter string) {
 func (m *Model) IsFilteringEnabled() bool {
 	return len(m.FilterExpression) > 0
 }
-
-// IsDeadLetterSubscription check if subscription is for dead letter topic
-func (m *Model) IsDeadLetterSubscription() bool {
-	return topic.IsDLQTopic(topic.GetTopicNameOnly(m.GetTopic()))
-}

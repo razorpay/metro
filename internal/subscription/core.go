@@ -521,7 +521,12 @@ func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
 			ExtractedProjectID: m.ExtractedSubscriptionProjectID,
 			ExtractedTopicName: topic.GetTopicNameOnly(subsTopic),
 		})
-		if err != nil {
+		// For subscription topics that do not exist, ignore the errors
+		if val, ok := err.(*merror.MError); ok {
+			if val.Code() == merror.NotFound {
+				continue
+			}
+		} else if err != nil {
 			return err
 		}
 	}

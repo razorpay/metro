@@ -186,10 +186,6 @@ func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
 		return err
 	}
 
-	if m.IsRetryTopic() || m.IsSubscriptionInternalTopic() {
-		return nil
-	}
-
 	if ok, err := c.Exists(ctx, m.Key()); !ok {
 		if err != nil {
 			return err

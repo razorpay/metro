@@ -514,7 +514,7 @@ func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
 	m.Topic = sub.Topic
 	m.ExtractedTopicProjectID = sub.ExtractedTopicProjectID
 	m.ExtractedTopicName = sub.ExtractedTopicName
-	subsTopics := getSubsTopics(m)
+	subsTopics := getSubscriptionTopics(m)
 	for _, subsTopic := range subsTopics {
 		err := c.topicCore.DeleteTopic(ctx, &topic.Model{
 			Name:               subsTopic,
@@ -533,8 +533,8 @@ func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
 	return nil
 }
 
-// getSubsTopics gets list of all the subscription topics
-func getSubsTopics(m *Model) []string {
+// getSubscriptionTopics gets list of all the subscription topics
+func getSubscriptionTopics(m *Model) []string {
 	subsTopics := []string{
 		m.GetSubscriptionTopic(),
 		m.GetRetryTopic(),

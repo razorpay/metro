@@ -5,8 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
-
+	"github.com/pkg/errors"
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/merror"
@@ -14,6 +13,7 @@ import (
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	"github.com/razorpay/metro/pkg/messagebroker"
+	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 )
 
 // ICore is an interface over subscription core
@@ -173,6 +173,19 @@ func (c *Core) UpdateSubscription(ctx context.Context, uModel *Model) error {
 		return merror.New(merror.NotFound, "subscription not found")
 	}
 
+	// This will create all delay topics based on updated subscription config.
+	topicModel, err := c.topicCore.Get(ctx, uModel.GetTopic())
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to get topic model", "error", err.Error())
+		return err
+	}
+
+	err = createDelayTopics(ctx, uModel, c.topicCore, topicModel)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("failed to create delay topics", "error", err.Error())
+		return err
+	}
+
 	return c.repo.Save(ctx, uModel)
 }
 
@@ -199,7 +212,7 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 
 	startTime := time.Now()
 	defer func() {
-		subscriptionOperationTimeTaken.WithLabelValues(env, "DeleteSubscription").Observe(time.Now().Sub(startTime).Seconds())
+		subscriptionOperationTimeTaken.WithLabelValues(env, "DeleteSubscription").Observe(time.Since(startTime).Seconds())
 	}()
 
 	if ok, err := c.projectCore.ExistsWithID(ctx, m.ExtractedSubscriptionProjectID); !ok {
@@ -213,6 +226,10 @@ func (c *Core) DeleteSubscription(ctx context.Context, m *Model) error {
 			return err
 		}
 		return merror.Newf(merror.NotFound, "Subscription does not exist")
+	}
+	// cleaning up all subscription topics from broker and consul
+	if err := c.deleteSubscriptionTopics(ctx, m); err != nil {
+		return err
 	}
 	return c.repo.Delete(ctx, m)
 }
@@ -319,7 +336,8 @@ func createDelayTopics(ctx context.Context, m *Model, topicCore topic.ICore, top
 		return nil
 	}
 
-	for _, delayTopic := range m.GetDelayTopics() {
+	delayTopics := m.GetDelayTopicsByBackoff()
+	for _, delayTopic := range delayTopics {
 
 		tModel, terr := topic.GetValidatedModel(ctx, &metrov1.Topic{
 			Name:            delayTopic,
@@ -396,12 +414,18 @@ func (c *Core) RescaleSubTopics(ctx context.Context, topicModel *topic.Model) er
 				retryModel.Name)
 		}
 
-		for _, delayTopic := range m.GetDelayTopics() {
+		delayTopics := m.GetDelayTopics()
+		for _, delayTopic := range delayTopics {
 			_, err := admin.AddTopicPartitions(ctx, messagebroker.AddTopicPartitionRequest{
 				Name:          delayTopic,
 				NumPartitions: topicModel.NumPartitions,
 			})
-			if err != nil {
+
+			if val, ok := err.(*merror.MError); ok {
+				if val.Code() == merror.NotFound {
+					continue
+				}
+			} else if err != nil {
 				return merror.ToGRPCError(err)
 			}
 			delayModel := &topic.Model{
@@ -496,4 +520,48 @@ func (c *Core) Migrate(ctx context.Context, names []string) error {
 
 	logger.Ctx(ctx).Infow("migration: request completed.", "subscriptionsUpdated", updatedSubCount)
 	return nil
+}
+
+func (c *Core) deleteSubscriptionTopics(ctx context.Context, m *Model) error {
+	sub, err := c.Get(ctx, m.Name)
+	if err != nil {
+		return err
+	}
+	if sub.GetTopic() == "" {
+		return errors.New("Topic doesn't exist for subscription")
+	}
+
+	m.Topic = sub.Topic
+	m.ExtractedTopicProjectID = sub.ExtractedTopicProjectID
+	m.ExtractedTopicName = sub.ExtractedTopicName
+	subsTopics := getSubscriptionTopics(m)
+	for _, subsTopic := range subsTopics {
+		err := c.topicCore.DeleteTopic(ctx, &topic.Model{
+			Name:               subsTopic,
+			ExtractedProjectID: m.ExtractedSubscriptionProjectID,
+			ExtractedTopicName: topic.GetTopicNameOnly(subsTopic),
+		})
+		// For subscription topics that do not exist, ignore the errors
+		if val, ok := err.(*merror.MError); ok {
+			if val.Code() == merror.NotFound {
+				continue
+			}
+		} else if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// getSubscriptionTopics gets list of all the subscription topics
+func getSubscriptionTopics(m *Model) []string {
+	subsTopics := []string{
+		m.GetSubscriptionTopic(),
+		m.GetRetryTopic(),
+	}
+	subsTopics = append(subsTopics, m.GetDelayTopics()...)
+	if topic.IsDLQTopic(m.ExtractedTopicName) {
+		return subsTopics
+	}
+	return append(subsTopics, m.GetDeadLetterTopic())
 }

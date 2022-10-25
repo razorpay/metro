@@ -11,6 +11,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 
+	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/pkg/logger"
 )
 
@@ -287,6 +288,95 @@ func (k *KafkaBroker) CreateTopic(ctx context.Context, request CreateTopicReques
 	return CreateTopicResponse{
 		Response: topicsResp,
 	}, nil
+}
+
+// AlterTopicConfigs alters the topic config
+func (k *KafkaBroker) AlterTopicConfigs(ctx context.Context, request ModifyTopicConfigRequest) ([]string, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "AlterTopicConfigs").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(
+			env, Kafka, "AlterTopicConfigs",
+		).Observe(time.Since(startTime).Seconds())
+	}()
+
+	if len(request.TopicConfigs) == 0 {
+		return nil, fmt.Errorf("invalid argument supplied to AlterTopicConfigs")
+	}
+
+	resources := make([]kafkapkg.ConfigResource, 0, len(request.TopicConfigs))
+	output := make([]string, 0, len(request.TopicConfigs))
+
+	for _, topicConfig := range request.TopicConfigs {
+		tp := normalizeTopicName(topicConfig.Name)
+		configs := make([]kafkapkg.ConfigEntry, 0, len(topicConfig.Config))
+		for key, value := range topicConfig.Config {
+			configs = append(configs, kafkapkg.ConfigEntry{
+				Name:      key,
+				Value:     value,
+				Operation: kafkapkg.AlterOperationSet,
+			})
+		}
+		resources = append(resources, kafkapkg.ConfigResource{
+			Type:   kafkapkg.ResourceTopic,
+			Name:   tp,
+			Config: configs,
+		})
+		output = append(output, topicConfig.Name)
+	}
+
+	resp, err := k.Admin.AlterConfigs(ctx, resources, nil)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("kafka: request to alter topic config failed", "request", request, "error", err.Error())
+		return nil, err
+	}
+
+	logger.Ctx(ctx).Infow("kafka: request to alter topic configs completed", "request", request, "resp", resp)
+	return output, nil
+}
+
+// DescribeTopicConfigs describes the topic config
+func (k *KafkaBroker) DescribeTopicConfigs(ctx context.Context, names []string) (map[string]map[string]string, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "DescribeTopicConfigs").Inc()
+
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(
+			env, Kafka, "DescribeTopicConfigs",
+		).Observe(time.Since(startTime).Seconds())
+	}()
+
+	if len(names) == 0 {
+		return nil, fmt.Errorf("invalid argument supplied to DescribeTopicConfigs")
+	}
+
+	resources := make([]kafkapkg.ConfigResource, 0, len(names))
+	normalizedTopicMap := make(map[string]string, len(names))
+	for _, name := range names {
+		tp := normalizeTopicName(name)
+		normalizedTopicMap[tp] = name
+		resources = append(resources, kafkapkg.ConfigResource{Name: tp, Type: kafkapkg.ResourceTopic})
+	}
+
+	existingResources, derr := k.Admin.DescribeConfigs(ctx, resources, nil)
+	if derr != nil {
+		logger.Ctx(ctx).Errorw("kafka: request to describe topic configs failed", "topics", names,
+			"error", derr.Error())
+		return nil, derr
+	}
+
+	resp := make(map[string]map[string]string, len(existingResources))
+	for _, resource := range existingResources {
+		configs := make(map[string]string, len(resource.Config))
+		for _, config := range resource.Config {
+			configs[config.Name] = config.Value
+		}
+		resp[normalizedTopicMap[resource.Name]] = configs
+	}
+
+	logger.Ctx(ctx).Infow("kafka: request to describe topic configs completed", "topics", names, "resp", resp)
+	return resp, nil
 }
 
 // DeleteTopic deletes an existing topic
@@ -713,14 +803,14 @@ func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPa
 	// fetch the topic metadata and check the current partition count
 	if _, ok := metadata.Topics[tp]; !ok {
 		// invalid topic
-		return nil, fmt.Errorf("topic [%v] not found", tp)
+		return nil, merror.New(merror.NotFound, fmt.Sprintf("topic [%v] not found", tp))
 	}
 
 	// metadata contains non-existent topic names as well with partition count as zero
 	currPartitionCount := len(metadata.Topics[tp].Partitions)
 	if currPartitionCount == 0 {
 		// invalid topic
-		return nil, fmt.Errorf("topic [%v] not found", tp)
+		return nil, merror.New(merror.NotFound, fmt.Sprintf("topic [%v] not found", tp))
 	}
 
 	if request.NumPartitions == currPartitionCount {

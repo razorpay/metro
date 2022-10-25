@@ -22,6 +22,8 @@
         [web.broker.brokerconfig]
             brokers       = ["kafka-broker:9092"]
             [web.broker.brokerconfig.web]
+            [web.broker.brokerconfig.admin]
+                enableTopicCleanUp = true
     [web.interfaces]
         [web.interfaces.api]
             GrpcServerAddress               = "0.0.0.0:8081"

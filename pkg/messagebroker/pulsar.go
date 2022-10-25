@@ -204,6 +204,16 @@ func (p PulsarBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	}, err
 }
 
+// AlterTopicConfigs alters the topic config
+func (p *PulsarBroker) AlterTopicConfigs(ctx context.Context, request ModifyTopicConfigRequest) ([]string, error) {
+	panic("implement this!")
+}
+
+// DescribeTopicConfigs describes the topic config
+func (p *PulsarBroker) DescribeTopicConfigs(ctx context.Context, names []string) (map[string]map[string]string, error) {
+	panic("implement this!")
+}
+
 //ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
 //from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available

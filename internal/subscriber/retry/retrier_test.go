@@ -13,6 +13,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
+	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
 	mocks2 "github.com/razorpay/metro/pkg/cache/mocks"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -126,8 +127,8 @@ func TestRetrier_Start(t *testing.T) {
 		subs:           getMockSubscriptionModel(),
 		bs:             mockBrokerStore,
 		ch:             mockCache,
-		backoff:        NewExponentialWindowBackoff(),
-		finder:         NewClosestIntervalWithCeil(),
+		backoff:        subscription.NewExponentialWindowBackoff(),
+		finder:         subscription.NewClosestIntervalWithCeil(),
 		handler:        NewPushToPrimaryRetryTopicHandler(mockBrokerStore),
 		delayConsumers: sync.Map{},
 		errChan:        make(chan error),

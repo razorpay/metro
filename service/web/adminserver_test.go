@@ -454,6 +454,43 @@ func Test_adminServer_MigrateSubscriptions(t *testing.T) {
 	}
 }
 
+func Test_adminServer_SetupRetentionPolicy(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	ctx := context.Background()
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{
+			name: "Set up retention policy without error",
+			err:  nil,
+		},
+		{
+			name: "Set up retention policy with error",
+			err:  fmt.Errorf("Something went wrong"),
+		},
+	}
+
+	for _, test := range tests {
+		mockTopicCore := mocks3.NewMockICore(ctrl)
+		mockTopicCore.EXPECT().SetupTopicRetentionConfigs(ctx, nil).Return(nil, test.err)
+		t.Run(test.name, func(t *testing.T) {
+			adminServer := newAdminServer(
+				&credentials.Model{Username: "u", Password: "p"},
+				mocks.NewMockICore(ctrl),
+				mocks2.NewMockICore(ctrl),
+				mockTopicCore,
+				mocks4.NewMockICore(ctrl),
+				mocksnb.NewMockICore(ctrl),
+				nil,
+			)
+			resp, err := adminServer.SetupRetentionPolicy(ctx, nil)
+			assert.Equal(t, test.err != nil, err != nil)
+			assert.Equal(t, err != nil, resp == nil)
+		})
+	}
+}
+
 func getDummyCredentialModel() *credentials.Model {
 	encryption.RegisterEncryptionKey("key")
 	pwd, _ := encryption.EncryptAsHexString([]byte("password"))

@@ -10,9 +10,9 @@ import (
 
 // Builder ...
 type Builder interface {
-	WithBackoff(Backoff) Builder
+	WithBackoff(subscription.Backoff) Builder
 	WithCache(ch cache.ICache) Builder
-	WithIntervalFinder(finder IntervalFinder) Builder
+	WithIntervalFinder(finder subscription.IntervalFinder) Builder
 	WithBrokerStore(store brokerstore.IBrokerStore) Builder
 	WithSubscription(subs *subscription.Model) Builder
 	WithMessageHandler(handler MessageHandler) Builder
@@ -32,7 +32,7 @@ func (retrier *Retrier) Build() IRetrier {
 }
 
 // WithBackoff ...
-func (retrier *Retrier) WithBackoff(backoff Backoff) Builder {
+func (retrier *Retrier) WithBackoff(backoff subscription.Backoff) Builder {
 	retrier.backoff = backoff
 	return retrier
 }
@@ -44,7 +44,7 @@ func (retrier *Retrier) WithCache(ch cache.ICache) Builder {
 }
 
 // WithIntervalFinder ...
-func (retrier *Retrier) WithIntervalFinder(finder IntervalFinder) Builder {
+func (retrier *Retrier) WithIntervalFinder(finder subscription.IntervalFinder) Builder {
 	retrier.finder = finder
 	return retrier
 }

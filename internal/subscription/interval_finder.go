@@ -1,4 +1,4 @@
-package retry
+package subscription
 
 import (
 	"github.com/razorpay/metro/internal/topic"
@@ -15,6 +15,16 @@ type IntervalFinderParams struct {
 	max           uint
 	delayInterval float64
 	intervals     []topic.Interval
+}
+
+// NewIntervalFinderParams returns a instance of next interval finder
+func NewIntervalFinderParams(min, max uint, delayInterval float64, intervals []topic.Interval) IntervalFinderParams {
+	return IntervalFinderParams{
+		min:           min,
+		max:           max,
+		delayInterval: delayInterval,
+		intervals:     intervals,
+	}
 }
 
 // NewClosestIntervalWithCeil  returns the closest interval window finder

@@ -62,8 +62,8 @@ func (c *Core) NewSubscriber(ctx context.Context,
 			WithSubscription(subscription).
 			WithBrokerStore(c.bs).
 			WithCache(c.ch).
-			WithBackoff(retry.NewExponentialWindowBackoff()).
-			WithIntervalFinder(retry.NewClosestIntervalWithCeil()).
+			WithBackoff(subscription.GetBackoff()).
+			WithIntervalFinder(subscription.GetIntervalFinder()).
 			WithMessageHandler(retry.NewPushToPrimaryRetryTopicHandler(c.bs)).
 			WithSubscriberID(subscriberID).
 			WithErrChan(errChan).

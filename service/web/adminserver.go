@@ -254,6 +254,15 @@ func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *me
 	return &emptypb.Empty{}, nil
 }
 
+func (s adminServer) SetupRetentionPolicy(ctx context.Context, topics *metrov1.Topics) (*metrov1.Topics, error) {
+	logger.Ctx(ctx).Infow("received request to set up retention policy")
+	updatedTopics, err := s.topicCore.SetupTopicRetentionConfigs(ctx, topics.GetNames())
+	if err != nil {
+		return nil, merror.ToGRPCError(err)
+	}
+	return &metrov1.Topics{Names: updatedTopics}, nil
+}
+
 func (s adminServer) AuthFuncOverride(ctx context.Context, _ string, _ interface{}) (context.Context, error) {
 	return interceptors.AdminAuth(ctx, s.admin)
 }

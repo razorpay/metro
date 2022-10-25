@@ -2,12 +2,10 @@ package tracing
 
 import (
 	"context"
-	"net/http"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
@@ -20,8 +18,6 @@ import (
 const (
 	// Component eg: GRPC
 	Component = "component"
-	// HTTPStatusCode response status
-	HTTPStatusCode = "http.status_code"
 	// GRPCStatusCode response status
 	GRPCStatusCode = "status.code"
 )
@@ -104,7 +100,6 @@ func finishServerSpan(ctx context.Context, serverSpan opentracing.Span, err erro
 	if err != nil {
 		if s, ok := status.FromError(err); ok {
 			serverSpan.SetTag(GRPCStatusCode, s.Code())
-			serverSpan.SetTag(HTTPStatusCode, runtime.HTTPStatusFromCode(s.Code()))
 		}
 
 		ext.Error.Set(serverSpan, true)
@@ -112,7 +107,6 @@ func finishServerSpan(ctx context.Context, serverSpan opentracing.Span, err erro
 
 	} else {
 		serverSpan.SetTag(GRPCStatusCode, codes.OK)
-		serverSpan.SetTag(HTTPStatusCode, http.StatusOK)
 	}
 
 	serverSpan.Finish()

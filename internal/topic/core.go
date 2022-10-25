@@ -180,6 +180,12 @@ func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
 		}
 		return merror.Newf(merror.NotFound, "Project not found")
 	}
+
+	// cleanup topic from message broker
+	if err := c.deleteBrokerTopic(ctx, m); err != nil {
+		return err
+	}
+
 	if ok, err := c.Exists(ctx, m.Key()); !ok {
 		if err != nil {
 			return err
@@ -349,4 +355,18 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 		out = append(out, obj.(*Model))
 	}
 	return out, nil
+}
+
+// deleteBrokerTopic deletes the topic from the message broker
+func (c *Core) deleteBrokerTopic(ctx context.Context, model *Model) error {
+	// only delete the topic if topic clean-up config is enabled
+	if !c.brokerStore.IsTopicCleanUpEnabled() {
+		return nil
+	}
+	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return aerr
+	}
+	_, terr := admin.DeleteTopic(ctx, messagebroker.DeleteTopicRequest{Name: model.Name})
+	return terr
 }

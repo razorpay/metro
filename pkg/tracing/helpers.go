@@ -9,8 +9,14 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// A Class is a set of types of outcomes (including errors) that will often
+// be handled in the same way.
+type Class string
+
 const (
 	binHdrSuffix = "-bin"
+	// Success represents outcomes that achieved the desired results.
+	Success Class = "2xx"
 )
 
 // metadataTextMap extends a metadata.MD to be an opentracing textmap

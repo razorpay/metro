@@ -18,8 +18,12 @@ import (
 const (
 	// Component eg: GRPC
 	Component = "component"
-	// GRPCStatusCode response status
+	// GRPCStatusCode status code
 	GRPCStatusCode = "status.code"
+	// GRPCResponseCode response code
+	GRPCResponseCode = "response_code"
+	// GRPCResponseClass response class
+	GRPCResponseClass = "response_class"
 )
 
 var (
@@ -107,6 +111,8 @@ func finishServerSpan(ctx context.Context, serverSpan opentracing.Span, err erro
 
 	} else {
 		serverSpan.SetTag(GRPCStatusCode, codes.OK)
+		serverSpan.SetTag(GRPCResponseCode, codes.OK)
+		serverSpan.SetTag(GRPCResponseClass, Success)
 	}
 
 	serverSpan.Finish()

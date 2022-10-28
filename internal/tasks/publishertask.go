@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"sync"
 
 	"github.com/razorpay/metro/internal/common"
 	"github.com/razorpay/metro/internal/topic"
@@ -23,7 +24,8 @@ type PublisherTask struct {
 
 // TopicCacheData is declared Global to keep it instance agnostic
 var TopicCacheData map[string]bool = make(map[string]bool)
-var sem = make(chan int, 1)
+
+var mutex sync.Mutex
 
 // NewPublisherTask creates PublisherTask instance
 func NewPublisherTask(
@@ -165,9 +167,11 @@ func CheckIfTopicExists(ctx context.Context, topic string) bool {
 	return false
 }
 
-// UpdateTopicCache is to update the cache
+// UpdateTopicCache is to update the Topic Data cache
 func UpdateTopicCache(ctx context.Context, topicMap map[string]bool, specificTopicBool bool) {
-	sem <- 1
+	// specificTopicBool : Check to update a specific Topic out of the Topic Data cache which
+	// 						was not present in the cache and had to go to the fallback mechanism
+	mutex.Lock()
 	go func() {
 		if specificTopicBool {
 			logger.Ctx(ctx).Info("PublisherTask: Missed topic cache update", "topicMap", topicMap)
@@ -178,6 +182,6 @@ func UpdateTopicCache(ctx context.Context, topicMap map[string]bool, specificTop
 			logger.Ctx(ctx).Info("PublisherTask: overall topic cache update", "topicMap", topicMap)
 			TopicCacheData = topicMap
 		}
-		<-sem
+		mutex.Unlock()
 	}()
 }

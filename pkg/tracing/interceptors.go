@@ -110,7 +110,7 @@ func finishServerSpan(ctx context.Context, serverSpan opentracing.Span, err erro
 		serverSpan.LogFields(log.String("event", "error"), log.String("message", err.Error()))
 
 	} else {
-		serverSpan.SetTag(GRPCStatusCode, codes.OK)
+		serverSpan.SetTag(GRPCStatusCode, "0")
 		serverSpan.SetTag(GRPCResponseCode, codes.OK)
 		serverSpan.SetTag(GRPCResponseClass, Success)
 	}

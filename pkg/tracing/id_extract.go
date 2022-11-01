@@ -1,6 +1,7 @@
 package tracing
 
 import (
+	"context"
 	"strings"
 
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -32,7 +33,7 @@ const (
 func injectOpentracingIdsToTags(traceHeaderName string, span opentracing.Span, tags grpc_ctxtags.Tags) {
 	if err := span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders,
 		&tagsCarrier{Tags: tags, traceHeaderName: traceHeaderName}); err != nil {
-		logger.Ctx(nil).Infow("grpc_opentracing: failed extracting trace info into ctx %v", err)
+		logger.Ctx(context.TODO()).Infow("grpc_opentracing: failed extracting trace info into ctx %v", err)
 	}
 }
 

@@ -104,7 +104,7 @@ func finishServerSpan(ctx context.Context, serverSpan opentracing.Span, err erro
 	if err != nil {
 		if s, ok := status.FromError(err); ok {
 			serverSpan.SetTag(GRPCStatusCode, "13")
-			serverSpan.SetTag(GRPCResponseCode, codes.Internal)
+			serverSpan.SetTag(GRPCResponseCode, s.Code())
 		}
 
 		ext.Error.Set(serverSpan, true)
@@ -113,7 +113,6 @@ func finishServerSpan(ctx context.Context, serverSpan opentracing.Span, err erro
 	} else {
 		serverSpan.SetTag(GRPCStatusCode, "0")
 		serverSpan.SetTag(GRPCResponseCode, codes.OK)
-		serverSpan.SetTag(GRPCResponseClass, Success)
 	}
 
 	serverSpan.Finish()

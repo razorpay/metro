@@ -15,8 +15,6 @@ type Class string
 
 const (
 	binHdrSuffix = "-bin"
-	// Success represents outcomes that achieved the desired results.
-	Success Class = "2xx"
 )
 
 // metadataTextMap extends a metadata.MD to be an opentracing textmap

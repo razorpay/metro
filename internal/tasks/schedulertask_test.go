@@ -369,6 +369,25 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	// mock nodebindings core
+	nb := &nodebinding.Model{
+		ID:                  uuid.New().String(),
+		NodeID:              workerID,
+		SubscriptionID:      "projects/test-project/subscriptions/test",
+		SubscriptionVersion: "1",
+	}
+	nb2 := &nodebinding.Model{
+		ID:                  uuid.New().String(),
+		NodeID:              workerID2,
+		SubscriptionID:      "projects/test-project/subscriptions/test",
+		SubscriptionVersion: "1",
+	}
+	nb3 := &nodebinding.Model{
+		ID:                  uuid.New().String(),
+		NodeID:              workerID2,
+		SubscriptionID:      "projects/test-project/subscriptions/test",
+		SubscriptionVersion: "1",
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sm := &SchedulerTask{
@@ -387,25 +406,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 				subWatchData:     tt.fields.subWatchData,
 				topicWatchData:   tt.fields.topicWatchData,
 			}
-			// mock nodebindings core
-			nb := &nodebinding.Model{
-				ID:                  uuid.New().String(),
-				NodeID:              workerID,
-				SubscriptionID:      "projects/test-project/subscriptions/test",
-				SubscriptionVersion: "1",
-			}
-			nb2 := &nodebinding.Model{
-				ID:                  uuid.New().String(),
-				NodeID:              workerID2,
-				SubscriptionID:      "projects/test-project/subscriptions/test",
-				SubscriptionVersion: "1",
-			}
-			nb3 := &nodebinding.Model{
-				ID:                  uuid.New().String(),
-				NodeID:              workerID2,
-				SubscriptionID:      "projects/test-project/subscriptions/test",
-				SubscriptionVersion: "1",
-			}
+
 			if tt.wantErr {
 				err := fmt.Errorf("Something went wrong")
 				nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
@@ -429,7 +430,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 					[]*subscription.Model{&sub}, nil).AnyTimes()
 			}
 
-			if err := sm.rebalanceSubs(tt.args.ctx); (err != nil) != tt.wantErr {
+			if err := sm.rebalanceSubscriptions(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("SchedulerTask.rebalanceSubs() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

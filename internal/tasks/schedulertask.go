@@ -183,7 +183,7 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 				if nerr != nil {
 					logger.Ctx(gctx).Infow("error processing node updates", "error", nerr)
 				}
-				nerr = sm.rebalanceSubs(gctx)
+				nerr = sm.rebalanceSubscriptions(gctx)
 				if nerr != nil {
 					logger.Ctx(gctx).Infow("schedulertask: error rebalancing subs", "error", nerr)
 				}
@@ -433,10 +433,10 @@ func (sm *SchedulerTask) scheduleSubscription(ctx context.Context, sub *subscrip
 	return nil
 }
 
-// rebalanceSubs achieves the following in the order outline:
+// rebalanceSubscriptions achieves the following in the order outline:
 // 1. Fetch and order nodes in decreasing order of amount of node bindings
 // 2. Rebalance nodebindings from nodes with greater than avg nodebindings
-func (sm *SchedulerTask) rebalanceSubs(ctx context.Context) error {
+func (sm *SchedulerTask) rebalanceSubscriptions(ctx context.Context) error {
 	// Fetch the latest node bindings after deletions and schedule missing bindings
 	nodeBindings, err := sm.nodeBindingCore.List(ctx, nodebinding.Prefix)
 	if err != nil {

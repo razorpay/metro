@@ -263,19 +263,6 @@ func TestSchedulerTask_refreshCache(t *testing.T) {
 	}
 }
 
-// GetDummyTopicModel to export dummy topic model
-func GetDummyTopicModel() []*topic.Model {
-	return []*topic.Model{
-		{
-			Name:               "projects/test-project/topics/test",
-			NumPartitions:      2,
-			ExtractedTopicName: "test",
-			ExtractedProjectID: "test-project",
-			Labels:             map[string]string{},
-		},
-	}
-}
-
 func GetDummySubModel() subscription.Model {
 	return subscription.Model{
 		Name:                           "projects/test-project/subscriptions/test",

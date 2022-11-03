@@ -43,7 +43,9 @@ type ConsumerConfig struct {
 }
 
 // AdminConfig holds configuration for admin APIs
-type AdminConfig struct{}
+type AdminConfig struct {
+	EnableTopicCleanUp bool
+}
 
 // ConsumerClientOptions holds client specific configuration for consumer
 type ConsumerClientOptions struct {

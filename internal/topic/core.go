@@ -17,7 +17,7 @@ import (
 type ICore interface {
 	CreateTopic(ctx context.Context, model *Model) error
 	UpdateTopic(ctx context.Context, model *Model) error
-	SetupTopicRetentionConfigs(ctx context.Context) ([]string, error)
+	SetupTopicRetentionConfigs(ctx context.Context, names []string) ([]string, error)
 	Exists(ctx context.Context, key string) (bool, error)
 	ExistsWithName(ctx context.Context, name string) (bool, error)
 	DeleteTopic(ctx context.Context, m *Model) error
@@ -180,6 +180,12 @@ func (c *Core) DeleteTopic(ctx context.Context, m *Model) error {
 		}
 		return merror.Newf(merror.NotFound, "Project not found")
 	}
+
+	// cleanup topic from message broker
+	if err := c.deleteBrokerTopic(ctx, m); err != nil {
+		return err
+	}
+
 	if ok, err := c.Exists(ctx, m.Key()); !ok {
 		if err != nil {
 			return err
@@ -259,16 +265,29 @@ func (c *Core) createBrokerTopic(ctx context.Context, model *Model) error {
 }
 
 // SetupTopicRetentionConfigs sets up retention policy on top of dlq topics
-func (c *Core) SetupTopicRetentionConfigs(ctx context.Context) ([]string, error) {
-	// Alter the topic configs only for dead letter topic for now
-	models, err := c.List(ctx, Prefix)
-	if err != nil {
-		return nil, err
+func (c *Core) SetupTopicRetentionConfigs(ctx context.Context, names []string) ([]string, error) {
+	topicModels := make([]*Model, 0)
+	if len(names) == 0 {
+		models, err := c.List(ctx, Prefix)
+		if err != nil {
+			return nil, err
+		}
+		topicModels = append(topicModels, models...)
+	} else {
+		for _, name := range names {
+			model, err := c.Get(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			topicModels = append(topicModels, model)
+		}
 	}
 
 	topicConfigs := make(map[string]messagebroker.TopicConfig)
-	topicsToUpdate := make([]string, 0, len(models))
-	for _, model := range models {
+	topicsToUpdate := make([]string, 0, len(topicModels))
+
+	// Alter the topic configs only for dead letter topic for now
+	for _, model := range topicModels {
 		if model.IsDeadLetterTopic() {
 			topicConfigs[model.Name] = messagebroker.TopicConfig{
 				Name:   model.Name,
@@ -336,4 +355,18 @@ func (c *Core) List(ctx context.Context, prefix string) ([]*Model, error) {
 		out = append(out, obj.(*Model))
 	}
 	return out, nil
+}
+
+// deleteBrokerTopic deletes the topic from the message broker
+func (c *Core) deleteBrokerTopic(ctx context.Context, model *Model) error {
+	// only delete the topic if topic clean-up config is enabled
+	if !c.brokerStore.IsTopicCleanUpEnabled() {
+		return nil
+	}
+	admin, aerr := c.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return aerr
+	}
+	_, terr := admin.DeleteTopic(ctx, messagebroker.DeleteTopicRequest{Name: model.Name})
+	return terr
 }

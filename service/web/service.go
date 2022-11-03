@@ -2,7 +2,9 @@ package web
 
 import (
 	"context"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -17,6 +19,7 @@ import (
 	"github.com/razorpay/metro/internal/publisher"
 	"github.com/razorpay/metro/internal/server"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/cache"
 	"github.com/razorpay/metro/pkg/logger"
@@ -101,6 +104,19 @@ func (svc *Service) Start(ctx context.Context) error {
 	credentialsCore := credentials.NewCore(credentials.NewRepo(r), projectCore)
 
 	publisherCore := publisher.NewCore(brokerStore)
+
+	publisherTask, err := tasks.NewPublisherTask(uuid.New().String(), r, topicCore)
+	if err != nil {
+		return err
+	}
+	go func() {
+		startTime := time.Now()
+		runErr := publisherTask.Run(ctx)
+		if runErr != nil {
+			logger.Ctx(ctx).Errorw("Error while running publisher task ", "runErr", runErr.Error())
+		}
+		preWarmupCacheTimeTaken.WithLabelValues(env, "PreWarmup").Observe(time.Now().Sub(startTime).Seconds())
+	}()
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))
 

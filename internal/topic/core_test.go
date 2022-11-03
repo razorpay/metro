@@ -223,60 +223,61 @@ func TestCore_ExistsWithName(t *testing.T) {
 }
 
 func TestCore_DeleteTopic(t *testing.T) {
-	type fields struct {
-		repo        IRepo
-		projectCore project.ICore
-		brokerStore brokerstore.IBrokerStore
-	}
 	type args struct {
-		ctx       context.Context
-		m         *Model
-		name      string
-		projectID string
-		topicName string
+		m              *Model
+		name           string
+		cleanupEnabled bool
 	}
 	ctrl := gomock.NewController(t)
 	mockTopicRepo := topicrepomock.NewMockIRepo(ctrl)
 	mockProjectCore := projectcoremock.NewMockICore(ctrl)
 	mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
-	ctx := context.Background()
+	mockAdmin := messagebrokermock.NewMockAdmin(ctrl)
 	dTopic := getDummyTopicModel()
+	retryTopic := getDummyTopicModel()
+	retryTopic.Name += RetryTopicSuffix
+	retryTopic.ExtractedTopicName += RetryTopicSuffix
 
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name           string
+		args           args
+		brokerTopicErr error
+		wantErr        bool
 	}{
 		{
 			name: "Delete Topic Successfully",
-			fields: fields{
-				repo:        mockTopicRepo,
-				projectCore: mockProjectCore,
-				brokerStore: mockBrokerStore,
-			},
 			args: args{
-				ctx:       ctx,
-				m:         dTopic,
-				name:      dTopic.Name,
-				projectID: dTopic.ExtractedProjectID,
-				topicName: dTopic.ExtractedTopicName,
+				m:              dTopic,
+				name:           dTopic.Name,
+				cleanupEnabled: true,
 			},
 			wantErr: false,
 		},
 		{
-			name: "Deleting Topic failure",
-			fields: fields{
-				repo:        mockTopicRepo,
-				projectCore: mockProjectCore,
-				brokerStore: mockBrokerStore,
-			},
+			name: "Deleting Retry Topic successfully",
 			args: args{
-				ctx:       ctx,
-				m:         dTopic,
-				name:      "",
-				projectID: "",
-				topicName: "",
+				m:              retryTopic,
+				name:           retryTopic.Name,
+				cleanupEnabled: false,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Deleting Topic failed due to broker topic deletion",
+			args: args{
+				m:              dTopic,
+				name:           dTopic.Name,
+				cleanupEnabled: true,
+			},
+			brokerTopicErr: fmt.Errorf("Broker Topic deletion error"),
+			wantErr:        true,
+		},
+		{
+			name: "Deleting Topic failure",
+			args: args{
+				m:              dTopic,
+				name:           "",
+				cleanupEnabled: true,
 			},
 			wantErr: true,
 		},
@@ -296,10 +297,19 @@ func TestCore_DeleteTopic(t *testing.T) {
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(expectBool, err2)
 			} else {
 				mockProjectCore.EXPECT().ExistsWithID(gomock.Any(), dTopic.ExtractedProjectID).Return(true, nil)
-				mockTopicRepo.EXPECT().Exists(gomock.Any(), common.GetBasePrefix()+Prefix+tt.args.projectID+"/"+tt.args.topicName).Return(true, nil)
-				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil)
+				mockTopicRepo.EXPECT().Exists(gomock.Any(), tt.args.m.Key()).Return(true, nil).AnyTimes()
+				mockTopicRepo.EXPECT().Delete(gomock.Any(), tt.args.m).Return(nil).AnyTimes()
+				mockBrokerStore.EXPECT().IsTopicCleanUpEnabled().Return(tt.args.cleanupEnabled)
+				mockAdmin.EXPECT().DeleteTopic(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(ctx context.Context, req messagebroker.DeleteTopicRequest) (*messagebroker.DeleteTopicResponse, error) {
+						if tt.brokerTopicErr != nil {
+							return nil, tt.brokerTopicErr
+						}
+						return &messagebroker.DeleteTopicResponse{}, nil
+					}).MaxTimes(1)
+				mockBrokerStore.EXPECT().GetAdmin(gomock.Any(), gomock.Any()).Return(mockAdmin, nil).MaxTimes(1)
 			}
-			if err := c.DeleteTopic(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
+			if err := c.DeleteTopic(context.Background(), tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Core.DeleteTopic() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -560,6 +570,7 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 
 	tests := []struct {
 		name            string
+		topicsToUpdate  map[string]*Model
 		topics          []common.IModel
 		existingConfigs map[string]map[string]string
 		expected        []string
@@ -574,9 +585,10 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 			expected:        []string{dlqTopic.Name},
 		},
 		{
-			name:        "Alter retention configs with error in altering configs",
-			topics:      []common.IModel{dlqTopic},
-			expectedErr: fmt.Errorf("Something went wrong"),
+			name:           "Alter retention configs with error in altering configs",
+			topicsToUpdate: map[string]*Model{dlqTopic.Name: dlqTopic},
+			topics:         []common.IModel{dlqTopic},
+			expectedErr:    fmt.Errorf("Something went wrong"),
 		},
 		{
 			name:        "Alter retention configs with error in getting admin server",
@@ -596,7 +608,21 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+Prefix).Return(test.topics, test.listErr).MaxTimes(1)
+			topicNames := make([]string, 0, len(test.topicsToUpdate))
+			if len(test.topicsToUpdate) > 0 {
+				for name, model := range test.topicsToUpdate {
+					topicNames = append(topicNames, name)
+					mockTopicRepo.EXPECT().Exists(gomock.Any(), model.Key()).Return(true, nil).MaxTimes(1)
+					mockTopicRepo.EXPECT().Get(gomock.Any(), model.Key(), gomock.Any()).DoAndReturn(func(arg1 context.Context, name string, mod *Model) error {
+						mod.Name = model.Name
+						mod.ExtractedTopicName = model.ExtractedTopicName
+						return nil
+					}).MaxTimes(1)
+				}
+			} else {
+				mockTopicRepo.EXPECT().List(ctx, common.GetBasePrefix()+Prefix).Return(test.topics, test.listErr).MaxTimes(1)
+			}
+
 			mockAdmin.EXPECT().AlterTopicConfigs(ctx, gomock.Any()).Return(test.expected, test.expectedErr).MaxTimes(1)
 			mockAdmin.EXPECT().DescribeTopicConfigs(ctx, gomock.Any()).Return(test.existingConfigs, nil).MaxTimes(1)
 			mockBrokerStore := brokerstoremock.NewMockIBrokerStore(ctrl)
@@ -606,9 +632,17 @@ func TestCore_SetupTopicRetentionConfigs(t *testing.T) {
 				projectCore: projectcoremock.NewMockICore(ctrl),
 				brokerStore: mockBrokerStore,
 			}
-			got, err := c.SetupTopicRetentionConfigs(ctx)
+			got, err := c.SetupTopicRetentionConfigs(ctx, topicNames)
 			assert.Equal(t, test.expectedErr != nil, err != nil)
 			assert.Equal(t, test.expected, got)
 		})
+	}
+}
+
+func getTopicModelWithInput(name, extractedTopicName, extractedProjectID string) *Model {
+	return &Model{
+		Name:               name,
+		ExtractedTopicName: extractedTopicName,
+		ExtractedProjectID: extractedProjectID,
 	}
 }

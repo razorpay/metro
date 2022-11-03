@@ -99,6 +99,7 @@ func getValidBrokerConfig() *messagebroker.BrokerConfig {
 		DebugEnabled:        false,
 		OperationTimeoutMs:  100,
 		ConnectionTimeoutMs: 100,
+		Admin:               &messagebroker.AdminConfig{EnableTopicCleanUp: true},
 	}
 }
 
@@ -115,5 +116,46 @@ func getValidProducerClientOptions() messagebroker.ProducerClientOptions {
 	return messagebroker.ProducerClientOptions{
 		Topic:     "topic",
 		TimeoutMs: 1000,
+	}
+}
+
+func TestBrokerStore_IsTopicCleanUpEnabled(t *testing.T) {
+	type fields struct {
+		variant string
+		bConfig *messagebroker.BrokerConfig
+	}
+	brokerConfigTopicCleanEnabled := getValidBrokerConfig()
+	brokerConfigTopicCleanDisabled := getValidBrokerConfig()
+	brokerConfigTopicCleanDisabled.Admin.EnableTopicCleanUp = false
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{
+			name: "Get EnableTopicCleanUp value as true",
+			fields: fields{
+				variant: "kafka",
+				bConfig: brokerConfigTopicCleanEnabled,
+			},
+			want: true,
+		},
+		{
+			name: "Get EnableTopicCleanUp value as false",
+			fields: fields{
+				variant: "kafka",
+				bConfig: brokerConfigTopicCleanDisabled,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &BrokerStore{
+				variant: tt.fields.variant,
+				bConfig: tt.fields.bConfig,
+			}
+			assert.Equalf(t, tt.want, b.IsTopicCleanUpEnabled(), "IsTopicCleanUpEnabled(%v)")
+		})
 	}
 }

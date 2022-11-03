@@ -11,6 +11,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 
+	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/pkg/logger"
 )
 
@@ -802,14 +803,14 @@ func (k *KafkaBroker) AddTopicPartitions(ctx context.Context, request AddTopicPa
 	// fetch the topic metadata and check the current partition count
 	if _, ok := metadata.Topics[tp]; !ok {
 		// invalid topic
-		return nil, fmt.Errorf("topic [%v] not found", tp)
+		return nil, merror.New(merror.NotFound, fmt.Sprintf("topic [%v] not found", tp))
 	}
 
 	// metadata contains non-existent topic names as well with partition count as zero
 	currPartitionCount := len(metadata.Topics[tp].Partitions)
 	if currPartitionCount == 0 {
 		// invalid topic
-		return nil, fmt.Errorf("topic [%v] not found", tp)
+		return nil, merror.New(merror.NotFound, fmt.Sprintf("topic [%v] not found", tp))
 	}
 
 	if request.NumPartitions == currPartitionCount {

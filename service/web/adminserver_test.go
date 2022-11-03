@@ -473,7 +473,7 @@ func Test_adminServer_SetupRetentionPolicy(t *testing.T) {
 
 	for _, test := range tests {
 		mockTopicCore := mocks3.NewMockICore(ctrl)
-		mockTopicCore.EXPECT().SetupTopicRetentionConfigs(ctx).Return(nil, test.err)
+		mockTopicCore.EXPECT().SetupTopicRetentionConfigs(ctx, nil).Return(nil, test.err)
 		t.Run(test.name, func(t *testing.T) {
 			adminServer := newAdminServer(
 				&credentials.Model{Username: "u", Password: "p"},
@@ -484,7 +484,7 @@ func Test_adminServer_SetupRetentionPolicy(t *testing.T) {
 				mocksnb.NewMockICore(ctrl),
 				nil,
 			)
-			resp, err := adminServer.SetupRetentionPolicy(ctx, &emptypb.Empty{})
+			resp, err := adminServer.SetupRetentionPolicy(ctx, nil)
 			assert.Equal(t, test.err != nil, err != nil)
 			assert.Equal(t, err != nil, resp == nil)
 		})

@@ -30,8 +30,8 @@ type Retrier struct {
 	subs           *subscription.Model
 	bs             brokerstore.IBrokerStore
 	ch             cache.ICache
-	backoff        Backoff
-	finder         IntervalFinder
+	backoff        subscription.Backoff
+	finder         subscription.IntervalFinder
 	handler        MessageHandler
 	delayConsumers sync.Map
 	errChan        chan error
@@ -42,19 +42,19 @@ func (r *Retrier) Start(ctx context.Context) error {
 	// TODO : validate retrier params for nils and substitute with defaults
 
 	// Identify the max delay interval possible
-	nextDelayInterval := r.backoff.Next(BackoffPolicy{
-		startInterval: float64(r.subs.RetryPolicy.MinimumBackoff),
-		lastInterval:  float64(r.subs.RetryPolicy.MaximumBackoff),
-		count:         float64(r.subs.DeadLetterPolicy.MaxDeliveryAttempts),
-		exponential:   2,
-	})
+	nextDelayInterval := r.backoff.Next(subscription.NewBackoffPolicy(
+		float64(r.subs.RetryPolicy.MinimumBackoff),
+		float64(r.subs.RetryPolicy.MaximumBackoff),
+		float64(r.subs.DeadLetterPolicy.MaxDeliveryAttempts),
+		2,
+	))
 
-	predefinedInterval := r.finder.Next(IntervalFinderParams{
-		min:           r.subs.RetryPolicy.MinimumBackoff,
-		max:           r.subs.RetryPolicy.MaximumBackoff,
-		delayInterval: nextDelayInterval,
-		intervals:     topic.Intervals,
-	})
+	predefinedInterval := r.finder.Next(subscription.NewIntervalFinderParams(
+		r.subs.RetryPolicy.MinimumBackoff,
+		r.subs.RetryPolicy.MaximumBackoff,
+		nextDelayInterval,
+		topic.Intervals,
+	))
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
 		if uint(interval) <= uint(predefinedInterval) {
 			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch, r.errChan)
@@ -92,20 +92,20 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 	logger.Ctx(ctx).Infow("retrier: received msg for retry", msg.LogFields()...)
 
 	// calculate the next backoff using the strategy
-	nextDelayInterval := r.backoff.Next(BackoffPolicy{
-		startInterval: float64(msg.InitialDelayInterval),
-		lastInterval:  float64(msg.CurrentDelayInterval),
-		count:         float64(msg.CurrentRetryCount),
-		exponential:   2,
-	})
+	nextDelayInterval := r.backoff.Next(subscription.NewBackoffPolicy(
+		float64(msg.InitialDelayInterval),
+		float64(msg.CurrentDelayInterval),
+		float64(msg.CurrentRetryCount),
+		subscription.DefaultBackoffExponential,
+	))
 
 	// find next allowed delay interval from the list of pre-defined intervals
-	dInterval := r.finder.Next(IntervalFinderParams{
-		min:           r.subs.RetryPolicy.MinimumBackoff,
-		max:           r.subs.RetryPolicy.MaximumBackoff,
-		delayInterval: nextDelayInterval,
-		intervals:     topic.Intervals,
-	})
+	dInterval := r.finder.Next(subscription.NewIntervalFinderParams(
+		r.subs.RetryPolicy.MinimumBackoff,
+		r.subs.RetryPolicy.MaximumBackoff,
+		nextDelayInterval,
+		topic.Intervals,
+	))
 
 	dcFromMap, _ := r.delayConsumers.Load(dInterval)
 	dc := dcFromMap.(*DelayConsumer)
@@ -166,23 +166,23 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 func findAllRetryIntervals(min, max, currentRetryCount, maxRetryCount, currentInterval int, availableDelayIntervals []topic.Interval) []float64 {
 	expectedIntervals := make([]float64, 0)
 
-	nef := NewExponentialWindowBackoff()
-	finder := NewClosestIntervalWithCeil()
+	nef := subscription.NewExponentialWindowBackoff()
+	finder := subscription.NewClosestIntervalWithCeil()
 
 	for currentRetryCount <= maxRetryCount {
-		nextDelayInterval := nef.Next(BackoffPolicy{
-			startInterval: float64(min),
-			lastInterval:  float64(currentInterval),
-			count:         float64(currentRetryCount),
-			exponential:   2,
-		})
+		nextDelayInterval := nef.Next(subscription.NewBackoffPolicy(
+			float64(min),
+			float64(currentInterval),
+			float64(currentRetryCount),
+			subscription.DefaultBackoffExponential,
+		))
 
-		closestInterval := finder.Next(IntervalFinderParams{
-			min:           uint(min),
-			max:           uint(max),
-			delayInterval: nextDelayInterval,
-			intervals:     availableDelayIntervals,
-		})
+		closestInterval := finder.Next(subscription.NewIntervalFinderParams(
+			uint(min),
+			uint(max),
+			nextDelayInterval,
+			availableDelayIntervals,
+		))
 
 		expectedIntervals = append(expectedIntervals, float64(closestInterval))
 		currentInterval = int(closestInterval)

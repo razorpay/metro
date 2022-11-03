@@ -9,6 +9,7 @@ import (
 	"github.com/razorpay/metro/internal/merror"
 	"github.com/razorpay/metro/internal/project"
 	"github.com/razorpay/metro/internal/publisher"
+	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/internal/topic"
 	"github.com/razorpay/metro/pkg/logger"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
@@ -29,16 +30,40 @@ func newPublisherServer(projectCore project.ICore, brokerStore brokerstore.IBrok
 
 // Produce messages to a topic
 func (s publisherServer) Publish(ctx context.Context, req *metrov1.PublishRequest) (*metrov1.PublishResponse, error) {
-	logger.Ctx(ctx).Infow("produce request received", "req", req.Topic)
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherServer.Publish", opentracing.Tags{
-		"topic": req.Topic,
-	})
+	logger.Ctx(ctx).Infow("PublishServer: produce request received", "req", req.Topic)
+
+	span, ctx := opentracing.StartSpanFromContext(
+		ctx,
+		"PublisherServer.Publish",
+		opentracing.Tags{
+			"topic": req.Topic,
+		})
 	defer span.Finish()
 
-	if ok, err := s.topicCore.ExistsWithName(ctx, req.Topic); err != nil {
-		return nil, merror.ToGRPCError(err)
-	} else if !ok {
-		return nil, merror.New(merror.NotFound, "topic not found").ToGRPCError()
+	// Check if topic exists in the PublisherTask Cache
+	if tasks.CheckIfTopicExists(ctx, req.Topic) {
+		topicCacheCount.WithLabelValues(env, "Hit", req.Topic).Inc()
+	} else {
+		topicCacheCount.WithLabelValues(env, "Miss", req.Topic).Inc()
+		logger.Ctx(ctx).Infow(
+			"PublishServer: Topic doesn't exist inside the cache..",
+			"req",
+			req.Topic)
+
+		// Fallback method to check topic existence in the Registry
+		ok, err := s.topicCore.ExistsWithName(ctx, req.Topic)
+		if err != nil {
+			return nil, merror.ToGRPCError(err)
+		}
+		if !ok {
+			return nil, merror.New(
+				merror.NotFound,
+				"topic not found").ToGRPCError()
+		}
+		// Update Topic cache with Fallback
+		topicMap := make(map[string]bool)
+		topicMap[req.Topic] = true
+		tasks.UpdateTopicCache(ctx, topicMap, true)
 	}
 
 	if err := publisher.ValidatePublishRequest(ctx, req); err != nil {

@@ -1,6 +1,9 @@
-package retry
+package subscription
 
 import "math"
+
+// DefaultBackoffExponential is the default exponential value for backoff
+const DefaultBackoffExponential = 2
 
 // Backoff defines the backoff calculation logic
 type Backoff interface {
@@ -13,6 +16,16 @@ type BackoffPolicy struct {
 	lastInterval  float64
 	count         float64
 	exponential   float64
+}
+
+// NewBackoffPolicy returns a backoff policy instance.
+func NewBackoffPolicy(startInterval, lastInterval, count, exponential float64) BackoffPolicy {
+	return BackoffPolicy{
+		startInterval: startInterval,
+		lastInterval:  lastInterval,
+		count:         count,
+		exponential:   exponential,
+	}
 }
 
 // NewExponentialWindowBackoff  return a backoff policy that that grows exponentially.

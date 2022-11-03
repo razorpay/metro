@@ -314,8 +314,9 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 	nodebindingCoreMock := mocks5.NewMockICore(ctrl)
 	schedulerMock := mocks6.NewMockIScheduler(ctrl)
 
-	workerID := uuid.New().String()
-	workerID2 := uuid.New().String()
+	nodeID := uuid.New().String()
+	nodeID2 := uuid.New().String()
+	nodeID3 := uuid.New().String()
 	tests := []struct {
 		name    string
 		fields  fields
@@ -325,7 +326,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 		{
 			name: "Rebalance subs failed",
 			fields: fields{
-				id:               workerID,
+				id:               nodeID,
 				registry:         registryMock,
 				brokerstore:      brokerstoreMock,
 				nodeCore:         nodeCoreMock,
@@ -348,7 +349,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 		{
 			name: "Rebalance subs successfully",
 			fields: fields{
-				id:               workerID,
+				id:               nodeID,
 				registry:         registryMock,
 				brokerstore:      brokerstoreMock,
 				nodeCore:         nodeCoreMock,
@@ -372,19 +373,37 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 	// mock nodebindings core
 	nb := &nodebinding.Model{
 		ID:                  uuid.New().String(),
-		NodeID:              workerID,
+		NodeID:              nodeID,
 		SubscriptionID:      "projects/test-project/subscriptions/test",
 		SubscriptionVersion: "1",
 	}
 	nb2 := &nodebinding.Model{
 		ID:                  uuid.New().String(),
-		NodeID:              workerID2,
+		NodeID:              nodeID2,
 		SubscriptionID:      "projects/test-project/subscriptions/test",
 		SubscriptionVersion: "1",
 	}
 	nb3 := &nodebinding.Model{
 		ID:                  uuid.New().String(),
-		NodeID:              workerID2,
+		NodeID:              nodeID3,
+		SubscriptionID:      "projects/test-project/subscriptions/test",
+		SubscriptionVersion: "1",
+	}
+	nb4 := &nodebinding.Model{
+		ID:                  uuid.New().String(),
+		NodeID:              nodeID3,
+		SubscriptionID:      "projects/test-project/subscriptions/test",
+		SubscriptionVersion: "1",
+	}
+	nb5 := &nodebinding.Model{
+		ID:                  uuid.New().String(),
+		NodeID:              nodeID3,
+		SubscriptionID:      "projects/test-project/subscriptions/test",
+		SubscriptionVersion: "1",
+	}
+	nb6 := &nodebinding.Model{
+		ID:                  uuid.New().String(),
+		NodeID:              nodeID3,
 		SubscriptionID:      "projects/test-project/subscriptions/test",
 		SubscriptionVersion: "1",
 	}
@@ -414,7 +433,7 @@ func TestSchedulerTask_rebalanceSubs(t *testing.T) {
 			} else if !tt.wantErr {
 				nodebindingCoreMock.EXPECT().List(gomock.AssignableToTypeOf(ctx), "nodebinding/").Return(
 					[]*nodebinding.Model{
-						nb, nb2, nb3,
+						nb, nb2, nb3, nb4, nb5, nb6,
 					}, nil).AnyTimes()
 
 				nodebindingCoreMock.EXPECT().DeleteNodeBinding(gomock.AssignableToTypeOf(ctx), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()

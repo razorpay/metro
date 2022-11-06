@@ -14,6 +14,7 @@ import (
 type Class string
 
 const (
+	// binHdrSuffix encode grpc metadata to base64 string
 	binHdrSuffix = "-bin"
 )
 

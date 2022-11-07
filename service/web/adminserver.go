@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"strings"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -252,6 +253,68 @@ func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *me
 
 	// logger.Ctx(ctx).Infow("request to migrate subscriptions completed", "subscriptions", subscriptions.GetNames())
 	return &emptypb.Empty{}, nil
+}
+
+// normalizeTopicName returns the actual topic name used in message broker
+func denormalizeTopicName(name string) string {
+	return strings.ReplaceAll(name, "_", "/")
+}
+
+func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projects) (*metrov1.Topics, error) {
+	logger.Ctx(ctx).Infow("received request to cleanup topics", "projects", projects.GetProjects())
+	tops := metrov1.Topics{}
+	for _, p := range projects.Projects {
+		subs, err := s.subscriptionCore.List(ctx, subscription.Prefix+p)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to fetch project subscriptions", "project", p)
+			continue
+		}
+		validTopics := make(map[string]bool, 0)
+		for _, sub := range subs {
+
+			for _, v := range sub.GetDelayTopics() {
+				validTopics[v] = true
+			}
+			validTopics[sub.GetDeadLetterTopic()] = true
+			validTopics[sub.GetRetryTopic()] = true
+			// validTopics[sub.GetSubscriptionTopic()] = true ###Internal topics are not used and hence up for deletion
+		}
+		topics, err := s.topicCore.List(ctx, topic.Prefix+p)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to fetch project topics", "project", p)
+			continue
+		}
+
+		for _, t := range topics {
+			validTopics[t.Name] = true
+		}
+
+		admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+		if aerr != nil {
+			return nil, merror.ToGRPCError(aerr)
+		}
+
+		allTopics, err := admin.FetchProjectTopics(ctx, project.Prefix+p)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("Failed to fetch topics for project from messagebroker", "project", p)
+			continue
+		}
+
+		for t := range allTopics {
+			t = denormalizeTopicName(t)
+			if _, ok := validTopics[t]; !ok {
+				tops.Names = append(tops.Names, t)
+				dtresp, err := admin.DeleteTopic(ctx, messagebroker.DeleteTopicRequest{Name: t})
+				if err != nil {
+					logger.Ctx(ctx).Errorw("Failed to delete topics", "error", err.Error())
+				}
+				logger.Ctx(ctx).Infow("Successfully deleted topic", "resp", dtresp)
+			}
+
+		}
+	}
+
+	return &tops, nil
 }
 
 func (s adminServer) SetupRetentionPolicy(ctx context.Context, topics *metrov1.Topics) (*metrov1.Topics, error) {

@@ -564,8 +564,8 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, request SendMessageToTopi
 	return &SendMessageToTopicResponse{MessageID: request.MessageID}, nil
 }
 
-//ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
-//from the previous committed offset. If the available messages in the queue are less, returns
+// ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
+// from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
 
@@ -609,8 +609,8 @@ func (k *KafkaBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 }
 
 // CommitByPartitionAndOffset Commits messages if any
-//This func will commit the message consumed
-//by all the previous calls to GetMessages
+// This func will commit the message consumed
+// by all the previous calls to GetMessages
 func (k *KafkaBroker) CommitByPartitionAndOffset(ctx context.Context, request CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "Kafka.CommitByPartitionAndOffset")
 	defer span.Finish()
@@ -779,6 +779,32 @@ func (k *KafkaBroker) Close(ctx context.Context) error {
 	logger.Ctx(ctx).Infow("kafka: consumer closed...", "topic", k.COptions.Topics, "groupID", k.COptions.GroupID)
 
 	return nil
+}
+
+// FetchProjectTopics fetches a list of all topics for a given project
+func (k *KafkaBroker) FetchProjectTopics(ctx context.Context, project string) (map[string]bool, error) {
+	messageBrokerOperationCount.WithLabelValues(env, Kafka, "FetchProjectTopics")
+
+	normalizedProjectname := normalizeTopicName(project)
+	normalizedProjectname = normalizedProjectname + "_"
+	startTime := time.Now()
+	defer func() {
+		messageBrokerOperationTimeTaken.WithLabelValues(env, Kafka, "FetchProjectTopics").Observe(time.Since(startTime).Seconds())
+	}()
+
+	md, err := k.Admin.GetMetadata(nil, true, kafkaMetadataTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	projectTopics := make(map[string]bool, 0)
+	for _, t := range md.Topics {
+		if strings.HasPrefix(t.Topic, normalizedProjectname) {
+			projectTopics[t.Topic] = true
+		}
+	}
+
+	return projectTopics, nil
 }
 
 // AddTopicPartitions adds partitions to an existing topic

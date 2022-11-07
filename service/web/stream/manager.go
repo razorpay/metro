@@ -104,7 +104,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 	pullStream, err := newPullStream(server,
 		req.ClientID,
 		subModel,
-		subscriber.NewCore(s.bs, s.subscriptionCore, s.offsetCore, ch),
+		subscriber.NewCore(s.bs, s.subscriptionCore, s.offsetCore, ch, nil),
 		errGroup,
 		s.cleanupCh,
 	)

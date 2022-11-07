@@ -2,6 +2,7 @@ package retry
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -35,6 +36,7 @@ type Retrier struct {
 	handler        MessageHandler
 	delayConsumers sync.Map
 	errChan        chan error
+	topicCore      topic.ICore
 }
 
 // Start starts a new retrier which internally takes care of spawning the needed delay-consumers.
@@ -55,8 +57,13 @@ func (r *Retrier) Start(ctx context.Context) error {
 		nextDelayInterval,
 		topic.Intervals,
 	))
+
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
 		if uint(interval) <= uint(predefinedInterval) {
+			if _, err := r.topicCore.Get(ctx, topic); err != nil {
+				continue
+			}
+			fmt.Println("creating retrier topic consumer ", topic)
 			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch, r.errChan)
 			if err != nil {
 				return err
@@ -106,6 +113,8 @@ func (r *Retrier) Handle(ctx context.Context, msg messagebroker.ReceivedMessage)
 		nextDelayInterval,
 		topic.Intervals,
 	))
+
+	fmt.Println("delay topic name ", dInterval)
 
 	dcFromMap, _ := r.delayConsumers.Load(dInterval)
 	dc := dcFromMap.(*DelayConsumer)

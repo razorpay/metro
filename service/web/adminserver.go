@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/opentracing/opentracing-go"
@@ -285,12 +286,15 @@ func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projec
 			// validTopics[sub.GetSubscriptionTopic()] = true ###Internal topics are not used and hence up for deletion
 		}
 		for _, validProject := range validProjects {
-			topics, err := s.topicCore.List(ctx, topic.Prefix+validProject)
+			projectName := strings.Split(validProject, "/")
+			if len(projectName) != 3 {
+				return &metrov1.Topics{}, errors.New("incompatible project name")
+			}
+			topics, err := s.topicCore.List(ctx, topic.Prefix+projectName[2])
 			if err != nil {
 				logger.Ctx(ctx).Errorw("failed to fetch project topics", "project", p)
 				return &metrov1.Topics{}, err
 			}
-
 			for _, t := range topics {
 				validTopics[t.Name] = true
 			}

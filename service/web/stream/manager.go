@@ -15,6 +15,7 @@ import (
 	"github.com/razorpay/metro/internal/offset"
 	"github.com/razorpay/metro/internal/subscriber"
 	"github.com/razorpay/metro/internal/subscription"
+	"github.com/razorpay/metro/internal/topic"
 	metrov1 "github.com/razorpay/metro/rpc/proto/v1"
 	"golang.org/x/sync/errgroup"
 )
@@ -39,10 +40,11 @@ type Manager struct {
 	mutex             *sync.Mutex
 	grpcServerAddr    string
 	ctx               context.Context
+	topicCore         topic.ICore
 }
 
 // NewStreamManager ...
-func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, offsetCore offset.ICore, bs brokerstore.IBrokerStore, grpcServerAddr string) IManager {
+func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, offsetCore offset.ICore, bs brokerstore.IBrokerStore, grpcServerAddr string, topicCore topic.ICore) IManager {
 	mgr := &Manager{
 		pullStreams:       make(map[string]IStream),
 		subscriptionCore:  subscriptionCore,
@@ -53,6 +55,7 @@ func NewStreamManager(ctx context.Context, subscriptionCore subscription.ICore, 
 		mutex:             &sync.Mutex{},
 		grpcServerAddr:    grpcServerAddr,
 		ctx:               ctx,
+		topicCore:         topicCore,
 	}
 
 	go mgr.run()
@@ -104,7 +107,7 @@ func (s *Manager) CreateNewStream(server metrov1.Subscriber_StreamingPullServer,
 	pullStream, err := newPullStream(server,
 		req.ClientID,
 		subModel,
-		subscriber.NewCore(s.bs, s.subscriptionCore, s.offsetCore, ch, nil),
+		subscriber.NewCore(s.bs, s.subscriptionCore, s.offsetCore, ch, s.topicCore),
 		errGroup,
 		s.cleanupCh,
 	)

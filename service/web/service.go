@@ -120,7 +120,7 @@ func (svc *Service) Start(ctx context.Context) error {
 
 	offsetCore := offset.NewCore(offset.NewRepo(r))
 
-	streamManager := stream.NewStreamManager(ctx, subscriptionCore, offsetCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress)
+	streamManager := stream.NewStreamManager(ctx, subscriptionCore, offsetCore, brokerStore, svc.webConfig.Interfaces.API.GrpcServerAddress, topicCore)
 
 	go func() {
 		err = <-svc.errChan

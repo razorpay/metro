@@ -327,7 +327,7 @@ func (p *PulsarBroker) AddTopicPartitions(_ context.Context, _ AddTopicPartition
 }
 
 // FetchProjectTopics fetches a list of all topics for a given project
-func (k *PulsarBroker) FetchProjectTopics(ctx context.Context, project string) (map[string]bool, error) {
+func (p *PulsarBroker) FetchProjectTopics(ctx context.Context, project string) (map[string]bool, error) {
 	// unused for pulsar
 	return nil, nil
 }

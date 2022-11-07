@@ -269,6 +269,7 @@ func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projec
 		logger.Ctx(ctx).Errorw("Failed to fetch projects list", "error", err.Error())
 		return &metrov1.Topics{}, err
 	}
+
 	for _, p := range projects.Projects {
 		subs, err := s.subscriptionCore.List(ctx, subscription.Prefix+p)
 		if err != nil {
@@ -322,7 +323,6 @@ func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projec
 					}
 					logger.Ctx(ctx).Infow("Successfully deleted topic", "resp", dtresp)
 				}
-
 			}
 
 		}

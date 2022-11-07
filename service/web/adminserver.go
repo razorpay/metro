@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/opentracing/opentracing-go"
@@ -263,11 +264,17 @@ func denormalizeTopicName(name string) string {
 func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projects) (*metrov1.Topics, error) {
 	logger.Ctx(ctx).Infow("received request to cleanup topics", "projects", projects.GetProjects())
 	tops := metrov1.Topics{}
+	validProjects, err := s.projectCore.ListKeys(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("Failed to fetch projects list", "error", err.Error())
+		return &metrov1.Topics{}, err
+	}
+
 	for _, p := range projects.Projects {
 		subs, err := s.subscriptionCore.List(ctx, subscription.Prefix+p)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("failed to fetch project subscriptions", "project", p)
-			continue
+			return &metrov1.Topics{}, err
 		}
 		validTopics := make(map[string]bool, 0)
 		for _, sub := range subs {
@@ -279,14 +286,19 @@ func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projec
 			validTopics[sub.GetRetryTopic()] = true
 			// validTopics[sub.GetSubscriptionTopic()] = true ###Internal topics are not used and hence up for deletion
 		}
-		topics, err := s.topicCore.List(ctx, topic.Prefix+p)
-		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to fetch project topics", "project", p)
-			continue
-		}
-
-		for _, t := range topics {
-			validTopics[t.Name] = true
+		for _, validProject := range validProjects {
+			projectName := strings.Split(validProject, "/")
+			if len(projectName) != 3 {
+				return &metrov1.Topics{}, errors.New("incompatible project name")
+			}
+			topics, err := s.topicCore.List(ctx, topic.Prefix+projectName[2])
+			if err != nil {
+				logger.Ctx(ctx).Errorw("failed to fetch project topics", "project", p)
+				return &metrov1.Topics{}, err
+			}
+			for _, t := range topics {
+				validTopics[t.Name] = true
+			}
 		}
 
 		admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
@@ -297,18 +309,20 @@ func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projec
 		allTopics, err := admin.FetchProjectTopics(ctx, project.Prefix+p)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("Failed to fetch topics for project from messagebroker", "project", p)
-			continue
+			return &metrov1.Topics{}, err
 		}
 
 		for t := range allTopics {
 			t = denormalizeTopicName(t)
 			if _, ok := validTopics[t]; !ok {
 				tops.Names = append(tops.Names, t)
-				dtresp, err := admin.DeleteTopic(ctx, messagebroker.DeleteTopicRequest{Name: t})
-				if err != nil {
-					logger.Ctx(ctx).Errorw("Failed to delete topics", "error", err.Error())
+				if projects.HardDelete {
+					dtresp, err := admin.DeleteTopic(ctx, messagebroker.DeleteTopicRequest{Name: t})
+					if err != nil {
+						logger.Ctx(ctx).Errorw("Failed to delete topics", "error", err.Error())
+					}
+					logger.Ctx(ctx).Infow("Successfully deleted topic", "resp", dtresp)
 				}
-				logger.Ctx(ctx).Infow("Successfully deleted topic", "resp", dtresp)
 			}
 
 		}

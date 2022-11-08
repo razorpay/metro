@@ -29,6 +29,7 @@ type ICore interface {
 	Get(ctx context.Context, key string) (*Model, error)
 	Migrate(ctx context.Context, names []string) error
 	RescaleSubTopics(ctx context.Context, topicModel *topic.Model) error
+	UpdateSubscriptionStatus(ctx context.Context, names []string, detached bool) ([]string, error)
 }
 
 // Core implements all business logic for a subscription
@@ -564,4 +565,33 @@ func getSubscriptionTopics(m *Model) []string {
 		return subsTopics
 	}
 	return append(subsTopics, m.GetDeadLetterTopic())
+}
+
+// UpdateSubscriptionStatus updates subscription status
+func (c *Core) UpdateSubscriptionStatus(ctx context.Context, names []string, detached bool) ([]string, error) {
+	subscriptionsToUpdate := make([]*Model, 0)
+	for _, name := range names {
+		model, err := c.Get(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		if model.Detached == detached {
+			continue
+		}
+		subscriptionsToUpdate = append(subscriptionsToUpdate, model)
+	}
+
+	updatedSubscriptions := make([]string, 0)
+	for _, model := range subscriptionsToUpdate {
+		model.Detached = detached
+		if updateErr := c.repo.Save(ctx, model); updateErr != nil {
+			logger.Ctx(ctx).Infow("deactivateSubscriptions: error occurred while deactivating subscription",
+				"name", len(model.Name),
+				"error", updateErr.Error(),
+			)
+			continue
+		}
+		updatedSubscriptions = append(updatedSubscriptions, model.Name)
+	}
+	return updatedSubscriptions, nil
 }

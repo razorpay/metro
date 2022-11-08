@@ -584,7 +584,7 @@ func (c *Core) UpdateSubscriptionStatus(ctx context.Context, names []string, det
 	for _, model := range subscriptionsToUpdate {
 		model.Detached = detached
 		if updateErr := c.repo.Save(ctx, model); updateErr != nil {
-			logger.Ctx(ctx).Infow("deactivateSubscriptions: error occured while deactivating subscription",
+			logger.Ctx(ctx).Infow("deactivateSubscriptions: error occurred while deactivating subscription",
 				"name", len(model.Name),
 				"error", updateErr.Error(),
 			)

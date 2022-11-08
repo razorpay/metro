@@ -567,6 +567,7 @@ func getSubscriptionTopics(m *Model) []string {
 	return append(subsTopics, m.GetDeadLetterTopic())
 }
 
+// UpdateSubscriptionStatus updates subscription status
 func (c *Core) UpdateSubscriptionStatus(ctx context.Context, names []string, detached bool) ([]string, error) {
 	subscriptionsToUpdate := make([]*Model, 0)
 	for _, name := range names {

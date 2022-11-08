@@ -257,8 +257,8 @@ func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *me
 }
 
 // normalizeTopicName returns the actual topic name used in message broker
-func denormalizeTopicName(name string) string {
-	return strings.ReplaceAll(name, "_", "/")
+func normalizeTopicName(name string) string {
+	return strings.ReplaceAll(name, "/", "_")
 }
 
 func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projects) (*metrov1.Topics, error) {
@@ -270,50 +270,51 @@ func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projec
 		return &metrov1.Topics{}, err
 	}
 
-	for _, p := range projects.Projects {
-		subs, err := s.subscriptionCore.List(ctx, subscription.Prefix+p)
+	validTopics := make(map[string]bool, 0)
+	for _, validProject := range validProjects {
+		projectName := strings.Split(validProject, "/")
+		if len(projectName) != 3 {
+			return &metrov1.Topics{}, errors.New("incompatible project name")
+		}
+		topics, err := s.topicCore.List(ctx, topic.Prefix+projectName[2])
 		if err != nil {
-			logger.Ctx(ctx).Errorw("failed to fetch project subscriptions", "project", p)
+			logger.Ctx(ctx).Errorw("failed to fetch project topics", "project", projectName[2])
 			return &metrov1.Topics{}, err
 		}
-		validTopics := make(map[string]bool, 0)
+		for _, t := range topics {
+			validTopics[normalizeTopicName(t.Name)] = true
+		}
+		subs, err := s.subscriptionCore.List(ctx, subscription.Prefix+projectName[2])
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to fetch project subscriptions", "project", projectName[2])
+			return &metrov1.Topics{}, err
+		}
 		for _, sub := range subs {
 
 			for _, v := range sub.GetDelayTopics() {
-				validTopics[v] = true
+				validTopics[normalizeTopicName(v)] = true
 			}
-			validTopics[sub.GetDeadLetterTopic()] = true
-			validTopics[sub.GetRetryTopic()] = true
+			validTopics[normalizeTopicName(sub.GetDeadLetterTopic())] = true
+			validTopics[normalizeTopicName(sub.GetRetryTopic())] = true
 			// validTopics[sub.GetSubscriptionTopic()] = true ###Internal topics are not used and hence up for deletion
 		}
-		for _, validProject := range validProjects {
-			projectName := strings.Split(validProject, "/")
-			if len(projectName) != 3 {
-				return &metrov1.Topics{}, errors.New("incompatible project name")
-			}
-			topics, err := s.topicCore.List(ctx, topic.Prefix+projectName[2])
-			if err != nil {
-				logger.Ctx(ctx).Errorw("failed to fetch project topics", "project", p)
-				return &metrov1.Topics{}, err
-			}
-			for _, t := range topics {
-				validTopics[t.Name] = true
-			}
-		}
+	}
 
-		admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
-		if aerr != nil {
-			return nil, merror.ToGRPCError(aerr)
-		}
+	admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return nil, merror.ToGRPCError(aerr)
+	}
+
+	for _, p := range projects.Projects {
 
 		allTopics, err := admin.FetchProjectTopics(ctx, project.Prefix+p)
 		if err != nil {
 			logger.Ctx(ctx).Errorw("Failed to fetch topics for project from messagebroker", "project", p)
 			return &metrov1.Topics{}, err
 		}
-
+		logger.Ctx(ctx).Infow("valids", "valid", validTopics, "allTopics", allTopics)
 		for t := range allTopics {
-			t = denormalizeTopicName(t)
+			t = normalizeTopicName(t)
 			if _, ok := validTopics[t]; !ok {
 				tops.Names = append(tops.Names, t)
 				if projects.HardDelete {

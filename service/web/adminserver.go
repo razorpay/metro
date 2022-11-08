@@ -299,12 +299,13 @@ func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projec
 			// validTopics[sub.GetSubscriptionTopic()] = true ###Internal topics are not used and hence up for deletion
 		}
 	}
-	for _, p := range projects.Projects {
 
-		admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
-		if aerr != nil {
-			return nil, merror.ToGRPCError(aerr)
-		}
+	admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return nil, merror.ToGRPCError(aerr)
+	}
+
+	for _, p := range projects.Projects {
 
 		allTopics, err := admin.FetchProjectTopics(ctx, project.Prefix+p)
 		if err != nil {

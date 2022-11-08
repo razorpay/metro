@@ -340,6 +340,15 @@ func (s adminServer) SetupRetentionPolicy(ctx context.Context, topics *metrov1.T
 	return &metrov1.Topics{Names: updatedTopics}, nil
 }
 
+func (s adminServer) UpdateSubscriptionStatus(ctx context.Context, req *metrov1.SubscriptionStatusUpdateRequst) (*metrov1.Subscriptions, error) {
+	logger.Ctx(ctx).Infow("received request to update subscription state", "subscriptions", req.GetNames(), "detached", req.GetDetached())
+	updatedSubsriptions, err := s.subscriptionCore.UpdateSubscriptionStatus(ctx, req.GetNames(), req.GetDetached())
+	if err != nil {
+		return &metrov1.Subscriptions{Names: updatedSubsriptions}, merror.ToGRPCError(err)
+	}
+	return &metrov1.Subscriptions{Names: updatedSubsriptions}, nil
+}
+
 func (s adminServer) AuthFuncOverride(ctx context.Context, _ string, _ interface{}) (context.Context, error) {
 	return interceptors.AdminAuth(ctx, s.admin)
 }

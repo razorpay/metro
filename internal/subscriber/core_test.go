@@ -11,6 +11,8 @@ import (
 	oCore "github.com/razorpay/metro/internal/offset/mocks/core"
 	"github.com/razorpay/metro/internal/subscription"
 	sCore "github.com/razorpay/metro/internal/subscription/mocks/core"
+	"github.com/razorpay/metro/internal/topic"
+	tCore "github.com/razorpay/metro/internal/topic/mocks/core"
 	"github.com/razorpay/metro/pkg/cache"
 	mCache "github.com/razorpay/metro/pkg/cache/mocks"
 	"github.com/razorpay/metro/pkg/messagebroker"
@@ -36,6 +38,7 @@ func setupCore(t *testing.T) (
 	core *sCore.MockICore,
 	offsetCore *oCore.MockICore,
 	cache *mCache.MockICache,
+	topicCore *tCore.MockICore,
 ) {
 	ctrl := gomock.NewController(t)
 	ctx = context.Background()
@@ -45,16 +48,19 @@ func setupCore(t *testing.T) (
 	core = sCore.NewMockICore(ctrl)
 	offsetCore = oCore.NewMockICore(ctrl)
 	cache = mCache.NewMockICache(ctrl)
+	topicCore = tCore.NewMockICore(ctrl)
+
 	cache.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte{'0'}, nil).AnyTimes()
 	cache.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	store.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(getMockProducer(ctrl), nil).AnyTimes()
 	cs.EXPECT().Close(gomock.Any()).Return(nil).AnyTimes()
 	store.EXPECT().RemoveConsumer(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+	topicCore.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 	return
 }
 
 func TestCore_NewSubscriber(t *testing.T) {
-	ctx, cs, store, _, core, offsetCore, ch := setupCore(t)
+	ctx, cs, store, _, core, offsetCore, ch, topicCore := setupCore(t)
 	ackCh := make(chan *AckMessage)
 	modAckCh := make(chan *ModAckMessage)
 	requestCh := make(chan *PullRequest)
@@ -81,7 +87,7 @@ func TestCore_NewSubscriber(t *testing.T) {
 		{
 			name: "Create new subscriber and run with retry policy",
 			fields: fields{
-				core: NewCore(store, core, offsetCore, ch),
+				core: NewCore(store, core, offsetCore, ch, topicCore),
 			},
 			args: args{
 				ctx:          ctx,
@@ -100,7 +106,7 @@ func TestCore_NewSubscriber(t *testing.T) {
 		{
 			name: "Create new subscriber with getConsumer error Failure",
 			fields: fields{
-				core: NewCore(store, core, offsetCore, ch),
+				core: NewCore(store, core, offsetCore, ch, topicCore),
 			},
 			args: args{
 				ctx:          ctx,
@@ -152,11 +158,13 @@ func TestNewCore(t *testing.T) {
 	mockSubscriptionCore := sCore.NewMockICore(ctrl)
 	mockOffsetCore := oCore.NewMockICore(ctrl)
 	mockCache := mCache.NewMockICache(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
 
 	type args struct {
 		bs               brokerstore.IBrokerStore
 		subscriptionCore subscription.ICore
 		offsetCore       offset.ICore
+		topicCore        topic.ICore
 		ch               cache.ICache
 	}
 	tests := []struct {
@@ -170,19 +178,21 @@ func TestNewCore(t *testing.T) {
 				bs:               mockBrokerStoreCore,
 				subscriptionCore: mockSubscriptionCore,
 				offsetCore:       mockOffsetCore,
+				topicCore:        mockTopicCore,
 				ch:               mockCache,
 			},
 			want: &Core{
 				bs:               mockBrokerStoreCore,
 				subscriptionCore: mockSubscriptionCore,
 				offsetCore:       mockOffsetCore,
+				topicCore:        mockTopicCore,
 				ch:               mockCache,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewCore(tt.args.bs, tt.args.subscriptionCore, tt.args.offsetCore, tt.args.ch)
+			got := NewCore(tt.args.bs, tt.args.subscriptionCore, tt.args.offsetCore, tt.args.ch, tt.args.topicCore)
 			assert.Equal(t, tt.want, got)
 		})
 	}

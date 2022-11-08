@@ -215,7 +215,7 @@ func (m *Model) GetDelayTopicsByBackoff() []string {
 		))
 
 		delayTopics = append(delayTopics, delayTopicsMap[closestInterval])
-		currentInterval = int(closestInterval)
+		currentInterval = int(nextDelayInterval)
 		currentRetryCount++
 	}
 	return delayTopics

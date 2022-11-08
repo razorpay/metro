@@ -15,6 +15,7 @@ import (
 	"github.com/razorpay/metro/internal/brokerstore/mocks"
 	"github.com/razorpay/metro/internal/subscription"
 	"github.com/razorpay/metro/internal/topic"
+	topicCore "github.com/razorpay/metro/internal/topic/mocks/core"
 	mocks2 "github.com/razorpay/metro/pkg/cache/mocks"
 	"github.com/razorpay/metro/pkg/messagebroker"
 	mocks3 "github.com/razorpay/metro/pkg/messagebroker/mocks"
@@ -121,6 +122,8 @@ func TestRetrier_Start(t *testing.T) {
 	).Return(dcs, nil).AnyTimes()
 	mockBrokerStore.EXPECT().RemoveConsumer(ctx, gomock.Any()).AnyTimes()
 	mockBrokerStore.EXPECT().GetProducer(gomock.Any(), gomock.Any()).Return(producer, nil).AnyTimes()
+	mockTopicCore := topicCore.NewMockICore(ctrl)
+	mockTopicCore.EXPECT().Get(ctx, gomock.Any()).AnyTimes().Return(nil, nil)
 
 	r := &Retrier{
 		subscriberID:   "subscription-id",
@@ -131,6 +134,7 @@ func TestRetrier_Start(t *testing.T) {
 		finder:         subscription.NewClosestIntervalWithCeil(),
 		handler:        NewPushToPrimaryRetryTopicHandler(mockBrokerStore),
 		delayConsumers: sync.Map{},
+		topicCore:      mockTopicCore,
 		errChan:        make(chan error),
 	}
 	expDelayTopics := r.subs.GetDelayTopics()

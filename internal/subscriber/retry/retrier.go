@@ -60,6 +60,7 @@ func (r *Retrier) Start(ctx context.Context) error {
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
 		if uint(interval) <= uint(predefinedInterval) {
 			if _, err := r.topicCore.Get(ctx, topic); err != nil {
+				logger.Ctx(ctx).Infow("Start: error while getting delay topic", "topic", topic, "error", err.Error())
 				continue
 			}
 			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch, r.errChan)

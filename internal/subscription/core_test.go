@@ -440,3 +440,46 @@ func TestCore_ListKeys(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"sub01"}, resp)
 }
+
+func TestCore_UpdateSubscriptionStatus(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	mockProjectCore := pCore.NewMockICore(ctrl)
+	mockTopicCore := tCore.NewMockICore(ctrl)
+	mockRepo := repo.NewMockIRepo(ctrl)
+	mockBrokerStore := mocks.NewMockIBrokerStore(ctrl)
+
+	tests := []struct {
+		name          string
+		subscriptions []string
+		expected      []string
+		wantErr       bool
+		err           error
+	}{
+		{
+			name:          "Update Subscription Status without error",
+			subscriptions: []string{"projects/test-project/subscriptions/test-subscription"},
+			expected:      []string{"projects/test-project/subscriptions/test-subscription"},
+			wantErr:       false,
+			err:           nil,
+		},
+		{
+			name:          "Update Subscription Status without any update",
+			subscriptions: []string{"projects/test-project/subscriptions/test-subscription"},
+			expected:      []string{},
+			wantErr:       false,
+			err:           fmt.Errorf("Something went wrong"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockRepo.EXPECT().Get(ctx, gomock.Any(), gomock.Any()).Return(nil).MaxTimes(1)
+			mockRepo.EXPECT().Save(ctx, gomock.Any()).Return(test.err).MaxTimes(1)
+			core := NewCore(mockRepo, mockProjectCore, mockTopicCore, mockBrokerStore)
+			resp, err := core.UpdateSubscriptionStatus(ctx, test.subscriptions, true)
+			assert.Equal(t, test.wantErr, err != nil)
+			assert.NotNil(t, test.expected, resp)
+		})
+	}
+}

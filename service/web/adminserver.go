@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/razorpay/metro/internal/brokerstore"
@@ -254,6 +256,82 @@ func (s adminServer) MigrateSubscriptions(ctx context.Context, subscriptions *me
 	return &emptypb.Empty{}, nil
 }
 
+// normalizeTopicName returns the actual topic name used in message broker
+func normalizeTopicName(name string) string {
+	return strings.ReplaceAll(name, "/", "_")
+}
+
+func (s adminServer) CleanupTopics(ctx context.Context, projects *metrov1.Projects) (*metrov1.Topics, error) {
+	logger.Ctx(ctx).Infow("received request to cleanup topics", "projects", projects.GetProjects())
+	tops := metrov1.Topics{}
+	validProjects, err := s.projectCore.ListKeys(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Errorw("Failed to fetch projects list", "error", err.Error())
+		return &metrov1.Topics{}, err
+	}
+
+	validTopics := make(map[string]bool, 0)
+	for _, validProject := range validProjects {
+		projectName := strings.Split(validProject, "/")
+		if len(projectName) != 3 {
+			return &metrov1.Topics{}, errors.New("incompatible project name")
+		}
+		topics, err := s.topicCore.List(ctx, topic.Prefix+projectName[2])
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to fetch project topics", "project", projectName[2])
+			return &metrov1.Topics{}, err
+		}
+		for _, t := range topics {
+			validTopics[normalizeTopicName(t.Name)] = true
+		}
+		subs, err := s.subscriptionCore.List(ctx, subscription.Prefix+projectName[2])
+		if err != nil {
+			logger.Ctx(ctx).Errorw("failed to fetch project subscriptions", "project", projectName[2])
+			return &metrov1.Topics{}, err
+		}
+		for _, sub := range subs {
+
+			for _, v := range sub.GetDelayTopics() {
+				validTopics[normalizeTopicName(v)] = true
+			}
+			validTopics[normalizeTopicName(sub.GetDeadLetterTopic())] = true
+			validTopics[normalizeTopicName(sub.GetRetryTopic())] = true
+			// validTopics[sub.GetSubscriptionTopic()] = true ###Internal topics are not used and hence up for deletion
+		}
+	}
+
+	admin, aerr := s.brokerStore.GetAdmin(ctx, messagebroker.AdminClientOptions{})
+	if aerr != nil {
+		return nil, merror.ToGRPCError(aerr)
+	}
+
+	for _, p := range projects.Projects {
+
+		allTopics, err := admin.FetchProjectTopics(ctx, project.Prefix+p)
+		if err != nil {
+			logger.Ctx(ctx).Errorw("Failed to fetch topics for project from messagebroker", "project", p)
+			return &metrov1.Topics{}, err
+		}
+		logger.Ctx(ctx).Infow("valids", "valid", validTopics, "allTopics", allTopics)
+		for t := range allTopics {
+			t = normalizeTopicName(t)
+			if _, ok := validTopics[t]; !ok {
+				tops.Names = append(tops.Names, t)
+				if projects.HardDelete {
+					dtresp, err := admin.DeleteTopic(ctx, messagebroker.DeleteTopicRequest{Name: t})
+					if err != nil {
+						logger.Ctx(ctx).Errorw("Failed to delete topics", "error", err.Error())
+					}
+					logger.Ctx(ctx).Infow("Successfully deleted topic", "resp", dtresp)
+				}
+			}
+
+		}
+	}
+
+	return &tops, nil
+}
+
 func (s adminServer) SetupRetentionPolicy(ctx context.Context, topics *metrov1.Topics) (*metrov1.Topics, error) {
 	logger.Ctx(ctx).Infow("received request to set up retention policy")
 	updatedTopics, err := s.topicCore.SetupTopicRetentionConfigs(ctx, topics.GetNames())
@@ -261,6 +339,15 @@ func (s adminServer) SetupRetentionPolicy(ctx context.Context, topics *metrov1.T
 		return nil, merror.ToGRPCError(err)
 	}
 	return &metrov1.Topics{Names: updatedTopics}, nil
+}
+
+func (s adminServer) UpdateSubscriptionStatus(ctx context.Context, req *metrov1.SubscriptionStatusUpdateRequst) (*metrov1.Subscriptions, error) {
+	logger.Ctx(ctx).Infow("received request to update subscription state", "subscriptions", req.GetNames(), "detached", req.GetDetached())
+	updatedSubsriptions, err := s.subscriptionCore.UpdateSubscriptionStatus(ctx, req.GetNames(), req.GetDetached())
+	if err != nil {
+		return &metrov1.Subscriptions{Names: updatedSubsriptions}, merror.ToGRPCError(err)
+	}
+	return &metrov1.Subscriptions{Names: updatedSubsriptions}, nil
 }
 
 func (s adminServer) AuthFuncOverride(ctx context.Context, _ string, _ interface{}) (context.Context, error) {

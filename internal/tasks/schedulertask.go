@@ -255,10 +255,10 @@ func (sm *SchedulerTask) refreshCache(ctx context.Context) error {
 		logger.Ctx(ctx).Errorw("error fetching new subscription list", "error", serr)
 		return serr
 	}
-	// Filter Push Subscriptions
+	// Filter active Push Subscriptions
 	newSubs := make(map[string]*subscription.Model)
 	for _, sub := range allSubs {
-		if sub.IsPush() {
+		if !sub.Detached && sub.IsPush() {
 			newSubs[sub.Name] = sub
 		}
 	}

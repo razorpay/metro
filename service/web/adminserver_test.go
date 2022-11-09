@@ -491,6 +491,55 @@ func Test_adminServer_SetupRetentionPolicy(t *testing.T) {
 	}
 }
 
+func Test_adminServer_UpdateSubscriptionStatus(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	ctx := context.Background()
+	tests := []struct {
+		name     string
+		req      *metrov1.SubscriptionStatusUpdateRequst
+		expected []string
+		err      error
+	}{
+		{
+			name: "Update subscription status without error",
+			req: &metrov1.SubscriptionStatusUpdateRequst{
+				Names:    []string{"projects/test-project/subscriptions/test-subscription"},
+				Detached: true,
+			},
+			expected: []string{"projects/test-project/subscriptions/test-subscription"},
+			err:      nil,
+		},
+		{
+			name: "Update subscription status with error",
+			req: &metrov1.SubscriptionStatusUpdateRequst{
+				Names:    []string{"projects/test-project/subscriptions/test-subscription"},
+				Detached: true,
+			},
+			expected: nil,
+			err:      fmt.Errorf("Something went wrong"),
+		},
+	}
+
+	for _, test := range tests {
+		subscriptionCore := mocks2.NewMockICore(ctrl)
+		subscriptionCore.EXPECT().UpdateSubscriptionStatus(ctx, test.req.Names, test.req.Detached).Return(test.expected, test.err).MaxTimes(1)
+		t.Run(test.name, func(t *testing.T) {
+			adminServer := newAdminServer(
+				&credentials.Model{Username: "u", Password: "p"},
+				mocks.NewMockICore(ctrl),
+				subscriptionCore,
+				mocks3.NewMockICore(ctrl),
+				mocks4.NewMockICore(ctrl),
+				mocksnb.NewMockICore(ctrl),
+				nil,
+			)
+			got, err := adminServer.UpdateSubscriptionStatus(ctx, test.req)
+			assert.Equal(t, test.expected, got.Names)
+			assert.Equal(t, err != nil, test.err != nil)
+		})
+	}
+}
+
 func getDummyCredentialModel() *credentials.Model {
 	encryption.RegisterEncryptionKey("key")
 	pwd, _ := encryption.EncryptAsHexString([]byte("password"))

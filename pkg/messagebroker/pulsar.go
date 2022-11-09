@@ -135,7 +135,7 @@ func newPulsarAdminClient(ctx context.Context, bConfig *BrokerConfig, options *A
 	}, nil
 }
 
-//FetchConsumerLag ...
+// FetchConsumerLag ...
 func (p *PulsarBroker) FetchConsumerLag(ctx context.Context) (map[string]uint64, error) {
 	lag := make(map[string]uint64)
 
@@ -214,8 +214,8 @@ func (p *PulsarBroker) DescribeTopicConfigs(ctx context.Context, names []string)
 	panic("implement this!")
 }
 
-//ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
-//from the previous committed offset. If the available messages in the queue are less, returns
+// ReceiveMessages gets tries to get the number of messages mentioned in the param "numOfMessages"
+// from the previous committed offset. If the available messages in the queue are less, returns
 // how many ever messages are available
 func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFromTopicRequest) (*GetMessagesFromTopicResponse, error) {
 	messageBrokerOperationCount.WithLabelValues(env, Pulsar, "ReceiveMessages").Inc()
@@ -246,9 +246,9 @@ func (p PulsarBroker) ReceiveMessages(ctx context.Context, request GetMessagesFr
 	}, nil
 }
 
-//CommitByPartitionAndOffset Commits messages if any
-//This func will commit the message consumed
-//by all the previous calls to GetMessages
+// CommitByPartitionAndOffset Commits messages if any
+// This func will commit the message consumed
+// by all the previous calls to GetMessages
 func (p *PulsarBroker) CommitByPartitionAndOffset(_ context.Context, _ CommitOnTopicRequest) (CommitOnTopicResponse, error) {
 	// unused for pulsar
 	return CommitOnTopicResponse{}, nil
@@ -322,6 +322,12 @@ func (p *PulsarBroker) Close(_ context.Context) error {
 
 // AddTopicPartitions adds partitions to an existing topic
 func (p *PulsarBroker) AddTopicPartitions(_ context.Context, _ AddTopicPartitionRequest) (*AddTopicPartitionResponse, error) {
+	// unused for pulsar
+	return nil, nil
+}
+
+// FetchProjectTopics fetches a list of all topics for a given project
+func (p *PulsarBroker) FetchProjectTopics(ctx context.Context, project string) (map[string]bool, error) {
 	// unused for pulsar
 	return nil, nil
 }

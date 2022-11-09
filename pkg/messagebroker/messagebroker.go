@@ -28,6 +28,9 @@ type Admin interface {
 
 	// IsHealthy checks health of underlying broker
 	IsHealthy(context.Context) (bool, error)
+
+	// FetchProjectTopics fetches a list of all topics for a given project
+	FetchProjectTopics(ctx context.Context, project string) (map[string]bool, error)
 }
 
 // Producer for produce operations

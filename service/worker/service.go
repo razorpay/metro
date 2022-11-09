@@ -86,7 +86,7 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 		return nil, err
 	}
 
-	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore, offsetCore, ch)
+	subscriberCore := subscriber.NewCore(brokerStore, subscriptionCore, offsetCore, ch, topicCore)
 
 	// Init scheduler task, this schedules the subscriptions on nodes
 	// Leader Task runs this task internally if node is elected as leader

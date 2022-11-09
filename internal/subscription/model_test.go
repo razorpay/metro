@@ -126,9 +126,9 @@ func TestModel_GetDelayTopicsByBackoff(t *testing.T) {
 			deadLetterPolicy: &DeadLetterPolicy{MaxDeliveryAttempts: 5},
 			expected: []string{
 				subModel.GetDelay30secTopic(),
-				subModel.GetDelay60secTopic(),
+				subModel.GetDelay30secTopic(),
 				subModel.GetDelay150secTopic(),
-				subModel.GetDelay300secTopic(),
+				subModel.GetDelay150secTopic(),
 				subModel.GetDelay600secTopic(),
 			},
 		},

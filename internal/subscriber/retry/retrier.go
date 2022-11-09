@@ -35,6 +35,7 @@ type Retrier struct {
 	handler        MessageHandler
 	delayConsumers sync.Map
 	errChan        chan error
+	topicCore      topic.ICore
 }
 
 // Start starts a new retrier which internally takes care of spawning the needed delay-consumers.
@@ -55,8 +56,13 @@ func (r *Retrier) Start(ctx context.Context) error {
 		nextDelayInterval,
 		topic.Intervals,
 	))
+
 	for interval, topic := range r.subs.GetDelayTopicsMap() {
 		if uint(interval) <= uint(predefinedInterval) {
+			if _, err := r.topicCore.Get(ctx, topic); err != nil {
+				logger.Ctx(ctx).Infow("Start: error while getting delay topic", "topic", topic, "error", err.Error())
+				continue
+			}
 			dc, err := NewDelayConsumer(ctx, r.subscriberID, topic, r.subs, r.bs, r.handler, r.ch, r.errChan)
 			if err != nil {
 				return err

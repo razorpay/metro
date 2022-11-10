@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"github.com/razorpay/metro/pkg/cache/mocks"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -22,7 +23,7 @@ type ConsulClient struct {
 // NewConsulClient creates a new consul client
 func NewConsulClient(config *ConsulConfig) (ICache, error) {
 	if config.Mock {
-		return &MockConsulClient{}, nil
+		return &mocks.MockConsulClient{}, nil
 	}
 	client, err := api.NewClient(&config.Config)
 

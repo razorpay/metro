@@ -2,8 +2,9 @@ package cache
 
 import (
 	"context"
-	"github.com/razorpay/metro/pkg/cache/mocks"
 	"time"
+
+	"github.com/razorpay/metro/pkg/cache/mocks"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/opentracing/opentracing-go"

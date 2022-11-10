@@ -3,9 +3,10 @@ package registry
 import (
 	"context"
 	"fmt"
-	"github.com/razorpay/metro/pkg/registry/mocks"
 	"strconv"
 	"time"
+
+	"github.com/razorpay/metro/pkg/registry/mocks"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"

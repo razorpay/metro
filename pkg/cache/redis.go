@@ -2,9 +2,10 @@ package cache
 
 import (
 	"context"
-	"github.com/razorpay/metro/pkg/cache/mocks"
 	"net"
 	"time"
+
+	"github.com/razorpay/metro/pkg/cache/mocks"
 
 	"github.com/go-redis/redis"
 )

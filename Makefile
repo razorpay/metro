@@ -40,7 +40,7 @@ PKGS     = $(or $(PKG),$(shell $(GO) list ./...))
 
 $(BIN)/%: | $(BIN) ; $(info $(M) building package: $(PACKAGE)…)
 	tmp=$$(mktemp -d); \
-	   env GOBIN=$(BIN) go get $(PACKAGE) \
+	   env GOBIN=$(BIN) go install $(PACKAGE) \
 		|| ret=$$?; \
 	   rm -rf $$tmp ; exit $$ret
 

@@ -1,5 +1,6 @@
 ## Set defaults
 export GO111MODULE := on
+export GOFLAGS=-buildvcs=false
 
 # Fetch OS info
 GOVERSION=$(shell go version)
@@ -237,7 +238,6 @@ test-compat:
 
 .PHONY: test-unit-prepare
 test-unit-prepare:
-	@export GOFLAGS=-buildvcs=false
 	@mkdir -p $(TMP_DIR)
 	@go list ./... | grep -Ev 'tests|mocks|statik|rpc' > $(TMP_DIR)/$(PKG_LIST_TMP_FILE)
 

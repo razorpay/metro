@@ -21,7 +21,7 @@ jobs:
           echo "Don't cancel old workflow"
   tests:
     runs-on: ubuntu-latest
-    container: golang:1.19-alpine3.15
+    container: golang:1.19-alpine3.16
     continue-on-error: false
     name: Unit tests
     needs: [cancel]
@@ -118,7 +118,7 @@ jobs:
   integration-tests:
       runs-on: ubuntu-latest
       container:
-        image: golang:1.19-alpine3.15
+        image: golang:1.19-alpine3.16
         ports:
           - 8077
       continue-on-error: false

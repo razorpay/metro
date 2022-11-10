@@ -22,10 +22,15 @@ type ConsulClient struct {
 // ConsulConfig for ConsulClient
 type ConsulConfig struct {
 	api.Config
+	Mock bool
 }
 
 // NewConsulClient creates a new consul client
 func NewConsulClient(config *ConsulConfig) (IRegistry, error) {
+	if config.Mock {
+		return &MockConsulClient{}, nil
+	}
+
 	client, err := api.NewClient(&config.Config)
 
 	if err != nil {

@@ -5,8 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/razorpay/metro/pkg/cache/mocks"
-
 	"github.com/go-redis/redis"
 )
 
@@ -27,7 +25,7 @@ type RedisClient struct {
 // NewRedisClient ...
 func NewRedisClient(config *RedisConfig) (ICache, error) {
 	if config.Mock {
-		return &mocks.MockRedisClient{}, nil
+		return &MockRedisClient{}, nil
 	}
 	options := &redis.Options{
 		Addr:     net.JoinHostPort(config.Host, config.Port),

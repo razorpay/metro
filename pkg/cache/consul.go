@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/razorpay/metro/pkg/cache/mocks"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/opentracing/opentracing-go"
 )
@@ -24,7 +22,7 @@ type ConsulClient struct {
 // NewConsulClient creates a new consul client
 func NewConsulClient(config *ConsulConfig) (ICache, error) {
 	if config.Mock {
-		return &mocks.MockConsulClient{}, nil
+		return &MockConsulClient{}, nil
 	}
 	client, err := api.NewClient(&config.Config)
 

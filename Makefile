@@ -82,7 +82,7 @@ deps: buf-deps
 	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v2.5.0
 	@go install github.com/rakyll/statik@v0.1.7
 	@go install golang.org/x/lint/golint@latest
-	@go install github.com/bykof/go-plantuml@v1.0.0
+	@go install github.com/bykof/go-plantuml@v1.1.7
 	@go install github.com/golang/mock/mockgen@v1.6.0
 
 buf-deps:

@@ -84,8 +84,9 @@ func getResourceNameFromRequest(ctx context.Context, req interface{}) (string, e
 
 // getProjectIDFromResourceName - Fetches the project id from resource name using regex capturing group
 // Example: projects/project001/subscriptions/subscription001 -> project001
-//          projects/project001/topics/topic001               -> project001
-//          topics/topic001                                   -> invalid
+//
+//	projects/project001/topics/topic001               -> project001
+//	topics/topic001                                   -> invalid
 func getProjectIDFromResourceName(ctx context.Context, resourceName string) (string, error) {
 	matches := projectIDRegex.FindStringSubmatch(resourceName)
 	if len(matches) < 2 {

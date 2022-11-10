@@ -268,13 +268,13 @@ func (sm *SchedulerTask) refreshCache(ctx context.Context) error {
 }
 
 // refreshNodeBindings achieves the following in the order outline:
-// 1. Go through node bindings and remove invalid bindings
-// 	 (Invalid due to changes in the subscription, node failures, topic updates, etc)
-//	  a. Remove bindings that do not conform to the new partition based approach.
-//    b. Remove nodebindings for deleted/invalid subscriptions.
-//    c. Remove nodebindings impacted by node failures
-// 2. Evaluate subscriptions and schedule any missing subscription/partition combos to nodes available.
-// 3. Topic changes are inherently covered since subscription validates against topic.
+//  1. Go through node bindings and remove invalid bindings
+//     (Invalid due to changes in the subscription, node failures, topic updates, etc)
+//     a. Remove bindings that do not conform to the new partition based approach.
+//     b. Remove nodebindings for deleted/invalid subscriptions.
+//     c. Remove nodebindings impacted by node failures
+//  2. Evaluate subscriptions and schedule any missing subscription/partition combos to nodes available.
+//  3. Topic changes are inherently covered since subscription validates against topic.
 func (sm *SchedulerTask) refreshNodeBindings(ctx context.Context) error {
 	err := sm.refreshCache(ctx)
 	if err != nil {

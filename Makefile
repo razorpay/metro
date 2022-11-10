@@ -242,6 +242,7 @@ test-unit-prepare:
 
 .PHONY: test-unit ## Run unit tests
 test-unit: test-unit-prepare
+	@export GOFLAGS=-buildvcs=false
 	@APP_ENV=dev_docker go test --count=1 -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE) ./...
 	@go tool cover -func=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE)
 

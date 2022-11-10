@@ -1,0 +1,17 @@
+plugin: rest
+resources:
+- method: POST
+  path: /simple
+  response:
+    statusCode: 200
+    delay:
+      min: 100
+      max: 500
+- method: POST
+  path: /multiple-attempts
+  response:
+    scriptFile: attempt.groovy
+    statusCode: 200
+    delay:
+      min: 100
+      max: 500

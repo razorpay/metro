@@ -82,7 +82,7 @@ func (rc *RedisClient) IsAlive(ctx context.Context) (bool, error) {
 	return false, err
 }
 
-//Disconnect ... disconnects from the redis server
+// Disconnect ... disconnects from the redis server
 func (rc *RedisClient) Disconnect() error {
 	err := rc.client.Close()
 	if err != nil {

@@ -4,6 +4,9 @@ package worker
 
 import (
 	"context"
+	"reflect"
+	"testing"
+
 	"github.com/razorpay/metro/internal/brokerstore"
 	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/pkg/cache"
@@ -12,8 +15,6 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"reflect"
-	"testing"
 )
 
 func TestNewService(t *testing.T) {

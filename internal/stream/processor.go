@@ -121,7 +121,10 @@ func (pr *processor) pushMessage(ctx context.Context, message *metrov1.ReceivedM
 
 	logFields["endpoint"] = subModel.GetRedactedPushEndpoint()
 	logger.Ctx(ctx).Infow("worker: posting messages to subscription url", "logFields", logFields)
+
+	startTimeForSendRequest := time.Now()
 	resp, err := httpclient.SendRequest(pr.httpClient, req)
+	workerPushEndpointLatency.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.GetRedactedPushEndpoint()).Observe(time.Since(startTimeForSendRequest).Seconds())
 
 	// log metrics
 	workerPushEndpointCallsCount.WithLabelValues(env, subModel.Topic, subModel.Name, subModel.GetRedactedPushEndpoint(), pr.subID).Inc()

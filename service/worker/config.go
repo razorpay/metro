@@ -29,6 +29,7 @@ type NetworkInterfaces struct {
 	InternalHTTPServerAddress string
 }
 
+// SchedulerConfig contains all scheduler config
 type SchedulerConfig struct {
 	NodeBindingRefreshTickerMins int
 }

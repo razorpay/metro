@@ -49,7 +49,7 @@ func TestSchedulerTask_Run(t *testing.T) {
 		nodebindingCoreMock,
 		subscriptionCoreMock,
 		schedulerMock,
-		WithSchedulerConfig(&Config{}))
+		WithSchedulerConfig(&Config{NodeBindingRefreshIntervalMins: 10}))
 	assert.Nil(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())

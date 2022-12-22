@@ -19,6 +19,7 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
+// Config is scheduler config
 type Config struct {
 	NodeBindingRefreshIntervalMins int
 }

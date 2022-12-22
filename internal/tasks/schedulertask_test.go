@@ -48,7 +48,8 @@ func TestSchedulerTask_Run(t *testing.T) {
 		topicCoreMock,
 		nodebindingCoreMock,
 		subscriptionCoreMock,
-		schedulerMock)
+		schedulerMock,
+		WithSchedulerConfig(&Config{}))
 	assert.Nil(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())

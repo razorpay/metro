@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"github.com/razorpay/metro/internal/tasks"
 	"github.com/razorpay/metro/pkg/httpclient"
 	"github.com/razorpay/metro/pkg/messagebroker"
 )
@@ -12,6 +13,7 @@ type Config struct {
 		API NetworkInterfaces
 	}
 	HTTPClientConfig httpclient.Config
+	SchedulerConfig  tasks.Config
 }
 
 // Broker Config (Kafka/Pulsar)
@@ -25,4 +27,8 @@ type NetworkInterfaces struct {
 	GrpcServerAddress         string
 	HTTPServerAddress         string
 	InternalHTTPServerAddress string
+}
+
+type SchedulerConfig struct {
+	NodeBindingRefreshTickerMins int
 }

@@ -53,6 +53,8 @@
             maxHostIdleConns        = 1000
             responseHeaderTimeoutMs = 25000
             tlsHandshakeTimeoutMs   = 2000
+    [worker.schedulerconfig]
+            nodeBindingRefreshIntervalMins = 360
 
 [registry]
     driver                    = "consul"

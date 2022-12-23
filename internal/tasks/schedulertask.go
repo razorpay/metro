@@ -19,23 +19,29 @@ import (
 	"github.com/razorpay/metro/pkg/registry"
 )
 
+// Config is scheduler config
+type Config struct {
+	NodeBindingRefreshIntervalMins int
+}
+
 // SchedulerTask implements the scheduling of subscriptions over nodes.
 // only leader node elected using the leader election process does scheduling
 type SchedulerTask struct {
-	id               string
-	registry         registry.IRegistry
-	brokerstore      brokerstore.IBrokerStore
-	nodeCore         node.ICore
-	scheduler        scheduler.IScheduler
-	topicCore        topic.ICore
-	nodeBindingCore  nodebinding.ICore
-	subscriptionCore subscription.ICore
-	nodeCache        map[string]*node.Model
-	subCache         map[string]*subscription.Model
-	topicCache       map[string]*topic.Model
-	nodeWatchData    chan *struct{}
-	subWatchData     chan *struct{}
-	topicWatchData   chan *struct{}
+	id                       string
+	registry                 registry.IRegistry
+	brokerstore              brokerstore.IBrokerStore
+	nodeCore                 node.ICore
+	scheduler                scheduler.IScheduler
+	topicCore                topic.ICore
+	nodeBindingCore          nodebinding.ICore
+	subscriptionCore         subscription.ICore
+	nodeCache                map[string]*node.Model
+	subCache                 map[string]*subscription.Model
+	topicCache               map[string]*topic.Model
+	nodeWatchData            chan *struct{}
+	subWatchData             chan *struct{}
+	topicWatchData           chan *struct{}
+	nodeBindingRefreshTicker *time.Ticker
 }
 
 // NewSchedulerTask creates SchedulerTask instance
@@ -72,6 +78,14 @@ func NewSchedulerTask(
 	}
 
 	return schedulerTask, nil
+}
+
+// WithSchedulerConfig defines the scheduler config for automatic node binding refresh
+func WithSchedulerConfig(config *Config) Option {
+	return func(task ITask) {
+		schedulerTask := task.(*SchedulerTask)
+		schedulerTask.nodeBindingRefreshTicker = time.NewTicker(time.Duration(config.NodeBindingRefreshIntervalMins) * time.Minute)
+	}
 }
 
 // Run the task
@@ -149,6 +163,21 @@ func (sm *SchedulerTask) Run(ctx context.Context) error {
 		watchErr := topicWatcher.StartWatch()
 		close(sm.topicWatchData)
 		return watchErr
+	})
+
+	leadgrp.Go(func() error {
+		for {
+			select {
+			case <-gctx.Done():
+				return nil
+			case <-sm.nodeBindingRefreshTicker.C:
+				logger.Ctx(gctx).Infow("triggering node binding refresh")
+				nerr := sm.nodeBindingCore.TriggerNodeBindingRefresh(ctx)
+				if nerr != nil {
+					logger.Ctx(gctx).Infow("error triggering node binding refresh", "error", nerr)
+				}
+			}
+		}
 	})
 
 	// handle node and subscription updates

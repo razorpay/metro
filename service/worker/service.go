@@ -99,7 +99,7 @@ func NewService(workerConfig *Config, registryConfig *registry.Config, cacheConf
 		nodeBindingCore,
 		subscriptionCore,
 		scheduler,
-	)
+		tasks.WithSchedulerConfig(&workerConfig.SchedulerConfig))
 	if err != nil {
 		return nil, err
 	}

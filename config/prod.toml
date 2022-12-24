@@ -53,7 +53,7 @@
             responseHeaderTimeoutMs = 25000
             tlsHandshakeTimeoutMs   = 2000
     [worker.schedulerconfig]
-            nodeBindingRefreshIntervalMins = 60
+            nodeBindingRefreshIntervalMins = 180
 
 [registry]
     driver                    = "consul"

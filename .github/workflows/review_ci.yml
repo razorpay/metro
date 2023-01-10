@@ -10,7 +10,7 @@ jobs:
   reviewdog:
     name: Run reviewdog
     runs-on: ubuntu-latest
-    container: golang:1.16.5-alpine3.13
+    container: golang:1.19-alpine3.16
     steps:
       - name: checkout
         id: checkout
@@ -24,7 +24,7 @@ jobs:
         run: |
           make deps proto-generate mock-gen
           go mod vendor
-      - name: Target repo permission update # Workaround for CVE-2022-24765  
+      - name: Target repo permission update # Workaround for CVE-2022-24765
         run: |
           sudo chown -R root:root $GITHUB_WORKSPACE
       - name: golangci-lint

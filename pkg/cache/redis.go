@@ -14,6 +14,7 @@ type RedisConfig struct {
 	Port     string
 	Database int32
 	Password string
+	Mock     bool
 }
 
 // RedisClient ...
@@ -22,7 +23,10 @@ type RedisClient struct {
 }
 
 // NewRedisClient ...
-func NewRedisClient(config *RedisConfig) (*RedisClient, error) {
+func NewRedisClient(config *RedisConfig) (ICache, error) {
+	if config.Mock {
+		return &MockRedisClient{}, nil
+	}
 	options := &redis.Options{
 		Addr:     net.JoinHostPort(config.Host, config.Port),
 		Password: config.Password,
@@ -78,7 +82,7 @@ func (rc *RedisClient) IsAlive(ctx context.Context) (bool, error) {
 	return false, err
 }
 
-//Disconnect ... disconnects from the redis server
+// Disconnect ... disconnects from the redis server
 func (rc *RedisClient) Disconnect() error {
 	err := rc.client.Close()
 	if err != nil {

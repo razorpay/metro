@@ -9,18 +9,14 @@ on:
 jobs:
   reviewdog:
     name: Run reviewdog
-    runs-on: [ self-hosted ]
-    container: 
-      image: c.rzp.io/proxy_dockerhub/golang:1.16.5-alpine3.13
-      credentials:
-        username: ${{ secrets.HARBOR_DOCKER_USERNAME }}
-        password: ${{ secrets.HARBOR_DOCKER_PASSWORD }}
-      volumes:
-        - /etc/hosts:/etc/hosts
+    runs-on: ubuntu-latest
+    container: golang:1.16.5-alpine3.13
     steps:
       - name: checkout
         id: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v1
+        with:
+          submodules: true
       - name: install prerequisites
         run: |
           apk add --update --no-cache --repository https://dl-4.alpinelinux.org/alpine/latest-stable/community/ build-base gcc make git librdkafka-dev pkgconf curl bash sudo
@@ -30,7 +26,7 @@ jobs:
           go mod vendor
       - name: Target repo permission update # Workaround for CVE-2022-24765  
         run: |
-          chown -R root:root $GITHUB_WORKSPACE
+          sudo chown -R root:root $GITHUB_WORKSPACE
       - name: golangci-lint
         uses: reviewdog/action-golangci-lint@v1
         with:

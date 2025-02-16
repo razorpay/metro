@@ -11,6 +11,7 @@ import (
 // ConsulConfig ...
 type ConsulConfig struct {
 	api.Config
+	Mock bool
 }
 
 // ConsulClient ...
@@ -20,6 +21,9 @@ type ConsulClient struct {
 
 // NewConsulClient creates a new consul client
 func NewConsulClient(config *ConsulConfig) (ICache, error) {
+	if config.Mock {
+		return &MockConsulClient{}, nil
+	}
 	client, err := api.NewClient(&config.Config)
 
 	if err != nil {

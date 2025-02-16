@@ -91,6 +91,10 @@ func NewBrokerStore(variant string, config *messagebroker.BrokerConfig) (IBroker
 		return nil, fmt.Errorf("brokerstore: variant must be non-empty")
 	}
 
+	if variant != messagebroker.Kafka && variant != messagebroker.Pulsar {
+		return nil, fmt.Errorf("brokerstore: provided variant is not supported")
+	}
+
 	if config == nil {
 		return nil, fmt.Errorf("brokerstore: broker config must be non-nil")
 	}

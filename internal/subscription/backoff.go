@@ -43,7 +43,7 @@ type exponentialWindowBackoffParams struct{}
 
 // Using below formula
 // EXPONENTIAL: nextDelayInterval = currentDelayInterval + (delayIntervalMinutes * 2^(retryCount-1))
-//Refer http://exponentialbackoffcalculator.com/
+// Refer http://exponentialbackoffcalculator.com/
 func (e exponentialWindowBackoffParams) Next(b BackoffPolicy) float64 {
 	return b.lastInterval + b.startInterval*math.Pow(2, b.count-1)
 }

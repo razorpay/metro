@@ -1,3 +1,4 @@
+//go:build compatibility
 // +build compatibility
 
 package compatibility

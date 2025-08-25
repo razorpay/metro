@@ -146,7 +146,7 @@ func (s publisherServer) ListProjectTopics(ctx context.Context,
 	return &metrov1.ListProjectTopicsResponse{Topics: res}, nil
 }
 
-//AuthFuncOverride - Override function called by the auth interceptor
+// AuthFuncOverride - Override function called by the auth interceptor
 func (s publisherServer) AuthFuncOverride(ctx context.Context, fullMethodName string, req interface{}) (context.Context, error) {
 	return authRequest(ctx, s.credentialsCore, fullMethodName, req)
 }

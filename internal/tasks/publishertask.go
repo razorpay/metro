@@ -147,7 +147,9 @@ func (pu *PublisherTask) refreshCache(ctx context.Context) error {
 
 	topicData := make(map[string]bool)
 	for _, topic := range topics {
-		topicData[topic.Name] = true
+		if topic.IsPrimaryTopic() {
+			topicData[topic.Name] = true
+		}
 	}
 
 	TopicCacheData = topicData

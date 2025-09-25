@@ -1,5 +1,6 @@
 ## Set defaults
 export GO111MODULE := on
+export GOFLAGS=-buildvcs=false
 
 # Fetch OS info
 GOVERSION=$(shell go version)
@@ -17,6 +18,7 @@ PKG_LIST_TMP_FILE := "app.packages"
 UNIT_COVERAGE_TMP_FILE := "app-unit.cov"
 INTG_COVERAGE_TMP_FILE := "app-integration.cov"
 UNIT_TEST_EXCLUSIONS_FILE := "unit-test.exclusions"
+MOCK_FILES_EXCLUSION_PATTERN := 'mock_'
 # Proto gen info
 PROTO_ROOT := "metro-proto/"
 RPC_ROOT := "rpc/"
@@ -40,7 +42,7 @@ PKGS     = $(or $(PKG),$(shell $(GO) list ./...))
 
 $(BIN)/%: | $(BIN) ; $(info $(M) building package: $(PACKAGE)…)
 	tmp=$$(mktemp -d); \
-	   env GOBIN=$(BIN) go get $(PACKAGE) \
+	   env GOBIN=$(BIN) go install $(PACKAGE) \
 		|| ret=$$?; \
 	   rm -rf $$tmp ; exit $$ret
 
@@ -243,6 +245,7 @@ test-unit-prepare:
 .PHONY: test-unit ## Run unit tests
 test-unit: test-unit-prepare
 	@APP_ENV=dev_docker go test --count=1 -tags=unit,musl -timeout 2m -coverpkg=$(shell comm -23 $(TMP_DIR)/$(PKG_LIST_TMP_FILE) $(UNIT_TEST_EXCLUSIONS_FILE) | xargs | sed -e 's/ /,/g') -coverprofile=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE) ./...
+	@sed -i.bak '/$(MOCK_FILES_EXCLUSION_PATTERN)/d' $(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE)
 	@go tool cover -func=$(TMP_DIR)/$(UNIT_COVERAGE_TMP_FILE)
 
 .PHONY: help ## Display this help screen

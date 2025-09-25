@@ -25,12 +25,12 @@ type BaseModel struct {
 	version *string
 }
 
-//SetVersion Base implementation of set version
+// SetVersion Base implementation of set version
 func (b *BaseModel) SetVersion(version string) {
 	b.version = &version
 }
 
-//GetVersion Base implementation of get version. Default version is "0".
+// GetVersion Base implementation of get version. Default version is "0".
 func (b *BaseModel) GetVersion() string {
 	if b.version == nil {
 		return defaultVersion

@@ -1,14 +1,14 @@
 // Package config has specific primitives for loading application configurations.
 //
 // Primitives:
-// - 	Application should have struct for containing configuration. E.g. refer
-// 		metro/internal/config/config.go file.
-// - 	Application should have a directory holding default file and environment
-// 		specific file. E.g. refer metro/configs/* directory.
+//   - Application should have struct for containing configuration. E.g. refer
+//     metro/internal/config/config.go file.
+//   - Application should have a directory holding default file and environment
+//     specific file. E.g. refer metro/configs/* directory.
 //
 // Usage:
-// - 	E.g. NewDefaultConfig().Load("dev", &config), where config is a struct
-// 		where configuration gets unmarshalled into.
+//   - E.g. NewDefaultConfig().Load("dev", &config), where config is a struct
+//     where configuration gets unmarshalled into.
 package config
 
 import (

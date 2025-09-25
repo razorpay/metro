@@ -27,7 +27,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/rakyll/statik v0.1.7
 	github.com/rs/xid v1.3.0
 	github.com/sethvargo/go-password v0.2.0
@@ -40,7 +40,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.48.0
-	google.golang.org/genproto v0.0.0-20220503193339-ba3ae3f07e29
+	google.golang.org/genproto v0.0.0-20220503193339-ba3ae3f07e29 // indirect
 	google.golang.org/grpc v1.46.0
 	google.golang.org/protobuf v1.28.0
 )

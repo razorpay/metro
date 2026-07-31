@@ -10,7 +10,7 @@ jobs:
   reviewdog:
     name: Run reviewdog
     runs-on: ubuntu-latest
-    container: golang:1.16.5-alpine3.13
+    container: c.rzp.io/razorpay/rzp-docker-image-inventory-multi-arch:rzp-golden-image-base-golang-1.25-alpine3.22
     steps:
       - name: checkout
         id: checkout

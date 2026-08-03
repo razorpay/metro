@@ -1,6 +1,6 @@
 # Stage 1 - Generate proto
 ###########################
-FROM c.rzp.io/razorpay/rzp-docker-image-inventory-multi-arch:rzp-golden-image-base-golang-1.25-alpine3.22 as proto-builder
+FROM golang:1.25-alpine3.22 as proto-builder
 
 ENV CGO_ENABLED 1
 ENV METRO_APPENV=${APP_ENV}
@@ -27,7 +27,7 @@ RUN make proto-generate
 
 # Stage 2 - Compilation build stage
 ######################################
-FROM c.rzp.io/razorpay/rzp-docker-image-inventory-multi-arch:rzp-golden-image-base-golang-1.25-alpine3.22 as builder
+FROM golang:1.25-alpine3.22 as builder
 
 ENV CGO_ENABLED 1
 ENV METRO_APPENV=${APP_ENV}

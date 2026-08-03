@@ -59,7 +59,7 @@ RUN make go-build-metro
 
 # Stage 3 - Binary build stage
 ######################################
-FROM alpine:3.16
+FROM alpine:3.22
 
 COPY --from=builder /src/bin/metro /app/
 COPY --from=builder /src/config/ /app/config/

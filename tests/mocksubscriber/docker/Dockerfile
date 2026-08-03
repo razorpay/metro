@@ -13,7 +13,7 @@ WORKDIR $SRC_DIR
 RUN go build -o mock-server tests/mocksubscriber/cmd/main.go
 
 # final stage
-FROM alpine:3.13
+FROM alpine:3.22
 
 COPY --from=builder /src/mock-server /app/
 COPY ./tests/mocksubscriber/docker/entrypoint.sh /app/
